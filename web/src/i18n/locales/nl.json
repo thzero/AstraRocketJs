@@ -67,7 +67,8 @@
       "noseFlipped": "RASAero kent geen omgekeerde neuskegels, dus \"{{name}}\" kan niet worden geëxporteerd. Gebruik een overgang of exporteer als .ork.",
       "noseOgiveParameter": "RASAero kent ogief-neuskegels alleen met vormparameter 1, dus \"{{name}}\" (vormparameter {{value}}) kan niet worden geëxporteerd. Wijzig de vormparameter of exporteer als .ork.",
       "noseHaackParameter": "RASAero kent Haack-neuskegels alleen met vormparameter 0 (Von Kármán) of 0,33 (LV-Haack), dus \"{{name}}\" (vormparameter {{value}}) kan niet worden geëxporteerd. Wijzig de vormparameter of exporteer als .ork.",
-      "chuteEvent": "RASAero opent een parachute alleen op het hoogste punt of op een hoogte, dus \"{{name}}\" ({{event}}) kan niet worden geëxporteerd. Wijzig de ontplooiing of exporteer als .ork."
+      "chuteEvent": "RASAero opent een parachute alleen op het hoogste punt of op een hoogte, dus \"{{name}}\" ({{event}}) kan niet worden geëxporteerd. Wijzig de ontplooiing of exporteer als .ork.",
+      "boosterBoattail": "RASAero staat een boattail alleen toe op de laatste trap, dus de afsluitende overgang van trap \"{{stage}}\" kan niet worden geëxporteerd. Verwijder hem of exporteer als .ork."
     },
     "motorFile": {
       "engNoData": "Geen geldig .eng-bestand (geen motorgegevens gevonden).",
@@ -181,6 +182,7 @@
     "saveOrkNoDesignInfo": "Het .ork-bestand is opgeslagen zonder ontwerpinformatie: het ontwerp kon niet worden opgebouwd, dus er was geen statistiek om op te nemen.",
     "exportRasaero": "Kon RASAero niet exporteren: {{reason}}",
     "exportRasaeroSurface": "Het RASAero-bestand is opgeslagen, maar RASAero heeft geen oppervlak dat past bij de afwerking van dit ontwerp, dus het is als glad (ruwheid nul) geschreven.",
+    "exportRasaeroStageMass": "Het RASAero-bestand is opgeslagen, maar het lanceergewicht en het zwaartepunt van een trap waren niet beschikbaar, dus de gewichts- en zwaartepuntcellen van de simulatie zijn als 0 geschreven. Vul ze in RASAero in voordat u vliegt.",
     "exportUnsupported": "Dit onderdeel kan niet als {{format}} worden geëxporteerd.",
     "exportFailed": "Kon {{format}} niet exporteren: {{reason}}",
     "exportRkt": "Kon het .rkt-bestand niet schrijven: {{reason}}",
@@ -493,6 +495,7 @@
     "sketchMarkers": "Zwaartepunt / drukpunt",
     "sketchRulers": "Linealen",
     "launchNote": "Standaard lanceeromstandigheden voor nieuwe simulaties. De omstandigheden van een bestaande simulatie pas je aan in het paneel Lancering daarvan.",
+    "launchStillAir": "Een nieuwe simulatie begint hier bij windstilte; OpenRocket voor de desktop begint met 2 m/s wind, gelanceerd tegen de wind in.",
     "defaultSpeed": "Standaardsnelheid",
     "confirmDelete": "Verwijderen van simulaties bevestigen",
     "autoRunOutdated": "Verouderde simulaties automatisch uitvoeren",
@@ -571,6 +574,7 @@
     "edit": "Raketconfiguratie bewerken",
     "name": "Ontwerpnaam",
     "designer": "Ontwerper",
+    "kitName": "Kitnaam",
     "designType": "Soort ontwerp",
     "comments": "Opmerkingen",
     "revision": "Revisiegeschiedenis",
@@ -1282,6 +1286,12 @@
     "motorTooWide": "Motor \"{{motor}}\" is {{diameter}} mm en houder \"{{mount}}\" neemt {{bore}} mm, dus hij past niet. Geplaatst zoals het bestand hem noemt: controleer hem voor het vliegen.",
     "motorTooLong": "Motor \"{{motor}}\" is {{length}} mm lang en houder \"{{mount}}\" biedt {{maxLength}} mm, dus hij past niet. Geplaatst zoals het bestand hem noemt: controleer hem voor het vliegen.",
     "mountsWithoutMotor": "Motorhouders zonder motor in dit bestand: {{mounts}}. Kies een motor voor het vliegen (er wordt geen standaardmotor gevlogen).",
+    "finishUnknown": "{{part}}: het bestand noemt een oppervlakafwerking \"{{value}}\" die deze app niet heeft, dus het onderdeel wordt gelezen als gewone verf.",
+    "shapeUnknown": "{{part}}: het bestand noemt een vorm \"{{value}}\" die deze app niet heeft, dus de standaardvorm wordt gebruikt.",
+    "crossSectionUnknown": "{{part}}: het bestand noemt een vindoorsnede \"{{value}}\" die deze app niet heeft, dus de vinnen worden gelezen als vierkant.",
+    "finPointsUnreadable": "{{part}}: {{count}} omtrekpunten in het bestand konden niet worden gelezen en zijn genegeerd.",
+    "finPointsTooFew": "{{part}}: het bestand geeft minder dan drie bruikbare omtrekpunten, dus de standaard vrije-vormomtrek wordt gebruikt.",
+    "motorNoDesignation": "Motorhouder \"{{mount}}\": de motor in het bestand heeft geen aanduiding, dus kon niet worden opgezocht.",
     "extensionName": {
       "airStart": "Luchtstart",
       "javaCode": "Java-code",
@@ -1421,6 +1431,7 @@
     "width": "Breedte",
     "shape": "Vorm",
     "color": "Kleur",
+    "finish": "Afwerking",
     "appearance": "Uiterlijk",
     "resetColor": "Terug naar de standaardkleur",
     "deployEvent": "Openen bij",
@@ -2095,6 +2106,17 @@
     "noLandings": "De windreeks leverde geen landingen op.",
     "spread": "{{from}}–{{to}}",
     "flown": "reeks uitgevoerd"
+  },
+  "finish": {
+    "rough": "Ruw",
+    "roughunfinished": "Ruw onafgewerkt",
+    "unfinished": "Onafgewerkt",
+    "normal": "Normale verf",
+    "smooth": "Gladde verf",
+    "optimum": "Optimale verf",
+    "polished": "Vliegtuigplaatwerk",
+    "finishpolished": "Gepolijst oppervlak",
+    "mirror": "Spiegelglad oppervlak"
   },
   "crossSection": {
     "square": "Recht",

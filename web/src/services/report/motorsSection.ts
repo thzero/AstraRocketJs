@@ -91,8 +91,8 @@ function writeMotorTable(p: PdfPage, c: MotorConfig): void {
     `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`,
     q(p, 'force', m.avgThrust),
     Number.isFinite(m.burnTime) ? `${fmtNum(m.burnTime, 2)} s` : NO_VALUE,
-    q(p, 'force', m.maxThrust, 0),
-    q(p, 'impulse', m.totalImpulse, 0),
+    q(p, 'force', m.maxThrust),
+    q(p, 'impulse', m.totalImpulse),
     twRatio(m.avgThrust, m.loadedMass),
     g(p, m.weight),
     `${qv(p, 'motorDimensions', m.diameter, sizeDigits)}/${qv(p, 'motorDimensions', m.length, sizeDigits)} ${units.motorDimensions}`,
@@ -106,7 +106,6 @@ function writeMotorTable(p: PdfPage, c: MotorConfig): void {
       p,
       'impulse',
       c.motors.reduce((a, m) => a + m.totalImpulse, 0),
-      0,
     ),
     '',
     g(

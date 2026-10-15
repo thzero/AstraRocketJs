@@ -160,10 +160,13 @@ final class ComponentFactory {
         RocketComponent c;
         switch (type) {
             case "nosecone": {
+                // Absent keys build NoseCone() (NoseCone.java:27): length
+                // 6 x DEFAULT_RADIUS, base radius DEFAULT_RADIUS
+                // (SymmetricComponent.java:24, 0.025), wall 0.002 (NoseCone.java:34).
                 NoseCone nose = new NoseCone(
                         shapeOf(str(node, "shape", "ogive")),
-                        dbl(node, "length", 0.07),
-                        dbl(node, "aftRadius", 0.012));
+                        dbl(node, "length", 0.15),
+                        dbl(node, "aftRadius", 0.025));
                 nose.setThickness(dbl(node, "thickness", 0.002));
                 double shapeParam = dbl(node, "shapeParameter", Double.NaN);
                 if (!Double.isNaN(shapeParam)) {
@@ -226,7 +229,10 @@ final class ComponentFactory {
                 if (clippedRaw instanceof Boolean) {
                     t.setClipped((Boolean) clippedRaw);
                 }
-                t.setLength(dbl(node, "length", 0.05));
+                // Absent, the length is Transition()'s (Transition.java:48):
+                // 3 x DEFAULT_RADIUS. The wall below is DEFAULT_THICKNESS
+                // (SymmetricComponent.java:25).
+                t.setLength(dbl(node, "length", 0.075));
                 double fore = dbl(node, "foreRadius", Double.NaN);
                 if (bool(node, "foreRadiusAuto", false) || Double.isNaN(fore)) {
                     t.setForeRadiusAutomatic(true);
@@ -280,10 +286,14 @@ final class ComponentFactory {
                 break;
             }
             case "bodytube": {
+                // Absent keys build BodyTube()'s dimensions (BodyTube.java:41):
+                // length 8 x DEFAULT_RADIUS, radius DEFAULT_RADIUS
+                // (SymmetricComponent.java:24), wall DEFAULT_THICKNESS
+                // (SymmetricComponent.java:25).
                 BodyTube bodyTube = new BodyTube(
-                        dbl(node, "length", 0.3),
-                        dbl(node, "outerRadius", 0.012),
-                        dbl(node, "thickness", 0.0003));
+                        dbl(node, "length", 0.2),
+                        dbl(node, "outerRadius", 0.025),
+                        dbl(node, "thickness", 0.002));
                 // Min-diameter rockets: the body tube itself is the motor mount
                 // (kernel BodyTube implements MotorMount, same as the desktop).
                 bodyTube.setMotorMount(bool(node, "motorMount", false));
@@ -303,11 +313,13 @@ final class ComponentFactory {
                 break;
             }
             case "trapezoidfinset": {
+                // Absent keys build TrapezoidFinSet() (TrapezoidFinSet.java:43):
+                // 3 fins, root 0.05, tip 0.05, sweep 0.025, height 0.03.
                 TrapezoidFinSet fins = new TrapezoidFinSet(
                         count(node, "finCount", 3, MAX_FIN_COUNT),
                         dbl(node, "rootChord", 0.05),
-                        dbl(node, "tipChord", 0.03),
-                        dbl(node, "sweep", 0.02),
+                        dbl(node, "tipChord", 0.05),
+                        dbl(node, "sweep", 0.025),
                         dbl(node, "height", 0.03));
                 fins.setThickness(dbl(node, "thickness", 0.003));
                 fins.setCantAngle(dbl(node, "cant", 0));
@@ -318,8 +330,10 @@ final class ComponentFactory {
             case "ellipticalfinset": {
                 EllipticalFinSet fins = new EllipticalFinSet();
                 fins.setFinCount(count(node, "finCount", 3, MAX_FIN_COUNT));
+                // Absent keys keep EllipticalFinSet() (EllipticalFinSet.java:30-33):
+                // root 0.05, height 0.05.
                 fins.setLength(dbl(node, "rootChord", 0.05));
-                fins.setHeight(dbl(node, "height", 0.03));
+                fins.setHeight(dbl(node, "height", 0.05));
                 fins.setThickness(dbl(node, "thickness", 0.003));
                 fins.setCantAngle(dbl(node, "cant", 0));
                 fins.setCrossSection(crossSectionOf(str(node, "crossSection", "square")));
@@ -429,15 +443,18 @@ final class ComponentFactory {
                 break;
             }
             case "tubecoupler": {
+                // Absent keys keep TubeCoupler() (TubeCoupler.java:12-14): automatic
+                // radius, wall 0.002, length 0.06. The wall is applied again after
+                // attach (applyWallThickness), where the radius has resolved.
                 TubeCoupler tc = new TubeCoupler();
-                tc.setLength(dbl(node, "length", 0.05));
+                tc.setLength(dbl(node, "length", 0.06));
                 double or = dbl(node, "outerRadius", Double.NaN);
                 if (Double.isNaN(or)) {
                     tc.setOuterRadiusAutomatic(true);
                 } else {
                     tc.setOuterRadius(or);
                 }
-                tc.setThickness(dbl(node, "thickness", 0.0005));
+                tc.setThickness(dbl(node, "thickness", 0.002));
                 c = tc;
                 break;
             }
@@ -466,21 +483,26 @@ final class ComponentFactory {
                 break;
             }
             case "engineblock": {
+                // Absent keys keep EngineBlock() (EngineBlock.java:15-17): automatic
+                // radius, wall 0.005, length 0.005. The wall is applied again after
+                // attach (applyWallThickness), where the radius has resolved.
                 EngineBlock eb = new EngineBlock();
                 eb.setLength(dbl(node, "length", 0.005));
                 double or = dbl(node, "outerRadius", Double.NaN);
                 if (!Double.isNaN(or)) {
                     eb.setOuterRadius(or);
                 }
-                eb.setThickness(dbl(node, "thickness", 0.00095));
+                eb.setThickness(dbl(node, "thickness", 0.005));
                 c = eb;
                 break;
             }
             case "launchlug": {
+                // Absent keys keep LaunchLug() (LaunchLug.java:35-37): radius
+                // 0.01 / 2, wall 0.001, length 0.03.
                 LaunchLug lug = new LaunchLug();
-                lug.setLength(dbl(node, "length", 0.05));
-                lug.setOuterRadius(dbl(node, "outerRadius", 0.0022));
-                lug.setThickness(dbl(node, "thickness", 0.0003));
+                lug.setLength(dbl(node, "length", 0.03));
+                lug.setOuterRadius(dbl(node, "outerRadius", 0.005));
+                lug.setThickness(dbl(node, "thickness", 0.001));
                 // Angle around the body (rad); absent, the kernel default π
                 // (180°). It shifts lateral balance and the wind response, not drag.
                 lug.setAngleOffset(dbl(node, "angleOffset", Math.PI));
@@ -595,7 +617,10 @@ final class ComponentFactory {
                 if (!Double.isNaN(scR)) {
                     sc.setRadius(scR);
                 }
-                sc.setCordLength(dbl(node, "cordLength", 0.3));
+                // Absent, the cord is ShockCord()'s 0.4 m (ShockCord.java:22), held
+                // as a stated length; the automatic flag below restores the
+                // constructor's automatic sizing.
+                sc.setCordLength(dbl(node, "cordLength", 0.4));
                 double cordLine = dbl(node, "lineDensity", Double.NaN);
                 if (!Double.isNaN(cordLine)) {
                     sc.setMaterial(Material.newMaterial(Material.Type.LINE,
@@ -605,10 +630,13 @@ final class ComponentFactory {
                 break;
             }
             case "masscomponent": {
+                // Absent keys keep MassComponent(): 0 kg (MassComponent.java:17,
+                // the field's initial value), length 0.025 and radius 0.0125
+                // (MassObject.java:38).
                 MassComponent m = new MassComponent();
-                m.setComponentMass(dbl(node, "mass", 0.01));
-                m.setLength(dbl(node, "length", 0.02));
-                m.setRadius(dbl(node, "radius", 0.005));
+                m.setComponentMass(dbl(node, "mass", 0));
+                m.setLength(dbl(node, "length", 0.025));
+                m.setRadius(dbl(node, "radius", 0.0125));
                 // What the lump is (altimeter, battery, payload...). It changes
                 // no physics; OpenRocket uses it to name and picture the part,
                 // and without it a round trip renames every altimeter to
@@ -679,6 +707,11 @@ final class ComponentFactory {
         if (finish != null && c instanceof ExternalComponent) {
             ((ExternalComponent) c).setFinish(finishOf(finish));
         }
+        // Carried so a desktop readback can compare it; nothing flies it.
+        String comment = str(node, "comment", null);
+        if (comment != null) {
+            c.setComment(comment);
+        }
         // Fin airfoil cross-sections and LE bluntness radius.
         // Absent keys keep the classic 3-value crossSection behavior.
         if (c instanceof FinSet) {
@@ -720,16 +753,18 @@ final class ComponentFactory {
             double filletRadius = dbl(node, "filletRadius", 0);
             if (filletRadius > 0) {
                 fs.setFilletRadius(filletRadius);
-                // The bead is rarely the fin's own material (epoxy on plywood),
-                // so it carries its own density. Absent, the kernel keeps its
-                // default bulk material, which is Cardboard at 680 kg/m3 -- the
-                // same material and density orkExport writes for a fillet the
-                // file did not name, so the two sides agree either way.
-                double filletDensity = dbl(node, "filletDensity", Double.NaN);
-                if (!Double.isNaN(filletDensity) && filletDensity > 0) {
-                    fs.setFilletMaterial(Material.newMaterial(Material.Type.BULK,
-                            str(node, "filletMaterialName", "custom"), filletDensity, true));
-                }
+            }
+            // The bead is rarely the fin's own material (epoxy on plywood), so
+            // it carries its own density, and a fin set keeps it at a 0 radius
+            // as desktop does (a fillet turned back on is in that material).
+            // Absent, the kernel keeps its default bulk material, which is
+            // Cardboard at 680 kg/m3 -- the same material and density orkExport
+            // writes for a fillet the file did not name, so the two sides agree
+            // either way.
+            double filletDensity = dbl(node, "filletDensity", Double.NaN);
+            if (!Double.isNaN(filletDensity) && filletDensity > 0) {
+                fs.setFilletMaterial(Material.newMaterial(Material.Type.BULK,
+                        str(node, "filletMaterialName", "custom"), filletDensity, true));
             }
         }
         // Repeated parts: N copies of one lug, button or ring, evenly spaced.
@@ -950,9 +985,9 @@ final class ComponentFactory {
      */
     private static void applyWallThickness(RocketComponent child, Map<String, Object> node) {
         if (child instanceof TubeCoupler) {
-            ((TubeCoupler) child).setThickness(dbl(node, "thickness", 0.0005));
+            ((TubeCoupler) child).setThickness(dbl(node, "thickness", 0.002));
         } else if (child instanceof EngineBlock) {
-            ((EngineBlock) child).setThickness(dbl(node, "thickness", 0.00095));
+            ((EngineBlock) child).setThickness(dbl(node, "thickness", 0.005));
         } else if (child instanceof TubeFinSet) {
             double th = dbl(node, "thickness", Double.NaN);
             if (!Double.isNaN(th)) {

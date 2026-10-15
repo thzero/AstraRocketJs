@@ -181,6 +181,31 @@ describe('the launcher angle limit', () => {
       screen.getByText(/within 30° of vertical, and the NAR and Tripoli high power codes within 20°/),
     ).toBeTruthy();
   });
+
+  /**
+   * Into the wind, the sign is the meaning: desktop's rod angle runs -60 to 60
+   * and "a negative launch rod angle will launch with the wind"
+   * (messages.properties); the kernel flies the signed angle
+   * (SimulationStatus.java rotates by it, AbstractRKSimulationStepper.java
+   * aims the rod with its sine). An imported -5 flies as -5, so the box has to
+   * hold it rather than snap it to 0 on the first edit. With a fixed heading
+   * the direction field carries the meaning, so the box floors at 0 there.
+   */
+  it('accepts a negative angle while launching into the wind, and floors at 0 otherwise', () => {
+    const onChange = vi.fn();
+    const intoWind = renderWithProviders(
+      <LaunchPanel launch={{ ...LAUNCH, launchIntoWind: true }} onChange={onChange} powerClass="model" />,
+    );
+    expect(Number(angle().min)).toBeCloseTo(-30, 9);
+    fireEvent.change(angle(), { target: { value: '-5' } });
+    expect(onChange).toHaveBeenLastCalledWith({ launchRodAngleDeg: -5 });
+    intoWind.unmount();
+
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} powerClass="model" />);
+    expect(Number(angle().min)).toBe(0);
+    fireEvent.change(angle(), { target: { value: '-5' } });
+    expect(onChange).toHaveBeenLastCalledWith({ launchRodAngleDeg: 0 });
+  });
 });
 
 /**

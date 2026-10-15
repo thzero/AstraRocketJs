@@ -283,6 +283,13 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   };
 
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
+    // A motor the file names no designation for: the reader has named the
+    // mount, a lookup by an empty name finds nothing worth a second note, and
+    // only a curve the file carries under the motor's digest can fill it.
+    if (!ref.designation) {
+      const byDigest = ref.digest ? embedded.byDigest.get(ref.digest) : undefined;
+      return byDigest ? customMotorToSpec(byDigest, ref.delay) : unresolvedMotor(ref);
+    }
     const own = () => embedded.byName.get(removeDelay(ref.designation).toUpperCase());
     const match = matchCatalogMotor(catalog, ref.designation, ref.manufacturer);
     // The file's maker is a filter, as desktop's motor database reads a file

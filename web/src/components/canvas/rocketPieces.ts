@@ -355,18 +355,21 @@ export function buildPieces(
       } else if (child.type === 'railbutton') {
         // The button the side and aft views draw: as wide as its outer
         // diameter and standing out from the surface by its height, at its
-        // radial mount angle (kernel default 180°).
+        // radial mount angle (kernel default 180°). The kernel positions it
+        // as a 0-long part (RailButton never sets RocketComponent.length)
+        // with its instance bounding box one radius either side of that
+        // station, so the cylinder is centered on it.
         const { diameter: dia, reach } = railButtonSize(child);
         const ang = num(child, 'angleOffset', Math.PI);
-        const start = axialStart(child, dia, pStart, pLen);
-        const R = surfaceAt(start);
+        const station = axialStart(child, 0, pStart, pLen);
+        const R = surfaceAt(station);
         const rad = R + reach / 2;
         maxR = Math.max(maxR, R + reach);
         place(
           `button${k++}`,
           new THREE.CylinderGeometry(dia / 2, dia / 2, reach, 16),
           nodeColor(child, palette),
-          [start + dia / 2, rad * Math.cos(ang), rad * Math.sin(ang)],
+          [station, rad * Math.cos(ang), rad * Math.sin(ang)],
           [ang, 0, 0],
           xform,
         );

@@ -23,9 +23,9 @@
 //
 // Point it at the OpenRocket people actually run. A part whose `.orc` row states
 // a mass has its material replaced by one looked up by density, so its digest
-// depends on the material database that build ships. Measured on Estes PNC-50KA:
-// the 24.12 release says b3b5899e… and the 26.xx source tree says d1a20a7d…,
-// while the parts with no stated mass agree across both. A digest from the wrong
+// depends on the material database that build ships: a release and a source
+// checkout give such a part different digests, while the parts with no stated
+// mass agree across both. A digest from the wrong
 // build is a digest the desktop rejects, so `--jar` (a release, the usual case)
 // is the one to commit from. `--or` (a built source checkout, which also needs
 // its test classes for the preferences bindings) runs only with
@@ -38,7 +38,7 @@
 // classpath: the dumper reads the release's own `.orc` files, as the desktop's
 // system preset pass does, under the application's module so they are built
 // against the materials the desktop boots with. A bare file load disagrees for
-// some types (Estes PK-12 came out cd19839d… that way and e38b3873… in the app),
+// some types,
 // and the app's value is the one the desktop compares against.
 //
 // It never regenerates the catalog, only adds `digest` to rows already in it,

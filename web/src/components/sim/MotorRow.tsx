@@ -9,10 +9,16 @@ import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { motorName } from '../../services/motors/motorName';
 
-// Only meaningful on an upper stage: the sustainer triggers fire off the stage
-// below, and "never" (skip this motor) would just strand a single/bottom stage
-// on the pad. The bottom/only stage is limited to automatic / launch.
-const UPPER_STAGE_EVENTS: IgnitionEvent[] = ['ejectioncharge', 'burnout', 'never'];
+/**
+ * Every ignition event, on every mount, as desktop offers `IgnitionEvent.values()`
+ * (IgnitionSelectionDialog, MotorConfig). The two stage-below triggers fire
+ * from the stage under the mount's own, which a strap-on booster is as well as
+ * an axial stage (AxialStage.getUpperStage), so the bottom axial stage can
+ * light at its boosters' burnout. On a mount with nothing below, they never
+ * fire and the motor stays unlit, as on "never", which is how a spare mount
+ * is flown.
+ */
+const IGNITION_EVENTS: IgnitionEvent[] = ['automatic', 'launch', 'ejectioncharge', 'burnout', 'never'];
 
 /**
  * A motor-mount summary card: the seated motor (designation, dims, delay, curve)
@@ -28,7 +34,6 @@ export function MotorRow({
   ignition,
   onIgnitionChange,
   onCommit,
-  upperStage,
   soloEdit,
   used,
 }: {
@@ -45,8 +50,6 @@ export function MotorRow({
   onIgnitionChange?: (event: IgnitionEvent, delay: number) => void;
   /** Close the ignition edit's undo entry (event change: immediate; delay: on blur). */
   onCommit?: () => void;
-  /** This mount is on an upper stage: offer the sustainer triggers + "never". */
-  upperStage?: boolean;
   /**
    * A multi-row selection is being edited, and this card is not part of it.
    *
@@ -126,7 +129,6 @@ export function MotorRow({
           delay={ignition.delay}
           onChange={onIgnitionChange}
           onCommit={onCommit}
-          upperStage={upperStage}
         />
       )}
       {/* Mounted only while open, so each opening starts from fresh state:
@@ -157,23 +159,13 @@ function IgnitionControl({
   delay,
   onChange,
   onCommit,
-  upperStage,
 }: {
   event: IgnitionEvent;
   delay: number;
   onChange: (event: IgnitionEvent, delay: number) => void;
   onCommit?: () => void;
-  upperStage?: boolean;
 }) {
   const { t } = useTranslation();
-  // Bottom/only stage: just automatic / launch. Upper stage adds the sustainer
-  // triggers + "never". Never drop the current value, though: a stale one would
-  // otherwise blank the dropdown.
-  const events: IgnitionEvent[] = [
-    'automatic',
-    'launch',
-    ...UPPER_STAGE_EVENTS.filter((e) => upperStage || e === event),
-  ];
   return (
     <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line/5 pt-2 text-xs">
       <span className="text-ink-faint">{t('sims.ignition')}</span>
@@ -186,7 +178,7 @@ function IgnitionControl({
         }}
         className="min-w-0 flex-1 rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
       >
-        {events.map((ev) => (
+        {IGNITION_EVENTS.map((ev) => (
           <option key={ev} value={ev}>
             {t(`ignition.${ev}`)}
           </option>

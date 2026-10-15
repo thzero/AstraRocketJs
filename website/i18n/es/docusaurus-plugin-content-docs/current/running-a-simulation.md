@@ -10,7 +10,7 @@ Una fila que tiene resultado termina en un botón 📊, **Ver resultados**, que 
 
 Las casillas eligen qué filas vuela **Simular**, y también qué filas cambia el editor. Con más de una marcada, el editor indica *Editando N simulaciones seleccionadas*, y el campo que cambies se aplica a todas. Los nombres y los motores son de cada simulación. Un campo en el que las simulaciones marcadas difieren lo indica, y cambiarlo les da a todas el valor nuevo.
 
-**⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades, salvo la q·α máx., que va siempre en kPa·deg. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
+**⬇ CSV**, en la barra de herramientas, descarga la **tabla de simulaciones**: cada simulación en una fila, con su configuración, motores, estado y resultados (apogeo, velocidades, tiempos, Max-Q, q·α máx. y alabeo máx.) en tus unidades; la q·α máx. va en tu unidad de presión por tu unidad de ángulo, como dice la cabecera de su columna. Una simulación que no ha volado aparece con las cifras en blanco, y una desactualizada aparece marcada como tal, porque sus cifras describen el diseño anterior a tus últimos cambios.
 
 ## Elige qué vuela {#pick-what-it-flies}
 

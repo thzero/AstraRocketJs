@@ -285,7 +285,7 @@ export function SimTab() {
         min={SIM_BOUNDS.timeStep.min}
         // maxTime / timeStep is the solver's iteration count, so both
         // ends are bounded. 1000000 s (a plausible slip for 1000) at the
-        // default 0.01 s step would ask for 100 M integration steps, with
+        // default 0.05 s step would ask for 20 M integration steps, with
         // no way to interrupt the run.
         max={SIM_BOUNDS.timeStep.max}
         value={settings.simulation.timeStep}
@@ -374,7 +374,11 @@ export function LaunchTab() {
   const { settings, update } = useSettings();
   return (
     <>
-      <p className="text-[11px] leading-snug text-ink-faint">{t('settings.launchNote')}</p>
+      {/* The stock wind differs from desktop's on purpose; said here, where
+          the defaults are set, so the difference is not read as physics. */}
+      <p className="text-[11px] leading-snug text-ink-faint">
+        {t('settings.launchNote')} {t('settings.launchStillAir')}
+      </p>
       {/* The launch panel's own gap between cards, so the map card below
           it does not sit closer than they do to each other. */}
       <div className="space-y-4">

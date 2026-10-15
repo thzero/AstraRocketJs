@@ -2,13 +2,14 @@ import type { ComponentNode, ComponentType } from '../../../engine/openRocketEng
 import { defaultStageName, freshId } from '../../design/orkTree';
 import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
-import { keyedNote } from '../importNote';
+import { keyedNote, notePartName } from '../importNote';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
 import { RAIL_BUTTON_FALLBACK, settleRailButtonLoad, settleRingOuterLoad } from '../../design/linkedDimensions';
 import { clampCount, finiteNum } from './numbers';
 import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './importLimits';
 import {
   autoRadiusTag,
+  crossSectionTag,
   finCountTag,
   isDrogueTag,
   nonNegTag,
@@ -21,11 +22,11 @@ import {
   readFinRotation,
   readFinTabs,
   readInstances,
-  readMaterialGroup,
   readPackedSize,
   readSeparation,
   readAutoValue,
   readSoftMaterial,
+  shapeTag,
 } from './importTags';
 import {
   captureDeployments,
@@ -47,9 +48,9 @@ import { finCant } from '../../../tree/nodeProps';
 /** Builds the node for one element (its children are read by the caller). */
 type NodeReader = (ctx: OrkImportContext, el: Element) => ComponentNode;
 
-const base = (el: Element, type: ComponentType, withPosition: boolean): ComponentNode => {
+const base = (ctx: OrkImportContext, el: Element, type: ComponentType, withPosition: boolean): ComponentNode => {
   const node: ComponentNode = { type, id: freshId() };
-  readCommon(el, node, withPosition);
+  readCommon(el, node, withPosition, ctx.notes);
   return node;
 };
 
@@ -62,11 +63,11 @@ const readThicknessOrFilled = (el: Element, n: ComponentNode, fallback: number) 
   }
 };
 
-const readCant = (el: Element, n: ComponentNode) => {
+const readCant = (ctx: OrkImportContext, el: Element, n: ComponentNode) => {
   // Clamped as FinSet.setCantAngle clamps it, so the panel shows the cant that flies.
   const cant = finCant({ type: n.type, cant: degToRad(numTag(el, 'cant', 0)) });
   if (cant !== 0) n['cant'] = cant;
-  const cs = text(el, ':scope > crosssection');
+  const cs = crossSectionTag(el, n, ctx.notes);
   if (cs && cs !== 'square') n['crossSection'] = cs;
 };
 
@@ -92,14 +93,14 @@ const readRadial = (el: Element, n: ComponentNode) => {
   if (radDir !== 0) n['radialDirection'] = degToRad(radDir);
 };
 
-const readNosecone: NodeReader = (_ctx, el) => {
-  const n = base(el, 'nosecone', false);
+const readNosecone: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'nosecone', false);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.nosecone.length);
   const ncR = autoRadiusTag(el, 'aftradius');
   if (ncR === undefined) n['aftRadiusAuto'] = true;
   n['aftRadius'] = ncR ?? COMPONENT_DEFAULTS.nosecone.aftRadius;
   readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.nosecone.thickness);
-  n['shape'] = text(el, ':scope > shape') ?? 'ogive';
+  n['shape'] = shapeTag(el, n, ctx.notes, 'ogive');
   n['shapeParameter'] = nonNegTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
   const shR = numTag(el, 'aftshoulderradius', 0);
   const shL = numTag(el, 'aftshoulderlength', 0);
@@ -114,8 +115,8 @@ const readNosecone: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readTransition: NodeReader = (_ctx, el) => {
-  const n = base(el, 'transition', false);
+const readTransition: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'transition', false);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.transition.length);
   const fore = autoRadiusTag(el, 'foreradius');
   const aft = autoRadiusTag(el, 'aftradius');
@@ -124,7 +125,7 @@ const readTransition: NodeReader = (_ctx, el) => {
   if (aft === undefined) n['aftRadiusAuto'] = true;
   else n['aftRadius'] = aft;
   readThicknessOrFilled(el, n, COMPONENT_DEFAULTS.transition.thickness);
-  n['shape'] = text(el, ':scope > shape') ?? 'conical';
+  n['shape'] = shapeTag(el, n, ctx.notes, 'conical');
   n['shapeParameter'] = nonNegTag(el, 'shapeparameter', shapeParamDefault(String(n['shape'])));
   // <shapeclipped>: clipped vs full profile (ellipsoid/power/haack).
   // Forwarded to the kernel bridge as 'clipped'; absent keeps the
@@ -149,7 +150,7 @@ const readTransition: NodeReader = (_ctx, el) => {
 };
 
 const readBodytube: NodeReader = (ctx, el) => {
-  const n = base(el, 'bodytube', false);
+  const n = base(ctx, el, 'bodytube', false);
   n['length'] = nonNegTag(el, 'length', 0.3);
   const btR = autoRadiusTag(el, 'radius');
   if (btR === undefined) n['outerRadiusAuto'] = true;
@@ -162,16 +163,16 @@ const readBodytube: NodeReader = (ctx, el) => {
 };
 
 /** What every planar fin set has after its outline: wall, cant, section, tab and rotation. */
-function readPlanarFin(el: Element, n: ComponentNode): void {
+function readPlanarFin(ctx: OrkImportContext, el: Element, n: ComponentNode): void {
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
+  readCant(ctx, el, n);
   readAirfoil(el, n);
   readFinTabs(el, n);
   readFinRotation(el, n);
 }
 
-const readTrapezoidFinset: NodeReader = (_ctx, el) => {
-  const n = base(el, 'trapezoidfinset', true);
+const readTrapezoidFinset: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'trapezoidfinset', true);
   n['finCount'] = finCountTag(el);
   n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
   n['tipChord'] = nonNegTag(el, 'tipchord', 0.03);
@@ -179,14 +180,14 @@ const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   // forward-swept fin, which is a real shape the desktop draws.
   n['sweep'] = numTag(el, 'sweeplength', 0.02);
   n['height'] = nonNegTag(el, 'height', 0.03);
-  readPlanarFin(el, n);
+  readPlanarFin(ctx, el, n);
   return n;
 };
 
 const readFreeformFinset: NodeReader = (ctx, el) => {
-  const n = base(el, 'freeformfinset', true);
+  const n = base(ctx, el, 'freeformfinset', true);
   n['finCount'] = finCountTag(el);
-  readPlanarFin(el, n);
+  readPlanarFin(ctx, el, n);
   // Capped: every renderer walks the outline per fin, so a crafted file
   // with a million <point>s is a frozen tab. A real freeform fin has tens.
   // Walked by sibling links and stopped at the cap, rather than selecting the
@@ -194,11 +195,13 @@ const readFreeformFinset: NodeReader = (ctx, el) => {
   // access in jsdom (so O(n^2) over the list), and a selector materializes
   // every point before the cap can slice; the sibling walk is O(cap) in
   // every DOM. A missing x/y attribute must skip the point (Number(null) is
-  // 0, which would silently drop a vertex onto the origin).
+  // 0, which would silently drop a vertex onto the origin), and say so, as
+  // desktop's FinSetPointHandler warns for each point it cannot read.
   const pts: [number, number][] = [];
   const finpoints = el.querySelector(':scope > finpoints');
   if (finpoints) {
     let seen = 0;
+    let unreadable = 0;
     let pt = finpoints.firstElementChild;
     for (; pt && seen < MAX_FIN_POINTS; pt = pt.nextElementSibling) {
       if (pt.tagName !== 'point') continue;
@@ -206,6 +209,10 @@ const readFreeformFinset: NodeReader = (ctx, el) => {
       const x = finiteNum(pt.getAttribute('x'));
       const y = finiteNum(pt.getAttribute('y'));
       if (x !== undefined && y !== undefined) pts.push([x, y]);
+      else unreadable++;
+    }
+    if (unreadable > 0) {
+      ctx.notes.push(keyedNote('importNote.finPointsUnreadable', { part: notePartName(n), count: unreadable }));
     }
     // A point past the cap is a dropped vertex, and the outline the user sees
     // is not the file's, so the import says so.
@@ -216,21 +223,24 @@ const readFreeformFinset: NodeReader = (ctx, el) => {
       }
     }
   }
+  // Fewer than three points is no outline: the node carries none, the kernel
+  // flies its default freeform outline, and the user is told.
   if (pts.length >= 3) n['points'] = pts;
+  else ctx.notes.push(keyedNote('importNote.finPointsTooFew', { part: notePartName(n) }));
   return n;
 };
 
-const readEllipticalFinset: NodeReader = (_ctx, el) => {
-  const n = base(el, 'ellipticalfinset', true);
+const readEllipticalFinset: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'ellipticalfinset', true);
   n['finCount'] = finCountTag(el);
   n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
   n['height'] = nonNegTag(el, 'height', 0.03);
-  readPlanarFin(el, n);
+  readPlanarFin(ctx, el, n);
   return n;
 };
 
-const readTubeFinset: NodeReader = (_ctx, el) => {
-  const n = base(el, 'tubefinset', true);
+const readTubeFinset: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'tubefinset', true);
   n['finCount'] = finCountTag(el, 6);
   n['length'] = nonNegTag(el, 'length', 0.1);
   const r = autoRadiusTag(el, 'radius');
@@ -243,7 +253,7 @@ const readTubeFinset: NodeReader = (_ctx, el) => {
 };
 
 const readInnertube: NodeReader = (ctx, el) => {
-  const n = base(el, 'innertube', true);
+  const n = base(ctx, el, 'innertube', true);
   n['length'] = nonNegTag(el, 'length', 0.07);
   n['outerRadius'] = nonNegTag(el, 'outerradius', 0.0095);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.innertube.thickness);
@@ -268,8 +278,8 @@ const readInnertube: NodeReader = (ctx, el) => {
   return n;
 };
 
-const readTubecoupler: NodeReader = (_ctx, el) => {
-  const n = base(el, 'tubecoupler', true);
+const readTubecoupler: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'tubecoupler', true);
   n['length'] = nonNegTag(el, 'length', 0.05);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness);
   readRadial(el, n);
@@ -279,8 +289,8 @@ const readTubecoupler: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readCenteringring: NodeReader = (_ctx, el) => {
-  const n = base(el, 'centeringring', true);
+const readCenteringring: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'centeringring', true);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.centeringring.length);
   readRadial(el, n);
   const cor = autoRadiusTag(el, 'outerradius');
@@ -295,8 +305,8 @@ const readCenteringring: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readBulkhead: NodeReader = (_ctx, el) => {
-  const n = base(el, 'bulkhead', true);
+const readBulkhead: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'bulkhead', true);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.bulkhead.length);
   readRadial(el, n);
   // No inner radius: a bulkhead is solid, and upstream's saver omits the
@@ -308,8 +318,8 @@ const readBulkhead: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readEngineblock: NodeReader = (_ctx, el) => {
-  const n = base(el, 'engineblock', true);
+const readEngineblock: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'engineblock', true);
   n['length'] = nonNegTag(el, 'length', COMPONENT_DEFAULTS.engineblock.length);
   n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.engineblock.thickness);
   readRadial(el, n);
@@ -319,8 +329,8 @@ const readEngineblock: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readLaunchlug: NodeReader = (_ctx, el) => {
-  const n = base(el, 'launchlug', true);
+const readLaunchlug: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'launchlug', true);
   n['length'] = nonNegTag(el, 'length', 0.05);
   n['outerRadius'] = nonNegTag(el, 'radius', 0.0022);
   n['thickness'] = nonNegTag(el, 'thickness', 0.0003);
@@ -329,8 +339,8 @@ const readLaunchlug: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readRailbutton: NodeReader = (_ctx, el) => {
-  const n = base(el, 'railbutton', true);
+const readRailbutton: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'railbutton', true);
   const rb = COMPONENT_DEFAULTS.railbutton;
   // The rest of the button's geometry (RailButtonSaver.java writes all six)
   // and its material. The kernel bridge flies them; the writer falls back to
@@ -358,7 +368,6 @@ const readRailbutton: NodeReader = (_ctx, el) => {
   for (const key of ['innerDiameter', 'height', 'baseHeight', 'flangeHeight', 'screwHeight'] as const) {
     if (settled[key] !== rb[key]) n[key] = settled[key];
   }
-  readMaterialGroup(el, n);
   n['angleOffset'] = readAngleAroundBody(el);
   readInstances(el, n);
   return n;
@@ -368,8 +377,8 @@ const readRailbutton: NodeReader = (_ctx, el) => {
 // unknown element and skips it. Nothing in
 // the editor can create a fairing, so this only ever reads one back out
 // of a file this app wrote. See openRocketEngine.ts ComponentType.
-const readFairing: NodeReader = (_ctx, el) => {
-  const n = base(el, 'fairing', true);
+const readFairing: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'fairing', true);
   n['length'] = nonNegTag(el, 'length', 0.08);
   n['width'] = nonNegTag(el, 'width', 0.025);
   n['height'] = nonNegTag(el, 'height', 0.02);
@@ -403,7 +412,7 @@ function undeclaredSeparation(ctx: OrkImportContext, el: Element): Element | nul
 }
 
 const readParachute: NodeReader = (ctx, el) => {
-  const n = base(el, 'parachute', true);
+  const n = base(ctx, el, 'parachute', true);
   readPackedSize(el, n);
   readRadial(el, n);
   n['diameter'] = nonNegTag(el, 'diameter', 0.3);
@@ -422,7 +431,7 @@ const readParachute: NodeReader = (ctx, el) => {
 };
 
 const readStreamer: NodeReader = (ctx, el) => {
-  const n = base(el, 'streamer', true);
+  const n = base(ctx, el, 'streamer', true);
   readPackedSize(el, n);
   readRadial(el, n);
   n['stripLength'] = nonNegTag(el, 'striplength', 0.5);
@@ -433,8 +442,8 @@ const readStreamer: NodeReader = (ctx, el) => {
   return n;
 };
 
-const readShockcord: NodeReader = (_ctx, el) => {
-  const n = base(el, 'shockcord', true);
+const readShockcord: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'shockcord', true);
   readPackedSize(el, n);
   readRadial(el, n);
   if (!readAutoValue(el, n, 'cordlength', 'cordLengthAuto')) n['cordLength'] = nonNegTag(el, 'cordlength', 0.3);
@@ -442,8 +451,8 @@ const readShockcord: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readMasscomponent: NodeReader = (_ctx, el) => {
-  const n = base(el, 'masscomponent', true);
+const readMasscomponent: NodeReader = (ctx, el) => {
+  const n = base(ctx, el, 'masscomponent', true);
   n['mass'] = nonNegTag(el, 'mass', 0.01);
   n['length'] = nonNegTag(el, 'packedlength', 0.02);
   n['radius'] = COMPONENT_DEFAULTS.masscomponent.radius;
@@ -466,7 +475,7 @@ const readMasscomponent: NodeReader = (_ctx, el) => {
 const readAssembly =
   (asmType: 'podset' | 'parallelstage'): NodeReader =>
   (ctx, el) => {
-    const n = base(el, asmType, true); // name + overrides + axialoffset/position
+    const n = base(ctx, el, asmType, true); // name + overrides + axialoffset/position
     n['instanceCount'] = clampCount(
       // Absent, the count `new PodSet()` and `new ParallelStage()` start with.
       numTag(el, 'instancecount', KERNEL_DEFAULTS[asmType].instanceCount),
@@ -558,7 +567,7 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     // What every component carries (comment, line style, color, overrides and
     // the appearance kept as passthrough), as RocketComponentSaver writes it
     // for a stage too. A stage has no axial position of its own.
-    readCommon(stageEl, stage, false);
+    readCommon(stageEl, stage, false, ctx.notes);
     stage.name = text(stageEl, ':scope > name') ?? defaultStageName(i);
     // RASAero power-on base-drag input (meters), every stage incl. sustainer.
     const nozzle = numTag(stageEl, 'nozzleexitdiameter', NaN);

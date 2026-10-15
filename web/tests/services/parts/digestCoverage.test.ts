@@ -16,11 +16,12 @@ import {
  * app and breaks every part and motor link a saved .ork carries into desktop
  * OpenRocket, so it has to fail loudly instead.
  */
-type Row = { type: string; digest?: string };
+type Row = { type: string; mfr?: string; partNo?: string; desc?: string; digest?: string };
 type Motor = { digests?: unknown[] };
 
+// Each digest names one desktop preset, so every digested row gets its own.
 const parts = (type: string, rows: number, digested: number): Row[] =>
-  Array.from({ length: rows }, (_, i) => ({ type, ...(i < digested ? { digest: `d${i}` } : {}) }));
+  Array.from({ length: rows }, (_, i) => ({ type, ...(i < digested ? { digest: `${type}-${i}` } : {}) }));
 const motors = (rows: number, digested: number): Motor[] =>
   Array.from({ length: rows }, (_, i) => (i < digested ? { digests: [{}] } : {}));
 
@@ -47,6 +48,25 @@ describe('the digest floors', () => {
 
   it('do not hold a type with few rows to the per-type floor', () => {
     expect(partProblems([...parts('bodytube', 1000, 1000), ...parts('railbutton', MIN_ROWS - 1, 0)])).toEqual([]);
+  });
+
+  // A digest names one desktop preset (ComponentPreset.getDigest, one checksum
+  // over one preset's fields). Two rows under one digest make a saved .ork link
+  // the second row to the first row's preset, and desktop loads that preset's
+  // dimensions over the part. Coverage is full here, so the floors pass; the
+  // shared digest alone has to refuse the catalog.
+  it('refuse a digest carried by more than one row, however full the coverage', () => {
+    const rows = parts('bodytube', 100, 100);
+    const shared: Row = { type: 'bodytube', mfr: 'BMS', partNo: 'T5Plus-34', digest: 'bodytube-7' };
+    rows[8] = { ...rows[8]!, mfr: 'BMS', partNo: 'T5Plus-34', digest: 'bodytube-7' };
+    const problems = partProblems([...rows, shared]) as string[];
+    expect(problems).toHaveLength(1);
+    expect(problems[0]).toMatch(/^digest bodytube-7 is carried by 3 rows/);
+    expect(problems[0]).toContain('bodytube BMS T5Plus-34');
+  });
+
+  it('do not count rows with no digest as sharing one', () => {
+    expect(partProblems(parts('bodytube', 100, 95))).toEqual([]);
   });
 });
 

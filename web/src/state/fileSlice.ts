@@ -8,6 +8,7 @@ import type { DesignInfo } from '../services/files/orkTypes';
 import type { ComponentFigures } from '../services/files/rktExport';
 import type { buildRocketTree } from '../engine/api';
 import type { RocketTree } from '../engine/openRocketEngine';
+import type { StageLaunch } from '../services/files/rasaero/stageLaunch';
 import { buildDesignInfo } from '../services/report/designInfo';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { repairValues } from '../services/design/repairValues';
@@ -765,19 +766,36 @@ export const createFileSlice =
           const motors = buildExportMotorMap(tree, selectConfig(get()), loadedMeta?.exportMotors ?? {});
           // The RASAero writer is a lazily-imported chunk, only needed on export.
           const { downloadCdx1 } = await import('../services/files/rasaeroExport');
+          const config = selectConfig(get());
+          // The selected configuration's deployments, as desktop's exporter
+          // reads them.
+          const flown = configuredTree(tree, config);
+          // RASAero's simulation block holds a cumulative launch mass and CG per
+          // stage, which desktop fills from the mass calculator with only those
+          // stages active. A single stage's cell is the whole rocket's figure;
+          // more stages need a scratch build per stage. Building resets the
+          // shared engine, so the live handle is rebuilt afterward, as the
+          // design report does.
+          let stageLaunch: StageLaunch[] | undefined;
+          if (info && tree.components.filter((n) => n.type === 'stage').length > 1) {
+            const { cumulativeStageLaunch } = await import('../services/files/rasaero/stageLaunch');
+            const { buildConfiguredRocket } = await import('../services/design/buildRocket');
+            stageLaunch = cumulativeStageLaunch(flown, buildConfiguredRocket(flown, config));
+            const built = computeStaticInfo(tree, config);
+            if (!('error' in built)) get().applyBuild(built.info, built.rocket);
+          }
           // A finish RASAero has no surface for is written as smooth, as on
           // desktop, which warns about it; the user is told the same here.
           const warnings: Keyed[] = [];
           downloadCdx1({
             name: designNameOf(tree, loadedMeta),
-            // The selected configuration's deployments, as desktop's exporter
-            // reads them.
-            tree: configuredTree(tree, selectConfig(get())),
+            tree: flown,
             motors,
             launch: active.launch,
             // Whole-rocket loaded mass/CG feed RASAero's mandatory simulation block.
             launchMassKg: info?.mass,
             launchCgM: info?.cg,
+            stageLaunch,
             warnings,
           });
           if (warnings.length) set({ err: warnings.map((k) => keyedText(k, i18n.t)).join(' ') });

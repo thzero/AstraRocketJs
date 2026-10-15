@@ -9,7 +9,7 @@ import { parseOrkXml } from './ork/importUnpack';
 import { clampCount, finiteNum } from './ork/numbers';
 import { MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './ork/importLimits';
 import { ignoredNotes } from './ork/importNotes';
-import { keyedNote, type ImportNote } from './importNote';
+import { keyedNote, notePartName, type ImportNote } from './importNote';
 import { KeyedError } from '../../i18n/keyedError';
 import type { OrkFlightConfig, OrkImportResult } from './orkTypes';
 import { finCant, numOpt } from '../../tree/nodeProps';
@@ -129,31 +129,36 @@ const densityType = (el: Element): number => clampCount(num(el, 'DensityType') ?
  * means everywhere else. A name would render (both consumers parse CSS names)
  * but `colorXml` in `ork/exportParts.ts` only writes what `parseHexColor`
  * accepts, so a RockSim design converted to `.ork` would lose its part colors.
+ *
+ * A Map, not a plain object: the name is free text a file carried, and
+ * `constructor` on a plain object would resolve to an Object.prototype member.
  */
 // cspell:ignore grey -- a CSS color keyword, not prose: CSS defines `gray` and
 // `grey` as two spellings of one color and both are valid in an SVG `fill`, so a
 // file that says one of them has to be understood.
-const BASIC_COLORS: Record<string, string> = {
-  black: '#000000',
-  silver: '#c0c0c0',
-  gray: '#808080',
-  grey: '#808080',
-  white: '#ffffff',
-  maroon: '#800000',
-  red: '#ff0000',
-  purple: '#800080',
-  fuchsia: '#ff00ff',
-  magenta: '#ff00ff',
-  green: '#008000',
-  lime: '#00ff00',
-  olive: '#808000',
-  yellow: '#ffff00',
-  navy: '#000080',
-  blue: '#0000ff',
-  teal: '#008080',
-  aqua: '#00ffff',
-  cyan: '#00ffff',
-};
+const BASIC_COLORS: ReadonlyMap<string, string> = new Map(
+  Object.entries({
+    black: '#000000',
+    silver: '#c0c0c0',
+    gray: '#808080',
+    grey: '#808080',
+    white: '#ffffff',
+    maroon: '#800000',
+    red: '#ff0000',
+    purple: '#800080',
+    fuchsia: '#ff00ff',
+    magenta: '#ff00ff',
+    green: '#008000',
+    lime: '#00ff00',
+    olive: '#808000',
+    yellow: '#ffff00',
+    navy: '#000080',
+    blue: '#0000ff',
+    teal: '#008080',
+    aqua: '#00ffff',
+    cyan: '#00ffff',
+  }),
+);
 
 /**
  * A RockSim `<Color>` as the `#rrggbb` the tree means, or nothing.
@@ -171,7 +176,7 @@ const BASIC_COLORS: Record<string, string> = {
 const rktColor = (raw: string | null | undefined): string | undefined => {
   const t = raw?.trim();
   if (!t) return undefined;
-  const named = BASIC_COLORS[t.toLowerCase()];
+  const named = BASIC_COLORS.get(t.toLowerCase());
   if (named) return named;
   // A hex spelling is six digits or the #rgb shorthand; an alpha byte is not one.
   if (/^(#[0-9a-f]{3}|#?[0-9a-f]{6})$/i.test(t)) {
@@ -267,13 +272,13 @@ function readCommon(el: Element, n: ComponentNode, withPosition: boolean): void 
   if (color) n['color'] = color;
 
   if (withPosition) {
-    const offset = mm(el, 'Xb');
-    if (offset !== undefined) {
-      const method = LOCATION_METHODS[clampCount(num(el, 'LocationMode') ?? 0, 0, 2)]!;
-      // Only bottom flips sign, exactly as `PositionDependentHandler.setLocation`
-      // does: RockSim measures back-of-parent offsets in the other direction.
-      n.position = { method, offset: method === 'bottom' ? -offset : offset };
-    }
+    // Absent, both default as in `PositionDependentHandler`: the front of the
+    // parent at no offset.
+    const offset = mm(el, 'Xb') ?? 0;
+    const method = LOCATION_METHODS[clampCount(num(el, 'LocationMode') ?? 0, 0, 2)]!;
+    // Only bottom flips sign, exactly as `PositionDependentHandler.setLocation`
+    // does: RockSim measures back-of-parent offsets in the other direction.
+    n.position = { method, offset: method === 'bottom' ? -offset : offset };
   }
 }
 
@@ -341,17 +346,15 @@ const shoulderAtMost = (radius: number | undefined, end: unknown): number | unde
   radius !== undefined && typeof end === 'number' ? Math.min(radius, end) : radius;
 
 /**
- * A shoulder RockSim gives a length to is capped.
+ * No cap key: a `.rkt` shoulder opens open.
  *
- * Neither RockSim nor its handlers have a cap flag: the kernel's
- * `setForeShoulderLength` turns the cap on itself when a shoulder first gains a
- * length, and desktop never turns it off, so every `.rkt` shoulder arrives
- * capped. Set explicitly here because `ComponentFactory` sets the cap after the
- * length from a key that defaults to false, which would undo the kernel's own
- * answer and leave the cap discs weighing nothing.
+ * Neither RockSim nor its handlers have a cap flag, and in desktop 24.12 the
+ * shoulder length setters store the length and nothing else, so a shoulder
+ * desktop reads from a `.rkt` has no cap disc. The upstream kernel's setter
+ * turns the cap on when a shoulder first gains a length; `ComponentFactory`
+ * sets the cap after the length from the node's key, absent meaning false, so
+ * a node without the key flies the same open shoulder desktop reads.
  */
-const cappedByLength = (length: number | undefined): boolean | undefined =>
-  length !== undefined && length > 0 ? true : undefined;
 
 const readNoseCone = (el: Element): ComponentNode => {
   const n = base(el, 'nosecone', false);
@@ -364,8 +367,6 @@ const readNoseCone = (el: Element): ComponentNode => {
   put(n, 'shoulderRadius', shR);
   put(n, 'shoulderLength', shL);
   put(n, 'shoulderThickness', shoulderWall(el, n, shR));
-  const capped = cappedByLength(shL);
-  if (capped !== undefined) n['shoulderCapped'] = capped;
   return n;
 };
 
@@ -389,10 +390,6 @@ const readTransition = (el: Element): ComponentNode => {
   put(n, 'aftShoulderLength', aShL);
   put(n, 'foreShoulderThickness', shoulderWall(el, n, fShR));
   put(n, 'aftShoulderThickness', shoulderWall(el, n, aShR));
-  const foreCapped = cappedByLength(fShL);
-  if (foreCapped !== undefined) n['foreShoulderCapped'] = foreCapped;
-  const aftCapped = cappedByLength(aShL);
-  if (aftCapped !== undefined) n['aftShoulderCapped'] = aftCapped;
   return n;
 };
 
@@ -452,9 +449,21 @@ const readLaunchLug = (el: Element): ComponentNode => {
   const n = base(el, 'launchlug', true);
   put(n, 'length', mmPos(el, 'Len'));
   readTubeWall(el, n);
+  // `LaunchLugHandler` sets the outer radius from OD and then the inner from
+  // ID, and `LaunchLug.setInnerRadius` keeps the wall rather than the outside
+  // (`setOuterRadius(innerRadius + thickness)`, the constructor's 1 mm), so the
+  // lug desktop reads is ID/2 + 1 mm across with a 1 mm wall, whatever OD says.
+  const inner = dia(el, 'ID');
+  if (inner !== undefined) {
+    n['thickness'] = LUG_WALL;
+    n['outerRadius'] = inner + LUG_WALL;
+  }
   readRadialAngle(el, n, 'angleOffset');
   return n;
 };
+
+/** `LaunchLug()`'s wall, which `LaunchLugHandler` leaves in place. */
+const LUG_WALL = 0.001;
 
 /** `TipShapeCode` is the fin's cross section (`FinSetHandler.convertTipShapeCode`). */
 const CROSS_SECTIONS = ['square', 'rounded', 'airfoil'] as const;
@@ -505,8 +514,11 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
     put(n, 'rootChord', mmPos(el, 'RootChord'));
     put(n, 'height', mmPos(el, 'SemiSpan'));
   } else {
-    const pts = readPointList(ctx, el);
+    const pts = readPointList(ctx, el, n);
+    // Fewer than three points is no outline: the node carries none, the
+    // kernel flies its default freeform outline, and the user is told.
     if (pts.length >= 3) n['points'] = pts;
+    else ctx.notes.push(keyedNote('importNote.finPointsTooFew', { part: notePartName(n) }));
   }
 
   // Degrees, converted: the same deliberate departure as `readRadialAngle`.
@@ -576,10 +588,14 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
  * materializes every pair before the first cap test, so a crafted `<PointList>`
  * of a few megabytes would allocate millions of substrings first.
  */
-function readPointList(ctx: RktContext, el: Element): [number, number][] {
+function readPointList(ctx: RktContext, el: Element, fin: ComponentNode): [number, number][] {
   const raw = tag(el, 'PointList');
   if (!raw) return [];
   const out: [number, number][] = [];
+  // Pairs the file holds that are not two numbers, which `FinSetHandler`
+  // warns about one by one ("Invalid fin point pair.", "Fin point not in
+  // numeric format."). An empty pair, as a trailing `|` leaves, is no point.
+  let unreadable = 0;
   let at = 0;
   while (at <= raw.length) {
     if (out.length >= MAX_FIN_POINTS) {
@@ -594,10 +610,16 @@ function readPointList(ctx: RktContext, el: Element): [number, number][] {
       const y = finiteNum(pair.slice(comma + 1));
       const last = out[out.length - 1];
       const repeatedOrigin = x === 0 && y === 0 && last?.[0] === 0 && last[1] === 0;
-      if (x !== undefined && y !== undefined && !repeatedOrigin) out.push([x / LENGTH, y / LENGTH]);
+      if (x === undefined || y === undefined) unreadable++;
+      else if (!repeatedOrigin) out.push([x / LENGTH, y / LENGTH]);
+    } else if (pair.trim() !== '') {
+      unreadable++;
     }
     if (bar === -1) break;
     at = bar + 1;
+  }
+  if (unreadable > 0) {
+    ctx.notes.push(keyedNote('importNote.finPointsUnreadable', { part: notePartName(fin), count: unreadable }));
   }
   const last = out[out.length - 1];
   if (last?.[0] === 0 && last[1] === 0) out.reverse();
@@ -754,12 +776,10 @@ const readMassObject = (el: Element, parent?: ComponentNode): ComponentNode => {
     if (lineDensity !== undefined) {
       n['lineDensity'] = lineDensity;
       n['lineMaterialName'] = n['materialName'];
-    } else if (mass !== undefined && len !== undefined && len > 0) {
-      // No stated density, which upstream leaves weightless. A cord's mass is
-      // its line density times its length and RockSim states the mass, so
-      // derive it rather than flying a cord that weighs nothing.
-      n['lineDensity'] = Math.max(0, mass / MASS / len);
     }
+    // With no stated density the cord's material stays as the handler leaves
+    // it, weightless; the mass RockSim states is the override `readCommon`
+    // applied, which is what flies.
     delete n.density;
     delete n['materialName'];
     // Packed inside the tube it is stuffed into, as `mapMassObjectAsShockCord`

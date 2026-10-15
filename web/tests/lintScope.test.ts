@@ -31,7 +31,7 @@ beforeAll(async () => {
 }, 30_000);
 
 describe('the generated trees are outside the linter', () => {
-  it.each(['src/engine/vendor/openrocket-engine.mjs', 'public/sw.js'])('ignores %s', async (rel) => {
+  it.each(['src/engine/vendor/openrocket-engine.mjs', 'dist/sw.js'])('ignores %s', async (rel) => {
     expect(await eslint.isPathIgnored(rel)).toBe(true);
   });
 

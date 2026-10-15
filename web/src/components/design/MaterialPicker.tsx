@@ -44,8 +44,8 @@ const DENSITY_LABEL: Record<MaterialType, string> = {
 /**
  * What the material is for, which decides whether the adhesives belong in the
  * list. A structural part drops them; a fillet is offered the whole bulk list,
- * as desktop's fin fillet material box is (FinSetConfig.java:632, a
- * `MaterialModel` over the bulk database). Nothing else is filtered: every other
+ * as desktop's fin fillet material box is (`FinSetConfig`, a `MaterialModel`
+ * over the bulk database). Nothing else is filtered: every other
  * bulk material in the table is something a part can legitimately be made of,
  * and guessing which ones suit which component would block real builds (an
  * aluminum fin, a printed nose cone) to save a little scrolling.

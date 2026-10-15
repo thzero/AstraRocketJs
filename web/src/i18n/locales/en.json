@@ -67,7 +67,8 @@
       "noseFlipped": "RASAero has no flipped nose cones, so \"{{name}}\" can't be exported. Use a transition or export as .ork.",
       "noseOgiveParameter": "RASAero takes an ogive nose cone only with shape parameter 1, so \"{{name}}\" (shape parameter {{value}}) can't be exported. Change the shape parameter or export as .ork.",
       "noseHaackParameter": "RASAero takes a Haack nose cone only with shape parameter 0 (Von Kármán) or 0.33 (LV-Haack), so \"{{name}}\" (shape parameter {{value}}) can't be exported. Change the shape parameter or export as .ork.",
-      "chuteEvent": "RASAero deploys a parachute only at apogee or at an altitude, so \"{{name}}\" ({{event}}) can't be exported. Change its deployment or export as .ork."
+      "chuteEvent": "RASAero deploys a parachute only at apogee or at an altitude, so \"{{name}}\" ({{event}}) can't be exported. Change its deployment or export as .ork.",
+      "boosterBoattail": "RASAero allows a boat tail only on the last stage, so the trailing transition of stage \"{{stage}}\" can't be exported. Remove it or export as .ork."
     },
     "motorFile": {
       "engNoData": "Not a valid .eng file (no motor data found).",
@@ -181,6 +182,7 @@
     "saveOrkNoDesignInfo": "Saved the .ork without design info: the design could not be built, so there were no statistics to include.",
     "exportRasaero": "Could not export RASAero: {{reason}}",
     "exportRasaeroSurface": "The RASAero file was saved, but RASAero has no surface matching this design's finish, so it was written as smooth (zero roughness).",
+    "exportRasaeroStageMass": "The RASAero file was saved, but a stage's launch weight and CG were not available, so the simulation's weight and CG cells were written as 0. Enter them in RASAero before flying.",
     "exportUnsupported": "This component can't be exported as {{format}}.",
     "exportFailed": "Could not export {{format}}: {{reason}}",
     "exportRkt": "Could not write the .rkt: {{reason}}",
@@ -493,6 +495,7 @@
     "sketchMarkers": "Center of gravity / pressure",
     "sketchRulers": "Rulers",
     "launchNote": "Default launch conditions for newly-created simulations. Edit an existing simulation's conditions in its Launch panel.",
+    "launchStillAir": "A new simulation starts here in still air; OpenRocket desktop starts one in a 2 m/s wind, launched into the wind.",
     "defaultSpeed": "Default speed",
     "confirmDelete": "Confirm deletion of simulations",
     "autoRunOutdated": "Run outdated simulations automatically",
@@ -571,6 +574,7 @@
     "edit": "Edit rocket configuration",
     "name": "Design name",
     "designer": "Designer",
+    "kitName": "Kit name",
     "designType": "Design type",
     "comments": "Comments",
     "revision": "Revision history",
@@ -1282,6 +1286,12 @@
     "motorTooWide": "Motor \"{{motor}}\" is {{diameter}} mm and mount \"{{mount}}\" takes {{bore}} mm, so it does not fit. Seated as the file names it: check it before flying.",
     "motorTooLong": "Motor \"{{motor}}\" is {{length}} mm long and mount \"{{mount}}\" holds {{maxLength}} mm, so it does not fit. Seated as the file names it: check it before flying.",
     "mountsWithoutMotor": "Motor mounts with no motor in this file: {{mounts}}. Pick a motor before flying (it won't fly a default).",
+    "finishUnknown": "{{part}}: the file names a surface finish \"{{value}}\" this app does not have, so the part reads as regular paint.",
+    "shapeUnknown": "{{part}}: the file names a shape \"{{value}}\" this app does not have, so the default shape is used.",
+    "crossSectionUnknown": "{{part}}: the file names a fin cross section \"{{value}}\" this app does not have, so the fins read as square.",
+    "finPointsUnreadable": "{{part}}: {{count}} outline points in the file could not be read and were ignored.",
+    "finPointsTooFew": "{{part}}: the file gives fewer than three usable outline points, so the default freeform outline is used.",
+    "motorNoDesignation": "Motor mount \"{{mount}}\": the file's motor has no designation, so it could not be looked up.",
     "extensionName": {
       "airStart": "Air-start",
       "javaCode": "Java code",
@@ -1421,6 +1431,7 @@
     "width": "Width",
     "shape": "Shape",
     "color": "Color",
+    "finish": "Finish",
     "appearance": "Appearance",
     "resetColor": "Reset to default color",
     "deployEvent": "Deploy at",
@@ -2095,6 +2106,17 @@
     "noLandings": "The wind sweep produced no landings.",
     "spread": "{{from}}–{{to}}",
     "flown": "sweep flown"
+  },
+  "finish": {
+    "rough": "Rough",
+    "roughunfinished": "Rough unfinished",
+    "unfinished": "Unfinished",
+    "normal": "Regular paint",
+    "smooth": "Smooth paint",
+    "optimum": "Optimum paint",
+    "polished": "Aircraft sheet-metal",
+    "finishpolished": "Finished/polished surface",
+    "mirror": "Mirror surface"
   },
   "crossSection": {
     "square": "Square",

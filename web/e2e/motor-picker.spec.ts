@@ -201,13 +201,14 @@ test('the motor card exposes an ignition event that persists across reloads', as
   await expect(ignition).toBeVisible();
   await expect(ignition).toHaveValue('automatic'); // default: at launch
 
-  // The default rocket is single-stage, so only the events that can actually
-  // fire are offered: automatic + launch. The sustainer triggers and "never"
-  // (which would strand it on the pad) are hidden.
-  await expect(ignition.locator('option')).toHaveCount(2);
-  await expect(ignition.locator('option[value="burnout"]')).toHaveCount(0);
-  await expect(ignition.locator('option[value="ejectioncharge"]')).toHaveCount(0);
-  await expect(ignition.locator('option[value="never"]')).toHaveCount(0);
+  // Every IgnitionEvent, on every mount, as desktop's IgnitionSelectionDialog
+  // and MotorConfig offer them: the stage-below triggers never fire on the
+  // single stage and "never" flies the mount unlit, which is how a spare mount
+  // is flown.
+  await expect(ignition.locator('option')).toHaveCount(5);
+  for (const value of ['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']) {
+    await expect(ignition.locator(`option[value="${value}"]`)).toHaveCount(1);
+  }
 
   await ignition.selectOption('launch');
   await expect(page.getByLabel('Ignition delay (s)')).toBeVisible();

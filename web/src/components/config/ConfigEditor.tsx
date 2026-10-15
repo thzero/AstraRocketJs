@@ -1,12 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  findMounts,
-  findRecoveryDevices,
-  findSeparators,
-  findStages,
-  isUpperStageMount,
-} from '../../services/design/treeEdit';
+import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../../services/design/treeEdit';
 import { useWorkspaceStore, selectEditedConfig } from '../../state/store';
 import { MotorRow } from '../sim/MotorRow';
 import { DeploymentSection } from './DeploymentSection';
@@ -113,7 +107,6 @@ export function ConfigEditor() {
               ignition={{ event: seated?.ignitionEvent ?? 'automatic', delay: seated?.ignitionDelay ?? 0 }}
               onIgnitionChange={(e, d) => setMountIgnition(config.id, id, e, d)}
               onCommit={onCommit}
-              upperStage={isUpperStageMount(tree, id)}
               used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id].spec] : []))}
             />
           );

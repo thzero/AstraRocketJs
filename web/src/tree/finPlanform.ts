@@ -5,7 +5,7 @@ import { parentStartOf } from './axialRebase';
 import { axialLength, freeformPoints, freeformRootChord, partLength, startFromPosition } from './position';
 import { nodeShape, stationRadius } from './shapeProfile';
 import { isFinSet, isPlanarFinSet } from './tubefins';
-import { FIN_DEFAULTS } from './kernelDefaults';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS } from './kernelDefaults';
 import { isZero } from '../services/motors/mathEquals';
 
 /**
@@ -224,7 +224,14 @@ export function finSpan(node: ComponentNode, parent: FinParent = null): number {
       return max;
     }
   }
-  return num(node, 'height', FIN_DEFAULTS.height);
+  // Each planar set's own constructor height: EllipticalFinSet() starts at
+  // 0.05 m where TrapezoidFinSet() starts at 0.03 m, and the bridge flies the
+  // same per-type fallback for a node with no height.
+  return num(
+    node,
+    'height',
+    node.type === 'ellipticalfinset' ? KERNEL_DEFAULTS.ellipticalfinset.height : FIN_DEFAULTS.height,
+  );
 }
 
 /**

@@ -67,7 +67,8 @@
       "noseFlipped": "O RASAero não tem cones de nariz invertidos, pelo que \"{{name}}\" não pode ser exportado. Use uma transição ou exporte como .ork.",
       "noseOgiveParameter": "O RASAero só aceita cones de nariz ogivais com parâmetro de forma 1, pelo que \"{{name}}\" (parâmetro de forma {{value}}) não pode ser exportado. Altere o parâmetro de forma ou exporte como .ork.",
       "noseHaackParameter": "O RASAero só aceita cones de nariz Haack com parâmetro de forma 0 (Von Kármán) ou 0,33 (LV-Haack), pelo que \"{{name}}\" (parâmetro de forma {{value}}) não pode ser exportado. Altere o parâmetro de forma ou exporte como .ork.",
-      "chuteEvent": "O RASAero só abre um paraquedas no apogeu ou a uma altitude, pelo que \"{{name}}\" ({{event}}) não pode ser exportado. Altere a abertura ou exporte como .ork."
+      "chuteEvent": "O RASAero só abre um paraquedas no apogeu ou a uma altitude, pelo que \"{{name}}\" ({{event}}) não pode ser exportado. Altere a abertura ou exporte como .ork.",
+      "boosterBoattail": "O RASAero permite uma cauda cónica apenas no último andar, pelo que a transição final do andar \"{{stage}}\" não pode ser exportada. Remova-a ou exporte como .ork."
     },
     "motorFile": {
       "engNoData": "Não é um ficheiro .eng válido (não foram encontrados dados do motor).",
@@ -181,6 +182,7 @@
     "saveOrkNoDesignInfo": "O .ork foi guardado sem as informações do projeto: não foi possível construir o projeto, pelo que não havia estatísticas para incluir.",
     "exportRasaero": "Não foi possível exportar o RASAero: {{reason}}",
     "exportRasaeroSurface": "O ficheiro do RASAero foi guardado, mas o RASAero não tem uma superfície correspondente ao acabamento deste projeto, por isso foi gravada como lisa (rugosidade zero).",
+    "exportRasaeroStageMass": "O ficheiro do RASAero foi guardado, mas o peso de lançamento e o CG de um andar não estavam disponíveis, pelo que as células de peso e CG da simulação foram escritas como 0. Introduza-as no RASAero antes de voar.",
     "exportUnsupported": "Este componente não pode ser exportado como {{format}}.",
     "exportFailed": "Não foi possível exportar {{format}}: {{reason}}",
     "exportRkt": "Não foi possível escrever o .rkt: {{reason}}",
@@ -493,6 +495,7 @@
     "sketchMarkers": "Centro de gravidade / de pressão",
     "sketchRulers": "Réguas",
     "launchNote": "Condições de lançamento predefinidas para as simulações recém-criadas. As condições de uma simulação existente editam-se no painel Lançamento dela.",
+    "launchStillAir": "Uma simulação nova começa aqui sem vento; o OpenRocket para computador começa-a com um vento de 2 m/s, lançando contra o vento.",
     "defaultSpeed": "Velocidade predefinida",
     "confirmDelete": "Confirmar a eliminação de simulações",
     "autoRunOutdated": "Executar automaticamente simulações desatualizadas",
@@ -572,6 +575,7 @@
     "edit": "Editar a configuração do foguetão",
     "name": "Nome do projeto",
     "designer": "Projetista",
+    "kitName": "Nome do kit",
     "designType": "Tipo de projeto",
     "comments": "Comentários",
     "revision": "Histórico de revisões",
@@ -1287,6 +1291,12 @@
     "motorTooWide": "O motor \"{{motor}}\" tem {{diameter}} mm e o suporte \"{{mount}}\" aceita {{bore}} mm, pelo que não cabe. Colocado tal como o ficheiro o indica: verifique-o antes de voar.",
     "motorTooLong": "O motor \"{{motor}}\" tem {{length}} mm de comprimento e o suporte \"{{mount}}\" comporta {{maxLength}} mm, pelo que não cabe. Colocado tal como o ficheiro o indica: verifique-o antes de voar.",
     "mountsWithoutMotor": "Suportes de motor sem motor neste ficheiro: {{mounts}}. Escolha um motor antes de voar (não voará com um predefinido).",
+    "finishUnknown": "{{part}}: o ficheiro indica um acabamento de superfície \"{{value}}\" que esta app não tem, pelo que a peça é lida como pintura normal.",
+    "shapeUnknown": "{{part}}: o ficheiro indica uma forma \"{{value}}\" que esta app não tem, pelo que é usada a forma predefinida.",
+    "crossSectionUnknown": "{{part}}: o ficheiro indica uma secção de aleta \"{{value}}\" que esta app não tem, pelo que as aletas são lidas como quadradas.",
+    "finPointsUnreadable": "{{part}}: {{count}} pontos do contorno no ficheiro não puderam ser lidos e foram ignorados.",
+    "finPointsTooFew": "{{part}}: o ficheiro dá menos de três pontos de contorno utilizáveis, pelo que é usado o contorno livre predefinido.",
+    "motorNoDesignation": "Suporte de motor \"{{mount}}\": o motor do ficheiro não tem designação, pelo que não foi possível procurá-lo.",
     "extensionName": {
       "airStart": "Partida no ar",
       "javaCode": "Código Java",
@@ -1426,6 +1436,7 @@
     "width": "Largura",
     "shape": "Forma",
     "color": "Cor",
+    "finish": "Acabamento",
     "appearance": "Aspeto",
     "resetColor": "Repor a cor predefinida",
     "deployEvent": "Abrir em",
@@ -2105,6 +2116,17 @@
     "noLandings": "O varrimento de vento não produziu aterragens.",
     "spread": "{{from}}–{{to}}",
     "flown": "varrimento feito"
+  },
+  "finish": {
+    "rough": "Áspero",
+    "roughunfinished": "Áspero sem acabamento",
+    "unfinished": "Inacabado",
+    "normal": "Pintura regular",
+    "smooth": "Pintura lisa",
+    "optimum": "Pintura ótima",
+    "polished": "Chapa de avião",
+    "finishpolished": "Superfície polida",
+    "mirror": "Superfície espelhada"
   },
   "crossSection": {
     "square": "Quadrada",

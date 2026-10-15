@@ -10,12 +10,15 @@ import { partLength } from '../../../tree/position';
 /**
  * Boosters (each lower stage) as <Booster> elements. A leading widening
  * transition is the shoulder into the stage above; a trailing narrowing one
- * is the boat tail.
+ * on the last stage is the boat tail. A RASAero booster has a boat tail only
+ * on the last stage (`BoosterDTO`, error32), so a trailing transition on any
+ * other stage refuses the export rather than becoming one.
  */
 export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
   const { emit } = w;
   for (let i = 1; i < stagesIn.length; i++) {
     const st = stagesIn[i]!;
+    const lastStage = i === stagesIn.length - 1;
     const kids = st.children ?? [];
     const tubes = kids.filter((c) => c.type === 'bodytube');
     if (tubes.length === 0) {
@@ -27,10 +30,14 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     const shoulder =
       first && first.type === 'transition' && num(first, 'foreRadius', 0) <= num(first, 'aftRadius', 0) ? first : null;
     const last = externals[externals.length - 1];
-    const boattail =
+    const trailing =
       last && last !== shoulder && last.type === 'transition' && num(last, 'foreRadius', 0) > num(last, 'aftRadius', 0)
         ? last
         : null;
+    if (trailing && !lastStage) {
+      throw new KeyedError('errors.rasaero.boosterBoattail', { stage: partName(st) });
+    }
+    const boattail = lastStage ? trailing : null;
     const extraTrans = kids.filter((c) => c.type === 'transition' && c !== shoulder && c !== boattail);
     if (extraTrans.length > 0) {
       throw new KeyedError('errors.rasaero.boosterTransitions', { stage: partName(st) });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
-import { anyOuterRadius, bodyTubeRadius, chainOuterRadius } from '../../src/tree/nodeProps';
+import { anyOuterRadius, bodyTubeRadius, chainOuterRadius, noseConeAftRadius } from '../../src/tree/nodeProps';
 import { axialChain, motorSeatStart } from '../../src/tree/position';
 
 const n = (type: string, extra: Record<string, unknown> = {}): ComponentNode => ({ type, ...extra }) as ComponentNode;
@@ -13,14 +13,16 @@ describe('chainOuterRadius', () => {
     expect(chainOuterRadius(n('transition', { foreRadius: 0.05, aftRadius: 0.04 }))).toBe(0.05);
   });
 
-  it('is 0 for other types and for missing or non-finite values', () => {
+  it('is 0 for other types and for a transition with missing or non-finite values', () => {
     expect(chainOuterRadius(n('innertube', { outerRadius: 0.01 }))).toBe(0);
-    expect(chainOuterRadius(n('nosecone', { aftRadius: Number.NaN }))).toBe(0);
+    expect(chainOuterRadius(n('transition', { aftRadius: Number.NaN }))).toBe(0);
   });
 
-  // keylessParts.kernel.test.ts holds this to the radius the kernel builds.
-  it('reads a body tube with no radius as the one it flies at', () => {
+  // keylessParts.kernel.test.ts holds these to the radius the kernel builds.
+  it('reads a body tube or nose cone with no radius as the one it flies at', () => {
     expect(chainOuterRadius(n('bodytube'))).toBe(bodyTubeRadius(n('bodytube')));
+    expect(chainOuterRadius(n('nosecone'))).toBe(noseConeAftRadius(n('nosecone')));
+    expect(chainOuterRadius(n('nosecone', { aftRadius: Number.NaN }))).toBe(noseConeAftRadius(n('nosecone')));
   });
 });
 
@@ -33,6 +35,11 @@ describe('anyOuterRadius', () => {
 
   it('is 0 when no radius is stated', () => {
     expect(anyOuterRadius(n('parachute'))).toBe(0);
+  });
+
+  // keylessParts.kernel.test.ts holds this to the radius the kernel builds.
+  it('reads a nose cone with no radius as the one it flies at', () => {
+    expect(anyOuterRadius(n('nosecone'))).toBe(noseConeAftRadius(n('nosecone')));
   });
 });
 

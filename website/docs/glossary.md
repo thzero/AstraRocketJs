@@ -151,7 +151,6 @@ Use the search box at the top of this site, or the search in the app's **Help** 
 
 **Flight time**: How long the whole flight lasted. **Time to apogee** is the climb alone.
 
-**Flown at Cd**: The drag coefficient a recovery device actually flew with, which is its own **Cd** unless it was set to follow the design automatically.
 
 **Freeform fin**: A fin whose outline you draw point by point instead of choosing a trapezoid or an ellipse. *In the app:* the freeform fin editor, which also imports an outline from an image.
 

@@ -12,7 +12,14 @@ import { shapeSelect } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
 import { clampToBounds, type DimensionBounds } from '../../services/design/linkedDimensions';
-import { KERNEL_AUTO_KEYS, fieldApplies, fieldRange, fieldValue, liveBounds } from '../../services/design/fieldRange';
+import {
+  KERNEL_AUTO_KEYS,
+  fieldApplies,
+  fieldOptions,
+  fieldRange,
+  fieldValue,
+  liveBounds,
+} from '../../services/design/fieldRange';
 import { parentRadiusOf } from '../../tree/finPlanform';
 import { PropSection } from './PropSection';
 import { rebaseTabOffset } from '../../tree/axialRebase';
@@ -120,6 +127,13 @@ export interface NodeEditProps {
   onChange: (patch: Partial<ComponentNode>) => void;
   /** Closes the undo entry the edits since the last commit opened. */
   onCommit?: () => void;
+  /**
+   * Whether the part's stage has a stage below it (`fieldRange.hasStageBelow`),
+   * which decides whether a recovery device is offered the lower-stage
+   * separation event. Undefined for a part outside a design, which is offered
+   * every option.
+   */
+  stageBelow?: boolean;
 }
 
 /**
@@ -160,7 +174,7 @@ export function NumberField({
   unit,
   value,
   step,
-  min = 0,
+  min,
   max,
   required,
   auto,
@@ -171,6 +185,7 @@ export function NumberField({
   unit?: ReactNode;
   value: number;
   step: number;
+  /** Lower bound; absent, the box takes any number (a signed length, an angle the kernel wraps). */
   min?: number;
   /** Upper bound, forwarded to the input so the spinner respects it too. */
   max?: number;
@@ -272,7 +287,7 @@ function selectPatch(node: ComponentNode, key: string, value: string): Partial<C
  * switch lives here, rather than as inline branches in the panel's render loop,
  * so the panel body reads as a list of rows.
  */
-export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps & { field: Field }) {
+export function FieldRow({ node, field: f, onChange, onCommit, stageBelow }: NodeEditProps & { field: Field }) {
   const { t } = useTranslation();
   const u = useUnits();
   const kernelAuto = useKernelAutoValue(node, f);
@@ -364,7 +379,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
             onChange={(e) => commitChange(selectPatch(node, f.key, e.target.value))}
             className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
-            {f.options.map((o) => (
+            {fieldOptions(node, f, stageBelow).map((o) => (
               <option key={o} value={o}>
                 {f.optLabel ? f.optLabel(o, t) : f.optI18n ? t(`${f.optI18n}.${o}`) : o}
               </option>
@@ -462,6 +477,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
         unit: <UnitChip quantity="length" scope={scope} />,
         value: fu.toUi(Math.max(0, od - 2 * num(node, 'thickness'))),
         step: fu.step(0.0005),
+        min: 0,
         max: fu.toUi(od),
         onChange: (v) => {
           const si = fu.toSi(v);

@@ -88,7 +88,7 @@ If a required value is **zero**, the field escalates: the label is boxed in red 
 
 **Airframe diameters can be automatic too.** A new body tube and both ends of a new transition arrive with **Auto** ticked, and a nose cone's base has the same checkbox. An automatic diameter follows the part next to it along the airframe, through other automatic tubes and across stages, so a tube added between two others matches them. With nothing to follow, it is 50 mm, as in desktop OpenRocket. A tube fin set's tube diameter can also be **Auto**, which sizes the tubes to touch each other around the body.
 
-Many dimensions are zero as a matter of course. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all: its settings are triggers and delays.
+Many dimensions are zero as a matter of course. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** starts at 0, and a launch lug's or rail button's **angle offset** at 180° (the far side of the tube), as on the desktop. A stage has no required fields at all: its settings are triggers and delays.
 
 
 ## Fin fillets {#fin-fillets}
@@ -127,7 +127,7 @@ The outline drives the real thing, not just the drawing: mass, CG and the aerody
 A rocket can have more than one stage. **＋ Stage** (in the row above the component list) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:
 
 - **Stage separation**: the event that releases the booster: **Upper-stage ejection charge**, **Upper-stage burnout**, **Launch**, **Upper-stage ignition**, **Next-stage ignition**, **Apogee**, **Altitude (ascending)**, **Altitude (descending)** or **Never**. A stage set to **Never** stays attached and comes down with the stage above it. An optional **delay** or **altitude** refines the trigger.
-- **Ignition**: an upper stage's motor lights on **Automatic**, **Launch**, **Ejection of stage below** or **Burnout of stage below** (or **Never**). The bottom stage offers **Automatic** and **Launch** only. This is set on the motor card on the Configurations tab (see **[Flight Configurations](./flight-configurations.md#motors)**).
+- **Ignition**: a motor lights on **Automatic**, **Launch**, **Ejection of stage below** or **Burnout of stage below** (or **Never**). The two stage-below events fire from the stage under the motor's own (a strap-on booster counts), so on the bottom stage they never fire. This is set on the motor card on the Configurations tab (see **[Flight Configurations](./flight-configurations.md#motors)**).
 
 With a body tube selected, **＋ Add ▸ Assembly** adds a **Pod** or a **Booster** (a parallel, strap-on stage). Each starts with one body tube to build on, and a booster starts as two copies, as on desktop. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
@@ -163,7 +163,7 @@ Instead of dialing in dimensions by hand, use the contextual **Select part…** 
 - A **streamer** prefills its strip length, width and material, and leaves the drag coefficient automatic, as desktop does.
 - A **rail button** prefills its size, and its mass with the screw and nut that hold it.
 
-These are the parts desktop OpenRocket's parts library offers: the community parts database, and the files desktop ships beside it (older manufacturer catalogs, several parachute makers and the rail buttons). Applying a preset just fills in the component's fields, and you can tweak it afterward. Legacy catalog parts are hidden by default; tick the **Show legacy** checkbox in the picker to list them too. The catalog (~5,200 parts) comes with the app and is refreshed from OpenRocket's data each week.
+These are the parts desktop OpenRocket's parts library offers: the community parts database, and the files desktop ships beside it (older manufacturer catalogs, several parachute makers and the rail buttons). Applying a preset just fills in the component's fields, and you can tweak it afterward. Legacy catalog parts are hidden by default; tick the **Show legacy** checkbox in the picker to list them too. The catalog (~5,200 parts) comes with the app and follows the OpenRocket release the app is pinned to; the motor catalog is the one refreshed each week.
 
 ### Saving your own parts
 

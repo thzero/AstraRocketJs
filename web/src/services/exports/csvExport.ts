@@ -104,10 +104,12 @@ function value(v: number | null | undefined, o: FlightCsvOptions): string {
  * Per-timestep flight data, in the user's units, with the columns and format the
  * caller asked for.
  *
- * The layout is OpenRocket's CSV export: the simulation comments, a bare comment
- * line, the field names as one commented line, then the data rows with each
- * event comment among them at its time. A script written for a desktop export
- * reads this file the same way.
+ * The layout follows OpenRocket's CSV export: the simulation comments, a bare
+ * comment line, the field names as one commented line, then the data rows with
+ * each event comment among them at its time. The comment text differs: desktop
+ * writes the simulation name with its status and ` (unit)` after every field
+ * name even when the unit is empty; this writes `Simulation:` and `Stage:` lines
+ * and no empty brackets. A script that parses the structure reads both.
  *
  * `name` titles the simulation-description comment; it is passed in because this
  * service has no view of the workspace.

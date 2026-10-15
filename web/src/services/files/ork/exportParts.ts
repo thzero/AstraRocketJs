@@ -37,28 +37,45 @@ const CARDBOARD = KERNEL_MATERIALS.bulk;
  * name for, such as the catalog's adhesives, is left off: desktop warns
  * "Illegal material group specified, ignoring." on one it does not know, and
  * files a material with no group under Other.
+ *
+ * A Map, not a plain object: the group is free text a file carried, and
+ * `constructor` or `__proto__` on a plain object would resolve to an
+ * Object.prototype member and hand `escapeXml` a function.
  */
-const DESKTOP_GROUPS: Record<string, string> = {
-  Metals: 'Metals',
-  Woods: 'Woods',
-  Plastics: 'Plastics',
-  Fabrics: 'Fabrics',
-  Paper: 'PaperProducts',
-  PaperProducts: 'PaperProducts',
-  Foams: 'Foams',
-  Composites: 'Composites',
-  Fibers: 'Fibers',
-  Elastics: 'Elastics',
-  Kevlars: 'Kevlars',
-  Nylons: 'Nylons',
-  Other: 'Other',
-  Custom: 'Custom',
-};
+const DESKTOP_GROUPS: ReadonlyMap<string, string> = new Map(
+  Object.entries({
+    Metals: 'Metals',
+    Woods: 'Woods',
+    Plastics: 'Plastics',
+    Fabrics: 'Fabrics',
+    Paper: 'PaperProducts',
+    PaperProducts: 'PaperProducts',
+    Foams: 'Foams',
+    Composites: 'Composites',
+    Fibers: 'Fibers',
+    Elastics: 'Elastics',
+    Kevlars: 'Kevlars',
+    Nylons: 'Nylons',
+    Other: 'Other',
+    Custom: 'Custom',
+  }),
+);
 
 /** ` group="..."` for the group, or nothing when desktop has no such group. */
 function groupAttr(group: unknown): string {
-  const known = typeof group === 'string' ? DESKTOP_GROUPS[group] : undefined;
+  const known = typeof group === 'string' ? DESKTOP_GROUPS.get(group) : undefined;
   return known ? ` group="${escapeXml(known)}"` : '';
+}
+
+/**
+ * ` shearModulus="..."` when the part's material carries one, as upstream's
+ * `materialParam` writes it between the density and the group. Absent stays
+ * absent: desktop's `MaterialSetter` reads the attribute's presence as the
+ * modulus having been set.
+ */
+function shearModulusAttr(node: ComponentNode): string {
+  const v = node['shearModulus'];
+  return typeof v === 'number' && Number.isFinite(v) && v >= 0 ? ` shearModulus="${v}"` : '';
 }
 
 export function material(
@@ -72,10 +89,14 @@ export function material(
   if (kind === 'bulk') {
     if (typeof node.density === 'number' && node.density > 0) {
       const name = typeof node['materialName'] === 'string' ? node['materialName'] : 'custom';
-      // The group rides along when the reader kept one (readMaterialGroup),
-      // so a desktop material round-trips with its catalog category.
+      // The group rides along when the part carries one (readMaterialGroup
+      // reads it for every part), so a desktop material round-trips with its
+      // catalog category.
       const group = groupAttr(node['materialGroup']);
-      emit(depth, `<material type="bulk" density="${node.density}"${group}>${escapeXml(name)}</material>`);
+      emit(
+        depth,
+        `<material type="bulk" density="${node.density}"${shearModulusAttr(node)}${group}>${escapeXml(name)}</material>`,
+      );
     } else {
       emit(
         depth,

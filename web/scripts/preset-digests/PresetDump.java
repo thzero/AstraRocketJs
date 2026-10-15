@@ -38,15 +38,14 @@ import java.util.List;
  * files, the system pass of `ComponentPresetDatabaseLoader`, but with the
  * application's Guice module installed, so the presets are built against the
  * material database and preferences the desktop boots with. A bare file load
- * disagrees for some types: measured on Estes PK-12, it gave cd19839d… where the
- * application's database gives e38b3873…, and the application's is the one the
+ * disagrees for some types, and the application's database is the one the
  * desktop compares against.
  *
  * WHY THE BUILD MATTERS. A part whose `.orc` row states a MASS has its material
  * replaced by one looked up by density, so its digest depends on the material
- * database that build ships. Measured on Estes PNC-50KA: 24.12 says
- * b3b5899e… and the 26.xx source tree says d1a20a7d…, while parts with no stated
- * mass agree across both. So the digests are only as right as the build this is
+ * database that build ships: a release and a source checkout give such a part
+ * different digests, while parts with no stated mass agree across both. So the
+ * digests are only as right as the build this is
  * pointed at, which is why the script that drives this takes that path.
  *
  * Output: one TAB-separated row per preset,

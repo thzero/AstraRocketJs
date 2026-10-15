@@ -92,7 +92,7 @@ const upstream = {
  * (services/app/remoteData.ts). Such a build leaves its own copy of them out of
  * the output and the precache, so the app can never fall back to a catalog
  * older than the published one. Offline, the service worker answers from its
- * cached download (the `astra-catalogs` rule below). Dev, preview and a build
+ * cached download (the `astra-catalogs` rules below). Dev, preview and a build
  * with no data host keep reading public/data.
  */
 const hostedCatalogs = process.env.VITE_DATA_BASE?.trim()
@@ -296,11 +296,44 @@ export default defineConfig({
             },
           },
           {
+            // The data host's manifest.json (services/app/remoteData.ts): a
+            // content hash per published catalog, which the page appends to
+            // each catalog URL as `?v=<hash>`. Network first, so an online open
+            // reads the hash the host serves now and asks for the catalog under
+            // it, which the catalog rule below then stores; the cached manifest
+            // answers only when the network fails or takes over three seconds,
+            // and then it names the `?v=<hash>` copies the cache already holds.
+            // A network answer that lands after the timeout is stored too, so
+            // until the next online open the cached manifest can name a copy
+            // the cache does not hold.
+            //
+            // Stale-while-revalidate here would hand the page the previous
+            // manifest on the first open after a refresh while storing the new
+            // one behind it, and the next offline open would ask for catalogs
+            // under hashes nothing cached (scripts/check-offline-data.mjs
+            // checks the refresh-then-offline sequence).
+            //
+            // The same cache as the catalogs, because a page the worker does not
+            // control writes the manifest there itself
+            // (services/app/warmCatalogs.ts). One URL per host, overwritten in
+            // place, so no entry cap.
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/gh\/.*@data\/manifest\.json$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'astra-catalogs',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Catalogs published to the `data` branch (see sync-catalogs.yml),
             // and the only copy of the motors and components a data-host build
-            // has offline. Stale-while-revalidate: render instantly from cache,
-            // refresh in the background, so a weekly catalog refresh lands on the
-            // next open.
+            // has offline. Keyed on the whole URL, hash included, so a refreshed
+            // catalog is a new entry under its new hash. Stale-while-revalidate:
+            // a hash the cache holds renders instantly from cache, and a new one
+            // is fetched and stored on the online open that first asks for it,
+            // which is the first open after a refresh (the manifest rule above
+            // serves the refreshed hash that same open).
             //
             // No maxAgeSeconds: Workbox refuses a cached response older than
             // that, and this is the only offline copy, so a user who has not

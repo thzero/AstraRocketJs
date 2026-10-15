@@ -267,18 +267,32 @@ function everyPart(): RocketTree {
   body.children = [
     part('innertube', { cluster: '3-ring', clusterScale: 1.2, clusterRotation: 0.3 }),
     part('innertube', { outerRadius: 0.012, thickness: 0.0005, motorMount: true, motorOverhang: 0.005 }),
+    // Off the axis, and not a mount (the file carries an overhang inside
+    // <motormount> only).
+    part('innertube', { radialPosition: 0.01, radialDirection: 0.5, motorMount: false, motorOverhang: 0 }),
     part('centeringring', { instanceCount: 2 }),
-    part('bulkhead'),
+    part('bulkhead', { position: { method: 'absolute', offset: 0.3 } }),
     part('engineblock'),
     part('tubecoupler'),
-    part('launchlug', { instanceCount: 2 }),
+    part('launchlug', { instanceCount: 2, angleOffset: 1, instanceSeparation: 0.08 }),
     part('railbutton', { instanceCount: 2 }),
-    part('parachute'),
-    part('streamer'),
+    part('parachute', { deployEvent: 'altitude', deployAltitude: 150, deployDelay: 1, comment: 'Main chute' }),
+    // Fires off the booster below this stage.
+    part('streamer', { deployEvent: 'lower_stage_separation' }),
     part('shockcord'),
     part('masscomponent', { overrideCGX: 0.01 }),
     part('masscomponent', { mass: 0.05, massComponentType: 'altimeter' }),
-    part('podset'),
+    part('masscomponent', { mass: 0.02, massComponentType: 'battery', radiusAuto: true }),
+    // A pod carrying a body of its own with fins on it.
+    {
+      ...part('podset'),
+      children: [
+        {
+          ...part('bodytube', { length: 0.15, outerRadius: 0.01, outerRadiusAuto: false, thickness: 0.001 }),
+          children: [part('trapezoidfinset', { finCount: 2 })],
+        },
+      ],
+    },
   ];
   // A part with its mass overridden and its CG left to the kernel, and one in
   // a material of its own.
@@ -286,14 +300,35 @@ function everyPart(): RocketTree {
   body.materialName = 'Fiberglass';
   body.density = 1850;
   const tail = part('bodytube', { length: 0.3, outerRadius: 0.04, outerRadiusAuto: false, thickness: 0.002 });
+  // A drag override, applied to the part alone.
+  tail.overrideCD = 0.4;
   tail.children = [
-    part('trapezoidfinset', { tabLength: 0.03, tabHeight: 0.01, tabOffset: 0, tabOffsetMethod: 'middle' }),
+    part('trapezoidfinset', {
+      tabLength: 0.03,
+      tabHeight: 0.01,
+      tabOffset: 0,
+      tabOffsetMethod: 'middle',
+      cant: 0.05,
+      filletRadius: 0.003,
+      filletMaterialName: 'Epoxy',
+      filletDensity: 1200,
+    }),
     part('ellipticalfinset', { rotation: 0.4, crossSection: 'airfoil' }),
     part('freeformfinset', { rotation: 0.8 }),
-    part('tubefinset'),
+    // A stated tube fin radius, not the automatic one.
+    part('tubefinset', { outerRadius: 0.01, outerRadiusAuto: false }),
     part('parallelstage'),
   ];
-  const transition = part('transition', { foreShoulderLength: 0.03, aftShoulderLength: 0.03 });
+  // A clippable shape with the clip off, placed after the part before it, and
+  // carrying a freeform fin set (Transition.isCompatible allows one).
+  const transition = part('transition', {
+    shape: 'ellipsoid',
+    clipped: false,
+    foreShoulderLength: 0.03,
+    aftShoulderLength: 0.03,
+    position: { method: 'after', offset: 0 },
+  });
+  transition.children = [part('freeformfinset', { finCount: 4 })];
   const booster = part('bodytube', { length: 0.3, outerRadius: 0.04, outerRadiusAuto: false, thickness: 0.002 });
   return syncDerived({
     name: 'Every part',
@@ -301,12 +336,13 @@ function everyPart(): RocketTree {
       {
         ...part('stage'),
         children: [
-          part('nosecone', { aftRadiusAuto: true }),
+          part('nosecone', { aftRadiusAuto: true, shape: 'haack', shapeParameter: 0.3, comment: 'Haack nose' }),
           body,
           transition,
           tail,
           part('nosecone', {
             flipped: true,
+            filled: true,
             aftRadius: 0.04,
             aftRadiusAuto: false,
             length: 0.06,
@@ -317,9 +353,12 @@ function everyPart(): RocketTree {
           }),
         ],
       },
-      // A booster whose mass and CG are stated for the whole stage.
+      // A booster whose mass and CG are stated for the whole stage, separating
+      // at burnout after a delay.
       {
         ...part('stage'),
+        separationEvent: 'burnout',
+        separationDelay: 1,
         overrideMass: 0.3,
         overrideCGX: 0.12,
         overrideSubcomponentsMass: true,
@@ -528,6 +567,18 @@ describe('.ork files the app saves', () => {
     expect(s().err).toBeNull();
     check('conditions.ork', await save());
     writeKernelFields('conditions.ork');
+  });
+
+  // A file RockSim wrote, not one the app wrote: desktop's RockSim handlers
+  // read it under `source/`, so `rktImport` is compared with them directly.
+  it('for the RockSim fixture, opened and saved', async () => {
+    const f = 'rocksim.rkt';
+    const bytes = readFileSync(join(EXAMPLES, '../../e2e/fixtures', f));
+    await s().openOrkFile(new Blob([bytes]));
+    expect(s().err).toBeNull();
+    writeSource(f, bytes);
+    check('rocksim-from-rkt.ork', await save());
+    writeKernelFields('rocksim-from-rkt.ork');
   });
 
   it.each(readdirSync(EXAMPLES).filter((f) => f.endsWith('.ork')))(

@@ -226,7 +226,7 @@ describe('exportRkt → importRkt round trip', () => {
     ['Motor mount', ['length', 'outerRadius', 'thickness', 'motorOverhang']],
     ['Aft ring', ['length', 'outerRadius', 'innerRadius']],
     ['Chute', ['diameter', 'cd', 'lineLength', 'spillHoleDiameter', 'lineDensity', 'surfaceDensity']],
-    ['Lug', ['length', 'outerRadius', 'thickness', 'angleOffset']],
+    ['Lug', ['length', 'angleOffset']],
   ])('preserves every numeric field of %s', (name, keys) => {
     const before = find(design.components, name);
     const after = find(stage.children, name);
@@ -248,6 +248,17 @@ describe('exportRkt → importRkt round trip', () => {
   it('preserves placement, including the side the offset is measured from', () => {
     expect(find(stage.children, 'Fins').position).toEqual({ method: 'bottom', offset: 0.06 });
     expect(find(stage.children, 'Lug').position).toEqual({ method: 'top', offset: 0.1 });
+  });
+
+  // LaunchLugHandler sets the outside from OD and then the inside from ID, and
+  // LaunchLug.setInnerRadius keeps the wall (the constructor's 1 mm) rather than
+  // the outside, so the lug desktop reads is ID/2 + 1 mm across with a 1 mm wall.
+  it('reads a lug back as desktop does: the inner radius plus a 1 mm wall', () => {
+    const before = find(design.components, 'Lug');
+    const after = find(stage.children, 'Lug');
+    const inner = (before['outerRadius'] as number) - (before['thickness'] as number);
+    expect(after['thickness']).toBeCloseTo(0.001, 9);
+    expect(after['outerRadius']).toBeCloseTo(inner + 0.001, 9);
   });
 
   it('preserves the motor mount flag, and only on the mount', () => {

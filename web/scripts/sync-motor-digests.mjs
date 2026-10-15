@@ -29,11 +29,12 @@
 // separate them it takes the first, so they are ordered closest to the motor
 // the app flies first: launch mass, then the curve (`lib/digestRank.mjs`).
 //
-// Matching is on manufacturer, designation and diameter, with length as a
-// tolerance check. Both of the desktop's names are tried, because its
-// designation is the maker's full code ("D24T") and its common name the impulse
-// one ("D24"), and a row synced from thrustcurve.org carries whichever that
-// motor published. The manufacturer has to go through `Manufacturer.getAllNames`
+// Matching is on manufacturer, designation and diameter to the tenth of a
+// millimeter (lib/motorDigestKey.mjs), with length as a tolerance check. Both
+// of the desktop's names are tried, because its designation is the maker's
+// full code ("D24T") and its common name the impulse one ("D24"), and a row
+// synced from thrustcurve.org carries whichever that motor published. The
+// manufacturer has to go through `Manufacturer.getAllNames`
 // because our catalog names a maker by thrustcurve.org's abbreviation, where the
 // desktop holds the full name, and that class is the only place that knows "AT"
 // and "AeroTech" are one maker.
@@ -51,6 +52,7 @@ import { fileURLToPath } from 'node:url';
 import { STAGED_MOTORS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { digestChanges, goneSection, motorProblems } from './lib/digestCoverage.mjs';
+import { digestKey } from './lib/motorDigestKey.mjs';
 import { motorRowKey } from './lib/motorRowKey.mjs';
 import { rankEntries } from './lib/digestRank.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
@@ -58,10 +60,6 @@ import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/motors.generated.json');
 const JAVA_SRC = resolve(HERE, 'motor-digests/MotorDump.java');
-
-/** Manufacturer and designation compared the way a human reads them. */
-const norm = (s) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const key = (mfr, designation, diameterMm) => `${norm(mfr)}|${norm(designation)}|${Math.round(diameterMm)}`;
 
 /** How far the two databases' stated lengths for one motor may differ, in millimeters. */
 const LENGTH_TOLERANCE_MM = 2;
@@ -101,7 +99,7 @@ function dump(cp) {
     // synced from thrustcurve.org is keyed on whichever that motor published.
     for (const name of allNames.split('|')) {
       for (const d of new Set([designation, commonName])) {
-        const k = key(name, d, Number(diameter) * 1000);
+        const k = digestKey(name, d, Number(diameter) * 1000);
         if (!index.has(k)) index.set(k, []);
         index.get(k).push(entry);
       }
@@ -115,7 +113,7 @@ function dump(cp) {
  * closest to what the app flies first (`lib/digestRank.mjs`).
  */
 function entriesFor(index, row) {
-  const found = index.get(key(row.manufacturer, row.designation, row.diameter));
+  const found = index.get(digestKey(row.manufacturer, row.designation, row.diameter));
   if (!found) return null;
   const fits =
     row.length == null ? found : found.filter((e) => Math.abs(e.lengthMm - row.length) <= LENGTH_TOLERANCE_MM);

@@ -45,6 +45,8 @@ const PATTERNS: { name: string; re: RegExp }[] = [
     re: /\b(?:until now|previously|as of now|was (?:changed|fixed)|after the fix|regression from|before this change|we now|now fixed|used to be|(?:this|it|we|that) used to)\b/i,
   },
   { name: 'history', re: /\bbeing fixed\b/i },
+  // A bare commit hash beside upstream/commit cites a point in history, not a constraint.
+  { name: 'commit hash', re: /\b(?:upstream|commit)\s+[0-9a-f]{7,40}\b/i },
   // A rename, or how things were, closing a clause. Followed by more
   // words they are present tense: the rename prompt, the same station as
   // before the switch.

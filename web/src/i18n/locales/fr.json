@@ -67,7 +67,8 @@
       "noseFlipped": "RASAero n'a pas d'ogives inversées, donc « {{name}} » ne peut pas être exporté. Utilisez une transition ou exportez en .ork.",
       "noseOgiveParameter": "RASAero n'accepte une ogive qu'avec un paramètre de forme de 1, donc « {{name}} » (paramètre de forme {{value}}) ne peut pas être exporté. Modifiez le paramètre de forme ou exportez en .ork.",
       "noseHaackParameter": "RASAero n'accepte une ogive Haack qu'avec un paramètre de forme de 0 (Von Kármán) ou 0,33 (LV-Haack), donc « {{name}} » (paramètre de forme {{value}}) ne peut pas être exporté. Modifiez le paramètre de forme ou exportez en .ork.",
-      "chuteEvent": "RASAero ne déploie un parachute qu'à l'apogée ou à une altitude, donc « {{name}} » ({{event}}) ne peut pas être exporté. Modifiez son déploiement ou exportez en .ork."
+      "chuteEvent": "RASAero ne déploie un parachute qu'à l'apogée ou à une altitude, donc « {{name}} » ({{event}}) ne peut pas être exporté. Modifiez son déploiement ou exportez en .ork.",
+      "boosterBoattail": "RASAero n'autorise une jupe arrière que sur le dernier étage, donc la transition finale de l'étage « {{stage}} » ne peut pas être exportée. Retirez-la ou exportez en .ork."
     },
     "motorFile": {
       "engNoData": "Ce n'est pas un fichier .eng valide (aucune donnée de moteur trouvée).",
@@ -181,6 +182,7 @@
     "saveOrkNoDesignInfo": "Le .ork a été enregistré sans les infos de conception : la conception n'a pas pu être construite, il n'y avait donc aucune statistique à inclure.",
     "exportRasaero": "Impossible d'exporter vers RASAero : {{reason}}",
     "exportRasaeroSurface": "Le fichier RASAero a été enregistré, mais RASAero n'a aucune surface correspondant à la finition de cette conception ; elle a donc été écrite comme lisse (rugosité nulle).",
+    "exportRasaeroStageMass": "Le fichier RASAero a été enregistré, mais la masse au lancement et le CG d'un étage n'étaient pas disponibles ; les cellules de masse et de CG de la simulation ont été écrites à 0. Saisissez-les dans RASAero avant de voler.",
     "exportUnsupported": "Cette pièce ne peut pas être exportée en {{format}}.",
     "exportFailed": "Impossible d'exporter en {{format}} : {{reason}}",
     "exportRkt": "Impossible d'écrire le .rkt : {{reason}}",
@@ -493,6 +495,7 @@
     "sketchMarkers": "Centre de gravité / de poussée",
     "sketchRulers": "Règles",
     "launchNote": "Conditions de lancement par défaut des simulations nouvellement créées. Les conditions d'une simulation existante se modifient dans son panneau Lancement.",
+    "launchStillAir": "Une nouvelle simulation démarre ici sans vent ; OpenRocket pour ordinateur la démarre avec un vent de 2 m/s, en lançant face au vent.",
     "defaultSpeed": "Vitesse par défaut",
     "confirmDelete": "Confirmer la suppression des simulations",
     "autoRunOutdated": "Exécuter automatiquement les simulations obsolètes",
@@ -572,6 +575,7 @@
     "edit": "Modifier la configuration de la fusée",
     "name": "Nom de la conception",
     "designer": "Concepteur",
+    "kitName": "Nom du kit",
     "designType": "Type de conception",
     "comments": "Commentaires",
     "revision": "Historique des révisions",
@@ -1287,6 +1291,12 @@
     "motorTooWide": "Le moteur « {{motor}} » fait {{diameter}} mm et le support « {{mount}} » accepte {{bore}} mm, il ne rentre donc pas. Placé comme le fichier le nomme : vérifiez-le avant de voler.",
     "motorTooLong": "Le moteur « {{motor}} » fait {{length}} mm de long et le support « {{mount}} » accepte {{maxLength}} mm, il ne rentre donc pas. Placé comme le fichier le nomme : vérifiez-le avant de voler.",
     "mountsWithoutMotor": "Supports moteur sans moteur dans ce fichier : {{mounts}}. Choisissez un moteur avant de voler (aucun moteur par défaut ne sera utilisé).",
+    "finishUnknown": "{{part}} : le fichier indique une finition de surface « {{value}} » que cette application ne connaît pas ; la pièce est lue comme peinture ordinaire.",
+    "shapeUnknown": "{{part}} : le fichier indique une forme « {{value}} » que cette application ne connaît pas ; la forme par défaut est utilisée.",
+    "crossSectionUnknown": "{{part}} : le fichier indique une section d'aileron « {{value}} » que cette application ne connaît pas ; les ailerons sont lus comme carrés.",
+    "finPointsUnreadable": "{{part}} : {{count}} points du contour dans le fichier n'ont pas pu être lus et ont été ignorés.",
+    "finPointsTooFew": "{{part}} : le fichier donne moins de trois points de contour utilisables ; le contour libre par défaut est utilisé.",
+    "motorNoDesignation": "Support moteur « {{mount}} » : le moteur du fichier n'a pas de désignation, il n'a donc pas pu être recherché.",
     "extensionName": {
       "airStart": "Allumage en vol",
       "javaCode": "Code Java",
@@ -1426,6 +1436,7 @@
     "width": "Largeur",
     "shape": "Forme",
     "color": "Couleur",
+    "finish": "Finition",
     "appearance": "Apparence",
     "resetColor": "Rétablir la couleur par défaut",
     "deployEvent": "Déployer à",
@@ -2105,6 +2116,17 @@
     "noLandings": "Le balayage de vent n'a produit aucun atterrissage.",
     "spread": "{{from}}–{{to}}",
     "flown": "balayage effectué"
+  },
+  "finish": {
+    "rough": "Rugueuse",
+    "roughunfinished": "Rugueuse non finie",
+    "unfinished": "Non peinte",
+    "normal": "Peinture classique",
+    "smooth": "Fine couche",
+    "optimum": "Peinture optimale",
+    "polished": "Tôle d'avion",
+    "finishpolished": "Surface polie",
+    "mirror": "Surface miroir"
   },
   "crossSection": {
     "square": "Carrée",

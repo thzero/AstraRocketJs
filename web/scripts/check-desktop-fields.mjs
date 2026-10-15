@@ -109,6 +109,83 @@ const KNOWN = [
   { rule: 'rkt:masscomponent.radius', why: 'MassObjectHandler does not read Dia', when: (a, d) => d === 0.0125 },
   { rule: 'rkt:nosecone.shoulderCapped', why: 'RockSim has no capped shoulder', when: (a, d) => d === false },
   {
+    rule: 'rkt:*.cdOverridden',
+    why: 'RockSim has no drag coefficient override, so the writer names the part in its skipped list',
+    when: (a, d) => a === true && d === false,
+  },
+  {
+    rule: 'rkt:*.overrideCD',
+    why: "RockSim has no drag coefficient override; desktop reports the part's own computed drag",
+    when: (a, d, af) => af.cdOverridden === true,
+  },
+  {
+    rule: 'rkt:*.deployDelay',
+    why: "deployment is only in RockSim's simulation events, which desktop does not import",
+    when: (a, d) => d === 0,
+  },
+  {
+    rule: 'rkt:stage.separationDelay',
+    why: "separation is only in RockSim's simulation results, which desktop does not import",
+    when: (a, d) => d === 0,
+  },
+  {
+    rule: 'rkt:transition.clipped',
+    why: "RockSim has no clip flag; TransitionHandler keeps Transition()'s clipped shape",
+    when: (a, d) => d === true,
+  },
+  {
+    rule: 'rkt:*.filletRadius',
+    why: 'RockSim has no fin fillet',
+    when: (a, d) => d === 0,
+  },
+  {
+    rule: 'rkt:freeformfinset.planformArea',
+    why: 'a freeform outline on a tapered parent: FreeformFinSet.setPoints snaps the outline desktop reads from the point list to the root it computes, which moves the area by under 2 %',
+    when: (a, d) => Math.abs(a - d) < 0.02 * Math.max(a, d),
+  },
+  {
+    rule: 'rkt:shockcord.density',
+    why: 'RockSim has no line material for a cord: MassObjectHandler leaves it weightless, and the app flies its default elastic cord',
+    when: (a, d) => d === 0,
+  },
+  {
+    rule: 'rkt:shockcord.materialName',
+    why: 'RockSim has no line material for a cord: MassObjectHandler leaves it unnamed, and the app flies its default elastic cord',
+    when: (a, d) => d === '',
+  },
+  // What RockSim carries as a number only, or not at all.
+  {
+    rule: 'rkt:*.outerRadiusAuto',
+    why: 'RockSim carries the diameter, not the automatic setting; desktop reads a fixed one',
+    when: (a, d) => a === true && d === false,
+  },
+  {
+    rule: 'rkt:*.innerRadiusAuto',
+    why: 'RockSim carries the diameter, not the automatic setting; desktop reads a fixed one',
+    when: (a, d) => a === true && d === false,
+  },
+  {
+    rule: 'rkt:*.radiusAuto',
+    why: 'RockSim carries the packed diameter, not the automatic setting; desktop reads a fixed one',
+    when: (a, d) => a === true && d === false,
+  },
+  {
+    rule: 'rkt:*.cdAuto',
+    why: 'RockSim carries the drag coefficient, not the automatic setting; desktop reads a fixed one',
+    when: (a, d) => a === true && d === false,
+  },
+  { rule: 'rkt:*.comment', why: 'RockSim has no component comment', when: (a, d) => d === '' },
+  {
+    rule: 'rkt:*.filletDensity',
+    why: "RockSim has no fin fillet, so desktop's fin set keeps the constructor's fillet material",
+    when: (a, d) => d === 680,
+  },
+  {
+    rule: 'rkt:*.filletMaterialName',
+    why: "RockSim has no fin fillet, so desktop's fin set keeps the constructor's fillet material",
+    when: (a, d) => d === 'Cardboard',
+  },
+  {
     rule: 'rkt:*.deployEvent',
     why: "deployment is only in RockSim's simulation events, which desktop does not import",
     when: (a, d) => d === 'ejection',
@@ -133,6 +210,17 @@ const KNOWN = [
     rule: 'rkt:streamer.radius',
     why: 'StreamerHandler reads no packed size; desktop keeps its default',
     when: (a, d) => d === 0.0125,
+  },
+  // What desktop's RockSim import does not create.
+  {
+    rule: 'ork:config',
+    files: ['source/rocksim.rkt'],
+    why: "desktop's RockSim import creates no flight configuration; the app mints one so the mounts have an id to key by",
+  },
+  {
+    rule: 'ork:sims',
+    files: ['source/rocksim.rkt'],
+    why: "desktop's RockSim import creates no simulation; the app adds its default one",
   },
   // What 24.12 cannot carry in a .ork.
   {
@@ -257,6 +345,7 @@ const RKT_ANGLE_SETTERS = {
   angleOffset: (a, type) =>
     type === 'launchlug' ? Math.max(-Math.PI, Math.min(Math.PI, asReadRadians(a))) : asReadRadians(a),
   rotation: (a) => asReadRadians(a),
+  radialDirection: (a) => asReadRadians(a),
 };
 
 /** Placement the writer gives each copy of a split cluster or set; the rest of a copy is compared. */

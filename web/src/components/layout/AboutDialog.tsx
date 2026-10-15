@@ -13,7 +13,7 @@ interface Contributor {
 
 // GitHub contributors, written at build time by scripts/sync-contributors.mjs
 // (avatars inlined as data URIs) and served from our own origin like the other
-/// catalogs, so opening this dialog makes no call to github.com. Each url
+// catalogs, so opening this dialog makes no call to github.com. Each url
 // becomes a live href, so only an https link is accepted.
 const isContributors = (v: unknown): v is { contributors: Contributor[] } =>
   !!v &&

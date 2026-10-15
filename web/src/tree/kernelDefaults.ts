@@ -23,9 +23,12 @@ export const KERNEL_AUTO_RADIUS = 0.025;
  *
  * ## The rule
  *
- * **The kernel is the authority.** It is what actually flies, and its values
- * come from OpenRocket. Anything on the TypeScript side that needs a fallback
- * for one of these fields reads it from here rather than inventing one.
+ * **The kernel is the authority.** It is what actually flies, and its fallbacks
+ * are the Java constructors' own values (`NoseCone()`, `BodyTube()`,
+ * `LaunchLug()`...; each `case` cites its constructor), so a node that
+ * reaches the bridge without a key flies the part desktop builds from the same
+ * file. Anything on the TypeScript side that needs a fallback for one of these
+ * fields reads it from here rather than inventing one.
  *
  * ## This table is verified, not asserted
  *
@@ -45,15 +48,15 @@ export const KERNEL_AUTO_RADIUS = 0.025;
 export const KERNEL_DEFAULTS = {
   stage: {},
   // ComponentFactory, case "nosecone"
-  nosecone: { length: 0.07, aftRadius: 0.012, thickness: 0.002 },
+  nosecone: { length: 0.15, aftRadius: 0.025, thickness: 0.002 },
   // ComponentFactory, case "transition"
-  transition: { length: 0.05, thickness: 0.002 },
+  transition: { length: 0.075, thickness: 0.002 },
   // ComponentFactory, case "bodytube"
-  bodytube: { length: 0.3, outerRadius: 0.012, thickness: 0.0003 },
+  bodytube: { length: 0.2, outerRadius: 0.025, thickness: 0.002 },
   // ComponentFactory, case "trapezoidfinset"
-  trapezoidfinset: { finCount: 3, rootChord: 0.05, tipChord: 0.03, sweep: 0.02, height: 0.03, thickness: 0.003 },
+  trapezoidfinset: { finCount: 3, rootChord: 0.05, tipChord: 0.05, sweep: 0.025, height: 0.03, thickness: 0.003 },
   // ComponentFactory, case "ellipticalfinset" (finCount via count(node, "finCount", 3, ...))
-  ellipticalfinset: { finCount: 3, rootChord: 0.05, height: 0.03, thickness: 0.003 },
+  ellipticalfinset: { finCount: 3, rootChord: 0.05, height: 0.05, thickness: 0.003 },
   // ComponentFactory, case "freeformfinset". A freeform fin has no planform defaults:
   // its outline is its geometry, and the factory throws on fewer than 3 points.
   freeformfinset: { finCount: 3, thickness: 0.003 },
@@ -62,20 +65,20 @@ export const KERNEL_DEFAULTS = {
   // ComponentFactory, case "innertube"
   innertube: { length: 0.07, outerRadius: 0.0095, thickness: 0.0005 },
   // ComponentFactory, case "tubecoupler"
-  tubecoupler: { length: 0.05, thickness: 0.0005 },
+  tubecoupler: { length: 0.06, thickness: 0.002 },
   // ComponentFactory, case "centeringring"
   centeringring: { length: 0.002, instanceCount: 1 },
   // ComponentFactory, case "bulkhead"
   bulkhead: { length: 0.002, instanceCount: 1 },
   // ComponentFactory, case "engineblock"
-  engineblock: { length: 0.005, thickness: 0.00095 },
+  engineblock: { length: 0.005, thickness: 0.005 },
   // ComponentFactory, case "launchlug". The separation is the constructor's
   // (LaunchLug.java:38, its own 0.03 m length x 2), set before the node's
   // length, so it does not follow the length the part is given; the angle is pi.
   launchlug: {
-    length: 0.05,
-    outerRadius: 0.0022,
-    thickness: 0.0003,
+    length: 0.03,
+    outerRadius: 0.005,
+    thickness: 0.001,
     instanceCount: 1,
     instanceSeparation: 0.06,
     angleOffset: Math.PI,
@@ -96,9 +99,9 @@ export const KERNEL_DEFAULTS = {
   // ComponentFactory, case "streamer"
   streamer: { length: 0.025, stripLength: 0.5, stripWidth: 0.05, radius: 0.0125 },
   // ComponentFactory, case "shockcord"
-  shockcord: { length: 0.025, cordLength: 0.3, radius: 0.0125 },
+  shockcord: { length: 0.025, cordLength: 0.4, radius: 0.0125 },
   // ComponentFactory, case "masscomponent"
-  masscomponent: { mass: 0.01, length: 0.02, radius: 0.005 },
+  masscomponent: { mass: 0, length: 0.025, radius: 0.0125 },
   // ComponentFactory.applyAssembly, shared by both assembly types.
   podset: { instanceCount: 2 },
   parallelstage: { instanceCount: 2 },
@@ -182,13 +185,15 @@ export const KERNEL_BODYTUBE_OUTER_RADIUS = KERNEL_DEFAULTS.bodytube.outerRadius
 /**
  * Planar-fin dimension fallbacks: the kernel's trapezoid defaults
  * (ComponentFactory, case "trapezoidfinset"). The elliptical set shares
- * `rootChord` and `height` (case "ellipticalfinset").
+ * `rootChord` (case "ellipticalfinset"); its `height` is its own row above,
+ * since `EllipticalFinSet()` starts at 0.05 where `TrapezoidFinSet()` starts
+ * at 0.03.
  *
- * These are the kernel's defaults, not "what treeEdit and orkImport write" (the
- * editor seeds a 60 mm root, 50 mm span fin), and this is the table that verifies them. A
- * freeform fin's root-chord fallback for a degenerate outline reads `rootChord`
- * from here too; that one is an app choice, since the kernel refuses such an
- * outline, and it is pinned to the kernel's trapezoid so every consumer agrees.
+ * These are the kernel's defaults, which `treeEdit.defaultNode` also seeds,
+ * and this is the table that verifies them. A freeform fin's root-chord
+ * fallback for a degenerate outline reads `rootChord` from here too; that one
+ * is an app choice, since the kernel refuses such an outline, and it is pinned
+ * to the kernel's trapezoid so every consumer agrees.
  */
 export const FIN_DEFAULTS = {
   rootChord: KERNEL_DEFAULTS.trapezoidfinset.rootChord,

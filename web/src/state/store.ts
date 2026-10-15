@@ -214,7 +214,9 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    */
   clipboard: ComponentNode | null;
   loadedMeta: LoadedMeta;
-  rocket: Rocket | null; // live engine handle (set by the rebuild effect; read by the aero sweep and the dimension fields)
+  // The live engine handle, set by the rebuild effect; read by the aero sweep,
+  // the dimension fields, the file writers' part figures and the report model.
+  rocket: Rocket | null;
   // --- history (undo/redo of component edits) ---
   past: HistoryEntry[];
   future: HistoryEntry[];
@@ -407,7 +409,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
   updateDesignMeta: (
-    patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'comment' | 'revision' | 'designType'>>,
+    patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'kitName' | 'comment' | 'revision' | 'designType'>>,
   ) => void;
   /** Finalize the in-flight edit (slider drag / text entry) into one undo entry.
    *  Called by the editors when an interaction ends (blur / discrete change). */

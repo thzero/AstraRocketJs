@@ -78,10 +78,13 @@ public final class ComponentFields {
         o.bool("cdOverridden", c.isCDOverridden());
         o.num("overrideCD", c.getOverrideCD());
         o.bool("overrideSubcomponentsCD", c.isSubcomponentsOverriddenCD());
+        o.text("comment", c.getComment());
         if (c instanceof ExternalComponent) {
             ExternalComponent e = (ExternalComponent) c;
             o.material("", e.getMaterial());
-            o.str("finish", e.getFinish().name());
+            // Desktop's RockSim handlers leave the finish unset when the file
+            // carries no FinishCode; reported as such rather than thrown on.
+            o.str("finish", e.getFinish() == null ? "unset" : e.getFinish().name());
         } else if (c instanceof StructuralComponent) {
             o.material("", ((StructuralComponent) c).getMaterial());
         } else if (c instanceof RecoveryDevice) {
@@ -139,6 +142,7 @@ public final class ComponentFields {
             o.str("crossSection", f.getCrossSection().name());
             o.num("rotation", f.getBaseRotation());
             o.num("filletRadius", f.getFilletRadius());
+            o.material("fillet", f.getFilletMaterial());
             o.num("tabLength", f.getTabLength());
             o.num("tabHeight", f.getTabHeight());
             o.num("tabOffset", f.getTabOffset());
@@ -167,7 +171,9 @@ public final class ComponentFields {
         if (c instanceof RingComponent) {
             RingComponent r = (RingComponent) c;
             o.num("outerRadius", r.getOuterRadius());
+            o.bool("outerRadiusAuto", r.isOuterRadiusAutomatic());
             o.num("innerRadius", r.getInnerRadius());
+            o.bool("innerRadiusAuto", r.isInnerRadiusAutomatic());
             if (c instanceof ThicknessRingComponent) {
                 o.num("thickness", ((ThicknessRingComponent) c).getThickness());
             }
@@ -210,12 +216,14 @@ public final class ComponentFields {
         if (c instanceof MassObject) {
             MassObject m = (MassObject) c;
             o.num("radius", m.getRadius());
+            o.bool("radiusAuto", m.isRadiusAutomatic());
             o.num("radialPosition", m.getRadialPosition());
             o.num("radialDirection", m.getRadialDirection());
         }
         if (c instanceof RecoveryDevice) {
             RecoveryDevice d = (RecoveryDevice) c;
             o.num("cd", d.getCD());
+            o.bool("cdAuto", d.isCDAutomatic());
             DeploymentConfiguration dc = d.getDeploymentConfigurations().getDefault();
             o.str("deployEvent", dc.getDeployEvent().name());
             o.num("deployAltitude", dc.getDeployAltitude());
@@ -280,6 +288,26 @@ public final class ComponentFields {
         /** Enumeration names only: plain ASCII, no escaping needed. */
         void str(String k, String v) {
             if (key(k)) sb.append('"').append(v.toLowerCase()).append('"');
+        }
+
+        /** Free text as the part carries it (a comment): escaped, case kept. */
+        void text(String k, String v) {
+            if (!key(k)) return;
+            sb.append('"');
+            escape(v == null ? "" : v);
+            sb.append('"');
+        }
+
+        /** JSON string escaping for free text: quotes, backslashes and control characters. */
+        private void escape(String v) {
+            for (char ch : v.toCharArray()) {
+                if (ch == '"' || ch == '\\') sb.append('\\').append(ch);
+                else if (ch == '\n') sb.append("\\n");
+                else if (ch == '\r') sb.append("\\r");
+                else if (ch == '\t') sb.append("\\t");
+                else if (ch < 0x20) sb.append(' ');
+                else sb.append(ch);
+            }
         }
 
         /** A material's name and density, under `<prefix>MaterialName` and `<prefix>Density`. */

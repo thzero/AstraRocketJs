@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../src/tree/kernelDefaults';
 import { scaleRocket, scalePart, hasExplicitMass, maxBodyDiameter, rocketLength } from '../../src/tree/scaleRocket';
 
 const tree = (): RocketTree => ({
@@ -420,8 +421,8 @@ describe('rocketLength with a member that has no length', () => {
         },
       ],
     } as unknown as RocketTree;
-    // KERNEL_DEFAULTS.bodytube.length is 0.3.
-    expect(rocketLength(tree)).toBeCloseTo(0.4, 12);
+    // The tube with no length counts at KERNEL_DEFAULTS.bodytube.length.
+    expect(rocketLength(tree)).toBeCloseTo(0.1 + KERNEL_DEFAULTS.bodytube.length, 12);
   });
 });
 
@@ -433,7 +434,6 @@ describe('rocketLength with a member that has no length', () => {
  */
 describe('scaling a key the part leaves to the kernel', () => {
   it("scales the kernel's value, as desktop's scalers do", async () => {
-    const { KERNEL_DEFAULTS } = await import('../../src/tree/kernelDefaults');
     const tree = {
       name: 'K',
       components: [

@@ -44,10 +44,11 @@ export function warmCatalogs(): void {
  * worker's catalog cache when this page is not under the worker's control.
  *
  * Written once the worker is active, under exactly the URLs the app requests
- * (so the `astra-catalogs` StaleWhileRevalidate rule, which matches on the whole
- * URL, finds them offline), and only as the 200 response its
- * `cacheableResponse` rule admits. The rule's expiration plugin starts tracking
- * an entry the first time the worker serves it.
+ * (so the `astra-catalogs` rules, which match on the whole URL, find them
+ * offline: the manifest's network-first rule and the catalogs'
+ * stale-while-revalidate one), and only as the 200 response their
+ * `cacheableResponse` rule admits. The catalog rule's expiration plugin starts
+ * tracking an entry the first time the worker serves it.
  * `force-cache` takes the bodies from the HTTP cache the loader just filled
  * rather than downloading them again.
  */

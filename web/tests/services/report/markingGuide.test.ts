@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import {
   GUIDE_WIDTH_MM,
   PAPER_THICKNESS_M,
@@ -325,7 +326,7 @@ describe('markingGuides', () => {
     const { guides } = markingGuides(
       finned([{ type: 'trapezoidfinset', id: 'f', finCount: 3 }], { outerRadius: null }),
     );
-    expect(guides[0]!.circumferenceMm).toBeCloseTo(guideCircumferenceMm(0.012), 12);
+    expect(guides[0]!.circumferenceMm).toBeCloseTo(guideCircumferenceMm(KERNEL_DEFAULTS.bodytube.outerRadius), 12);
   });
 });
 

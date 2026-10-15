@@ -83,6 +83,7 @@ export function PropertyPanel({
   coveredBy,
   parentRadius = 0,
   fit,
+  stageBelow,
   flush = false,
 }: {
   node: ComponentNode | null;
@@ -104,6 +105,8 @@ export function PropertyPanel({
   parentRadius?: number;
   /** Geometry around this part, so the catalog picker can rank what fits it. */
   fit?: FitContext;
+  /** Whether the part's stage has a stage below it; see `NodeEditProps`. */
+  stageBelow?: boolean;
   /**
    * Drop the panel's own card, for a host that already is one. The right column
    * needs the card to read as a panel against the pane behind it; the component
@@ -236,7 +239,7 @@ export function PropertyPanel({
           panel puts it below them. */}
       {fields.map((f) => (
         <Fragment key={f.key}>
-          <FieldRow node={node} field={f} onChange={onChange} onCommit={onCommit} />
+          <FieldRow node={node} field={f} onChange={onChange} onCommit={onCommit} stageBelow={stageBelow} />
           {f.key === shapeAnchor && <ShapeDescription node={node} />}
         </Fragment>
       ))}

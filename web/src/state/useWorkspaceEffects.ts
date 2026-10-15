@@ -27,6 +27,16 @@ export const REBUILD_DEBOUNCE_MS = 150;
 type Boot = Pick<WorkspaceState, 'tree' | 'sims' | 'configs'>;
 
 /**
+ * Whether the design on screen is still the one the store built at boot.
+ * Every edit replaces the object it changes, so an identity match means
+ * nothing has been touched since.
+ */
+function untouchedSinceBoot(boot: Boot): boolean {
+  const s = useWorkspaceStore.getState();
+  return s.tree === boot.tree && s.sims === boot.sims && s.configs === boot.configs;
+}
+
+/**
  * The default design named in the language now loaded, while it is still
  * untouched since boot.
  *
@@ -36,8 +46,8 @@ type Boot = Pick<WorkspaceState, 'tree' | 'sims' | 'configs'>;
  * Bumps `quietReplace`, as New does, so the renaming alone is not saved.
  */
 function nameDefaultDesign(boot: Boot): void {
+  if (!untouchedSinceBoot(boot)) return;
   const s = useWorkspaceStore.getState();
-  if (s.tree !== boot.tree || s.sims !== boot.sims || s.configs !== boot.configs) return;
   const [stage, ...rest] = s.tree.components;
   const [sim, ...others] = s.sims;
   if (!stage || !sim) return;
@@ -50,6 +60,35 @@ function nameDefaultDesign(boot: Boot): void {
     sims: [{ ...sim, name: simName }, ...others],
     quietReplace: s.quietReplace + 1,
   });
+}
+
+/**
+ * Write the workspace and record the outcome where the UI reads it: the
+ * written marker, the header's save status and the storage warning slot.
+ *
+ * A successful save retires a "storage full" or conflict warning and nothing
+ * else: the IndexedDB-degraded and load-failed messages are facts about this
+ * session that a later write does not undo (see clearSaveWarning). It also
+ * asks the browser not to evict this origin under disk pressure, since there
+ * is now a design worth keeping. Once per session, best-effort.
+ */
+function persist(fields: Parameters<typeof workspaceSnapshot>[0]): void {
+  getWorkspaceStore()
+    .save(workspaceSnapshot(fields))
+    .then(() => {
+      markWritten(fields);
+      useWorkspaceStore.getState().clearSaveWarning();
+      // The header's save status reads this. It is the only thing that
+      // reports a save, since the File menu has no Save item, so it is
+      // set here, where a write actually landed, rather than anywhere that
+      // merely asked for one.
+      useWorkspaceStore.getState().markSaved();
+      void requestPersistentStorage();
+    })
+    .catch((e: unknown) => {
+      const { msg, kind } = saveFailure(e);
+      useWorkspaceStore.getState().setStorageWarning(msg, kind);
+    });
 }
 
 /**
@@ -114,8 +153,17 @@ export function useWorkspaceEffects() {
         // the second load build again: the double build the `ready` gate
         // exists to prevent.
         if (!live) return;
-        if (w) useWorkspaceStore.getState().hydrate(w);
-        else {
+        if (w && untouchedSinceBoot(boot)) useWorkspaceStore.getState().hydrate(w);
+        else if (w) {
+          // The editor is live while the read and the language wait run, and
+          // nothing autosaves until this resolves, so a part added in those
+          // seconds exists only on screen. Hydrating now would replace it with
+          // the stored design. The design on screen stays, detached from the
+          // stored one's library entry so the write below creates an entry of
+          // its own and the stored design keeps its own, unchanged.
+          getWorkspaceStore().setActiveId?.(null);
+          persist(useWorkspaceStore.getState());
+        } else {
           nameDefaultDesign(boot);
           // Nothing stored: the default rocket is not worth storing until it is
           // edited, as after New (see `writtenWorkspace`).
@@ -141,10 +189,15 @@ export function useWorkspaceEffects() {
         await language;
         if (!live) return;
         getWorkspaceStore().setActiveId?.(null);
-        nameDefaultDesign(boot);
-        // The default rocket on screen is no more worth storing than after an
-        // empty load: hiding the tab must not save it as a library entry.
-        markWritten(useWorkspaceStore.getState());
+        if (untouchedSinceBoot(boot)) {
+          nameDefaultDesign(boot);
+          // The default rocket on screen is no more worth storing than after an
+          // empty load: hiding the tab must not save it as a library entry.
+          markWritten(useWorkspaceStore.getState());
+        }
+        // Edited while the load ran: the design on screen is the user's and
+        // stays unwritten, so the next autosave or the unload flush stores it,
+        // detached, as a design of its own.
         hydrated.current = true;
         setReady(true);
         useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.loadFailed'), 'loadFailed');
@@ -193,29 +246,7 @@ export function useWorkspaceEffects() {
     const token = currentAutosaveToken();
     const id = setTimeout(() => {
       if (token !== currentAutosaveToken() || savesHeld()) return;
-      const fields = { tree, sims, configs, activeId, loadedMeta };
-      getWorkspaceStore()
-        .save(workspaceSnapshot(fields))
-        // There is now a design worth keeping, so ask the browser not to evict
-        // this origin under disk pressure. Once per session, best-effort.
-        // A successful save retires a "storage full" or conflict warning and
-        // nothing else: the IndexedDB-degraded and load-failed messages are
-        // facts about this session that a later write does not undo (see
-        // clearSaveWarning).
-        .then(() => {
-          markWritten(fields);
-          useWorkspaceStore.getState().clearSaveWarning();
-          // The header's save status reads this. It is the only thing that
-          // reports a save, since the File menu has no Save item, so it is
-          // set here, where a write actually landed, rather than anywhere that
-          // merely asked for one.
-          useWorkspaceStore.getState().markSaved();
-          void requestPersistentStorage();
-        })
-        .catch((e: unknown) => {
-          const { msg, kind } = saveFailure(e);
-          useWorkspaceStore.getState().setStorageWarning(msg, kind);
-        });
+      persist({ tree, sims, configs, activeId, loadedMeta });
     }, 500);
     return () => clearTimeout(id);
   }, [tree, sims, configs, activeId, loadedMeta, quietReplace]);
@@ -310,6 +341,12 @@ export function useWorkspaceEffects() {
     // so the design builds itself the moment the engine arrives.
     if (enginePhase !== 'ready') {
       builtOnce.current = false;
+      // A retry resets the engine (resetEngineInit), which voids every handle
+      // the old one issued, so a build kept here is a dead handle: the Aero
+      // view's Worst button throws on it and an input change blanks the pane
+      // until the new engine lands. Cleared to the not-built state instead.
+      const store = useWorkspaceStore.getState();
+      if (store.rocket || store.info) store.applyBuild(null, null);
       return;
     }
     const build = () => {

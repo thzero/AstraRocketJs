@@ -121,7 +121,7 @@ const CASES: Case[] = [
     'thickness',
     KERNEL_DEFAULTS.bodytube.thickness,
     'component',
-    0.002,
+    0.001,
   ],
   [
     'transition.thickness',
@@ -446,7 +446,7 @@ const CASES: Case[] = [
     'thickness',
     KERNEL_DEFAULTS.tubecoupler.thickness,
     'component',
-    0.002,
+    0.001,
   ],
   [
     'engineblock.length',
@@ -473,7 +473,7 @@ const CASES: Case[] = [
     'thickness',
     KERNEL_DEFAULTS.launchlug.thickness,
     'component',
-    0.001,
+    0.0005,
   ],
   ['fairing.length', n({ type: 'fairing' }), TUBE, 'length', KERNEL_DEFAULTS.fairing.length, 'component', 0.12],
   ['fairing.mass', n({ type: 'fairing' }), TUBE, 'mass', KERNEL_DEFAULTS.fairing.mass, 'component', 0.05],

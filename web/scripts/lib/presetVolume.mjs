@@ -6,7 +6,7 @@
 // the desktop computes it for the OpenRocket build that loads the database, and
 // builds disagree. The engine here is newer than the 24.12 release, and since
 // then `Transition.loadFromPreset` gives a preset's shoulders the part's wall
-// (upstream 90a57aa33), so the same nose cone has more volume. A density taken
+// (upstream's loader, not 24.12's), so the same nose cone has more volume. A density taken
 // from 24.12 and flown here can weigh several times what the catalog states.
 // Measured in the engine the app flies, the part weighs its stated mass.
 //

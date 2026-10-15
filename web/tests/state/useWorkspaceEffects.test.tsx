@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, cleanup } from '@testing-library/react';
+import { act, cleanup, screen } from '@testing-library/react';
 
 /**
  * The workspace effects: hydration gate, debounced autosave, unload journal,
@@ -32,6 +32,13 @@ vi.mock('../../src/engine/simClient', () => ({ warmSimWorker: vi.fn() }));
 vi.mock('../../src/services/storage/persistStorage', () => ({
   requestPersistentStorage: vi.fn(() => Promise.resolve(true)),
 }));
+// A retry starts a real engine load. Here it never settles, so a test can
+// look at the window between the reset and the new engine. The reset itself
+// (resetEngineInit) is the real one.
+vi.mock('../../src/engine/openRocketEngine', async (orig) => ({
+  ...(await orig<typeof import('../../src/engine/openRocketEngine')>()),
+  initEngine: () => new Promise<never>(() => {}),
+}));
 
 const degraded = vi.hoisted(() => ({ fire: null as null | (() => void) }));
 vi.mock('../../src/services/storage/idbKeyValueStore', async (orig) => ({
@@ -51,6 +58,8 @@ import { useEngineStore } from '../../src/state/engineStore';
 import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../../src/services/storage/designLibrary';
 import { renderWithProviders } from '../testing/renderWithProviders';
 import i18n from '../../src/i18n';
+import { AeroAnalysis } from '../../src/components/canvas/AeroAnalysis';
+import { unchangedSinceWrite } from '../../src/state/writtenWorkspace';
 
 function Host() {
   useWorkspaceEffects();
@@ -112,6 +121,46 @@ describe('hydration', () => {
   });
 
   /**
+   * The editor is live while the stored design is read and the language bundle
+   * awaited (up to 3 s on a cold cache), and nothing autosaves until that
+   * resolves, so a part added in those seconds exists only on screen.
+   * Hydrating over it would replace it with the stored design. The edit stays,
+   * detached from the stored design's entry so it is saved as a design of its
+   * own and the stored one keeps its entry unchanged.
+   */
+  it('keeps an edit made before the stored design arrived, as a design of its own', async () => {
+    let settle!: (v: unknown) => void;
+    load.mockReturnValue(new Promise((r) => (settle = r)));
+    const stored = saved();
+    renderWithProviders(<Host />);
+
+    act(() => s().addPartToTree('bodytube'));
+    const edited = s().tree;
+    const bootIds = new Set(stored.tree.components.flatMap((c) => [c.id, ...(c.children ?? []).map((k) => k.id)]));
+    const added = edited.components
+      .flatMap((c) => (c.children ?? []).map((k) => k.id))
+      .filter((id) => !bootIds.has(id));
+    expect(added).toHaveLength(1);
+
+    await act(async () => {
+      settle(stored);
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    // The edit survives, and the hydration still completed: the design built once.
+    expect(s().tree).toBe(edited);
+    expect(s().tree.name).not.toBe('Restored');
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    expect(computeStaticInfo.mock.calls[0]![0]).toBe(edited);
+    // Detached before the write, so the write creates an entry rather than
+    // overwriting the stored design's.
+    expect(setActiveId).toHaveBeenCalledWith(null);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect((save.mock.calls[0]![0] as { tree: unknown }).tree).toBe(edited);
+    expect(setActiveId.mock.invocationCallOrder[0]!).toBeLessThan(save.mock.invocationCallOrder[0]!);
+  });
+
+  /**
    * A language switch must not touch the workspace.
    *
    * The load effect must not depend on `t`, whose identity changes on
@@ -162,6 +211,36 @@ describe('hydration', () => {
       await Promise.resolve();
     });
     expect(save).toHaveBeenCalled();
+  });
+
+  /**
+   * The same window, with the load rejecting: the edit stays, is not marked
+   * written (so the unload flush and the hidden-tab save store it) and is
+   * detached from whatever the store pointed at.
+   */
+  it('keeps an edit made before the load rejected, unwritten and detached', async () => {
+    let fail!: (e: unknown) => void;
+    load.mockReturnValue(new Promise((_r, reject) => (fail = reject)));
+    renderWithProviders(<Host />);
+
+    act(() => s().addPartToTree('bodytube'));
+    const edited = s().tree;
+
+    await act(async () => {
+      fail(new Error('idb blocked'));
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(s().tree).toBe(edited);
+    expect(s().storageWarningKind).toBe('loadFailed');
+    expect(setActiveId).toHaveBeenCalledWith(null);
+    expect(unchangedSinceWrite(s())).toBe(false);
+    // So the unload flush writes it, where an untouched default is skipped.
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(saveSync).toHaveBeenCalledTimes(1);
+    expect((saveSync.mock.calls[0]![0] as { tree: unknown }).tree).toBe(edited);
   });
 
   // The store read the design and holds its claim on it; `hydrate` is what
@@ -570,6 +649,26 @@ describe('what triggers a rebuild', () => {
     });
 
     expect(computeStaticInfo).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * `retry()` resets the engine, which voids every handle the old one issued,
+   * and the rebuild waits for the new engine. A handle kept in the store in
+   * that window is dead: the Aero view's Worst button throws on it and an
+   * input change blanks the pane. The store reads as not built instead, which
+   * the Aero view renders as its not-built state.
+   */
+  it('clears the built rocket the moment a retry throws the engine away', async () => {
+    await mount();
+    expect(s().rocket).not.toBeNull();
+
+    act(() => useEngineStore.getState().retry());
+
+    expect(useEngineStore.getState().phase).toBe('loading');
+    expect(s().rocket).toBeNull();
+    expect(s().info).toBeNull();
+    renderWithProviders(<AeroAnalysis />);
+    expect(screen.getByText('Build a valid rocket to see its drag.')).toBeTruthy();
   });
 });
 

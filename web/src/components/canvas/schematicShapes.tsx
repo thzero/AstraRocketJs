@@ -610,23 +610,27 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           ),
         );
       } else if (t === 'launchlug' || t === 'railbutton') {
-        // A rail button has no axial 'length': it is as long as it is wide
-        // (its outer diameter) and stands out from the body by its height.
-        // Both are the kernel's own when absent, so the drawn button is the
-        // size of the simulated one.
+        // A rail button has no axial 'length' in the kernel (RailButton never
+        // sets RocketComponent.length, so it positions as a 0-long part) and
+        // its instance bounding box runs one radius either side of that
+        // station (RailButton.getInstanceBoundingBox). It is drawn its outer
+        // diameter wide, centered on the station, and stands out from the body
+        // by its height. Both are the kernel's own when absent, so the drawn
+        // button is the size of the simulated one.
         const btn = t === 'railbutton' ? railButtonSize(child) : null;
         // A lug with no size keys is the kernel's own (ComponentFactory, case
         // "launchlug"), the size the 3D view and the exporters already use.
         const len = btn ? btn.diameter : num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
         const reach = btn ? btn.reach : 2 * num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
-        const start = axialStart(child, len, pStart, pLen);
+        const station = axialStart(child, btn ? 0 : len, pStart, pLen);
+        const start = btn ? station - len / 2 : station;
         // Project the radial mount angle, turned by the parent's turn as the fins
         // are, onto the side profile: 0° stands at full height above the tube,
         // ±90° is edge-on (foreshortens away), 180° sits below. Vertical
         // offset = radius·cos(angle) (kernel default 180°).
         // It stands on the body radius at its own station.
         const c = Math.cos(num(child, 'angleOffset', Math.PI) + turn);
-        const R = surfaceAt(start);
+        const R = surfaceAt(station);
         const yInner = baseY - R * c * ctx.scale;
         const yOuter = baseY - (R + reach) * c * ctx.scale;
         const yTop = Math.min(yInner, yOuter);

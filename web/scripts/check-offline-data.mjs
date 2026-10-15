@@ -41,6 +41,16 @@
 // opens. Both visits are checked: a single uncontrolled one, then a controlled
 // one with the cache emptied first.
 //
+// A refresh is checked too. Every catalog refresh changes the host's manifest,
+// and the page reads the manifest before anything else; the worker's manifest
+// rule is network first so that one online visit after a refresh reads the
+// new hashes and stores the catalogs under them. A manifest served stale would
+// hand that visit the old hashes and store the new manifest behind them, and
+// the next offline visit would ask for copies nothing cached. So between a
+// controlled online visit and the offline read the host is switched to a
+// second manifest and second catalogs, and the offline read has to get the
+// second ones, at their hashes and with their entries.
+//
 // That cache is also the only offline copy, so nothing may age it out. A rule
 // with `maxAgeSeconds` makes Workbox's ExpirationPlugin refuse a cached
 // response whose Date header is older than the limit, and a user who has not
@@ -66,6 +76,7 @@
 //
 // Exit 0 on success, 1 with the failing catalog named.
 import { execFileSync, spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -185,9 +196,9 @@ function readCatalogs(page, sources) {
         try {
           const body = await get(`${base}${name}.generated.json?v=${hash}`);
           const n = Array.isArray(body) ? body.length : Object.keys(body).length;
-          out[name] = { ok: n > 0, entries: n, error: n > 0 ? undefined : 'empty body' };
+          out[name] = { ok: n > 0, hash, entries: n, error: n > 0 ? undefined : 'empty body' };
         } catch (e) {
-          out[name] = { ok: false, error: String(e).slice(0, 120) };
+          out[name] = { ok: false, hash, error: String(e).slice(0, 120) };
         }
       }
     }
@@ -195,7 +206,12 @@ function readCatalogs(page, sources) {
   }, sources);
 }
 
-function report(results, expected) {
+/**
+ * Every expected catalog loaded. `served` is what the host last published, per
+ * catalog (`hostVersions`): each of those has to have been read under that
+ * hash and with that many entries, so a copy from before a refresh fails here.
+ */
+function report(results, expected, served = {}) {
   if (results.manifest) throw new Error(`manifest.json is not available offline: ${results.manifest}`);
   const names = Object.keys(results.catalogs);
   const missing = expected.filter((n) => !names.includes(n));
@@ -206,38 +222,83 @@ function report(results, expected) {
   }
   for (const n of names) {
     const r = results.catalogs[n];
-    log(` ${r.ok ? 'OK  ' : 'FAIL'} ${n}${r.ok ? ` (${r.entries} entries)` : `: ${r.error}`}`);
+    log(` ${r.ok ? 'OK  ' : 'FAIL'} ${n}${r.ok ? ` (${r.entries} entries, v=${r.hash})` : `: ${r.error}`}`);
   }
   const broken = names.filter((n) => !results.catalogs[n].ok);
   if (broken.length) throw new Error(`unreachable offline: ${broken.join(', ')}`);
+  for (const [n, want] of Object.entries(served)) {
+    const r = results.catalogs[n];
+    if (r.hash !== want.hash)
+      throw new Error(`${n} was read under v=${r.hash}; the host's manifest names it at v=${want.hash}`);
+    if (r.entries !== want.entries)
+      throw new Error(`${n} loaded with ${r.entries} entries; the host's copy has ${want.entries}`);
+  }
 }
 
 /**
- * The options of one runtime cache rule's ExpirationPlugin in the built sw.js,
- * as the source text between its braces. Workbox emits each rule as
- * `new X({cacheName:"...",plugins:[new ExpirationPlugin({...}),...]})`.
+ * The ExpirationPlugin options of every runtime rule in the built sw.js that
+ * writes `cacheName`, as the source text between the plugin's braces, or null
+ * for a rule without the plugin. Workbox emits each rule as
+ * `registerRoute(..., new X({cacheName:"...",plugins:[new ExpirationPlugin({...}),...]}))`.
+ * A cache can have several rules: the manifest and the catalogs share one.
  */
-function ruleExpiration(outDir, cacheName) {
+function ruleExpirations(outDir, cacheName) {
   const sw = readFileSync(resolve(WEB, outDir, 'sw.js'), 'utf8');
-  const at = sw.search(new RegExp(`cacheName:\\s*["']${cacheName}["']`));
-  if (at < 0) throw new Error(`${outDir}/sw.js has no ${cacheName} rule`);
-  const rest = sw.slice(at);
-  const end = rest.search(/registerRoute\(/);
-  const rule = end < 0 ? rest : rest.slice(0, end);
-  const m = rule.match(/ExpirationPlugin\(\{([^}]*)\}\)/);
-  if (!m) throw new Error(`the ${cacheName} rule in ${outDir}/sw.js has no ExpirationPlugin`);
-  return m[1];
+  const out = [];
+  for (const m of sw.matchAll(new RegExp(`cacheName:\\s*["']${cacheName}["']`, 'g'))) {
+    const rest = sw.slice(m.index);
+    const end = rest.search(/registerRoute\(/);
+    const rule = end < 0 ? rest : rest.slice(0, end);
+    const plugin = rule.match(/ExpirationPlugin\(\{([^}]*)\}\)/);
+    out.push(plugin ? plugin[1] : null);
+  }
+  if (!out.length) throw new Error(`${outDir}/sw.js has no ${cacheName} rule`);
+  return out;
 }
 
-/** Each only-copy cache in the built sw.js caps its entries and has no expiry age. */
+/** Each only-copy cache in the built sw.js caps its entries, and no rule of it has an expiry age. */
 function checkNoAge(outDir) {
   for (const cacheName of NO_AGE_CACHES) {
-    const expiration = ruleExpiration(outDir, cacheName);
-    if (/maxAgeSeconds/.test(expiration))
-      throw new Error(`the ${cacheName} rule expires entries by age (${expiration}); offline it is the only copy`);
-    if (!/maxEntries/.test(expiration)) throw new Error(`the ${cacheName} rule has no maxEntries cap (${expiration})`);
-    log(`OK: the ${cacheName} rule caps its entries and has no expiry age`);
+    const expirations = ruleExpirations(outDir, cacheName);
+    for (const expiration of expirations) {
+      if (expiration && /maxAgeSeconds/.test(expiration))
+        throw new Error(`a ${cacheName} rule expires entries by age (${expiration}); offline it is the only copy`);
+    }
+    if (!expirations.some((e) => e && /maxEntries/.test(e)))
+      throw new Error(`no ${cacheName} rule caps its entries (${expirations.join('; ')})`);
+    log(`OK: ${expirations.length} ${cacheName} rule(s), the cache capped and nothing expired by age`);
   }
+}
+
+/**
+ * What the host serves, as two refreshes. `A` is public/data as committed. `B`
+ * is the refresh after it: each hosted catalog with one entry more, under the
+ * hash the sync would write for it (lib/dataManifest.mjs hashes the parsed
+ * data the same way), so a read says which refresh it got by hash and by
+ * entry count.
+ */
+function hostVersions() {
+  const files = new Map(readdirSync(DATA).map((f) => [f, readFileSync(resolve(DATA, f))]));
+  const entriesOf = (data) => (Array.isArray(data) ? data.length : Object.keys(data).length);
+  const version = (name, manifest, bodies) => ({
+    name,
+    manifest,
+    files: bodies,
+    served: Object.fromEntries(
+      HOSTED.map((n) => [n, { hash: manifest[n], entries: entriesOf(JSON.parse(bodies.get(`${n}.generated.json`))) }]),
+    ),
+  });
+  const manifest = JSON.parse(files.get('manifest.json'));
+  const refreshed = new Map(files);
+  const manifestB = { ...manifest };
+  for (const n of HOSTED) {
+    const data = JSON.parse(files.get(`${n}.generated.json`));
+    const next = Array.isArray(data) ? [...data, data[0]] : { ...data, refreshed: true };
+    manifestB[n] = createHash('sha256').update(JSON.stringify(next)).digest('hex').slice(0, 12);
+    refreshed.set(`${n}.generated.json`, Buffer.from(JSON.stringify(next)));
+  }
+  refreshed.set('manifest.json', Buffer.from(JSON.stringify(manifestB)));
+  return { a: version('A', manifest, files), b: version('B', manifestB, refreshed) };
 }
 
 /** Rewrite every entry in the catalog cache with a Date header a year old. */
@@ -312,33 +373,35 @@ async function hostedPass(browser) {
   // no expiry age.
   checkNoAge(OUT_HOSTED);
 
-  const files = new Set(readdirSync(DATA));
-  const manifest = JSON.parse(readFileSync(resolve(DATA, 'manifest.json'), 'utf8'));
+  const { a: A, b: B } = hostVersions();
   const server = await serve(OUT_HOSTED);
   const context = await browser.newContext();
   let answered = 0;
-  // Every request to the host, the worker's included, answered from public/data.
-  const answerHost = () =>
+  // Every request to the host, the worker's included, answered with that
+  // refresh of public/data.
+  const answerHost = (version) =>
     context.route(`${HOST}**`, (route) => {
       const file = new URL(route.request().url()).pathname.split('/').pop();
-      if (!files.has(file)) return route.fulfill({ status: 404, body: 'not found' });
+      const body = version.files.get(file);
+      if (!body) return route.fulfill({ status: 404, body: 'not found' });
       answered++;
       return route.fulfill({
         status: 200,
         contentType: 'application/json',
         headers: { 'access-control-allow-origin': '*' },
-        body: readFileSync(resolve(DATA, file)),
+        body,
       });
     });
   // The keys the app asks for offline: the host's manifest, and each catalog
-  // with its buster.
-  const want = [
+  // with the buster that refresh's manifest gives it.
+  const wanted = (version) => [
     `${HOST}manifest.json`,
-    ...HOSTED.map((n) => `${HOST}${n}.generated.json?v=${encodeURIComponent(manifest[n])}`),
+    ...HOSTED.map((n) => `${HOST}${n}.generated.json?v=${encodeURIComponent(version.manifest[n])}`),
   ];
 
-  /** Wait for the background fetch to put every key in the catalog cache. */
-  async function waitForCache(page) {
+  /** Wait for the background fetch to put every key of that refresh in the catalog cache. */
+  async function waitForCache(page, version) {
+    const want = wanted(version);
     // The warm fetch runs when the main thread is idle, with a 10 s cap, and on
     // a first visit after the worker has installed.
     const cached = () =>
@@ -352,15 +415,16 @@ async function hostedPass(browser) {
       await new Promise((r) => setTimeout(r, 500));
       have = await cached();
     }
-    if (!want.every((u) => have.includes(u))) {
+    const missing = want.filter((u) => !have.includes(u));
+    if (missing.length) {
       throw new Error(
-        `the ${CATALOG_CACHE} cache never held ${want.join(', ')} (host answered ${answered} request(s); cache has: ${have.join(', ') || 'nothing'})`,
+        `the ${CATALOG_CACHE} cache never held ${missing.join(', ')} (host answered ${answered} request(s); cache has: ${have.join(', ') || 'nothing'})`,
       );
     }
   }
 
-  /** Age the catalog cache, take the network away, reopen the app, and read every catalog. */
-  async function readOffline(page) {
+  /** Age the catalog cache, take the network away, reopen the app, and read every catalog of that refresh. */
+  async function readOffline(page, version) {
     log(`date ${await ageCatalogCache(page)} cached catalog entries a year back`);
     await context.unrouteAll({ behavior: 'ignoreErrors' });
     await context.setOffline(true);
@@ -373,11 +437,12 @@ async function hostedPass(browser) {
         { base: 'data/', only: IN_BUILD },
       ]),
       [...HOSTED, ...IN_BUILD],
+      version.served,
     );
   }
 
   try {
-    await answerHost();
+    await answerHost(A);
     const page = await openPage(context);
     // One visit and no reload: the worker installs but does not control this
     // page (registerType 'prompt', no clientsClaim), so its runtime rule never
@@ -388,21 +453,35 @@ async function hostedPass(browser) {
     if (await page.evaluate(() => !!navigator.serviceWorker.controller))
       throw new Error('the first visit is controlled by the worker, so it no longer checks an uncontrolled page');
     log('wait for the background fetch to fill the catalog cache');
-    await waitForCache(page);
-    await readOffline(page);
+    await waitForCache(page, A);
+    await readOffline(page, A);
     log('OK: one online visit leaves the hosted catalogs readable offline');
 
-    // A controlled page: the app leaves storing to the worker's own rule, so the
-    // rule's pattern and cache name are what fill the cache here.
+    // A controlled page: the app leaves storing to the worker's own rules, so
+    // their patterns and cache name are what fill the cache here.
     await context.setOffline(false);
-    await answerHost();
+    await answerHost(A);
     await page.evaluate((cacheName) => caches.delete(cacheName), CATALOG_CACHE);
     log('controlled visit: empty the catalog cache and reopen the app online');
     await page.reload();
     await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 60_000 });
-    await waitForCache(page);
-    await readOffline(page);
+    await waitForCache(page, A);
+    await readOffline(page, A);
     log('OK: the hosted catalogs load offline from the runtime cache, the others from the precache');
+
+    // A refresh: the host now holds manifest B and catalogs B, and the cache
+    // still holds A. One controlled online visit has to read B's manifest and
+    // store B's catalogs under B's hashes, which is what the next offline
+    // visit asks for. A manifest answered from the cache on this visit leaves
+    // the cache with B's manifest and only A's catalogs.
+    await context.setOffline(false);
+    await answerHost(B);
+    log('refresh: the host now serves manifest B and catalogs B; one online visit, then offline');
+    await page.reload();
+    await page.waitForFunction(() => !!navigator.serviceWorker.controller, null, { timeout: 60_000 });
+    await waitForCache(page, B);
+    await readOffline(page, B);
+    log('OK: one online visit after a catalog refresh leaves the refreshed catalogs readable offline');
   } finally {
     await context.close();
     server.kill();

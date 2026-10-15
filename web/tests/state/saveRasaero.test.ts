@@ -37,7 +37,9 @@ const tree = {
 
 beforeEach(() => {
   s().resetWorkspace();
-  useWorkspaceStore.setState({ err: null, tree });
+  // The whole rocket's launch mass and CG, as a build leaves them: the single
+  // stage's simulation cell. Without a build the export warns that it wrote 0.
+  useWorkspaceStore.setState({ err: null, tree, info: { mass: 0.1, cg: 0.2 } as never });
   vi.mocked(saveBlob).mockClear();
 });
 

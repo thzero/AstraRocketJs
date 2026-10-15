@@ -1,4 +1,4 @@
-import type { ComponentNode } from '../../engine/openRocketEngine';
+import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEFAULTS, KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../tree/kernelDefaults';
 import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, MAX_LINE_COUNT, num, str } from '../../tree/nodeProps';
 import { shapeIsClippable, shapeParamDefault, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
@@ -55,7 +55,66 @@ export function fieldApplies(node: ComponentNode, f: Field): boolean {
   if (f.key === 'clusterScale' || f.key === 'clusterSeparation' || f.key === 'clusterRotation') {
     return clusterCount(str(node, 'cluster', 'single')) > 1;
   }
+  /**
+   * The deploy altitude is read by the altitude event only, and the separation
+   * altitude by the two altitude events (DeploymentConfiguration.isActivationEvent,
+   * StageSeparationConfiguration): under any other event the box would set a
+   * number nothing reads. The desktop grays both out there. The stored value
+   * stays on the node, so it is back when the event is.
+   */
+  if (f.key === 'deployAltitude') return str(node, 'deployEvent', KERNEL_DEPLOYMENT.deployEvent) === 'altitude';
+  if (f.key === 'separationAltitude') {
+    return str(node, 'separationEvent', KERNEL_SEPARATION.separationEvent).startsWith('altitude');
+  }
   return true;
+}
+
+/**
+ * A recovery device's deploy event that only a stage with another below it can
+ * see: a flight fires it when the stage under the device separates, so on the
+ * bottom (or only) stage no event ever matches it and the device never opens.
+ * Desktop's ParachuteConfig and StreamerConfig remove it from the list on the
+ * last stage.
+ */
+export const LOWER_STAGE_SEPARATION = 'lower_stage_separation';
+
+/**
+ * Whether the stage holding the part has a stage below it: the part's
+ * enclosing stage (the nearest stage or booster above it, or the part itself)
+ * is not the last of the design's stages in tree order, which is the order the
+ * kernel numbers them in (Rocket.trackStage). False for a part the design does
+ * not hold.
+ */
+export function hasStageBelow(tree: RocketTree, id: string): boolean {
+  const stages: string[] = [];
+  let enclosing: string | undefined;
+  const visit = (nodes: readonly ComponentNode[], stageId: string | undefined) => {
+    for (const n of nodes) {
+      const own = (n.type === 'stage' || n.type === 'parallelstage') && typeof n.id === 'string' ? n.id : undefined;
+      if (own !== undefined) stages.push(own);
+      const here = own ?? stageId;
+      if (n.id === id) enclosing = here;
+      visit(n.children ?? [], here);
+    }
+  };
+  visit(tree.components ?? [], undefined);
+  return enclosing !== undefined && stages.indexOf(enclosing) < stages.length - 1;
+}
+
+/**
+ * The options a select field offers this node, from its declared list.
+ * `stageBelow` is whether the part's stage has one below it ({@link hasStageBelow});
+ * undefined when the part is not in a design (a saved part), which offers the
+ * whole list. A value the node already carries stays on offer whatever the
+ * stage, so an imported file shows as itself rather than as the first option.
+ */
+export function fieldOptions(
+  node: ComponentNode,
+  f: Extract<Field, { kind: 'select' }>,
+  stageBelow: boolean | undefined,
+): string[] {
+  if (f.key !== 'deployEvent' || stageBelow !== false || node[f.key] === LOWER_STAGE_SEPARATION) return f.options;
+  return f.options.filter((o) => o !== LOWER_STAGE_SEPARATION);
 }
 
 /**
@@ -143,8 +202,9 @@ export function fieldValue(node: ComponentNode, f: Field): number | boolean | st
  * replaces the field's own: both the panel and the test pass `liveBounds`,
  * which adds a fin tab's depth limit from the design around the part.
  *
- * The floor is 0 where nothing sets one, as `NumberField` floors an entry; an
- * absent `max` is no ceiling. Kinds with no numeric box (select, text, bool,
+ * The floor is 0 where nothing sets one and the kernel or the bridge refuses
+ * or clamps a negative value; an absent `min` or `max` is no bound, and the
+ * box takes any number there. Kinds with no numeric box (select, text, bool,
  * and the `bore` and `derived` rows, which write other keys) have no range.
  */
 export function fieldRange(node: ComponentNode, f: Field, bounds: DimensionBounds | undefined = f.bounds): FieldRange {
@@ -169,10 +229,19 @@ export function fieldRange(node: ComponentNode, f: Field, bounds: DimensionBound
       // [-pi, pi] rather than wrapping as the other angle setters do
       // (reducePi), so 270 would show and save as 270 and fly as 180.
       if (f.key === 'cant') return { min: -MAX_CANT, max: MAX_CANT };
-      if (f.key === 'angleOffset' && (node.type === 'launchlug' || node.type === 'railbutton'))
-        return { min: -Math.PI, max: Math.PI };
-      return { min: -Math.PI };
+      // A radial direction takes any angle: the kernel wraps it
+      // (RingComponent.setRadialDirection, MassObject.setRadialDirection) and
+      // the desktop spinner is unbounded. Every other angle wraps in the kernel
+      // too (FinSet.setAngleOffset, InnerTube.setClusterRotation,
+      // ParallelStage.setAngleOffset) and the desktop spinners stop at
+      // -180..180, a whole turn, so no angle is out of reach. A bound at one
+      // end only would clamp -200 to -180 while the kernel flies 160.
+      if (f.key === 'radialDirection') return {};
+      return { min: -Math.PI, max: Math.PI };
     case 'length': {
+      // Signed with no bound: the kernel's setter keeps any value and the
+      // desktop spinner is unbounded.
+      if (f.signed) return {};
       if (f.signedWithinLength) {
         const span = axialLength(node);
         return { min: -span, max: span };

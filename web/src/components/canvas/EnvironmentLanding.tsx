@@ -15,7 +15,6 @@ import { driftEllipse } from '../../services/flight/driftEllipse';
 import { isComplete } from '../../services/flight/requiredLaunch';
 import { flyForecastHours, refusalKeys, type HourLanding } from '../../services/flight/forecastHours';
 import { configPowerClass } from '../../services/flight/powerClass';
-import { offsetToLatLon } from '../../services/map/geodesy';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { LandingMap } from '../tools/LandingMap';
 import { formatCoord } from '../../services/map/slippyMap';
@@ -80,11 +79,13 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
 
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
   const bearing = (p: GroundPoint) => fmtDegrees(u, bearingFromPad(p));
-  // The kernel's own landing coordinate when the result carries it; a result
-  // without one falls back to projecting the offset.
-  const where = (series: FlightSeries | undefined, p: GroundPoint) => {
-    const ll = landingLatLon(series) ?? offsetToLatLon(lat, lon, p);
-    return formatCoord(ll.lat, ll.lon, 5);
+  // The kernel's own landing coordinate when the result carries it. A result
+  // without one (stored before the series were recorded) shows no value: a
+  // coordinate projected here would read as the kernel's and agree with
+  // neither the kernel nor the export.
+  const where = (series: FlightSeries | undefined) => {
+    const ll = landingLatLon(series);
+    return ll ? formatCoord(ll.lat, ll.lon, 5) : NO_VALUE;
   };
 
   const fly = async () => {
@@ -147,7 +148,7 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
               }
               detail={`${fmtM(distanceFromPad(p))}, ${bearing(p)}`}
             >
-              {where(b.series, p)}
+              {where(b.series)}
             </TermRow>
           );
         })}

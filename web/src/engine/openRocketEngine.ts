@@ -796,6 +796,8 @@ export interface RocketTree {
   name?: string;
   /** "Designer" free-text (OpenRocket's Rocket configuration); round-tripped. */
   designer?: string;
+  /** "Kit name" free-text (the same dialog; `<kitname>` in the file); round-tripped. */
+  kitName?: string;
   /** Design "Comments" free-text; round-tripped. */
   comment?: string;
   /** "Revision history" free-text; round-tripped. */

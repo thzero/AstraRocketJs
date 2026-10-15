@@ -67,7 +67,8 @@
       "noseFlipped": "RASAero には反転したノーズコーンがないため、「{{name}}」はエクスポートできません。トランジションを使うか、.ork でエクスポートしてください。",
       "noseOgiveParameter": "RASAero のオジャイブ形ノーズコーンは形状パラメーター 1 のみに対応しているため、「{{name}}」（形状パラメーター {{value}}）はエクスポートできません。形状パラメーターを変更するか、.ork でエクスポートしてください。",
       "noseHaackParameter": "RASAero のハーク形ノーズコーンは形状パラメーター 0（フォン・カルマン）または 0.33（LV-ハーク）のみに対応しているため、「{{name}}」（形状パラメーター {{value}}）はエクスポートできません。形状パラメーターを変更するか、.ork でエクスポートしてください。",
-      "chuteEvent": "RASAero ではパラシュートを最高点または指定高度でしか開けないため、「{{name}}」（{{event}}）はエクスポートできません。展開設定を変更するか、.ork でエクスポートしてください。"
+      "chuteEvent": "RASAero ではパラシュートを最高点または指定高度でしか開けないため、「{{name}}」（{{event}}）はエクスポートできません。展開設定を変更するか、.ork でエクスポートしてください。",
+      "boosterBoattail": "RASAero ではボートテールを最終段にしか付けられないため、段「{{stage}}」の末尾のトランジションはエクスポートできません。削除するか、.ork でエクスポートしてください。"
     },
     "motorFile": {
       "engNoData": "有効な .eng ファイルではありません（モーターのデータがありません）。",
@@ -181,6 +182,7 @@
     "saveOrkNoDesignInfo": ".ork は設計情報なしで保存されました。設計を構築できなかったため、含める統計がありませんでした。",
     "exportRasaero": "RASAero をエクスポートできませんでした：{{reason}}",
     "exportRasaeroSurface": "RASAero ファイルは保存されましたが、RASAero にはこの設計の表面仕上げに対応する表面がないため、平滑（粗さゼロ）として書き出しました。",
+    "exportRasaeroStageMass": "RASAero ファイルは保存されましたが、ある段の打ち上げ重量と重心が得られなかったため、シミュレーションの重量と重心の欄は 0 で書き込みました。飛行前に RASAero で入力してください。",
     "exportUnsupported": "この部品は {{format}} としてエクスポートできません。",
     "exportFailed": "{{format}} をエクスポートできませんでした：{{reason}}",
     "exportRkt": ".rkt を書き出せませんでした：{{reason}}",
@@ -493,6 +495,7 @@
     "sketchMarkers": "重心 / 風圧中心",
     "sketchRulers": "定規",
     "launchNote": "新しく作るシミュレーションの既定の打ち上げ条件です。既存のシミュレーションの条件は、そのシミュレーションの「打ち上げ」パネルで変更します。",
+    "launchStillAir": "新しいシミュレーションはここでは無風で始まります。デスクトップ版 OpenRocket では風速 2 m/s の風に向かって打ち上げる設定で始まります。",
     "defaultSpeed": "既定の速度",
     "confirmDelete": "シミュレーションの削除時に確認する",
     "autoRunOutdated": "古くなったシミュレーションを自動で実行する",
@@ -570,6 +573,7 @@
     "edit": "ロケットの構成を編集",
     "name": "設計名",
     "designer": "設計者",
+    "kitName": "キット名",
     "designType": "設計の種類",
     "comments": "コメント",
     "revision": "改訂履歴",
@@ -1277,6 +1281,12 @@
     "motorTooWide": "モーター「{{motor}}」は {{diameter}} mm ですが、マウント「{{mount}}」は {{bore}} mm までなので収まりません。ファイルの指定どおりに取り付けました。飛行前に確認してください。",
     "motorTooLong": "モーター「{{motor}}」は長さ {{length}} mm ですが、マウント「{{mount}}」は {{maxLength}} mm までなので収まりません。ファイルの指定どおりに取り付けました。飛行前に確認してください。",
     "mountsWithoutMotor": "このファイルにモーターがないモーターマウント：{{mounts}}。飛行前にモーターを選んでください（既定のモーターでは飛ばしません）。",
+    "finishUnknown": "{{part}}：ファイルが指定する表面仕上げ「{{value}}」はこのアプリにないため、部品は通常塗装として読み込みました。",
+    "shapeUnknown": "{{part}}：ファイルが指定する形状「{{value}}」はこのアプリにないため、既定の形状を使用します。",
+    "crossSectionUnknown": "{{part}}：ファイルが指定するフィン断面「{{value}}」はこのアプリにないため、フィンは角断面として読み込みました。",
+    "finPointsUnreadable": "{{part}}：ファイル内の輪郭点 {{count}} 個を読み取れなかったため無視しました。",
+    "finPointsTooFew": "{{part}}：ファイルの使用できる輪郭点が 3 個未満のため、既定の自由形状輪郭を使用します。",
+    "motorNoDesignation": "モーターマウント「{{mount}}」：ファイルのモーターに型番がないため、検索できませんでした。",
     "extensionName": {
       "airStart": "空中スタート",
       "javaCode": "Java コード",
@@ -1416,6 +1426,7 @@
     "width": "幅",
     "shape": "形状",
     "color": "色",
+    "finish": "表面仕上げ",
     "appearance": "外観",
     "resetColor": "既定の色に戻す",
     "deployEvent": "展開のきっかけ",
@@ -2085,6 +2096,17 @@
     "noLandings": "この風のスイープでは着地が発生しませんでした。",
     "spread": "{{from}}–{{to}}",
     "flown": "スイープ実行済み"
+  },
+  "finish": {
+    "rough": "粗い",
+    "roughunfinished": "粗い未仕上げ",
+    "unfinished": "未仕上げ",
+    "normal": "通常の塗装",
+    "smooth": "なめらかな塗装",
+    "optimum": "最適な塗装",
+    "polished": "航空機の板金",
+    "finishpolished": "研磨された表面",
+    "mirror": "鏡面"
   },
   "crossSection": {
     "square": "角型",

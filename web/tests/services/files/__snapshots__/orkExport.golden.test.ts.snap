@@ -65,7 +65,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
-                <packedradius>0.005</packedradius>
+                <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
@@ -339,7 +339,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <outerradius>0.029</outerradius>
-                <thickness>0.0005</thickness>
+                <thickness>0.002</thickness>
               </tubecoupler>
               <bulkhead>
                 <name>Bulkhead</name>
@@ -503,7 +503,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.1</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.01</radius>
                   </bodytube>
                 </subcomponents>
@@ -526,7 +526,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.2</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.015</radius>
                     <subcomponents>
                       <innertube>
@@ -575,7 +575,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
             <finish>normal</finish>
             <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
             <length>0.3</length>
-            <thickness>0.0003</thickness>
+            <thickness>0.002</thickness>
             <radius>0.03</radius>
             <subcomponents>
               <innertube>
@@ -719,7 +719,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
-                <packedradius>0.005</packedradius>
+                <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
@@ -955,7 +955,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <outerradius>0.029</outerradius>
-                <thickness>0.0005</thickness>
+                <thickness>0.002</thickness>
               </tubecoupler>
               <bulkhead>
                 <name>Bulkhead</name>
@@ -1111,7 +1111,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.1</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.01</radius>
                   </bodytube>
                 </subcomponents>
@@ -1134,7 +1134,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.2</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.015</radius>
                     <subcomponents>
                       <innertube>
@@ -1178,7 +1178,7 @@ exports[`golden .ork export > mints one configuration for a design that declares
             <finish>normal</finish>
             <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
             <length>0.3</length>
-            <thickness>0.0003</thickness>
+            <thickness>0.002</thickness>
             <radius>0.03</radius>
             <subcomponents>
               <innertube>
@@ -1273,7 +1273,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
-                <packedradius>0.005</packedradius>
+                <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
@@ -1547,7 +1547,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <outerradius>0.029</outerradius>
-                <thickness>0.0005</thickness>
+                <thickness>0.002</thickness>
               </tubecoupler>
               <bulkhead>
                 <name>Bulkhead</name>
@@ -1711,7 +1711,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.1</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.01</radius>
                   </bodytube>
                 </subcomponents>
@@ -1734,7 +1734,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.2</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.015</radius>
                     <subcomponents>
                       <innertube>
@@ -1783,7 +1783,7 @@ exports[`golden .ork export > pins every configuration, block and component type
             <finish>normal</finish>
             <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
             <length>0.3</length>
-            <thickness>0.0003</thickness>
+            <thickness>0.002</thickness>
             <radius>0.03</radius>
             <subcomponents>
               <innertube>
@@ -1937,7 +1937,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <axialoffset method="top">0</axialoffset>
                 <position type="top">0</position>
                 <packedlength>0.02</packedlength>
-                <packedradius>0.005</packedradius>
+                <packedradius>0.0125</packedradius>
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <mass>0.02</mass>
@@ -2189,7 +2189,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                 <radialposition>0.0</radialposition>
                 <radialdirection>0.0</radialdirection>
                 <outerradius>0.029</outerradius>
-                <thickness>0.0005</thickness>
+                <thickness>0.002</thickness>
               </tubecoupler>
               <bulkhead>
                 <name>Bulkhead</name>
@@ -2345,7 +2345,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.1</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.01</radius>
                   </bodytube>
                 </subcomponents>
@@ -2368,7 +2368,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
                     <finish>normal</finish>
                     <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
                     <length>0.2</length>
-                    <thickness>0.0003</thickness>
+                    <thickness>0.002</thickness>
                     <radius>0.015</radius>
                     <subcomponents>
                       <innertube>
@@ -2412,7 +2412,7 @@ exports[`golden .ork export > writes a lone configuration, and no launch block 1
             <finish>normal</finish>
             <material type="bulk" density="680" group="PaperProducts">Cardboard</material>
             <length>0.3</length>
-            <thickness>0.0003</thickness>
+            <thickness>0.002</thickness>
             <radius>0.03</radius>
             <subcomponents>
               <innertube>
@@ -2674,7 +2674,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                   "method": "top",
                   "offset": 0,
                 },
-                "radius": 0.005,
+                "radius": 0.0125,
                 "type": "masscomponent",
               },
             ],
@@ -2682,6 +2682,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
             "finish": "smooth",
             "id": "c2",
             "length": 0.15,
+            "materialGroup": "Plastics",
             "materialName": "Polystyrene",
             "name": "Nose",
             "overrideCD": 0.4,
@@ -2708,6 +2709,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
             "foreShoulderRadius": 0.024,
             "id": "c4",
             "length": 0.06,
+            "materialGroup": "PaperProducts",
             "materialName": "Cardboard",
             "name": "Transition",
             "shape": "ellipsoid",
@@ -2721,6 +2723,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
             "foreRadius": 0.03,
             "id": "c5",
             "length": 0.04,
+            "materialGroup": "PaperProducts",
             "materialName": "Cardboard",
             "name": "Transition",
             "shape": "conical",
@@ -2746,6 +2749,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "finLeRadius": 0.001,
                 "height": 0.06,
                 "id": "c7",
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Fins",
                 "position": {
@@ -2765,8 +2769,12 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
               },
               {
                 "density": 680,
+                "filletDensity": 680,
+                "filletMaterialGroup": "PaperProducts",
+                "filletMaterialName": "Cardboard",
                 "finCount": 3,
                 "id": "c8",
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Freeform Fin Set",
                 "points": [
@@ -2800,9 +2808,13 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
               },
               {
                 "density": 680,
+                "filletDensity": 680,
+                "filletMaterialGroup": "PaperProducts",
+                "filletMaterialName": "Cardboard",
                 "finCount": 2,
                 "height": 0.04,
                 "id": "c9",
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Elliptical Fin Set",
                 "position": {
@@ -2822,6 +2834,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "finCount": 6,
                 "id": "c10",
                 "length": 0.08,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Tube Fin Set",
                 "outerRadius": 0.012,
@@ -2839,6 +2852,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                     "density": 680,
                     "id": "c12",
                     "length": 0.005,
+                    "materialGroup": "PaperProducts",
                     "materialName": "Cardboard",
                     "name": "Engine Block",
                     "outerRadius": 0.014,
@@ -2856,6 +2870,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                     "instanceCount": 3,
                     "instanceSeparation": 0.02,
                     "length": 0.002,
+                    "materialGroup": "PaperProducts",
                     "materialName": "Cardboard",
                     "name": "Centering Ring",
                     "outerRadius": 0.014499999999999999,
@@ -2873,6 +2888,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "density": 680,
                 "id": "c11",
                 "length": 0.12,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "maxMotorLength": 0.14,
                 "motorMount": true,
@@ -2891,6 +2907,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "density": 680,
                 "id": "c14",
                 "length": 0.07,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "motorMount": true,
                 "name": "Inner Tube",
@@ -2906,6 +2923,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "density": 680,
                 "id": "c15",
                 "length": 0.06,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Tube Coupler",
                 "outerRadius": 0.029,
@@ -2913,7 +2931,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                   "method": "middle",
                   "offset": 0.05,
                 },
-                "thickness": 0.0005,
+                "thickness": 0.002,
                 "type": "tubecoupler",
               },
               {
@@ -2921,6 +2939,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "id": "c16",
                 "instanceSeparation": 0,
                 "length": 0.004,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Bulkhead",
                 "outerRadius": 0.029,
@@ -2937,6 +2956,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "instanceCount": 2,
                 "instanceSeparation": 0.06,
                 "length": 0.04,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "name": "Launch Lug",
                 "outerRadius": 0.0025,
@@ -3079,10 +3099,11 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                     "density": 680,
                     "id": "c26",
                     "length": 0.1,
+                    "materialGroup": "PaperProducts",
                     "materialName": "Cardboard",
                     "name": "Body Tube",
                     "outerRadius": 0.01,
-                    "thickness": 0.0003,
+                    "thickness": 0.002,
                     "type": "bodytube",
                   },
                 ],
@@ -3107,6 +3128,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                         "density": 680,
                         "id": "c29",
                         "length": 0.1,
+                        "materialGroup": "PaperProducts",
                         "materialName": "Cardboard",
                         "motorMount": true,
                         "name": "Inner Tube",
@@ -3122,10 +3144,11 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                     "density": 680,
                     "id": "c28",
                     "length": 0.2,
+                    "materialGroup": "PaperProducts",
                     "materialName": "Cardboard",
                     "name": "Body Tube",
                     "outerRadius": 0.015,
-                    "thickness": 0.0003,
+                    "thickness": 0.002,
                     "type": "bodytube",
                   },
                 ],
@@ -3147,6 +3170,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
             "density": 680,
             "id": "c6",
             "length": 0.6,
+            "materialGroup": "PaperProducts",
             "materialName": "Cardboard",
             "motorMount": true,
             "motorOverhang": 0.01,
@@ -3169,6 +3193,7 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
                 "density": 680,
                 "id": "c32",
                 "length": 0.1,
+                "materialGroup": "PaperProducts",
                 "materialName": "Cardboard",
                 "motorMount": true,
                 "name": "Inner Tube",
@@ -3184,10 +3209,11 @@ exports[`golden .ork import > pins what the kitchen-sink export reads back as 1`
             "density": 680,
             "id": "c31",
             "length": 0.3,
+            "materialGroup": "PaperProducts",
             "materialName": "Cardboard",
             "name": "Body Tube",
             "outerRadius": 0.03,
-            "thickness": 0.0003,
+            "thickness": 0.002,
             "type": "bodytube",
           },
         ],

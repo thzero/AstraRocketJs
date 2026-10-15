@@ -393,9 +393,11 @@ export function table(p: PdfPage, cols: Col[], rows: string[][], boldLast = fals
  * Quantities whose decimals follow the size of the number in the unit shown,
  * the ladder the app's own fields use (`ladderDigits`): one decimal is right
  * for a tube in millimeters and wrong in inches, where a BT-50 is 0.976 in and
- * would print as 1.0.
+ * would print as 1.0. Mass and impulse are here for the same reason: a 450 g
+ * rocket is 0.45 kg and 0.99 lb, and an A8's 2.5 N·s is 0.56 lbf·s, none of
+ * which survive a fixed count of decimals chosen for grams.
  */
-const LADDERED: ReadonlySet<Quantity> = new Set<Quantity>(['length', 'motorDimensions']);
+const LADDERED: ReadonlySet<Quantity> = new Set<Quantity>(['length', 'motorDimensions', 'mass', 'impulse']);
 
 /** `digits` when the caller states it; else the ladder for a length, one decimal for the rest. */
 const digitsFor = (quantity: Quantity, ui: number, digits?: number): number =>
@@ -416,7 +418,7 @@ export const qv = (p: PdfPage, quantity: Quantity, si: number, digits?: number):
 
 export const len = (p: PdfPage, m: number): string => q(p, 'length', m);
 
-export const g = (p: PdfPage, kg: number): string => q(p, 'mass', kg, 0);
+export const g = (p: PdfPage, kg: number): string => q(p, 'mass', kg);
 
 /** The summary grid's rows for one static-info block (the rocket, or one stage). */
 export function summaryRows(p: PdfPage, info: StaticInfo): [string, string][] {

@@ -364,10 +364,12 @@ export function buildAftScene(
         // Seen from behind, a button is its outer diameter across and its
         // height out from the body, the kernel's own when absent, standing at
         // its radial mount angle (kernel default 180°), turned with the
-        // parent's frame, on the body radius at its own station. The +π/2 is
-        // the aft view's "up = 0°" convention.
+        // parent's frame, on the body radius at its own station. The kernel
+        // positions it as a 0-long part (RailButton never sets
+        // RocketComponent.length), so the station is read with no length.
+        // The +π/2 is the aft view's "up = 0°" convention.
         const { diameter, reach: out } = railButtonSize(child);
-        const R = surfaceUnder(child, diameter);
+        const R = surfaceUnder(child, 0);
         outer.push({
           kind: 'fin',
           key: keyOf(child, 0),

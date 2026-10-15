@@ -7,7 +7,6 @@ import {
   removeNode,
   addChild,
   findMounts,
-  isUpperStageMount,
   isAxial,
   allowedChildren,
   hasCatalog,
@@ -102,34 +101,6 @@ describe('mount + type rules', () => {
     const two = addChild(t, 'b1', { id: 'm2', type: 'innertube', motorMount: true } as never);
     expect(findMounts(two).map((n) => n.id)).toEqual(['m1', 'm2']);
     expect(findMounts(makeTree()).map((n) => n.id)).toEqual(['m1']);
-  });
-
-  it('isUpperStageMount is false on a single (implicit or explicit) stage', () => {
-    expect(isUpperStageMount(makeTree(), 'm1')).toBe(false);
-  });
-
-  it('isUpperStageMount is true for a mount above the bottom booster, false for the booster', () => {
-    // Two stages in desktop order: [0] = top sustainer, [1] = bottom booster.
-    const staged = {
-      components: [
-        {
-          id: 'sus',
-          type: 'stage',
-          children: [
-            { id: 'bt-s', type: 'bodytube', children: [{ id: 'm-sus', type: 'innertube', motorMount: true }] },
-          ],
-        },
-        {
-          id: 'boost',
-          type: 'stage',
-          children: [
-            { id: 'bt-b', type: 'bodytube', children: [{ id: 'm-boost', type: 'innertube', motorMount: true }] },
-          ],
-        },
-      ],
-    } as unknown as RocketTree;
-    expect(isUpperStageMount(staged, 'm-sus')).toBe(true); // has the booster below it
-    expect(isUpperStageMount(staged, 'm-boost')).toBe(false); // bottom stage: nothing below
   });
 
   it('isAxial is true only for axial body components', () => {
@@ -614,18 +585,24 @@ describe('catalogPatch for a centering ring', () => {
 });
 
 describe('a new pod set or parallel stage', () => {
-  // The seed tube is slim on purpose. A new body tube is automatic, and an
-  // automatic tube with no neighbor in its own chain resolves to the kernel's
-  // SymmetricComponent.DEFAULT_RADIUS (25 mm), so the seed has to be fixed.
-  for (const type of ['podset', 'parallelstage'] as const) {
-    it(`keeps the ${type} seed tube at 9 mm radius once added`, () => {
-      const { tree, id } = addPart(makeTree(), type, 'b1');
-      const tube = findNode(tree, id)!.children![0]!;
-      expect(tube.type).toBe('bodytube');
-      expect(tube['outerRadiusAuto']).toBe(false);
-      expect(tube['outerRadius']).toBe(0.009);
-    });
-  }
+  // The booster's seed tube is slim on purpose. A new body tube is automatic,
+  // and an automatic tube with no neighbor in its own chain resolves to the
+  // kernel's SymmetricComponent.DEFAULT_RADIUS (25 mm), so the seed has to be fixed.
+  it('keeps the parallelstage seed tube at 9 mm radius once added', () => {
+    const { tree, id } = addPart(makeTree(), 'parallelstage', 'b1');
+    const tube = findNode(tree, id)!.children![0]!;
+    expect(tube.type).toBe('bodytube');
+    expect(tube['outerRadiusAuto']).toBe(false);
+    expect(tube['outerRadius']).toBe(0.009);
+  });
+
+  // A pod set arrives as PodSet() does: two copies with nothing in them.
+  it('adds an empty pod set of two copies', () => {
+    const { tree, id } = addPart(makeTree(), 'podset', 'b1');
+    const pods = findNode(tree, id)!;
+    expect(pods.children ?? []).toHaveLength(0);
+    expect(pods['instanceCount']).toBe(2);
+  });
 });
 
 /**

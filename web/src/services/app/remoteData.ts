@@ -24,8 +24,12 @@
  * nowhere else: such a build does not carry its own copy of them (vite.config.ts
  * leaves them out), so a catalog is never older than the published one. Offline,
  * the service worker answers from its cached copy of the download
- * (`astra-catalogs`). A worker-controlled page fills it through the worker's
- * own rule; the first visit is never controlled, so warmCatalogs.ts writes it
+ * (`astra-catalogs`, vite.config.ts): the manifest is served network first and
+ * from the cache when the network fails, and each catalog is cached under its
+ * `?v=<hash>` URL, so an online open after a refresh stores the refreshed
+ * manifest and the catalogs it names, and the next offline open reads that
+ * pair. A worker-controlled page fills the cache through the worker's own
+ * rules; the first visit is never controlled, so warmCatalogs.ts writes it
  * there itself, under the URLs from {@link dataHostUrls}.
  *
  * `manifest.json` (written by the sync scripts) carries a content hash per file;
@@ -254,7 +258,7 @@ async function catalogUrl(name: CatalogName): Promise<string> {
 /**
  * The data-host URLs a page reads the named catalogs from: the host's manifest,
  * then each catalog with its cache-buster. The service worker's
- * `astra-catalogs` rule answers these offline and matches on the whole URL, so
+ * `astra-catalogs` rules answer these offline and match on the whole URL, so
  * these are its cache keys. Empty with no data host.
  */
 export async function dataHostUrls(names: readonly CatalogName[]): Promise<string[]> {

@@ -65,6 +65,22 @@ const KNOWN = [
     warning: "Unknown parameter type 'cordlengthauto' for Shock Cord, ignoring.",
     reason: 'the app keeps its automatic cord length in its own tag; desktop flies the number written beside it',
   },
+  // What desktop's RockSim import leaves out of a RockSim file.
+  {
+    file: 'source/rocksim.rkt',
+    warning: 'Parachute spill holes are not supported. Ignoring.',
+    reason: "desktop's ParachuteHandler drops a spill hole; the app keeps it for upstream OpenRocket",
+  },
+  {
+    file: 'source/rocksim.rkt',
+    warning: 'Ring tails are not currently supported. Ignoring.',
+    reason: 'neither desktop nor the app has a ring tail part; both skip it',
+  },
+  {
+    file: 'rocksim-from-rkt.ork',
+    warning: "Unknown parameter type 'spillholediameter' for Parachute, ignoring.",
+    reason: '24.12 has no parachute spill hole; <spillholediameter> is the element upstream OpenRocket reads',
+  },
   {
     file: 'conditions.ork',
     warning: "Unknown parameter type 'linelengthauto' for Parachute, ignoring.",

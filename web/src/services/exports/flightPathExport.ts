@@ -121,8 +121,8 @@ function buildLabels(t: Translate): Record<string, string> {
 }
 
 /**
- * What exported altitudes are measured from. Mirrors the desktop's
- * `FlightPathExportOptions.AltitudeReference`.
+ * What exported altitudes are measured from, the choice OpenRocket's flight
+ * path export offers.
  *
  * It matters because the launch altitude defaults to zero: a site actually
  * 1200 m up then reports its flight in meters above the pad, and placing that
@@ -136,8 +136,8 @@ function buildLabels(t: Translate): Record<string, string> {
 export type AltitudeReference = 'automatic' | 'ground' | 'sealevel' | 'clamped';
 
 /**
- * Where a stage's own track begins. Mirrors the desktop's
- * `FlightPathExportOptions.StageTrackStart`.
+ * Where a stage's own track begins, the choice OpenRocket's flight path export
+ * offers.
  *
  * A branch created at stage separation starts life as a verbatim copy of its
  * parent's points, so every non-primary branch repeats the ascent the stages
@@ -702,9 +702,9 @@ function fmtLength(meters: number, unit: DistanceUnit): string {
 
 /**
  * Coordinates written into the exported file when the design carries no launch
- * position: the Kennedy Space Center, the same fallback desktop OpenRocket uses
- * in `FlightPathModelBuilder.EXPORT_FALLBACK_*`. Dropping a flight on Null
- * Island tells the reader nothing.
+ * position: the Kennedy Space Center, the launch site the kernel defaults to
+ * (`OpenRocketEngine.simulateJson`). Dropping a flight on Null Island tells the
+ * reader nothing.
  *
  * These are used for the exported coordinates only. Nothing here writes to the
  * design, and its launch position is left exactly as the user set it.
@@ -717,8 +717,7 @@ export const EXPORT_FALLBACK_LONGITUDE = -80.6;
  * be a real launch site anyone uses, since (0, 0) is open ocean in the Gulf of
  * Guinea.
  *
- * This is narrower than desktop OpenRocket, whose `FlightPathModelBuilder`
- * treats a zero in *either* coordinate as unset. A zero longitude is a
+ * Both, not either: a zero longitude is a
  * legitimate position (Greenwich, and everywhere else on the prime meridian),
  * and so is a zero latitude, so OpenRocket's rule would
  * relocate a real launch site that happens to sit on one of those lines.
@@ -728,7 +727,7 @@ function launchPositionUnset(launch: LaunchConditions): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// Model builder (mirrors FlightPathModelBuilder)
+// Model builder
 // ---------------------------------------------------------------------------
 
 /** Coerce a possibly-missing series value to a finite number, or 0. */
@@ -1570,9 +1569,9 @@ export function mimeForExtension(extension: string): string {
 
 /**
  * Render a user-supplied Mustache template against the model, escaping values by
- * the output extension. The model uses the same field names as OpenRocket's
- * desktop `FlightPathModel`, so existing OpenRocket export templates render
- * verbatim. Only the rendered text is ever downloaded, never injected into the
+ * the output extension. The model's field names are the ones OpenRocket's
+ * flight path export templates use, so a template written for it renders
+ * here. Only the rendered text is ever downloaded, never injected into the
  * DOM, so a template cannot script the app.
  */
 export function renderUserTemplate(source: string, extension: string, model: FlightPathModel): string {

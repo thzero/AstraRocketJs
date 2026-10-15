@@ -10,6 +10,7 @@ import { hexOf } from '../../design/colorHex';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
 import { DEPLOY_EVENTS } from '../../design/componentFields';
+import { keyedNote, notePartName, type ImportNote } from '../importNote';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -127,14 +128,36 @@ export function readAutoValue(el: Element, node: ComponentNode, tag: string, fla
   return false;
 }
 
-/** The bulk material's `group` attribute, when the file carries one (the name
- *  and density are read by `matName` / `matDensity`). Pass-through, like
- *  readFillet. */
-export function readMaterialGroup(el: Element, node: ComponentNode): void {
+/**
+ * The bulk material's `group` attribute, when the file carries one (the name
+ * and density are read by `matName` / `matDensity`). Read for every part by
+ * `readCommon`, since `RocketComponentSaver.materialParam` writes it for every
+ * material: without it the writer has no group to put back, and desktop's
+ * `MaterialSetter` then looks the material up with no group.
+ */
+function readMaterialGroup(el: Element, node: ComponentNode): void {
   const m = el.querySelector(':scope > material');
   if (!m || m.getAttribute('type') !== 'bulk') return;
   const group = m.getAttribute('group');
   if (group) node['materialGroup'] = group;
+}
+
+/**
+ * The bulk material's `shearModulus` attribute, carried for the writer.
+ *
+ * Upstream's `materialParam` writes it for a user-defined material and for any
+ * material whose modulus is not zero, and `MaterialSetter` looks the material
+ * up by it when present. Nothing here reads it, so it is kept only to be
+ * written back; absent stays absent, since the setter treats the attribute's
+ * presence as the user having set it.
+ */
+function readShearModulus(el: Element, node: ComponentNode): void {
+  const m = el.querySelector(':scope > material');
+  if (!m || m.getAttribute('type') !== 'bulk') return;
+  const raw = m.getAttribute('shearModulus');
+  if (raw === null) return;
+  const v = Number(raw);
+  if (Number.isFinite(v) && v >= 0) node['shearModulus'] = v;
 }
 
 function matDensity(el: Element): number | undefined {
@@ -228,8 +251,9 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
  */
 function readFillet(el: Element, node: ComponentNode): void {
   const r = numTag(el, 'filletradius', 0);
-  if (!(r > 0)) return;
-  node['filletRadius'] = r;
+  if (r > 0) node['filletRadius'] = r;
+  // The material is kept whatever the radius: desktop keeps a fin set's fillet
+  // material at a 0 radius, and a fillet turned back on is in that material.
   const m = el.querySelector(':scope > filletmaterial');
   if (!m) return;
   const d = Number(m.getAttribute('density'));
@@ -353,10 +377,84 @@ function readPosition(el: Element): ComponentPosition | undefined {
 }
 
 /**
+ * An enum name as the bridge and desktop match it: lower-cased with the
+ * underscores removed (`ComponentFactory.enumKey`, `DocumentConfig.findEnum`).
+ */
+const enumToken = (raw: string): string => raw.trim().toLowerCase().replace(/_/g, '');
+
+/**
+ * The surface finishes the bridge builds (`ComponentFactory.finishOf`), each
+ * to the name the app keeps: `ExternalComponent.Finish` lower-cased, plus the
+ * bridge's `regular` alias for NORMAL.
+ */
+const FINISHES: ReadonlyMap<string, string> = new Map([
+  ...[
+    'rough',
+    'roughunfinished',
+    'unfinished',
+    'normal',
+    'smooth',
+    'polished',
+    'finishpolished',
+    'optimum',
+    'mirror',
+  ].map((f): [string, string] => [f, f]),
+  ['regular', 'normal'],
+]);
+
+/** `Transition.Shape`, as `ComponentFactory.shapeOf` accepts it. */
+const SHAPES: ReadonlyMap<string, string> = new Map(
+  ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'].map((s) => [s, s]),
+);
+
+/** `FinSet.CrossSection`, as `ComponentFactory.crossSectionOf` accepts it. */
+const CROSS_SECTIONS: ReadonlyMap<string, string> = new Map(['square', 'rounded', 'airfoil'].map((s) => [s, s]));
+
+/** How much of a refused value a note shows: enough to recognize, never a page. */
+const NOTE_VALUE_CHARS = 40;
+
+/**
+ * A `<tag>` whose text has to name one of the kernel's enum constants.
+ *
+ * The text is free text from the file, and the readers keep it as the node's
+ * value, which the writers then use to index their code tables and the bridge
+ * hands to a `valueOf`-style switch. Only a name the bridge builds gets
+ * through; anything else is dropped with a note naming the part, so the part
+ * flies the kernel's default and the user is told. An absent tag is absent.
+ */
+function enumTag(
+  el: Element,
+  tag: string,
+  accepted: ReadonlyMap<string, string>,
+  noteKey: string,
+  node: ComponentNode,
+  notes: ImportNote[] | undefined,
+): string | undefined {
+  const raw = text(el, `:scope > ${tag}`);
+  if (raw === null || raw.trim() === '') return undefined;
+  const value = accepted.get(enumToken(raw));
+  if (value !== undefined) return value;
+  notes?.push(keyedNote(noteKey, { part: notePartName(node), value: raw.trim().slice(0, NOTE_VALUE_CHARS) }));
+  return undefined;
+}
+
+/** A nose cone's or transition's `<shape>`, or `fallback` when absent or not a shape the kernel has. */
+export function shapeTag(el: Element, node: ComponentNode, notes: ImportNote[] | undefined, fallback: string): string {
+  return enumTag(el, 'shape', SHAPES, 'importNote.shapeUnknown', node, notes) ?? fallback;
+}
+
+/** A fin set's `<crosssection>`, or nothing when absent or not a section the kernel has. */
+export function crossSectionTag(el: Element, node: ComponentNode, notes: ImportNote[] | undefined): string | undefined {
+  return enumTag(el, 'crosssection', CROSS_SECTIONS, 'importNote.crossSectionUnknown', node, notes);
+}
+
+/**
  * What every component carries: name, bulk material, finish, the mass/CG/Cd
  * overrides and (for the types the desktop positions) the axial position.
+ * `notes` takes the note for a value the file names that the kernel has no
+ * constant for.
  */
-export function readCommon(el: Element, node: ComponentNode, withPosition: boolean): void {
+export function readCommon(el: Element, node: ComponentNode, withPosition: boolean, notes?: ImportNote[]): void {
   // Anything in this component we have no model for, kept as raw XML so a save
   // does not strip it (services/files/ork/passthrough.ts). First, so that a node
   // carrying only unknown elements still carries them.
@@ -394,7 +492,9 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   if (density !== undefined) node.density = density;
   const bulkName = matName(el, 'bulk');
   if (bulkName) node['materialName'] = bulkName;
-  const fin = text(el, ':scope > finish');
+  readMaterialGroup(el, node);
+  readShearModulus(el, node);
+  const fin = enumTag(el, 'finish', FINISHES, 'importNote.finishUnknown', node, notes);
   if (fin && fin !== 'normal') node['finish'] = fin;
   // The part's own color: three 0-255 channels on one element in the file, a
   // hex string in the tree, which is what the pickers and both views use. The

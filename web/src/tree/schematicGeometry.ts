@@ -64,7 +64,7 @@ const CP_LABEL_L = 6;
 // Wide enough for "CP · 22.4 cm" so the margin text is nudged clear of the
 // label.
 const CP_LABEL_R = 92;
-/** Rough half-width of the margin text (13 px bold ≈ 7.2 px per char). */
+/** Rough half-width of the margin text (11 px bold, with 7.2 px per char leaving room). */
 const marginHalfW = (text: string) => (text.length * 7.2) / 2;
 
 export interface CalloutLayout {
@@ -353,12 +353,18 @@ export function computeSchematicLayout(
  *
  * A part with no `length` is drawn at the length the bridge builds its type at
  * (`partLength`): 20 mm for a mass component, 25 mm for recovery gear.
+ *
+ * The 85 % cap against the parent applies to the invented fallback box only.
+ * A stated `outerRadius` or `radius` is drawn as stated: the kernel flies it
+ * unchanged (`MassObject.setRadius` floors at 0 and nothing else), so a 12.5 mm
+ * nose weight in a 13 mm tube is a 12.5 mm part, not an 11 mm one.
  */
 export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
   const dflt = node.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : parentRadius * 0.7;
+  const stated = numOpt(node, 'outerRadius') ?? numOpt(node, 'radius');
   return {
     length: partLength(node),
-    radius: Math.min(parentRadius * 0.85, num(node, 'outerRadius', num(node, 'radius', dflt))),
+    radius: stated ?? Math.min(parentRadius * 0.85, dflt),
   };
 }
 

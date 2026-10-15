@@ -202,6 +202,7 @@ const DYNAMIC_FAMILIES: { prefix: string; values: readonly string[] }[] = [
   // table and override sections, which offer the same lists
   { prefix: 'deployEvent.', values: [...FIELD_OPTIONS('deployEvent'), ...DEPLOY_EVENTS] },
   { prefix: 'crossSection.', values: FIELD_OPTIONS('crossSection') },
+  { prefix: 'finish.', values: FIELD_OPTIONS('finish') },
   { prefix: 'massComponentType.', values: FIELD_OPTIONS('massComponentType') },
   { prefix: 'separationEvent.', values: FIELD_OPTIONS('separationEvent') },
   { prefix: 'radiusMethod.', values: FIELD_OPTIONS('radiusMethod') },

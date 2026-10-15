@@ -1,5 +1,5 @@
 import type { MaterialDensity, ReportModel } from './reportModel';
-import { fmtNum, partLabel } from '../../i18n/format';
+import { fmtSig, partLabel } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
 import { siToUi } from '../../prefs/units';
 import { heading, len, q, qv, sectionBreak, sub, table, type Col, type PdfPage, type T } from './pdfPage';
@@ -33,10 +33,15 @@ export function partColumns(t: T, w: number): Col[] {
   ];
 }
 
-/** A material density in the unit of its own kind: bulk, surface or line. */
+/**
+ * A material density in the unit of its own kind: bulk, surface or line, to
+ * four significant figures. Densities span seven orders of magnitude across
+ * the three kinds (steel is 7850 kg/m³, a Kevlar thread 0.00015 kg/m), so a
+ * fixed count of decimals is wrong in one unit or another.
+ */
 function density(p: PdfPage, kind: MaterialDensity, si: number): string {
   const unit = p.units[kind];
-  return `${fmtNum(siToUi(kind, unit, si), 3)} ${unit}`;
+  return `${fmtSig(siToUi(kind, unit, si), 4)} ${unit}`;
 }
 
 function partRow(p: PdfPage, r: PartRow): string[] {

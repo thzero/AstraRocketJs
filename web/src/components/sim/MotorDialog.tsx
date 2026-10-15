@@ -51,7 +51,9 @@ function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | und
     (m) => m.manufacturer === cur.manufacturer && (m.designation === cur.designation || m.code === cur.designation),
   );
   if (named.length <= 1) return named[0];
-  const mm = Math.round(cur.diameter * 1000);
+  // The catalog states a diameter to a tenth of a millimeter (the 10.5 mm
+  // Apogee motors), so the seated motor is matched at the same precision.
+  const mm = Math.round(cur.diameter * 10000) / 10;
   const byBore = named.filter((m) => m.diameter === mm);
   const pool = byBore.length ? byBore : named;
   return (cur.curveSrc && pool.find((m) => m.curves?.some((c) => c.src === cur.curveSrc))) || pool[0];

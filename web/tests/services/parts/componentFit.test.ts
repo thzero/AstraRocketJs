@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 import { fitContextFor } from '../../../src/services/parts/componentFit';
 import { fitRuleFor } from '../../../src/services/parts/componentFilter';
@@ -132,7 +133,7 @@ describe('fitContextFor', () => {
 
 /**
  * A tube with no `thickness` key still has a bore: the one the kernel builds
- * with the type's default wall (0.3 mm for a body tube). Treating it as "no
+ * with the type's default wall (BodyTube()'s, KERNEL_DEFAULTS). Treating it as "no
  * bore" would leave the picker nothing to rank a coupler against.
  */
 describe('fitContextFor on a keyless wall', () => {
@@ -148,6 +149,6 @@ describe('fitContextFor on a keyless wall', () => {
         },
       ],
     } as unknown as RocketTree;
-    expect(fitContextFor(tree, 'x')!.parentInner).toBeCloseTo(2 * (0.0273 - 0.0003), 9);
+    expect(fitContextFor(tree, 'x')!.parentInner).toBeCloseTo(2 * (0.0273 - KERNEL_DEFAULTS.bodytube.thickness), 9);
   });
 });

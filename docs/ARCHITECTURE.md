@@ -41,7 +41,7 @@ Extracted sources by area:
 | 4 | `masscalc` | CG / mass / moment-of-inertia |
 | … | rest | logging, i18n, materials, presets, appearance |
 
-(~270 kernel files under `src/java/`, plus `src/shims/`, `src/jdkstubs/` and the `src/api/` facade: 290 Java files total.)
+(about 270 kernel files under `src/java/`, plus `src/shims/`, `src/jdkstubs/` and the `src/api/` facade: about 290 Java files in all.)
 
 ## Who owns a number
 

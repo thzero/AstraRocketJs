@@ -8,6 +8,7 @@ import { confirm } from '../../state/confirmStore';
 import { bodyTubeRadius, num } from '../../tree/nodeProps';
 import { partLabel } from '../../i18n/format';
 import { overriddenBy, type OverrideKind } from '../../services/design/overriddenBy';
+import { hasStageBelow } from '../../services/design/fieldRange';
 
 /**
  * Everything {@link PropertyPanel} needs about the current selection: the node,
@@ -53,6 +54,9 @@ export function useSelectedComponent() {
   const stages = stageNodes(tree);
   const isOnlyStage = !!node && node.type === 'stage' && stages.length <= 1;
   const isFirstStage = !!node && node.type === 'stage' && stages[0]?.id === node.id;
+  // Whether a stage sits below this part's, which is what a recovery device's
+  // lower-stage separation event needs to ever fire.
+  const stageBelow = !!selectedId && hasStageBelow(tree, selectedId);
   // The ancestor whose override decides each of this part's values, by name.
   const coveredBy = useMemo(() => {
     const out: Partial<Record<OverrideKind, string>> = {};
@@ -98,5 +102,6 @@ export function useSelectedComponent() {
     coveredBy,
     parentRadius,
     fit,
+    stageBelow,
   };
 }

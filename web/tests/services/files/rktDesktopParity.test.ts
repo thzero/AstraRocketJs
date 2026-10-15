@@ -629,19 +629,20 @@ describe('a RockSim point list', () => {
 
 describe('a shoulder RockSim gives a length to', () => {
   /**
-   * Neither RockSim nor its handlers have a cap flag: the kernel caps a shoulder
-   * itself when it first gains a length and desktop never turns it off, so every
-   * `.rkt` shoulder arrives capped. `ComponentFactory` sets the cap after the
-   * length from a key defaulting to false, so leaving the key out would undo it.
+   * Neither RockSim nor its handlers have a cap flag, and desktop 24.12's
+   * `Transition.setAftShoulderLength` / `setForeShoulderLength` store the length
+   * and nothing more, so a shoulder desktop reads from a `.rkt` is open. The
+   * node carries no cap key, and `ComponentFactory` then sets the cap off after
+   * the length (`rktShoulderCap.kernel.test.ts` holds the kernel to that).
    */
-  it('is capped, which is what makes its cap disc weigh anything', () => {
+  it('is open, as desktop 24.12 reads it', () => {
     const n = find(
       parts(
         '<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia><ConstructionType>1</ConstructionType><WallThickness>1.5</WallThickness><ShoulderOD>23</ShoulderOD><ShoulderLen>20</ShoulderLen></NoseCone>',
       ),
       'N',
     );
-    expect(n['shoulderCapped']).toBe(true);
+    expect(n['shoulderCapped']).toBeUndefined();
   });
 
   it('says nothing about a cap when there is no shoulder', () => {
@@ -649,14 +650,14 @@ describe('a shoulder RockSim gives a length to', () => {
     expect(n['shoulderCapped']).toBeUndefined();
   });
 
-  it('is capped per side on a transition', () => {
+  it('is open on both sides of a transition', () => {
     const t = find(
       parts(
         '<Transition><Name>T</Name><Len>50</Len><FrontDia>18</FrontDia><RearDia>24</RearDia><FrontShoulderDia>17</FrontShoulderDia><FrontShoulderLen>15</FrontShoulderLen><RearShoulderDia>23</RearShoulderDia><RearShoulderLen>0</RearShoulderLen></Transition>',
       ),
       'T',
     );
-    expect(t['foreShoulderCapped']).toBe(true);
+    expect(t['foreShoulderCapped']).toBeUndefined();
     expect(t['aftShoulderCapped']).toBeUndefined();
   });
 });

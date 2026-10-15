@@ -451,6 +451,29 @@ describe('golden PDF report', () => {
     expect(calls.join('\n')).toMatchSnapshot();
   });
 
+  // The summary and motor tables in the two mass units that are a fraction
+  // of a gram-sized design: the ladder decides each figure's decimals.
+  it.each([
+    ['kg', 'N·s'],
+    ['lb', 'lbf·s'],
+  ])('prints the summary and motor tables in %s and %s', async (mass, impulse) => {
+    calls.length = 0;
+    await downloadReportPdf(
+      model,
+      tree,
+      t,
+      {
+        ...everything,
+        noseTemplates: false,
+        transitionTemplates: false,
+        finMarkingGuide: false,
+        stages: [],
+      },
+      { ...units, mass, impulse },
+    );
+    expect(calls.join('\n')).toMatchSnapshot();
+  });
+
   it('draws only the fallback heading when nothing is selected', async () => {
     calls.length = 0;
     await downloadReportPdf(

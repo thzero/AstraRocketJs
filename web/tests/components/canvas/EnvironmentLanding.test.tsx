@@ -12,6 +12,7 @@ import { EnvironmentLanding } from '../../../src/components/canvas/EnvironmentLa
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { resultKey, type ResultFlight } from '../../../src/services/flight/simulations';
 import { configOf, useWorkspaceStore } from '../../../src/state/store';
+import { NO_VALUE } from '../../../src/i18n/noValue';
 
 const flight = {
   id: 's1',
@@ -54,6 +55,18 @@ describe('EnvironmentLanding coordinates', () => {
     } as unknown as ResultFlight;
     renderWithProviders(<EnvironmentLanding flight={kernel} />);
     expect(screen.getByText('39.75000° N, 104.95000° W')).toBeTruthy();
+  });
+
+  it('shows no coordinate for a result that carries no kernel latitude and longitude', () => {
+    // `flight` has the east/north offset only. A coordinate projected from it
+    // here would read as the kernel's, so the row shows the no-value glyph and
+    // keeps the distance and bearing, which the offset does give.
+    renderWithProviders(<EnvironmentLanding flight={flight} />);
+    const row = screen.getByText('Lands at').parentElement!;
+    const [value, detail] = Array.from(row.querySelectorAll('dd')).map((dd) => dd.textContent);
+    expect(value).toBe(NO_VALUE);
+    expect(detail).toMatch(/^500 m, /);
+    expect(screen.queryByText(/° [NS], .*° [EW]/)).toBeNull();
   });
 });
 

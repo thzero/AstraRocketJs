@@ -29,7 +29,7 @@ export interface CatalogMotor {
   manufacturer: string;
   /** Impulse class letter (A, B, … O). */
   class: string;
-  /** mm (rounded). */
+  /** mm, to a tenth. */
   diameter: number;
   /** Total impulse, Ns. */
   impulse: number;

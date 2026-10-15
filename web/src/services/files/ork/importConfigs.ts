@@ -4,7 +4,7 @@ import type { OrkMotorRef, OrkFlightConfig } from '../orkTypes';
 import { nonNegTag, numTag, readDeploymentTags, readSeparationTags } from './importTags';
 import { MAX_MOTOR_CONFIGS } from './importLimits';
 import { finiteNum } from './numbers';
-import { keyedNote, type ImportNote } from '../importNote';
+import { keyedNote, notePartName, type ImportNote } from '../importNote';
 import { KeyedError } from '../../../i18n/keyedError';
 
 /**
@@ -193,7 +193,10 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
     const digest = text(motorEl, ':scope > digest');
     const maker = text(motorEl, ':scope > manufacturer')?.trim();
     return {
-      designation: text(motorEl, ':scope > designation') ?? 'unknown',
+      // Empty when the file names none, never a placeholder word: the
+      // designation reaches the mount label and the notes in the UI language,
+      // and the chosen configuration's read below names the mount instead.
+      designation: text(motorEl, ':scope > designation') ?? '',
       ...(digest ? { digest } : {}),
       // Absent stays absent: desktop's MotorHandler leaves the maker null, and
       // findMotors filters on a maker only when one is given.
@@ -224,6 +227,9 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // Ignition: the chosen config's block over the bare defaults (desktop writes
   // defaults bare, overrides in <ignitionconfiguration>).
   const ref = resolveRef(motorEl, configScoped(ctx, mountEl, 'ignitionconfiguration') ?? undefined);
+  // A motor with no designation cannot be looked up: desktop's MotorHandler
+  // finds no motor for it and leaves the mount empty with a warning.
+  if (!ref.designation) ctx.notes.push(keyedNote('importNote.motorNoDesignation', { mount: notePartName(node) }));
   if (ref.delay >= PLUGGED_DELAY) {
     const unstated = text(motorEl, ':scope > delay') !== 'none';
     ctx.notes.push(

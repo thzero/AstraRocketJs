@@ -310,22 +310,6 @@ export function findSeparators(tree: RocketTree): ComponentNode[] {
 }
 
 /**
- * Whether a mount sits on a stage that has another stage below it (a sustainer /
- * upper stage): the only case where "ignite on the stage below's ejection /
- * burnout" can ever fire. False for a single (or implicit) stage and for the
- * bottom booster. Top-level `stage` nodes run desktop order: [0] = top
- * sustainer … [last] = bottom booster.
- */
-export function isUpperStageMount(tree: RocketTree, mountId: string): boolean {
-  const stages = stageNodes(tree);
-  if (stages.length < 2) return false; // one (or implicit) stage → nothing below any mount
-  const bottom = stages[stages.length - 1]!;
-  // A mount is an upper-stage mount unless it lives in the bottom stage's subtree.
-  for (const n of walkNodes([bottom])) if (n.id === mountId) return false;
-  return true;
-}
-
-/**
  * Axial components stack nose→tail in the stage; everything else nests inside
  * a tube. The one `CHAIN_TYPES` table (tree/componentKinds.ts), not a local
  * copy of it.
@@ -803,7 +787,34 @@ export function moveNode(tree: RocketTree, id: string, dir: -1 | 1): RocketTree 
   return syncDerived(next);
 }
 
-/** A new node of `type` with reasonable default dimensions (SI units, m). */
+/**
+ * A new node of `type`: the part desktop OpenRocket adds, which is the part its
+ * Java constructor builds (SI units, m, kg, rad). Every dimension, count and
+ * automatic setting below is the constructor's, read from
+ * `engine-java/src/java/info/openrocket/core/rocketcomponent/<Type>.java`, and
+ * `tests/services/design/newParts.kernel.test.ts` holds each case to the part
+ * the kernel builds from a node with no keys at all.
+ *
+ * The seeds that are the app's own, not the constructor's, and why:
+ * - `shoulderAuto`, `foreShoulderAuto`, `aftShoulderAuto`: app-only flags
+ *   (services/design/autoShoulder) that the kernel never reads; the kernel part
+ *   has no shoulder either way.
+ * - inner tube `motorMount: true` and `motorOverhang: 0.00635`: the run
+ *   refuses a design with no mount (services/flight/runnability, `noMount`),
+ *   so the Add menu's inner tube is one, with the 6.35 mm overhang the motor
+ *   picker's fit filter assumes (services/motors/motorPicker). `InnerTube()`
+ *   is not a mount and has no overhang.
+ * - parachute and streamer `deployEvent: 'apogee'`: the constructor's
+ *   `DeploymentConfiguration` fires on the motor's ejection charge. The app
+ *   seats a motor in an empty mount for the run (services/flight/flightConfigs,
+ *   `reconcileConfig`), so that charge's delay is not one the user chose;
+ *   apogee deploys at the same point whichever motor is seated.
+ * - booster (`parallelstage`) children: `ParallelStage()` is empty; the seed
+ *   holds one slim body tube so the booster is visible and has something to add
+ *   fins and a motor mount to. Its own fields are the constructor's.
+ * - rail button: desktop's `RailButton()` dimensions, stated on the node from
+ *   `COMPONENT_DEFAULTS` because the bridge reads them one by one.
+ */
 export function defaultNode(type: ComponentType): ComponentNode {
   const id = newId();
   switch (type) {
@@ -811,53 +822,62 @@ export function defaultNode(type: ComponentType): ComponentNode {
     // default separation (used only when it sits below another stage).
     case 'stage':
       return { type, id, separationEvent: 'ejection', separationDelay: 0 };
-    // The shoulder diameters follow the tube next door (see autoShoulder.ts).
-    // Only on parts created here: the flag is never written by the .ork reader,
-    // so no design that already exists grows a shoulder it did not have.
+    // `NoseCone()` (NoseCone.java:27, 34): ogive, 6 x DEFAULT_RADIUS long, a
+    // DEFAULT_RADIUS base, a 2 mm wall. The shoulder diameter follows the tube
+    // next door (see autoShoulder.ts). Only on parts created here: the flag is
+    // never written by the .ork reader, so no design that already exists grows
+    // a shoulder it did not have.
     case 'nosecone':
-      return { type, id, shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.001, shoulderAuto: true };
+      return { type, id, shape: 'ogive', length: 0.15, aftRadius: 0.025, thickness: 0.002, shoulderAuto: true };
     // A new body tube and both ends of a new transition follow their
-    // neighbors, as desktop's `BodyTube()` and `Transition()` constructors set.
-    // The radii beside the flags are what they show until resolved.
+    // neighbors, as `BodyTube()` (BodyTube.java:40-43) and `Transition()`
+    // (Transition.java:43-51) set. The radii beside the flags are the
+    // constructors' DEFAULT_RADIUS, what they show until resolved; the walls
+    // are DEFAULT_THICKNESS (SymmetricComponent.java:24-25).
     case 'bodytube':
-      return { type, id, length: 0.2, outerRadius: 0.013, outerRadiusAuto: true, thickness: 0.0005 };
+      return { type, id, length: 0.2, outerRadius: 0.025, outerRadiusAuto: true, thickness: 0.002 };
     case 'transition':
       return {
         type,
         id,
         shape: 'conical',
-        length: 0.05,
-        foreRadius: 0.013,
+        length: 0.075,
+        foreRadius: 0.025,
         foreRadiusAuto: true,
-        aftRadius: 0.019,
+        aftRadius: 0.025,
         aftRadiusAuto: true,
-        thickness: 0.0005,
+        thickness: 0.002,
         foreShoulderAuto: true,
         aftShoulderAuto: true,
       };
+    // `TrapezoidFinSet()` (TrapezoidFinSet.java:43): 3 fins, root 0.05, tip
+    // 0.05, sweep 0.025, height 0.03; the wall is FinSet's 0.003 (FinSet.java:107).
     case 'trapezoidfinset':
       return {
         type,
         id,
         finCount: 3,
-        rootChord: 0.06,
-        tipChord: 0.03,
-        sweep: 0.03,
-        height: 0.05,
+        rootChord: 0.05,
+        tipChord: 0.05,
+        sweep: 0.025,
+        height: 0.03,
         thickness: 0.003,
         position: { method: 'bottom', offset: 0 },
       };
+    // `EllipticalFinSet()` (EllipticalFinSet.java:30-33): root 0.05, height 0.05.
     case 'ellipticalfinset':
       return {
         type,
         id,
         finCount: 3,
-        rootChord: 0.06,
+        rootChord: 0.05,
         height: 0.05,
         thickness: 0.003,
         position: { method: 'bottom', offset: 0 },
       };
-    // Freeform outline (m): a swept quad, root 0→0.06 along the body, tip at 0.05 height.
+    // `FreeformFinSet()` (FreeformFinSet.java:34-37): its outline (m), a quad
+    // whose root runs 0 to 0.05 along the body and whose tip, at 0.05 height,
+    // overhangs the root's trailing edge.
     case 'freeformfinset':
       return {
         type,
@@ -866,30 +886,35 @@ export function defaultNode(type: ComponentType): ComponentNode {
         thickness: 0.003,
         points: [
           [0, 0],
-          [0.02, 0.05],
-          [0.05, 0.05],
-          [0.06, 0],
+          [0.025, 0.05],
+          [0.075, 0.05],
+          [0.05, 0],
         ],
         position: { method: 'bottom', offset: 0 },
       };
+    // `TubeFinSet()` (TubeFinSet.java:24-28, 56-58): 6 tubes, 0.10 long, an
+    // automatic radius, and no wall of its own (NaN: the tube takes the body's
+    // wall), so neither key is stored. `addPart` resolves the radius against
+    // the real parent, as for the bore-filling parts below.
     case 'tubefinset':
       return {
         type,
         id,
         finCount: 6,
-        length: 0.08,
-        outerRadius: 0.012,
-        thickness: 0.001,
+        length: 0.1,
+        outerRadiusAuto: true,
         position: { method: 'bottom', offset: 0 },
       };
+    // `InnerTube()` (InnerTube.java:48-52): an A-C motor's 19 mm bore, 0.5 mm
+    // wall, 70 mm long. The mount flag and the overhang are the app's (see above).
     case 'innertube':
       return {
         type,
         id,
         motorMount: true,
         length: 0.07,
-        outerRadius: 0.0092,
-        thickness: 0.0004,
+        outerRadius: 0.0095,
+        thickness: 0.0005,
         motorOverhang: 0.00635,
         position: { method: 'bottom', offset: 0 },
       };
@@ -908,17 +933,17 @@ export function defaultNode(type: ComponentType): ComponentNode {
       return {
         type,
         id,
-        length: 0.03,
+        length: 0.06,
         outerRadius: 0.0125,
         outerRadiusAuto: true,
-        thickness: 0.0005,
+        thickness: 0.002,
         position: { method: 'bottom', offset: 0 },
       };
     case 'centeringring':
       return {
         type,
         id,
-        length: 0.003,
+        length: 0.002,
         outerRadius: 0.0125,
         outerRadiusAuto: true,
         // A ring's bore follows the motor mount running through it, and is 0
@@ -933,7 +958,7 @@ export function defaultNode(type: ComponentType): ComponentNode {
       return {
         type,
         id,
-        length: 0.003,
+        length: 0.002,
         outerRadius: 0.0125,
         outerRadiusAuto: true,
         position: { method: 'bottom', offset: 0 },
@@ -945,15 +970,18 @@ export function defaultNode(type: ComponentType): ComponentNode {
         length: 0.005,
         outerRadius: 0.0092,
         outerRadiusAuto: true,
-        thickness: 0.0005,
+        thickness: 0.005,
         position: { method: 'bottom', offset: 0 },
       };
+    // `LaunchLug()` (LaunchLug.java:33-38): a 10 mm bore, 1 mm wall, 30 mm long,
+    // on the far side of the body, at the middle of its parent.
     case 'launchlug':
       return {
         type,
         id,
         length: 0.03,
-        outerRadius: 0.0022,
+        outerRadius: 0.005,
+        thickness: 0.001,
         angleOffset: Math.PI,
         position: { method: 'middle', offset: 0 },
       };
@@ -976,29 +1004,32 @@ export function defaultNode(type: ComponentType): ComponentNode {
         deployEvent: 'apogee',
         deployAltitude: 200,
         deployDelay: 0,
-        position: { method: 'top', offset: 0.02 },
+        position: { method: 'top', offset: 0 },
       };
+    // `Streamer()` (Streamer.java:20-22): a 0.5 m by 0.05 m strip.
     case 'streamer':
       return {
         type,
         id,
-        stripLength: 0.4,
+        stripLength: 0.5,
         stripWidth: 0.05,
         cdAuto: true,
         drogue: false,
         deployEvent: 'apogee',
         deployAltitude: 200,
         deployDelay: 0,
-        position: { method: 'top', offset: 0.02 },
+        position: { method: 'top', offset: 0 },
       };
-    // `radius` is set explicitly rather than left to each side's own default,
-    // so the drawing, the export and the kernel read the one stored value.
+    // `MassComponent()`: 0 kg (MassComponent.java:17), 25 mm long and 12.5 mm
+    // across (MassObject.java:38). `radius` is set explicitly rather than left
+    // to each side's own default, so the drawing, the export and the kernel
+    // read the one stored value.
     case 'masscomponent':
       return {
         type,
         id,
-        mass: 0.01,
-        length: 0.02,
+        mass: KERNEL_DEFAULTS.masscomponent.mass,
+        length: KERNEL_DEFAULTS.masscomponent.length,
         radius: KERNEL_DEFAULTS.masscomponent.radius,
         position: { method: 'top', offset: 0 },
       };
@@ -1029,31 +1060,22 @@ export function defaultNode(type: ComponentType): ComponentNode {
         cordLength: KERNEL_DEFAULTS.shockcord.cordLength,
         cordLengthAuto: true,
         length: KERNEL_DEFAULTS.shockcord.length,
-        position: { method: 'top', offset: 0.02 },
+        position: { method: 'top', offset: 0 },
       };
-    // An external pod: a mini body chain riding alongside the airframe. Seeded
-    // with one slim body tube so it's visible and immediately editable.
-    // radiusOffset 0 (relative) means the pod just touches the parent surface;
-    // instanceCount 1 = a single pod (raise it for a symmetric ring).
-    case 'podset': {
-      const body = defaultNode('bodytube');
-      body.length = 0.12;
-      body.outerRadius = 0.009;
-      // A fixed radius: a new body tube is automatic, and an automatic tube with
-      // nothing ahead of it or behind it in its own chain resolves to the
-      // kernel's 25 mm, which is no longer slim.
-      body.outerRadiusAuto = false;
+    // An external pod: a body chain riding alongside the airframe, two copies
+    // and empty as `PodSet()` starts (PodSet.java:32-35; its fields'
+    // initializers at :20-30). radiusOffset 0 (relative) means the pod just
+    // touches the parent surface; the user adds the pod's own parts.
+    case 'podset':
       return {
         type,
         id,
-        instanceCount: 1,
+        instanceCount: KERNEL_DEFAULTS.podset.instanceCount,
         radiusOffset: 0,
         radiusMethod: 'relative',
         angleOffset: 0,
         position: { method: 'bottom', offset: 0 },
-        children: [body],
       };
-    }
     // A strap-on booster: a parallel stage beside its parent tube, two of them
     // as `ParallelStage()` starts. Seeded with one body tube like a pod, so it
     // is visible and has something to add fins and a motor mount to.

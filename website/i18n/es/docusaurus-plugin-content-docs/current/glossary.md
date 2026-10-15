@@ -75,7 +75,6 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Carga útil**: Todo lo que el cohete lleva y que no está ahí para hacerlo volar: un altímetro, una cámara, un huevo.
 
-**Cd volado**: El coeficiente de arrastre con el que un dispositivo de recuperación voló realmente, que es su propio **Cd** salvo que se haya dejado seguir automáticamente al diseño.
 
 **Centro de gravedad (CG)**: Donde el cohete se equilibra. *En la aplicación:* el marcador de CG en las vistas, el recuadro de CG, y la gráfica y la columna **CG**. Se mueve hacia delante a medida que se quema el propelente.
 

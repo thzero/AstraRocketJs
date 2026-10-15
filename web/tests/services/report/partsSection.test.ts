@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { jsPDF } from 'jspdf';
 import i18n from '../../../src/i18n';
@@ -5,7 +7,7 @@ import type { ReportModel } from '../../../src/services/report/reportModel';
 import type { ReportOptions } from '../../../src/services/report/options';
 import { createPdfPage, type T } from '../../../src/services/report/pdfPage';
 import { writePartsSection } from '../../../src/services/report/partsSection';
-import { METRIC_UNITS, type UnitSelection } from '../../../src/prefs/units';
+import { METRIC_UNITS, UNITS, type UnitSelection } from '../../../src/prefs/units';
 
 type Rows = ReportModel['partsByStage'][number]['rows'];
 
@@ -67,7 +69,42 @@ describe('the parts section', () => {
       ],
       METRIC_UNITS,
     );
-    expect(out).toContain('Silk (21.000 g/m²)');
-    expect(out).toContain('Tubular nylon (13.000 g/m)');
+    expect(out).toContain('Silk (21 g/m²)');
+    expect(out).toContain('Tubular nylon (13 g/m)');
+  });
+
+  // The lightest line in the material catalog: a fixed count of decimals in
+  // kilograms per meter prints it as nothing at all.
+  it('prints a thread density to significant figures in every line unit', () => {
+    const kevlar = (
+      JSON.parse(readFileSync(join(__dirname, '../../../public/data/materials.generated.json'), 'utf8')) as {
+        name: string;
+        type: string;
+        density: number;
+      }[]
+    ).find((m) => m.type === 'line' && m.name.startsWith('Kevlar thread 138'))!;
+    for (const symbol of ['kg/m', 'g/m', 'lb/ft']) {
+      const out = drawnRows(
+        [
+          {
+            depth: 0,
+            type: 'shockcord',
+            name: 'C',
+            material: 'Thread',
+            density: kevlar.density,
+            densityKind: 'lineDensity',
+            length: 0.3,
+            mass: 0.0001,
+          },
+        ],
+        { ...METRIC_UNITS, lineDensity: symbol },
+      );
+      const shown = out.match(/Thread \(([^)]*) (?:kg\/m|g\/m|lb\/ft)\)/)?.[1] ?? '';
+      const exact = kevlar.density / UNITS.lineDensity.find((u) => u.symbol === symbol)!.toSI;
+      // At least two significant figures: within half a unit of the second one.
+      const within =
+        Math.abs(Number(shown.replace(/,/g, '')) - exact) <= 0.5 * 10 ** (Math.floor(Math.log10(exact)) - 1);
+      expect({ symbol, shown, exact, within }).toEqual({ symbol, shown, exact, within: true });
+    }
   });
 });

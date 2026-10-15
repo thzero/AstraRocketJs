@@ -295,7 +295,13 @@ export function LaunchPanel({
           kind="deg"
           u={u}
           stepSi={Math.PI / 180}
-          minSi={0}
+          // Into the wind, the sign is the meaning: a negative angle launches
+          // with the wind, as on the desktop, whose rod angle runs -60 to 60
+          // and which the kernel flies as given (SimulationStatus rotates by
+          // the signed angle). The safety check judges the magnitude. With a
+          // fixed heading the direction field carries the meaning, so the box
+          // floors at 0.
+          minSi={launch.launchIntoWind ? -MAX_ROD_ANGLE_RAD[powerClass ?? 'model'] : 0}
           maxSi={MAX_ROD_ANGLE_RAD[powerClass ?? 'model']}
           hint={
             powerClass === null

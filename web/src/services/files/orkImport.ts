@@ -31,6 +31,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   // Design-level metadata (OpenRocket's Rocket configuration), preserved so a
   // round-trip export doesn't drop the designer / comments / revision.
   const designer = text(rocketEl, ':scope > designer') ?? undefined;
+  const kitName = text(rocketEl, ':scope > kitname') ?? undefined;
   const comment = text(rocketEl, ':scope > comment') ?? undefined;
   const revision = text(rocketEl, ':scope > revision') ?? undefined;
   const designType = text(rocketEl, ':scope > designtype')?.toLowerCase() ?? undefined;
@@ -99,6 +100,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
       name,
       components,
       ...(designer ? { designer } : {}),
+      ...(kitName ? { kitName } : {}),
       ...(comment ? { comment } : {}),
       ...(revision ? { revision } : {}),
       ...(designType ? { designType } : {}),

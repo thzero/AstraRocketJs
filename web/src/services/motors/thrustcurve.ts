@@ -10,8 +10,8 @@ import { finalizeCurve } from './curveFinalize';
 import { KeyedError } from '../../i18n/keyedError';
 
 /**
- * thrustcurve.org API v1 client (CORS-enabled; verified reflective
- * Access-Control-Allow-Origin). A catalog row carries no thrustcurve motorId,
+ * thrustcurve.org API v1 client (the API answers cross-origin requests). A
+ * catalog row carries no thrustcurve motorId,
  * and one without a bundled curve may also lack length or propellant weight, so
  * at pick time we resolve the full motor via search.json, then pull its thrust
  * curve via download.json. API
@@ -272,19 +272,29 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
 // bump it to invalidate every per-motor entry at once (e.g. if this pipeline's
 // math or shapes change), since it namespaces every key. Catalog updates are a
 // separate, build-time concern (see motorDb.ts / scripts/sync-motors.mjs).
-const CACHE_VERSION = 'v1';
+const CACHE_VERSION = 'v2';
 const SPEC_PREFIX = nsKey(`tc:${CACHE_VERSION}:motor:`);
 const SAMPLE_PREFIX = nsKey(`tc:${CACHE_VERSION}:samples:`);
 const META_PREFIX = nsKey(`tc:${CACHE_VERSION}:meta:`);
 
+/**
+ * A catalog row's identity in a cache key: maker, common name, diameter and
+ * code, the same four fields `motorKey.keyOf` tells rows apart by. Two rows
+ * from one maker under one common name in different diameters, or with
+ * different codes, are different motors with different curves, lengths and
+ * masses, and must not serve each other's cached entries.
+ */
+const rowKey = (cat: CatalogMotor): string =>
+  `${cat.manufacturer}:${cat.designation}:${cat.diameter}:${cat.code ?? ''}`;
+
 /** Stable MotorStore key for a picked motor + delay. */
 function specKey(cat: CatalogMotor, ejectionDelay: number): string {
-  return `${SPEC_PREFIX}${cat.manufacturer}:${cat.designation}:${ejectionDelay}`;
+  return `${SPEC_PREFIX}${rowKey(cat)}:${ejectionDelay}`;
 }
 
 /** Delay-independent key for a motor's resolved thrustcurve metadata. */
 function metaKey(cat: CatalogMotor): string {
-  return `${META_PREFIX}${cat.manufacturer}:${cat.designation}`;
+  return `${META_PREFIX}${rowKey(cat)}`;
 }
 
 // thrustcurve's sample files are not immutable (contributors revise/replace

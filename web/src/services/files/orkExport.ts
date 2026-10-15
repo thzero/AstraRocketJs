@@ -50,6 +50,8 @@ export function exportOrk({
   };
   metaField('comment');
   metaField('designer');
+  // The tag is `kitname`, as desktop's RocketSaver writes it.
+  if (typeof tree.kitName === 'string' && tree.kitName.trim()) emit(2, `<kitname>${escapeXml(tree.kitName)}</kitname>`);
   metaField('revision');
   emit(2, `<designtype>${escapeXml(tree.designType || 'original')}</designtype>`);
   // Whatever `<rocket>` carried that this app has no model for, before the

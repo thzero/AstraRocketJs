@@ -67,7 +67,8 @@
       "noseFlipped": "RASAero nie ma odwróconych stożków dziobowych, więc nie można wyeksportować „{{name}}”. Użyj przejścia albo wyeksportuj jako .ork.",
       "noseOgiveParameter": "RASAero przyjmuje stożek ostrołukowy tylko z parametrem kształtu 1, więc nie można wyeksportować „{{name}}” (parametr kształtu {{value}}). Zmień parametr kształtu albo wyeksportuj jako .ork.",
       "noseHaackParameter": "RASAero przyjmuje stożek Haacka tylko z parametrem kształtu 0 (Von Kármán) lub 0,33 (LV-Haack), więc nie można wyeksportować „{{name}}” (parametr kształtu {{value}}). Zmień parametr kształtu albo wyeksportuj jako .ork.",
-      "chuteEvent": "RASAero otwiera spadochron tylko w apogeum lub na zadanej wysokości, więc nie można wyeksportować „{{name}}” ({{event}}). Zmień jego otwarcie albo wyeksportuj jako .ork."
+      "chuteEvent": "RASAero otwiera spadochron tylko w apogeum lub na zadanej wysokości, więc nie można wyeksportować „{{name}}” ({{event}}). Zmień jego otwarcie albo wyeksportuj jako .ork.",
+      "boosterBoattail": "RASAero dopuszcza stożek ogonowy tylko na ostatnim stopniu, więc końcowego przejścia stopnia „{{stage}}” nie można wyeksportować. Usuń je albo wyeksportuj jako .ork."
     },
     "motorFile": {
       "engNoData": "To nie jest prawidłowy plik .eng (nie znaleziono danych silnika).",
@@ -181,6 +182,7 @@
     "saveOrkNoDesignInfo": "Zapisano plik .ork bez informacji o projekcie: nie udało się zbudować projektu, więc nie było statystyk do dołączenia.",
     "exportRasaero": "Nie udało się wyeksportować do RASAero: {{reason}}",
     "exportRasaeroSurface": "Plik RASAero został zapisany, ale RASAero nie ma powierzchni odpowiadającej wykończeniu tego projektu, więc zapisano ją jako gładką (zerowa chropowatość).",
+    "exportRasaeroStageMass": "Plik RASAero został zapisany, ale masa startowa i środek ciężkości jednego ze stopni nie były dostępne, więc pola masy i środka ciężkości w symulacji zapisano jako 0. Wprowadź je w RASAero przed lotem.",
     "exportUnsupported": "Tej części nie można wyeksportować jako {{format}}.",
     "exportFailed": "Nie udało się wyeksportować do {{format}}: {{reason}}",
     "exportRkt": "Nie udało się zapisać pliku .rkt: {{reason}}",
@@ -493,6 +495,7 @@
     "sketchMarkers": "Środek ciężkości / parcia",
     "sketchRulers": "Linijki",
     "launchNote": "Domyślne warunki startu dla nowo tworzonych symulacji. Warunki istniejącej symulacji zmienia się w jej panelu Start.",
+    "launchStillAir": "Nowa symulacja zaczyna się tutaj przy bezwietrznej pogodzie; OpenRocket na komputerze zaczyna ją przy wietrze 2 m/s, ze startem pod wiatr.",
     "defaultSpeed": "Domyślna prędkość",
     "confirmDelete": "Potwierdzaj usuwanie symulacji",
     "autoRunOutdated": "Automatycznie uruchamiaj nieaktualne symulacje",
@@ -573,6 +576,7 @@
     "edit": "Edytuj konfigurację rakiety",
     "name": "Nazwa projektu",
     "designer": "Projektant",
+    "kitName": "Nazwa zestawu",
     "designType": "Rodzaj projektu",
     "comments": "Uwagi",
     "revision": "Historia zmian",
@@ -1292,6 +1296,12 @@
     "motorTooWide": "Silnik „{{motor}}” ma {{diameter}} mm, a gniazdo „{{mount}}” przyjmuje {{bore}} mm, więc się nie mieści. Osadzono go tak, jak podaje plik: sprawdź go przed lotem.",
     "motorTooLong": "Silnik „{{motor}}” ma {{length}} mm długości, a gniazdo „{{mount}}” mieści {{maxLength}} mm, więc się nie mieści. Osadzono go tak, jak podaje plik: sprawdź go przed lotem.",
     "mountsWithoutMotor": "Gniazda silnika bez silnika w tym pliku: {{mounts}}. Wybierz silnik przed lotem (nie poleci z domyślnym).",
+    "finishUnknown": "{{part}}: plik podaje wykończenie powierzchni „{{value}}”, którego ta aplikacja nie zna, więc część czytana jest jako zwykły lakier.",
+    "shapeUnknown": "{{part}}: plik podaje kształt „{{value}}”, którego ta aplikacja nie zna, więc użyto kształtu domyślnego.",
+    "crossSectionUnknown": "{{part}}: plik podaje przekrój statecznika „{{value}}”, którego ta aplikacja nie zna, więc stateczniki czytane są jako prostokątne.",
+    "finPointsUnreadable": "{{part}}: {{count}} punktów obrysu w pliku nie dało się odczytać i zostały pominięte.",
+    "finPointsTooFew": "{{part}}: plik podaje mniej niż trzy użyteczne punkty obrysu, więc użyto domyślnego obrysu dowolnego.",
+    "motorNoDesignation": "Gniazdo silnika „{{mount}}”: silnik w pliku nie ma oznaczenia, więc nie dało się go wyszukać.",
     "extensionName": {
       "airStart": "Start w powietrzu",
       "javaCode": "Kod Java",
@@ -1431,6 +1441,7 @@
     "width": "Szerokość",
     "shape": "Kształt",
     "color": "Kolor",
+    "finish": "Wykończenie",
     "appearance": "Wygląd",
     "resetColor": "Przywróć domyślny kolor",
     "deployEvent": "Otwarcie przy",
@@ -2115,6 +2126,17 @@
     "noLandings": "Analiza wiatru nie dała ani jednego lądowania.",
     "spread": "{{from}}–{{to}}",
     "flown": "analiza wykonana"
+  },
+  "finish": {
+    "rough": "Chropowate",
+    "roughunfinished": "Chropowate niewykończone",
+    "unfinished": "Niewykończone",
+    "normal": "Zwykły lakier",
+    "smooth": "Gładki lakier",
+    "optimum": "Optymalny lakier",
+    "polished": "Blacha lotnicza",
+    "finishpolished": "Powierzchnia polerowana",
+    "mirror": "Powierzchnia lustrzana"
   },
   "crossSection": {
     "square": "Prostokątny",

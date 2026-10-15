@@ -1,505 +1,262 @@
 # AUDIT - `web/` engineering audit
 
-<!-- cspell:ignore SEMROC Rocketarium Maadcow Madcow BalsaMachining SNRB LNRB FlisKits FWCF Hypertek Trayectoria Datos Ámbito Campo Valor Unidad Siguiente Traza tierra sobre terreno Lateral Trasera Escala Escalar cohete Informe diseño dconst letterboxed puntos plataforma eyección Sitio lanzamiento -->
+<!-- cspell:ignore mojibake bulkplate Rocketarium BalsaMachining Apogee's readback unflagged subcomponents cumulatively Croquis volado peakAltitude Kitname -->
 
-**Date:** 2026-10-15. **Tree:** `dev` at 9283a0e plus the uncommitted working tree (the fixes from the previous run), audited as it stands on disk. **Method:** `docs/AUDIT_PROMPT.md`, eleven parallel slice agents (slice 1 and the components outside `canvas/` split by subfolder), plus docs agents covering every page under `website/docs/` and its Spanish twin. A fresh read: no agent saw the previous report. The lead checked every HIGH and every MED marked "confirmed" against the source, the Java or the published data.
+**Date:** 2026-10-15. **Tree:** `dev` at 4dc1784, clean. **Method:** `docs/AUDIT_PROMPT.md`, eleven parallel slice agents (slice 1 split into files and exports/storage; the components outside `canvas/` split into common/config/design/report and layout/sim/tools; one docs agent over `website/docs/` and its Spanish twin). A fresh read: no agent saw the previous report. The lead re-resolved every citation by content and confirmed every HIGH, every MED and every security finding against the source, the Java (`engine-java/src/java`, the bridge under `engine-java/src/api`), the 24.12 jar (`javap`) or the published data before it went in. Agents' REPORTED items the lead could not confirm were dropped or demoted.
 
-## Summary
-
-| Severity | Count |
-|---|---:|
-| HIGH | 1 |
-| MED | 23 |
-| LOW | 31 |
-| **Defects** | **55** |
-
-Security: one LOW (L26, reported). Dead code: none (knip is clean).
-
-**Status (2026-10-15):** every MED and LOW is fixed, each with a test that fails without the fix, as are the upkeep comments and docs. H1 is open: it needs this tree's catalog workflow run against the data branch. Gates after the fixes: `npm run verify` (565 files, 6870 tests), `npm run audit` in web (desktop 0 new warnings, fields 0 new differences) and engine-java, `npx playwright test` (544), `npm run e2e:offline-data`, `npm run docs:build` and the website typecheck all pass.
-
-Two MED findings are regressions of fixes made in the previous run: M6 (the Combine pane's kernel statistics fail for most clusters) and M18 (pruning overrides equal to the part's values also drops real desktop overrides).
-
-### Gates, run locally on this tree
+**Gates, run locally on this tree (a report's gate lines are never evidence; these were run, not read):**
 
 | Gate | Result |
-|---|---|
-| `npm run verify` (web) | pass. format, spell, typecheck, lint, knip, dupes, vite build; vitest 529 files, 6321 tests |
-| `npm run audit` (web) | pass, 5/5. coverage, samples, desktop (0 new warnings, 4 known, 0 stale), fields (0 new differences, 25 known, 0 stale), helpers |
-| `npm run audit` (engine-java) | pass, 5/5 |
-| `npx playwright test` (whole suite) | pass, 529 tests |
+| --- | --- |
+| `npm run verify` (web) | pass: format, spell, typecheck, lint, knip, dupes, vite build, 565 test files / 6870 tests |
+| `npx playwright test` (web, whole suite, both projects) | pass: 544 specs |
+| `npm run audit` (web) | pass: coverage floors, samples, desktop open (every loader warning in `KNOWN`), fields, helpers |
+| `npm run audit` (engine-java) | pass: parity, committed binaries rebuild byte-identical, extract, date, scorecards |
 
-Every gate is green. M15 explains why the desktop steps cannot see the simulation-conditions defects.
+**`KNOWN` citations.** `fieldReadback.kernel.test.ts` `KNOWN` is empty, `geometryParity.kernel.test.ts` and `geometryFlags.test.ts` `KNOWN` are empty, and every `KNOWN` entry in `check-desktop-fields.mjs` and `check-ork-opens.mjs` states a format limit in words; none cites an audit ID, so there was nothing to renumber. Each `why` was checked against the desktop handler it names and holds (one is looser than its words: `rkt:shockcord.radius` accepts any positive value).
 
-### `KNOWN` lists
-
-- `web/tests/engine/fieldReadback.kernel.test.ts`: empty.
-- `web/scripts/check-desktop-fields.mjs`: 25 entries, each a RockSim format limit or a RockSim reader rule stated in words.
-- `web/scripts/check-ork-opens.mjs`: 4 entries, stated in words.
-
-No entry cites a finding ID, so there are no citations to rewrite.
-
----
-
-## 🟡 Correctness
-
-### H1. The published parts catalog is not what this tree's pipeline produces
-
-- **Where:** the `data` branch `components.generated.json` (stamp 2026-10-12T06:48:57Z, "Refresh both catalog(s) from 88f678a") against `web/public/data/components.generated.json`.
-- **What the published copy holds:**
-  - 5,231 rows, 123 with no digest (centering rings 36, body tubes 23, parachutes 20, couplers 15, launch lugs 9, nose cones 8, transitions 8, rail buttons 4);
-  - 4 rail buttons desktop 24.12 does not have (BalsaMachining and Rocketarium SNRB, LNRB);
-  - wrong geometry: Rocketarium "BT-60, White" tubes at 102.2 mm OD (desktop 41.58 mm), Madcow FWCF-54C couplers at 38.6 mm OD (desktop 54.6 mm), five BalsaMachining CR50xx rings at 31.4 mm OD (desktop 32.6 mm), the Estes 72653 nose cone with a 0.125 m wall;
-  - FlisKits EB-2.5 at density 0;
-  - no line, pack or material fields on any of the 422 parachutes;
-  - literal `&gt;` in 23 descriptions, "Maadcow" for Madcow, and 612 transitions against 613.
-- **What this tree produces:** seeded from the published files, this tree's workflow sequence (sync-components, sync-preset-digests, check:digests) writes a catalog identical to the committed copy, with 5,228 of 5,228 rows carrying a digest.
-- **Effect:** every saved `.ork` drops the part link for those 123 parts, and users pick tubes and couplers at the wrong diameter.
-- **Fix:** run this tree's catalog workflow against the data branch, then fetch the branch again and compare.
-- **Status:** confirmed by the lead (123 of 5,231 rows without a digest, counted on the fetched file).
-
-### M4. The custom-material density box names the wrong unit and quantity
-
-- **Where:** `web/src/components/design/MaterialPicker.tsx:327-335`.
-- **What:** the box label is `material.densityPlaceholder` ("Bulk density (kg/m³)" in every locale) followed by the unit the box actually reads, `fu.sym`. A canopy's box reads "Bulk density (kg/m³) (g/m²)", a cord's "... (g/m)".
-- **Effect:** a user typing a kg/m² figure into a box that reads in g/m² saves a canopy 1000 times too light, and only the bulk path has a ceiling to catch it.
-- **Fix:** one key per material type with no unit inside it, then the unit symbol.
-- **Status:** confirmed by the lead.
-
-### M5. Deleting a custom material also clears it from the selected part
-
-- **Where:** `web/src/components/design/MaterialPicker.tsx:204-236` (`onChange(undefined, 0)`), pinned by `tests/components/design/MaterialPicker.test.tsx:72-97`.
-- **What:** the confirmation says the material "will no longer be offered on any design". It then removes it from the selected part, which falls back to the stock density, while other parts using it keep it. A custom entry that shadowed a built-in of the same name drops the part to no material at all. Desktop's material database delete does not touch components.
-- **Fix:** leave the part's name and density; the existing "From this part" path shows it.
-- **Status:** confirmed by the lead.
-
-### M6. The Combine pane's burn time and average thrust are a dash for most clusters
-
-- **Where:** `web/src/components/sim/MotorCombinePane.tsx:99-110`, `web/src/services/motors/motorCombine.ts:91-101`.
-- **What:** the pane sums the raw catalog samples and sends the sum to `motorStatistics`. 881 of the 1,063 bundled curves start after t = 0, and so does their sum. `ThrustCurveMotor.Builder.build` refuses that curve ("Curve starts at time", `ThrustCurveMotor.java:232-233`), so `motorStatistics` returns null and the dash stays. The total impulse is also summed from curves the kernel does not fly (no (0, 0) point).
-- **Regression:** introduced by the previous run's Combine fix. Its test uses a curve that starts at 0.
-- **Fix:** run each curve through `finalizeSamples` before `combineCurves`, and add a test with a curve that starts after 0.
-- **Status:** confirmed by the lead.
-
-### M7. "Use" in the locations library applies to the active simulation from every entry point
-
-- **Where:** `web/src/components/sim/LocationsDialog.tsx:98-105`, opened by `LocationPicker.tsx:232-238`.
-- **What:** `apply` always calls `patchActiveLaunch`. The picker also opens the dialog from Settings > Launch defaults and from the tools' site fields. There, "Use" rewrites the active simulation's site, off screen, and leaves the field being edited unchanged, while the dialog closes as if it worked.
-- **Fix:** an `onApply` the picker passes; the menu entry keeps `patchActiveLaunch`.
-- **Status:** confirmed by the lead.
-
-### M11. A custom motor is saved under a stock motor's digest, so desktop flies the stock motor
-
-- **Where:** `web/src/services/motors/exportMotors.ts:114-125`, `web/src/services/motors/motorDb.ts:490-496` (`findCatalogMotor`).
-- **What:** `fillMotorDigests` finds the row with `findCatalogMotor`, which returns `matchCatalogMotor`'s motor and discards its doubts. The manufacturer only breaks ties, and a shortened name ("H128W-OLD" to H128) still matches. The only check is diameter within 1 mm. On a match, the catalog digest is written and the seated curve is not embedded.
-  - A "Homemade G80" at 29 mm gets AeroTech G80's digest.
-  - A spec with no manufacturer named "C6" gets the first equal-name row, Quest C6.
-- **Effect:** desktop's `findMotors` puts digest matches first whatever the maker (`ThrustCurveMotorSetDatabase.java:42-76`), so it opens the file flying a stock motor, and the user's curve is gone from the file. The same-maker, same-name case (a user's own curve for Estes C6) is the narrower form of this, and its current behavior is pinned by `motorDigests.test.ts` as intended.
-- **Fix:** accept a catalog row only with no doubt from `matchCatalogMotor` and a manufacturer `sameMaker` accepts; otherwise embed the seated curve. Test against desktop's `findMotors` rule for a maker mismatch and a shortened name.
-- **Status:** confirmed by the lead.
-
-### M12. The side and aft views do not turn a pod or booster instance's children by the instance angle
-
-- **Where:** `web/src/components/canvas/schematicShapes.tsx:208-215`, `:336-345`; `web/src/components/canvas/AftView.tsx:196-208`, `:218`.
-- **What:** each instance is placed at its ring angle, but fins, tube fins, lugs, rail buttons and internal offsets inside it keep their own angle. The kernel builds each instance as translate then `getAxialRotation(angle)`, inherited by its children (`FlightConfiguration.java:456-462`, `PodSet.java:66-76`, `RocketComponent.java:1660-1690`). The app's 3D view already rotates (`rocketPieces.ts:401-405`).
-- **Effect:** two boosters at 0° and 180° with three fins each show both fin sets the same way up in the aft view, the one view meant for checking this.
-- **Fix:** carry an accumulated instance angle through the side and aft walks; test against kernel instance transforms.
-- **Status:** confirmed by the lead.
-
-### M13. A save-conflict warning is never cleared, and a "storage full" warning erases a standing degraded notice
-
-- **Where:** `web/src/state/store.ts:1008-1012` (`clearSaveWarning` clears only `full`), `:929-963` (`replaceWorkspace`), `web/src/state/workspaceSelectors.ts:47-50`.
-- **What:** after a conflict, the banner says edits are not being saved and to reopen the design. Reopening it does restore saving (`setActiveId` resets `conflicted`), but nothing clears the warning, and `SaveStatus` hides the saved status while any warning shows. The warning is one slot, so a `full` raised over `degraded` or `loadFailed` replaces it, and the next good save clears it for good, though `markDegraded` never notifies twice.
-- **Fix:** retire `conflict` on the next landed save or in `replaceWorkspace`; keep standing notices in their own slot. Test: conflict, reopen, autosave, warning gone.
-- **Status:** confirmed by the lead.
-
-### M14. An ISA file opened with a default humidity flies sea-level air at the launch site
-
-- **Where:** `web/src/services/files/ork/importLaunch.ts:217-220`, merged by `web/src/services/design/orkTree.ts:91-101` (`overLaunchDefaults`).
-- **What:** for `<atmosphere model="isa">` the reader nulls temperature and pressure but leaves humidity unset, so a Settings default fills it. With humidity set and the other two blank, the bridge flies `ExtendedISAModel(launchAltitude, 288.15 K, 101325 Pa, h)` (`OpenRocketEngine.java:1782-1790`): standard sea-level air placed at the launch altitude. Desktop flies ISA whenever ISA is chosen.
-- **Effect:** at a 1,500 m site the pad air is about 17% too dense. The next save writes it as `extendedisa` with those values, so desktop flies it too.
-- **Fix:** set `relativeHumidity = null` for ISA, and read humidity only for `extendedisa`. Test against the kernel's ISA density at the launch altitude.
-- **Status:** confirmed by the lead. Raised by slices 1a and 4b; merged.
-
-### M16. Motor digests are chosen by catalog metadata, not by the motor the app flies
-
-- **Where:** `web/scripts/sync-motor-digests.mjs:117-128`, `:148-149`.
-- **What:** candidates are ranked by distance from thrustcurve.org's impulse, burn and peak, not from the curve or loaded mass the app flies. For 19 motors, two or more desktop entries offer the same delay and the first one's launch mass is more than 2% off the app's, while another entry matches: AeroTech L339N (app 3,150 g, desktop gets 4,500 g), Cesaroni 601I350-16A (782 g against 616.3 g), AeroTech G25W-10 (170 g against 119.7 g), and four Hypertek motors about 0.6 kg off, among others.
-- **Effect:** a saved `.ork` flies a different motor mass in desktop than in the app.
-- **Fix:** emit launch mass from `MotorDump.java` and rank on loaded mass first, then on impulse, burn and peak computed from the flown curve. Test with the dumped desktop masses.
-- **Status:** reported by slice 6 from desktop's dumped masses.
-
-### M17. A mass component of 0 g blocks the run
-
-- **Where:** `web/src/services/design/requiredComponent.ts:45` (`masscomponent: ['mass']`), used by `runnability.ts:132-139`.
-- **What:** a 0 g mass counts as a bad dimension. Desktop's new mass component is 0 g (24.12 `MassComponent()` stores `dconst_0`), and desktop flies it. A desktop `.ork` with an untouched mass component opens but cannot run, and the banner calls the part broken. `fieldReadback`'s `refusedAtZero` filter hides this.
-- **Fix:** drop `mass` from the required fields; test that a 0 g mass component built through the bridge is not a blocker.
-- **Status:** confirmed by the lead (javap).
-
-### M18. An override equal to the part's own value is dropped on reload and not written on save
-
-- **Where:** `web/src/services/flight/flightConfigs.ts:290-324` (`overridesDesign`, `withoutRepeatedOverrides`), called on every hydrate at `web/src/state/store.ts:1035`, and by the writer at `web/src/services/files/ork/exportParts.ts:246`, `:400`.
-- **What:** desktop keeps an override that happens to equal the default: 24.12 `FlightConfigurableParameterSet.isDefault` compares identity, and `RecoveryDeviceSaver` writes a block whenever `!isDefault(fcid)`. The app prunes it.
-- **Effect:** configuration "windy" overrides the main at 150 m and the design default is also 150 m. After a reload, editing the default to 120 m moves "windy" to 120 m. Desktop keeps 150 m.
-- **Regression:** the hydrate pruning was added in the previous run to clean up an older importer's all-configuration overrides.
-- **Fix:** run that cleanup once, as a migration of stored workspaces from before the import change, and write every override a configuration holds. Test with a desktop-saved file holding an equal-valued override.
-- **Status:** confirmed by the lead.
-
-### M19. The off-the-rail tool's average thrust is not the kernel's
-
-- **Where:** `web/src/services/tools/railExit.ts:68-73`, used at `:130` and `:177`.
-- **What:** average thrust is total impulse over the whole curve span. The kernel averages inside the burn window between the 5%-of-peak crossings (`ThrustCurveMotor.java:707-792`), which the bridge exposes (`getMotorStatistics`) and the catalog's `avgThrust` uses.
-- **Effect:** the average thrust-to-weight reads low (a median of 4% across the bundled curves, 30 to 40% on long-tail motors), which can mark a passing motor amber against the 5:1 rule, and the "heaviest rocket" cap reads low with it.
-- **Fix:** take the average from `getMotorStatistics`; test with a curve that has a sub-5% tail.
-- **Status:** confirmed by the lead against the Java.
-
-### M20. "Save as part" on a rail button always fails
-
-- **Where:** `web/src/services/parts/customParts.ts:66-159` (`rowGeometry` has no `railbutton` case).
-- **What:** rail buttons are in `CATALOG_TYPES`, so the control is offered; `rowGeometry` returns null, so the save throws `errors.savedPart.missingDimensions`, blaming the part.
-- **Fix:** add the rail button projection and a test that saves the editor's default rail button.
-- **Status:** confirmed by the lead.
-
-### M21. "Fits only" offers centering rings that cannot go over the mount
-
-- **Where:** `web/src/services/parts/componentFilter.ts:137-141` (`boreClears`).
-- **What:** `id + FIT_SLACK >= mountOuter` passes a bore up to 2 mm smaller than the mount and sets no upper limit (a 54/38 ring "fits" a 29 mm mount). The mount is the widest inner tube anywhere in the parent, where the kernel uses the tubes overlapping the ring (`CenteringRing.java:22-47`).
-- **Fix:** bound the bore on both sides and take the mount from the overlapping siblings, as `discGeometry.ringBore` does.
-- **Status:** confirmed by the lead.
-
-### M22. Legacy catalog parts are offered alongside current ones
-
-- **Where:** `web/src/services/parts/componentDb.ts:12-42`, `web/src/services/parts/componentFilter.ts:282-330`.
-- **What:** about 1,544 rows from the jar's `*-legacy.orc` files are unflagged. Desktop's chooser hides legacy parts by default.
-- **Fix:** carry `ComponentPreset.LEGACY` through `PresetDump` and the sync, hide legacy rows by default, and add a "Show legacy" toggle.
-- **Status:** confirmed by slice 4b with javap on the 24.12 jar (`ComponentPresetChooserDialog` legacy filter, unchecked by default).
-
-### M23. The part picker's diameter match is not desktop's
-
-- **Where:** `web/src/services/parts/componentFilter.ts:76-102` (`fitRuleFor`), `web/src/services/parts/componentFit.ts:46-57`.
-- **What:** desktop offers "Match fore/aft diameter" for every symmetric component, against the previous part's aft and the next part's fore diameter, at `max(0.05·d, 0.001)`. Here transitions get no match, tubes and nose cones match any airframe diameter in the design at a flat 0.6 mm, and transition fore ends are skipped.
-- **Fix:** port the neighbor rule and tolerance, using `symmetricNeighbors`.
-- **Status:** confirmed by slice 4b against the 24.12 bytecode (`ComponentPresetRowFilter`).
-
-### LOW correctness
-
-| ID | Where | What | Fix |
-|---|---|---|---|
-| L1 | `components/design/RecoverySizingReadout.tsx:103`, `:114-117` | The "measured on" text prints the kernel's raw branch name, `[Stage.Stage]` for a stage whose name was cleared | Pass it through `componentName` or `stageLabel` |
-| L2 | `components/design/PropertyPanel.tsx:337`, `FreeformFinEditor.tsx:45` | The freeform editor shows stored points, not the normalized points the kernel flies (reported: no importer confirmed to produce such points) | Feed it `freeformPoints(node)` |
-| L3 | `components/design/MaterialPicker.tsx:159-163` | The fillet picker offers adhesives only; desktop's fillet material list is all bulk materials. Owner call | Offer the full bulk list, or keep and say so |
-| L4 | `FreeformFinEditor.tsx:267-293`, `DeploymentSection.tsx:214`, `SeparationSection.tsx:320`, `configColumns.tsx:289`, `OffTheRail.tsx:161`, `:296` | Literal "X", "Y", "s" and " : 1" bypass i18n and the unit preferences | i18n keys and unit symbols |
-| L5 | `components/sim/speedWarnings.ts:49-53`, `SimSummary.tsx:202-211` | The tile's speed is the last deployment's, but every device deployed on the branch can set the verdict, so a drogue's warning marks the main | Pass only the devices of the last deployment |
-| L6 | `components/sim/MotorFilterBar.tsx:76-80`, `:92`, `:113`; `MotorDialog.tsx:177-179` | Opening the picker on a mount saves the mount-capped floor over the remembered floor | Keep a `freeLow` beside `freeHigh` |
-| L7 | `components/sim/WindProfileDialog.tsx:373-389` | The deviation cap applies on upper levels, while the turbulence box beside it can set more | Cap only the surface level, as the speed column does |
-| L8 | `components/canvas/rocketPieces.ts:210-257`, `AftView.tsx:209-234`, `schematicShapes.tsx:399-466` | No view draws fin cant; the kernel turns each canted fin (`FinSet.java:1783-1791`) | Apply the cant rotation; add `cant` to the flag test |
-| L9 | `components/canvas/AftView.tsx:431-501`, `useWheelZoom.ts:389-393` | In a wide pane the square aft view is letterboxed, so wheel zoom does not anchor under the pointer and horizontal drag pans slowly | Map through `getScreenCTM()` |
-| L10 | `components/canvas/LoadedBanner.tsx:83` | A RockSim import is labeled "Loaded design (.ork)" | Key the label on the source format |
-| L11 | `services/files/ork/importNotes.ts:19-36` | The `instanced` import note says the drawing shows one copy; the side and 3D views draw every copy | Drop or reword the note |
-| L12 | `AftView.tsx:211`, `schematicShapes.tsx:423`, `rocketPieces.ts:219` | `finSpan` is called with no parent, so a freeform fin on a tapered parent gets the stored height, not `FreeformFinSet.getSpan` | Pass the mount |
-| L13 | `services/motors/exportMotors.ts:61-66` (`namesSeated`) | Compares the file's designation (desktop writes `H128W`) with the common name (`H128`), so most desktop files lose their digest at the first save made offline | Compare against `spec.code` too |
-| L14 | `services/storage/workspaceMigrate.ts:121` | The old-C6 migration keeps a stored spec with no manufacturer, so the export names Quest C6 | Also set the manufacturer |
-| L15 | `state/store.ts:969-971`, `services/design/defaultRocket.ts:383-384`, `state/useWorkspaceEffects.ts:87-90` | A first run in another language keeps English default names (design, stage, simulation) and saves them | Rebuild the default workspace after the language is ready |
-| L16 | `state/useWorkspaceEffects.ts:107-114` | After a failed load the untouched default rocket is not marked written, so hiding the tab saves it as a library entry | `markWritten` in the catch |
-| L17 | `services/files/rktImport.ts:794-804` | A RockSim pod marked `Removed=1` flies; desktop grounds it (`PodHandler`) | Return a configuration that grounds it |
-| L18 | `services/files/ork/importLaunch.ts:217-226` | An unknown or missing atmosphere model reads as custom base values; 24.12 uses ISA | Treat anything but `extendedisa` as ISA |
-| L19 | `services/files/ork/importNotes.ts:32`, `loadOrk.ts:436-437`, `orkImport.ts:189-233` | Keyed import notes carry part labels, list joins and extension names already translated | Pass keys and join at render |
-| L20 | `services/exports/solidMesh.ts:355` | A planar fin set with no `rootChord` key refuses the mesh export, though it flies at the 50 mm default | Use `finRootChord(child)` |
-| L21 | `services/design/fieldRange.ts:121-124` and the importers | The panel shows a file's cant unclamped (20°) while the kernel flies 15° | Clamp at import or read `finCant` |
-| L22 | `scripts/lib/statedMass.mjs:30-43`, `sync-components.mjs:371-391` | Rail button densities stay at the `.orc` value; 24.12 `makeRailButton` derives them from the stated mass. Hidden while the mass override is on | Derive density from mass over the kernel volume |
-| L23 | `services/design/treeEdit.ts:66-201` | Flipping a catalog nose cone, or turning on an automatic shoulder, keeps the part link; desktop's setters clear it | Add `flipped`; test the synced node |
-| L24 | `services/design/treeEdit.ts:529-548` (`presetShoulder`) | A stated shoulder radius is applied unclamped (SEMROC BC-08542 [R]); desktop clamps it to the end | Clamp in `presetShoulder` and `presetVolume.mjs` |
-| L25 | `services/flight/windProfileCsv.ts:147` | A negative deviation imports as is; the kernel floors it at 0 | Floor it in the parser |
-| L26 | `services/parts/componentDb.ts:262-335`, `treeEdit.ts:594` | Security: a remote catalog row keeps `custom`, `patch` and `id` unchecked, and `statedPatch` applies a `custom` row's patch wholesale, so one row on the data host could write any node keys (reported) | Strip those fields from catalog rows; type-check `material` and `digest` |
-| L27 | `services/design/repairValues.ts:134` | `filletDensity` is not range-checked on load | Add it to `LIMITED` |
-| L28 | `services/parts/customParts.ts:168-181` | A saved part's node from storage is applied without the load-time repair (reported) | Repair the patch on apply |
-| L29 | `services/exports/csvExport.ts:389`, `:414` | The run-table CSV always writes q·α in kPa·°, while every other column and the docs follow the user's units | Use the pressure and angle units |
-| L30 | `i18n/locales/*.json` `aero.rollNote` | Says the sweep is flown at zero roll; it is flown at the chosen roll rate | Reword in every locale |
-| L31 | `i18n/locales/*.json` `settings.materialNoDefault` | "No default: leave the part unset"; the part gets the stock material | Reword in every locale |
-
----
-
-## 🟡 Accessibility
-
-### M1. Help opened from the launch site map loses focus and Escape to the dialog behind it
-
-- **Where:** `web/src/components/common/useFocusTrap.ts:50-53` (`topmostSurface`), `:130-135`, `:155-159`; `web/src/components/layout/HeaderDialogs.tsx:93`; `web/src/components/sim/SiteMapDialog.tsx:32-38`; the key note's Help link at `MapParts.tsx:175`.
-- **What:** the topmost surface is the last one in document order. Help mounts early in the header, so Help opened from the site map (drawn on top) is not the topmost surface. The site map's trap pulls focus back from Help, so Help's search cannot be typed in, and Escape closes the site map underneath. `HelpDialog.tsx:73-74` names this path.
-- **Fix:** order surfaces by when they opened, or portal Help to the end of the body. Test: Help from the site map takes focus, and Escape closes Help first.
-- **Status:** confirmed by the lead.
-
-### M2. A Settings value left with Escape is dropped
-
-- **Where:** `web/src/components/common/NumberInput.tsx:92-107`, `:156-157`; `web/src/components/layout/SettingsTabs.tsx:458-460`.
-- **What:** a commit-on-blur field reports only on blur or Enter. Escape closes the dialog and unmounts the focused input, and React fires no blur for a removed node. Time step, maximum time, angle step, seed and the speed limits typed and left with Escape are lost. The same dialog's key field and launch defaults flush on unmount; `NumberInput` does not.
-- **Fix:** flush a pending draft in an unmount cleanup through a ref. Test: type a time step, press Escape, setting changed.
-- **Status:** confirmed by the lead.
-
-### M3. Undo and redo do nothing while the component editor dialog is open
-
-- **Where:** `web/src/components/layout/useUndoShortcuts.ts:19-27`, `web/src/components/design/ComponentDialog.tsx:44-46`.
-- **What:** shortcuts are off while any modal is open. Below 1536 px the component editor is a modal, so undo is dead for all part editing on most laptops, and the header buttons sit under the overlay. At 1536 px and up the same edits undo. The rule's reason (the design is hidden behind the dialog) does not hold for a dialog that shows the part being edited.
-- **Fix:** exempt the component editor surface, or put undo and redo in it. Owner call whether the blanket rule stays.
-- **Status:** confirmed by the lead.
-
-### M8. The motor diameter and time-step sliders announce indices
-
-- **Where:** `web/src/components/sim/RangeSlider.tsx:238-259`, `web/src/components/sim/SimEditor.tsx:312-325`.
-- **What:** both range inputs move over array indices with no `aria-valuetext`, so a screen reader says "3" for a diameter or "2" for 0.05 s. Other sliders in the app set it.
-- **Fix:** `aria-valuetext` from the stop labels and the formatted step.
-- **Status:** reported by slice 3b, read by the lead.
-
----
-
-## 🟠 Tooling and gates
-
-### M9. The offline catalog cache drops motors and parts after 90 days without an online visit
-
-- **Where:** `web/vite.config.ts:307` (`astra-catalogs`: `expiration: { maxEntries: 16, maxAgeSeconds: 7776000 }`).
-- **What:** Workbox's expiration plugin returns nothing for a cached response older than `maxAgeSeconds` and deletes it. In the deployed build this cache is the only offline copy of the motor and parts catalogs. A user who has not opened the app online for a season gets no motors and no parts at a field with no signal. The docs promise offline catalogs with no such limit.
-- **Fix:** drop `maxAgeSeconds` from that rule and keep `maxEntries`; the `?v=` keys and stale-while-revalidate already keep it fresh.
-- **Status:** confirmed by the lead (`ExpirationPlugin.cachedResponseWillBeUsed`).
-
-### M10. No accessibility scan sees the multi-edit banner or the outdated results marker
-
-- **Where:** `web/e2e/a11y.spec.ts:291-297`, `:954-967`; `web/e2e/a11y-phone.spec.ts`.
-- **What:** the only scan that ticks two simulations runs them, which switches to Results, so the multi-edit banner (`SimEditor.tsx:84-92`) is never on screen in a scan. No scan edits after a flight, so the Outdated and Running markers (`CenterToolbar.tsx:83-90`) are never scanned either, in any theme.
-- **Fix:** add "Simulations / two ticked" and "Results / outdated" scans.
-- **Status:** confirmed by slice 5.
-
-### M15. The desktop checks never exercise the simulation conditions, configurations or the import direction
-
-- **Where:** `web/tests/services/files/orkDesktopSamples.test.ts:232-261`, `web/scripts/check-desktop-fields.mjs`, `web/scripts/ork-check/OrkCheck.java:88-106`.
-- **What:** every sample flies the default launch (ISA, no humidity, no forecast, standard gravity), `fields` compares components only, and nothing compares desktop's read of a source file with the app's import. Three settings users can reach make 24.12 warn on open, and none is in `KNOWN`:
-  - humidity writes `<baserelativehumidity>`, which 24.12 does not know;
-  - a forecast atmosphere writes `<forecastlevel>`, warned once per level;
-  - constant gravity writes `<gravity model="constant"><value>`, which 24.12 warns on.
-- **Effect:** the steps pass while M14 and these writer differences exist.
-- **Fix:** add a sample with humidity, a forecast, constant gravity, multilevel AGL wind, per-configuration deployment and separation, a grounded stage and an embedded custom motor; list or fix the three warnings; extend the dumpers to compare configurations, motors and conditions; compare each source example's desktop read with the app's import.
-- **Status:** confirmed by slice 1a with javap; read by the lead.
+**Count:** 2 HIGH, 13 MED, 25 LOW (COR-5 withdrawn, see Resolutions). Severity emojis: 🔴 security, 🟠 architecture and tooling, 🟡 correctness, tests and accessibility, 🟢 dead code (none found: knip is clean and every export, module, script, spec, locale key, CSS class, public asset and test helper was traced to a user).
 
 ---
 
 ## 🔴 Security
 
-One LOW, L26 (reported). Checked and clean:
+**SEC-1 · MED · File-keyed object lookups reach `Object.prototype` and break Save.** `web/src/services/files/ork/exportParts.ts:60` (`DESKTOP_GROUPS[group]`), `web/src/services/files/rktExport.ts:256` (`FINISH_CODES[...]`), `:283` (`SHAPE_CODES[shape]`), `:442` (`TIP_SHAPE_CODES[crossSection]`), `web/src/services/files/rasaero/sustainer.ts:105`, `web/src/services/files/rasaero/surface.ts:243`, `web/src/services/files/rktImport.ts:174` (`BASIC_COLORS[...]`). The key is free text kept from the file (`importTags.ts:237-238` for `<filletmaterial group>`, `:397` for `<finish>`, `importReaders.ts:70/102` for shape and cross section). A `.ork` with `<filletmaterial group="constructor">` on any fin set imports with no note; on File > Save the lookup returns `Object.prototype.constructor`, `escapeXml` (`xmlUtil.ts:118`) throws `s.charCodeAt is not a function`, and the design cannot be saved as `.ork`. `<finish>constructor</finish>` does the same to the RockSim export; the two RASAero sites write the function's source text into the `.CDX1`. Confirmed in a scratch vitest run outside the repo. Fix: make every file-keyed table a `Map` or an `Object.hasOwn` lookup (as `ork/presetTypes.ts:328-344` already does) and validate finish, shape and cross section on read against the kernel's enum names, with a keyed note when a value is dropped. Test: a `.ork` fixture with each prototype name in each slot round-trips through `exportOrk`, `exportRkt` and the RASAero writer.
 
-- user files are size-capped before decoding;
-- nesting and element counts are capped;
-- every string from a file is escaped on export;
-- CSV writers neutralize formulas;
-- KML, GPX, DXF, 3MF and SVG are escaped;
-- remote fetches have timeouts, byte caps and shape checks;
-- stored results are checked for finite values;
-- no `dangerouslySetInnerHTML`, and every `target="_blank"` carries `rel`.
+Checked and clean: every zip, gzip, member, nesting and passthrough cap in `ork/importUnpack.ts` and `ork/importLimits.ts` is applied before decoding; `fileSlice.openOrkFile` checks size before `arrayBuffer()`; every CSV writer routes text through `csvCell` (leading and post-separator triggers); KML values are escaped with `<>` stripped and balloons double-escaped; DXF text is folded to one ASCII line; `ShapeDescription.richText` builds from a three-tag whitelist; no `dangerouslySetInnerHTML` anywhere; every `target="_blank"` carries `noreferrer`; `window.open` passes `noopener,noreferrer`; stored blobs are shape-checked row by row; the IndexedDB tier never awaits between get and put and refuses a two-tab overwrite via `writeIfUnchanged`.
 
-## 🟢 Dead code
+## 🟠 Architecture and tooling
 
-None. `npm run knip` reports nothing.
+**TOOL-1 · HIGH · The service worker serves a stale manifest, so one online open after a catalog refresh is not enough to work offline.** `web/vite.config.ts:311-318`: the `astra-catalogs` rule is `StaleWhileRevalidate` keyed on the whole URL and its pattern matches `manifest.json`; `web/src/services/app/remoteData.ts:208` reads the data host's manifest through it (`cache: 'no-cache'` on the page fetch does not change what the worker returns from its cache). First online open after a refresh: the page gets the OLD manifest, builds `?v=OLD` catalog URLs (`remoteData.ts:251`), and the worker's background revalidation stores the NEW manifest. Next open offline: the cached manifest is now NEW, the page asks for `components.generated.json?v=NEW` and `motors.generated.json?v=NEW`, neither is in `astra-catalogs` (only `?v=OLD`), there is no precached copy (`hostedCatalogs`, `vite.config.ts:98-100`), and the motor and parts pickers show the load error. This is the case the rule's own comment (`vite.config.ts:299-305`) and `remoteData.ts:26` say works. `scripts/check-offline-data.mjs` checks one uncontrolled visit and a cache-emptied controlled visit, never a manifest change between an online and an offline visit, so the gate passes while this is broken. Fix: a `NetworkFirst` rule for `@data/manifest.json` ahead of the catalog rule (cache fallback offline), or `matchOptions: { ignoreSearch: true }` on the catalog rule; extend `check-offline-data.mjs` with a refresh-then-offline sequence (serve a new manifest and catalogs between the online visit and the offline read). Verified by tracing the handler; not executed in a browser.
 
----
+**TOOL-2 · MED · The field readback gate probes only the app's own range, so a clamp narrower than the kernel's is confirmed, not caught.** `web/tests/engine/fieldReadback.kernel.test.ts:171-173` takes its two probe values from `fieldRange`, sends `sweep = 0` and `motorOverhang = 0`, never a negative value for a setter that keeps one, and `overrideCD` is not a `FIELDS` entry at all. COR-7 and COR-8 below pass it today. Fix: a second probe per numeric field outside the app's range (a negative length), requiring the kernel either to clamp it or, where its setter keeps the value, the app's range to admit it; keep the kernel-unbounded keys in an explicit list so a floored field has to edit it.
 
-## What the mechanical checks do not reach
+**TOOL-3 · MED · The desktop samples never include a RockSim-authored `.rkt`.** `web/tests/services/files/orkDesktopSamples.test.ts:533` iterates `public/examples/*.ork` only and `writeSource` (`:485`) saves `.ork` sources only, so `check-desktop-fields.mjs` compares `rktImport.ts` with desktop only through files the app itself wrote. Every divergence on a file RockSim wrote passes the gate: `rktImport.ts:353-354` caps every shoulder where 24.12 does not (COR-20), `:772` reads `Dia` as a mass component radius where `MassObjectHandler` does not, `:514` flies `CantAngle` where the 24.12 `FinSetHandler` ignores it (`KNOWN` waves only the saved-file side of each). Fix: RockSim-authored `.rkt` fixtures written under `source/` with their `.kernel.json`/`.app.json`, with `KNOWN` listing the RockSim-side limits in words.
 
-Not counted as defects.
+**TOOL-4 · LOW · The desktop readback compares only what `ComponentFields.of` reads.** `web/scripts/ork-check/OrkFields.java:97` with `engine-java/src/api/java/api/ComponentFields.java:59-255`: no drogue flag, no fillet material (name, density, group; only `filletRadius`), no bulk material group, none of the `cdAuto`/`lineLengthAuto`/`cordLengthAuto`/`radiusAuto` flags, no comment, color, line style or preset link; `OrkFields.sims` (`:172-210`) reads no simulation status or `<flightdata>` summary; rocket-level designer/revision/comment and the document-level passthrough are never compared. A writer that drops the drogue flag or a part link passes `npm run check:fields`. Fix: extend both readers with those getters.
 
-- **`fieldReadback.kernel.test.ts`:**
-  - one host per type (no freeform fins on a transition or nose cone, no internal part inside an inner tube or coupler);
-  - bool fields only at the editor default;
-  - selects only at seeded values;
-  - the `bore` and `derived` kinds never compared;
-  - nodes built directly, never through `updateNode`;
-  - `refusedAtZero` hides M17.
-- **`catalogPatch.kernel.test.ts`:**
-  - picks only onto a fresh node, with no existing shoulder, solid part or flipped cone;
-  - no comparison of shoulder radius, length or wall (L24 passes);
-  - no rail button mass or Cd override check;
-  - no test of the preset link against the kernel's `clearPreset`.
-- **`shoulderSeed.kernel.test.ts`:** no flush in-line assembly, flipped cone, solid cone or transition neighbor, solid part with no neighbor, aft or nose-base clamp, or tip neighbor; the `syncAutoShoulders` case covers only the stage crossing.
-- **`geometryParity.kernel.test.ts`:**
-  - no fairing;
-  - body tube fin sets placed only by `top`;
-  - `tabOffsetMethod` never left out;
-  - no cant past the limit;
-  - the span of a canted freeform fin is not exposed by the bridge;
-  - mesh profiles, side-view fins, the template planform, the schematic, the 3D and aft views and the layout spans are never compared with the kernel.
-- **`geometryFlags.test.ts`:** no `cant` flag (L8), only the freeform fin, nothing in a pod, and `overturnedFins`, `badDimensions` and `autoShoulder` not listed.
-- **`finCantClamp.kernel.test.ts`:**
-  - one trapezoid on a body tube;
-  - tab points, the cut contour, the pre-run check, the panel value and the importers are not covered;
-  - its fixture sets `sweepLength`, a key nothing reads.
-- **Combine pane test:** its only curve starts at t = 0 (M6).
-- **Desktop steps:** see M15.
-- **`commentsStateTheConstraint.test.ts`:** does not read `website/docusaurus.config.ts`, `website/sidebars.ts`, the JSONC comments in `web/tsconfig*.json` or `engine-java/*.mjs` (no hits there today).
-- **jscpd:** scans `src` only. The `serve()` harness, the work-in-progress init script and the settings key block are copied across the three `check-*.mjs` scripts, with no drift yet.
+**TOOL-5 · LOW · `everyPart()` leaves writer branches unchecked against desktop.** `web/tests/services/files/orkDesktopSamples.test.ts:265-331` builds empty pod sets and boosters (no pod body chain, fins on a pod or booster separation block), no filled cone, no nose shape other than the default (no shape parameter, no `<shapeclipped>false`), no drogue, no altitude or lower-stage deploy event, no cant, fillet radius or fillet material, no freeform fins on a transition, no tube fin set with a stated radius, no cluster but `3-ring`, no radial offset, no lug or button with a non-default angle or spacing, no mass component type but altimeter, no separation on altitude, no `after`/`absolute` position, no Cd override, no comment, color or line style. The branches at `exportWriters.ts:93, 116-127, 144-147, 301-302, 329-331, 406` and `exportParts.ts:246-257, 274-287, 393-408` ship unchecked. Fix: add the variants.
+
+**TOOL-6 · LOW · Harness build outputs are not ignored.** `web/scripts/check-update-flow.mjs:33, 35`, `check-offline-data.mjs:81-82`, `check-offline-help.mjs:460` build into `dist-update-check`, `dist-update-check-b`, `dist-offline-data-check`, `dist-offline-data-check-hosted` and `dist-offline-check`; only a `finally` removes them, `web/.prettierignore:1` ignores `dist` alone and the root `.gitignore` ignores `web/dist/` alone. A harness killed by Ctrl-C leaves a production build that fails `format:check` and is one `git add .` from the history. Fix: `dist-*` in both ignore files, or build under `os.tmpdir()`.
+
+Verified and not re-reported: `gates.yml`/`ci.yml`/`dev.yml`/`deploy.yml` as the prompt describes; every action SHA-pinned; `verify` fails on a skipped or canceled gate; `vitest` `include` matches every test file in `web/`; coverage floors enforced by `audit`; every top-level view, alternate view, theme, dialog (`dialogSurfaces.ts`, 31) and popup (`popupSurfaces.ts`, 13) is in the axe scans and no `role="dialog"`/`"menu"` component escapes the lists; every `jsx-a11y-x` disable states its reason; the nine non-English locale files have no missing or extra key, no placeholder mismatch, no mojibake and no untranslated sentence (checked by script); `noEmDash.test.ts` and `commentsStateTheConstraint.test.ts` scan everything the house rule applies to.
+
+## 🟡 Correctness
+
+**COR-1 · MED · The PDF report prints every mass and impulse with zero decimals.** `web/src/services/report/pdfPage.ts:419` `g = (p, kg) => q(p, 'mass', kg, 0)`; mass has no magnitude ladder in `q` (`:402-409`), so the explicit 0 stands. Used by the design summary (`designSection.ts:61, 65` via `summaryRows`, `pdfPage.ts:444`) and the motor table (`motorsSection.ts:97` weight, `:114` total); `motorsSection.ts:95` does the same for total impulse. With the mass unit set to kg (selectable, `prefs/units.ts:90-94`) a 450 g rocket reads "Mass (Loaded) 0 kg" and a 24 g C6 reads "0 kg"; in lb a 0.3 lb rocket reads "0 lb"; an A8's 2.5 N·s reads "3 N·s". `reportPdf.golden.test.ts:293-297` pins `mass: 'g'` only. Fix: the ladder (`ladderDigits`) or significant figures, as `reportCsv.ts:33-40` already does for the same figures. Test: the golden under kg and lb.
+
+**COR-2 · MED · Every view draws a rail button half a diameter off its station.** `web/src/components/canvas/schematicShapes.tsx:620`, `rocketPieces.ts:361`, `AftView.tsx:370` place the button with `axialStart(child, dia, ...)`, as if its axial length were its outer diameter. The kernel's `RailButton` never sets `length` (no `getLength` override in `RailButton.java` or the 24.12 jar; `RocketComponent.java:91` leaves 0) and its instance bounding box runs from -r to +r about the station (`RailButton.java:251-262`), so it is centered on `getAsPosition(offset, 0, parentLen)`; `tree/position.ts:113-114` and `tree/kernelDefaults.ts:83-86` already read the length as 0. A 9.7 mm button at `top` 100 mm flies centered on 100 mm and is drawn from 100 to 109.7 mm; at `bottom` 0 on a 300 mm tube it flies centered on the tube end and is drawn 290.3 to 300 mm; only `middle` agrees. No canvas test compares a lug's or button's station with the kernel's `positionX`. Fix: `axialStart(child, 0, ...)` and draw the rect or cylinder centered on it. Test: the drawn center against `getComponentFields().positionX` for `top`, `bottom` and `absolute`.
+
+**COR-3 · MED · A part added from the Add menu is not the part desktop adds.** `web/src/services/design/treeEdit.ts:817-1078` `defaultNode`, against the Java constructors: nose cone 0.1 m / 0.013 / 0.001 wall vs `NoseCone()` 0.15 / 0.025 / 0.002 (`NoseCone.java:28, 36`); body tube wall 0.0005 vs `DEFAULT_THICKNESS` 0.002 (`SymmetricComponent.java:25`); transition 0.05 / 0.0005 vs 0.075 / 0.002 (`Transition.java:46-48`); trapezoid 0.06 / 0.03 / 0.03 / 0.05 vs 0.05 / 0.05 / 0.025 / 0.03 (`TrapezoidFinSet.java:43`); elliptical root 0.06 vs 0.05; freeform outline vs `FreeformFinSet.java:34-37`; tube fin set a fixed 12 mm radius, 0.08 long, 0.001 wall vs `TubeFinSet()` automatic radius, 0.10, wall from the body (`TubeFinSet.java:24-26, 56-58`); inner tube 0.0092 / 0.0004 vs 0.0095 / 0.0005; coupler 0.03 / 0.0005 vs 0.06 / 0.002; ring and bulkhead 0.003 vs 0.002; engine block wall 0.0005 vs 0.005; lug radius 0.0022 and no wall vs 0.005 / 0.001; streamer strip 0.4 vs 0.5; mass component 0.01 kg / 0.02 / 0.005 vs 0 kg / 0.025 / 0.0125; pod set one copy holding a seeded tube vs two empty copies. Rail button, booster, parachute and shock cord agree. The clearest case is the tube fin set: desktop sizes new tube fins to the body; this one drops 24 mm tubes on any airframe. `tests/services/design/newParts.kernel.test.ts:13-21` claims every Add-menu part is desktop's and checks three. The desktop UI is the spec; if any seed is a deliberate app choice the docstring at `:806` has to say which and why. Fix: seed each case from the constructor (the tube fin set `outerRadiusAuto: true` with no stored wall, as the four bore-filling parts already are at `:907-950`). Test: extend `newParts.kernel.test.ts` to every type, expected values from the kernel's `getComponentFields` on a part built with no keys.
+
+**COR-4 · MED · The surface finish is missing from every external part editor.** `web/src/services/design/componentFields.ts:400` (`RAW_FIELDS`, no `finish` on any type); `MaterialSection.tsx:20-36` is bulk material only. Desktop shows "Component finish" (jar `MaterialPanel`, `EnumModel(component, "Finish")`, rough to mirror) on nose cone, body tube, transition, every fin set, lug and rail button; the kernel reads it into skin-friction drag (`ExternalComponent.setFinish`, bridge `ComponentFactory.java:680`); the importer keeps the file's value (`importTags.ts:397-398`) and the writer re-emits it (`exportParts.ts:305`). A desktop `.ork` with polished fins flies with that roughness here while every panel shows nothing about it, and two designs that differ only in finish show identical editors and different drag. `AppearanceSection.tsx:16` leaves it for "whenever they land". Fix: a `finish` select on each external type (options from the bridge's `finishOf` names, fallback `normal`) with a readback case; `check:fields` already reads it back.
+
+**COR-5 · MED · An inner tube cannot be automatic, and a desktop one imports as a fixed 19 mm mount.** `componentFields.ts:536` (`outerRadius` has no `auto`); `ComponentFactory.java:396` sets the radius outright and the `outerRadiusAuto` block at `:770-781` covers ring, bulkhead, coupler, engine block and tube fins but not `InnerTube`; `importReaders.ts:248` reads `<outerradius>` with `nonNegTag`, so desktop's `<outerradius>auto</outerradius>` (`savers/ThicknessRingComponentSaver.java:14-15`) becomes the 0.0095 fallback. Desktop's inner tube dialog offers Automatic (jar `ThicknessRingComponentConfig.generalTab`, `isAutomaticAvailable` true). The panel shows 19 mm with no Auto switch, the kernel flies 19 mm instead of the bore, and the next save writes `<outerradius>0.0095</outerradius>`, so desktop reopens the design changed. Fix: `auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' }` on the field, the flag applied in the bridge's innertube case, and the `auto`-aware tag reader as the coupler and engine block readers use (`importReaders.ts:277, 287`). Test: readback on Auto plus a `.ork` fixture with `auto`.
+
+**COR-6 · MED · "Lower stage separation" is offered to a device on the bottom or only stage.** `componentFields.ts:150` `DEPLOY_EVENTS` always lists it and `config/DeploymentSection.tsx:56` offers the same list in every configuration override. Desktop removes it on the last stage (jar `ParachuteConfig` and `StreamerConfig`: `Rocket.getStageCount()` then `JComboBox.removeItem(LOWER_STAGE_SEPARATION)`). On a single-stage rocket the option is selectable, no flight event can ever match it, and the flight is ballistic with nothing on screen saying why. `DeploymentSection.test.tsx:37-53` pins the full list on a device with no stage context. Fix: filter it when the device's stage is the bottom one (design field and override), keeping an imported value selectable.
+
+**COR-7 · MED · Signed lengths are floored at zero.** `fieldRange.ts:181-186` gives every `length` field without `signedWithinLength` a floor of 0 and `NumberInput.tsx:186-189` clamps the entry. Three fields the kernel keeps negative: trapezoid `sweep` (`componentFields.ts:505`; desktop's spinner is unbounded, jar `TrapezoidFinSetConfig` three-arg `DoubleModel`; `TrapezoidFinSet.setSweep` stores any value; the app's own "Sweep angle" row, `derivedFields.ts:73-88`, writes a negative sweep that the Sweep box then snaps to 0 on the next keystroke), `motorOverhang` (`:316`; jar `MotorConfig` three-arg `DoubleModel`; `BodyTube.setMotorOverhang`/`InnerTube.setMotorOverhang` store any value; a motor seated 5 mm short of the aft end cannot be entered, and an imported negative overhang snaps to 0 on the first edit, moving the motor and the CG), `instanceSeparation` (`:231`; jar `InstancesPanel` unbounded; copies forward of the first lug cannot be entered). Fix: mark the three as signed (no floor), as `tabOffset` is. Test: TOOL-2's negative probe.
+
+**COR-8 · MED · The drag-coefficient override floors at zero.** `web/src/components/design/OverridesSection.tsx:76` passes `min={0}` to every override box, the Cd row (`:178-195`) included. Desktop's model is `DoubleModel(component, "OverrideCD", UNITS_COEFFICIENT, -Infinity, Infinity)` (jar `RocketComponentConfig`) and `RocketComponent.setOverrideCD` (`:801-818`) stores any value. A negative override typed here lands as 0; an imported one snaps to 0 on the first keystroke. Fix: `min` per row, none for Cd.
+
+**COR-9 · MED · The deploy and separation altitude boxes are live under every event.** `componentFields.ts:381` (`deployAltitude`) and `:367` (`separationAltitude`) are always listed; `fieldApplies` (`fieldRange.ts:30-59`) hides `shapeParameter` and `clipped` for exactly this reason and not these; `config/DeploymentSection.tsx:63-82` and `SeparationSection.tsx:101-118` show them unconditionally and say so. Desktop enables them only while the event is ALTITUDE (jar `RecoveryDeviceConfig.updateFields` toggles `altitudeComponents`; the deployment and separation selection dialogs do the same); the kernel reads the altitude only from the altitude events. "Deploy at: Apogee" with "Deploy altitude 150 m" is an inert control by the house rule. Fix: gate both rows on the effective event, keeping the stored value.
+
+**COR-10 · MED · RASAero export writes zero for every stage's launch weight and CG but the last.** `web/src/services/files/rasaero/simulation.ts:40-41` `stackWt`/`stackCg` write the whole-rocket loaded mass and CG into the last stage's cell and 0 into every other (`:49-66`). Desktop's `SimulationDTO.java:191-264` fills every cell from `MassCalculator.calculateStructure` with `setOnlyStage`: the sustainer alone, booster 1 cumulative, booster 2 cumulative. For a two-stage design the app writes `<SustainerLaunchWt>0</SustainerLaunchWt>` and `<SustainerCG>0</SustainerCG>`, so RASAero flies the sustainer after staging at zero weight; `rasaeroExport.ts:24-26` calls this desktop parity. Fix: per-stage loaded mass and CG from the kernel (a stage-only configuration through the bridge), every cell cumulative; until then refuse the simulation block for a multi-stage design rather than writing zeros. Test: the written cells against `getStaticInfo` of each stage-only build.
+
+**COR-11 · LOW · An edit made in the first seconds is replaced by the stored design.** `web/src/state/useWorkspaceEffects.ts:117` hydrates unconditionally after `await language` (up to `LANGUAGE_WAIT_MS` 3000 ms, `i18n/index.ts:124`) while the editor is already live and `hydrated.current` is false, so nothing autosaves in that window. A non-English user on a cold cache who adds a part in the first seconds loses it. Fix: keep the on-screen design and detach the library pointer when the store no longer matches `boot`, as `nameDefaultDesign` already detects on the empty path.
+
+**COR-12 · LOW · An engine retry leaves a dead rocket handle in the store.** `web/src/state/engineStore.ts:95` `retry()` calls `resetEngineInit()`, which bumps `engineGeneration` (`openRocketEngine.ts:489`) and voids every handle (`:1213-1216`), but nothing clears `store.rocket`; the rebuild effect returns early until the new engine lands (`useWorkspaceEffects.ts:311-314`). Until then the Aero view's Worst button throws `StaleDesignError` in its handler and an input change blanks the pane. Self-heals when the engine arrives. Fix: `applyBuild(null, null)` on retry.
+
+**COR-13 · LOW · The PDF parts table prints line densities as 0.000.** `web/src/services/report/partsSection.ts:39` `fmtNum(siToUi(kind, unit, si), 3)`: with the line unit kg/m a Kevlar thread at 0.00014808 kg/m prints "0.000 kg/m". Fix: significant figures or the ladder.
+
+**COR-14 · LOW · The drawing export is dated in UTC.** `web/src/services/exports/schematicExport.ts:60` `new Date().toISOString().slice(0, 10)`: a US user exporting in the evening gets tomorrow's date on the one dated line of the drawing. Fix: the local date in the UI locale.
+
+**COR-15 · LOW · The thrustcurve.org cache key omits diameter and code.** `web/src/services/motors/thrustcurve.ts:281-287` keys on `maker:designation(:delay)`; two catalog rows from one maker under one common name with different diameters or codes that both lack a bundled curve would share one cached motor id, length, masses and curve for 90 days. Latent: 0 of the 93 fetch-path rows share a key today; the first refresh that adds such a pair makes it live. Fix: `cat.diameter` and `cat.code` in both keys, as `motorKey.keyOf` does.
+
+**COR-16 · LOW · A `.rse` per-sample CG is flattened to its launch value.** `web/src/services/motors/rseParser.ts:192` keeps `points[0].cg` only and the bridge builds every time point at one `cgX` (`OpenRocketEngine.java:583`); desktop flies the per-sample CG (`RockSimMotorLoader.java:349`). A file with `auto-calc-cg="0"` and a CG that moves during the burn flies with the motor CG pinned at launch. Fix: carry `cgs[]` through `MotorSpec` and the bridge, or say in the import note and the doc that only the launch CG is used.
+
+**COR-17 · LOW · The rod angle box refuses the negative angle "launch into the wind" needs.** `web/src/components/sim/LaunchPanel.tsx:298` `minSi={0}` and `parseEntry` clamps (`prefs/entryValue.ts:78`). Desktop runs -60 to 60 and with into-wind the sign is the meaning ("A negative launch rod angle will launch with the wind", jar `messages.properties`). An imported `<launchrodangle>` of -5 flies as -5 (`ork/importLaunch.ts:33-34`) and snaps to 0 on the first edit. Fix: bound -limit..limit while `launchIntoWind` is set.
+
+**COR-18 · LOW · A new simulation starts in still air where desktop's starts in a 2 m/s wind.** `web/src/services/storage/settings.ts:57-60` seeds `launchIntoWind: false`, `windAverage: 0`, `windStdDev: 0`; desktop seeds into-wind on, 2.0 m/s average and 10 % turbulence (`ApplicationPreferences.java:586`, `SimulationOptions.java:66`). A user comparing the stock simulation across the two apps reads the difference as a physics disagreement. Fix: seed the same defaults, or say in the Settings launch-defaults note that the app starts in still air.
+
+**COR-19 · LOW · A landing coordinate from an app-side projection is shown as the kernel's.** `web/src/components/canvas/EnvironmentLanding.tsx:86` falls back to `offsetToLatLon(lat, lon, p)` when the result carries no `φ`/`λ` series and prints it with no estimate wording. Reachable only for results stored before the series were recorded. Fix: print no value, or label the fallback an estimate.
+
+**COR-20 · LOW · A packed part's stated radius is drawn clamped to 85 % of the parent.** `web/src/tree/schematicGeometry.ts:361` `Math.min(parentRadius * 0.85, num(node, 'outerRadius', num(node, 'radius', dflt)))` applies the cap meant for the invented fallback box to an explicit radius; the kernel flies the stated radius (`MassObject.setRadius` floors at 0 only). A 12.5 mm nose weight in a 13 mm tube is drawn at 11.05 mm in 2D, 3D and the cutaway. Fix: cap the fallback only.
+
+**COR-21 · LOW · A keyless nose cone has two radii.** `web/src/tree/nodeProps.ts:85` `chainOuterRadius` reads a nose cone with no `aftRadius` as 0 while `profileEnds` (`shapeProfile.ts:302`), `solidMesh.ts:458` and the bridge read 0.012; `assemblyBoundingRadius` (`assembly.ts:462`), `maxBodyDiameter` (`scaleRocket.ts:339`) and the schematic's `anyOuterRadius` (`schematicGeometry.ts:202`) then disagree with the kernel by 12 mm. Reachable from a hand-edited design only. Fix: `KERNEL_DEFAULTS.nosecone.aftRadius`, as `bodyTubeRadius` does for a tube.
+
+**COR-22 · LOW · The bridge's absent-key fallbacks are not the Java constructor values.** `engine-java/src/api/java/api/ComponentFactory.java:165-167, 242, 284-286, 440` (mirrored in `web/src/tree/kernelDefaults.ts:48-82`): body tube wall 0.0003 vs 0.002, coupler wall 0.0005 vs 0.002, engine block wall 0.00095 vs 0.005, lug wall 0.0003 vs 0.001, nose cone 0.07 / 0.012 vs 0.15 / 0.025, body tube 0.3 / 0.012 vs 0.2 / 0.025. A node that reaches the bridge without the key flies a 0.3 mm wall where desktop reads the same file as 2 mm. Rare: desktop always writes the tags. Fix: the constructor values (and the `kernelDefaults.kernel.test.ts` rows with them).
+
+**COR-23 · LOW · Generic angle fields floor at -180° and have no ceiling.** `web/src/services/design/fieldRange.ts:174` returns `{ min: -Math.PI }` for every angle but cant and lug/button; the kernel's setters reduce to (-π, π] (`FinSet.setAngleOffset`, `RingComponent.setRadialDirection`, `InnerTube.setClusterRotation`, `ParallelStage.setAngleOffset`), so 400° flies as 40° as typed but -200° is clamped to -180° and flies 20° from where it was asked. Fix: bound both ends or neither.
+
+**COR-24 · LOW · The design dialog has no Kit name.** `web/src/components/design/RocketConfigDialog.tsx:23-27`; desktop's `RocketConfig` has it, the kernel carries it (`Rocket.java:151-163`), the app passes the tag through (`passthrough.ts:12`). Invisible and uneditable here, not lost. Fix: the field beside Designer.
+
+**COR-25 · LOW · The ignition event list hides "Ejection charge", "Burnout" and "Never" on the bottom stage.** `web/src/components/sim/MotorRow.tsx:15, 171-176`; desktop offers `IgnitionEvent.values()` everywhere (jar `IgnitionSelectionDialog`, `MotorConfig`). A single-stage design cannot fly one mount set to Never or lit at a cluster-mate's burnout. Fix: offer the full list; the "never" hazard is a warning.
+
+**COR-26 · LOW · Two controls desktop's dialogs do not have.** The "Follow the bore" switch on every shoulder diameter (`componentFields.ts:427, 476, 493`; desktop's shoulder sections carry only the capped flag) and the per-configuration stage grounding checkbox (`config/SeparationSection.tsx:60-69`; desktop sets activeness from the figure). Both are kernel-backed and neither is in the documented-difference list. Fix: document them as deliberate or drop them.
+
+**COR-27 · LOW · A `.rkt` shoulder arrives capped where 24.12 leaves it open.** `web/src/services/files/rktImport.ts:353-354` `cappedByLength` on the claim (`:343-351`) that desktop's `setForeShoulderLength` turns the cap on; that is upstream `Transition.java:502-523`, and 24.12's setter only stores the length (jar bytecode, no `setAftShoulderCapped`). One extra cap disc per shoulder in the app's mass (about 2.7 g for a 50 mm cardboard shoulder). Fix: decide which loader the `.rkt` import follows and say so; if 24.12, drop `cappedByLength`.
+
+**COR-28 · LOW · A freeform fin set with fewer than three usable points imports silently.** `web/src/services/files/ork/importReaders.ts:219` and `rktImport.ts:509`: no `points` key and no note, so the kernel flies its default outline; desktop warns per bad point (`FinSetPointHandler.java:634-643`, `FinSetHandler.java:398, 415`). Confirmed in a scratch run. Fix: a keyed note.
+
+**COR-29 · LOW · RASAero export gives a non-last booster a boat tail.** `web/src/services/files/rasaero/booster.ts:376-379` writes any booster's trailing narrowing transition as its `BoattailLength`/`BoattailRearDiameter`; desktop's `BoosterDTO.java:181-199` accepts one on the last stage only. Fix: last stage only, refuse otherwise.
+
+**COR-30 · LOW · A part's material group is dropped on the round trip.** `web/src/services/files/ork/importTags.ts:133-138` `readMaterialGroup` is called only from `readRailbutton` (`importReaders.ts:361`); every other part's `<material group="...">` is lost, `exportParts.ts:78` writes no group, and desktop's `MaterialSetter.java:84-95` then looks the material up with `group = null`. Fix: call it from `readCommon`.
+
+**COR-31 · LOW · A motor with no designation becomes the English literal `'unknown'`.** `web/src/services/files/ork/importConfigs.ts:196`; it reaches the mount label and the `importNote.motorNotInCatalog` note whatever the UI language. Fix: empty designation and a keyed note naming the mount.
+
+**COR-32 · LOW · A user material's shear modulus is dropped.** `web/src/services/files/ork/importTags.ts:140-153` keeps name and density only; upstream's `materialParam` writes `shearModulus` (`savers/RocketComponentSaver.java:221-224`). Upstream-only: 24.12 has no such attribute. Fix: carry and write it back when present.
+
+## 🟠 Data
+
+**DATA-1 · HIGH · The published parts catalog is stale and incomplete.** The `data` branch (commit 30104db, 2026-10-12, built by the master pipeline from 88f678ab) holds 5231 rows of which 123 carry no digest (body tube 23, centering ring 36, parachute 20, coupler 15, lug 9, nose cone 8, transition 8), three digests each shared by two rows of different size (BalsaMachining body tube `T5Plus-34` OD 14.86 and 13.82 mm; Rocketarium bulkhead `1.6" (38mm) bulkplate` OD 29.06 and 38.00 mm; Always Ready Rocketry coupler `BT20-139C` 304.8 and 406.4 mm), no `lineCount`/`lineLength`/`material`/`lineMaterial` on any of its 422 parachutes, and 40 rows with no material. The committed copy written by the current scripts has 5228 rows, 5228 digests, none shared, every parachute with its lines, and matches `PresetDump` on the 24.12 jar preset for preset. A `.ork` saved with the second `T5Plus-34` carries the first one's digest and desktop (`ComponentPresetSetter`, release-24.12) loads the other tube's diameters over the part; 123 parts save with no `<preset>` link. The workflow ran green because the floors in `web/scripts/lib/digestCoverage.mjs:19-23` are 90 % overall and 80 % per type and nothing in `partProblems` or `check-catalog-digests.mjs` looks for a digest shared by two rows. The branch also still holds `materials.generated.json` and `contributors.generated.json` with manifest keys for them, which the current publish step removes (`sync-catalogs.yml:224`). Fix: publish from the current scripts; add "digest shared by more than one row" to `partProblems` so a matcher regression cannot publish.
+
+**DATA-2 · MED · Motor diameters are published as integer millimeters.** `web/scripts/sync-motors.mjs:194` `diameter: round(m.diameter, 0)`: thrustcurve.org's 10.5 mm Apogee `1/4A2`, `1/2A2`, `A2` and `B2` are published as 11 while desktop's `thrustcurves.ser` holds them at 0.0105 m. The motor detail shows 11 mm (`MotorDetail.tsx:170`), `thrustcurve.ts:204` builds the kernel motor at 0.011 m, the mount-fit filter (`MotorDialog.tsx:55` `m.diameter === mm`) compares 11 against a 10.5 mm bore, and a saved `.ork` states 0.011 where desktop writes 0.0105; the digest match survives only because `sync-motor-digests.mjs:64` rounds both sides. Fix: one decimal in the row and a tenth-millimeter digest key.
+
+Checked and in order: the openrocket-database pin equals the `release-24.12` submodule pointer; the jar is SHA-256 checked before every dumper run and in the workflow; the 81 built-in materials are in `materials.generated.json` at identical densities; material resolution matches `BaseComponentDTO.find`/`Databases.findMaterial`; `statedMass.mjs` matches `ComponentPresetFactory` case for case; `motorDigest.ts` reproduces `MotorDigest.update` term for term; 1035 of 1156 motors carry a digest and the 121 without are motors desktop's database does not hold; the manifest hash is over re-serialized data and every catalog is written compact; the workflow seeds from the published branch, runs `check:digests` before publishing and publishes nothing when nothing changed.
 
 ---
 
 ## Upkeep
 
-**A comment that states something untrue or out of date**
+No severity. Grouped by rule, every site listed.
 
-- `components/common/useFocusTrap.ts:43-46`: "a nested dialog is rendered after the one it opens from" (false for Help, M1).
-- `components/layout/useUndoShortcuts.ts:19-21`: the reason does not hold for the component editor (M3).
-- `components/layout/DefaultMaterials.tsx:9-14`: says desktop leaves a part's material unset; desktop sets the default in each constructor.
-- `components/sim/MotorCombinePane.tsx:103-105`: "a dash until the engine has loaded" (M6).
-- `components/sim/speedWarnings.ts:30-33`: describes the devices the tile reads (L5).
-- `components/sim/MotorFilterBar.tsx:66-75`, `:112`: says the mount cap never overwrites the saved preference (L6).
-- `components/sim/LocationsDialog.tsx:19-22`, `:31-35`: omits the Settings and tools entry points (M7).
-- `components/design/ComponentPicker.tsx:46-47`: "the tree" means the table.
-- `components/canvas/LoadedBanner.tsx:10-12`, `:123-124`: say `.ork` for every import.
-- `services/files/ork/importTags.ts:175-177`, `importNotes.ts:15-17`: say the drawing shows one copy (L11).
-- `tree/nodeProps.ts:94-96`: says every reader goes through `bodyTubeRadius`; `rocketPieces.ts:500`, `schematicShapes.tsx:883` and `reportGeometry.ts:214` read the radius inline.
-- `components/canvas/schematicShapes.tsx:47-50`: cites desktop's fin projection without its cant rotation.
-- `tree/position.ts:56-57`: says `clampFirstPoint` is not on our path; `FreeformFinSet.update` runs it on every set.
-- `state/fileSlice.ts:179-183`: "File > Save calls this directly"; there is no Save item.
-- `state/fileSlice.ts:511-513`: says the stale bail avoids pointing the library at the new entry; `create` already has.
-- `engine/openRocketEngine.ts:629-630`: "about 45% extra" disagrees with the 17% measured in `simulations.ts` (reported).
-- `services/storage/exampleLibrary.ts:18-21`: says an example opens as an unsaved copy; it goes through the import's Overwrite / Rename prompt.
-- `services/motors/motorMath.ts:5-10`: says G0 is defined once; `report/motorsSection.ts:64` and `prefs/units.ts:99` repeat it.
-- `services/motors/exportMotors.ts:12-19`: says the file's digest survives a round trip; the catalog's replaces it when it loads.
-- `services/files/ork/exportSimulation.ts:152-163`, `:241-243`, `:283-287`; `importLaunch.ts:227-230`; `importSimulations.ts:31-34`; `orkImport.ts:124-128`: attribute to desktop what only upstream `unstable` has (humidity, forecast levels, gravity, recovery warnings, file version 1.11).
-- `services/design/treeEdit.ts:66-70`, `:525-527`; `tests/services/parts/catalogPatch.kernel.test.ts:362-369`: the flipped-cone preset rule and the shoulder wall rule differ between 24.12 and the kernel.
-- `services/tools/railExit.ts:46`, `:68`: "mean thrust over the burn" (M19).
-- `services/flight/windLevels.ts:167-169`: says the kernel refuses a repeated altitude; the bridge refuses it first.
-- `services/flight/recoverySizing.ts:52-55`: "about a percent"; the humidity effect is 1.65 to 2.3%.
-- `services/flight/flightEvents.ts:12-16`: "maxQ is the one exception"; three others are computed there.
-- `services/design/discGeometry.ts:249-251`: filled means inner radius 0 only for body tubes.
-- `services/parts/customParts.ts:110-113`: derives `filled` from the wall.
-- `services/parts/componentDb.ts:255-260`: says each type requires exactly the fields `catalogPatch` reads.
-- `vite.config.ts:210-211`: lists three runtime rules; there are six.
-- `scripts/check-update-flow.mjs:123`: the diagnostic regex cannot report version C, and `diagnose` reads the wrong page.
-- `scripts/lib/presetVolume.mjs:86-87`: "up to a third more"; measured up to 3.83 times.
-- `scripts/sync-motor-digests.mjs:108-116`: says it compares against the bundled curve; it compares metadata (M16).
-- `scripts/lib/openrocketJava.mjs:3-6`: "two sync steps"; more use the dumpers.
-- `scripts/lib/statedMass.mjs:19-24`, `scripts/sync-preset-digests.mjs:65-67`: omit rail buttons from the factory's mass list (L22).
-- `services/weather/weatherProposal.ts:12-16`, `:26-27`; `openMeteo.ts:48-49`, `:90`: cite desktop weather client code not in the repo (reported).
+### Comments that state something untrue or out of date
 
-**A test title that states something untrue**
+- `web/src/components/canvas/schematicShapes.tsx:613-616`: a rail button "is as long as it is wide"; the kernel's length is 0 (COR-2), as `tree/kernelDefaults.ts:83-86` says.
+- `web/src/services/files/rasaeroExport.ts:24-26` and `rasaero/simulation.ts:291-297`: "desktop parity" for the last-stage-only mass cell; desktop fills every stage (COR-10).
+- `web/src/services/files/rktImport.ts:343-351`: "desktop never turns it off, so every `.rkt` shoulder arrives capped" is true of upstream `Transition`, not of 24.12 (COR-27).
+- `web/src/services/files/ork/exportParts.ts:75-76`: "the group rides along when the reader kept one"; only the rail-button and fillet readers keep one (COR-30). `ork/importTags.ts:130-132` "Pass-through, like readFillet" describes a reader only the rail-button reader calls.
+- `web/src/services/files/ork/embeddedMotors.ts:363-371`: "desktop ... otherwise reads this file (`MotorHandler.loadMotorFromZip`)" is upstream only; 24.12's `MotorHandler` has no `thrustcurves` lookup, as `check-desktop-fields.mjs:139-142` states.
+- `web/src/services/files/ork/importReaders.ts:567-569`: "24.12 writes a `<separationconfiguration>` for each configuration that overrides the default"; `AxialStageSaver` writes one for every configuration id with no `isDefault` test.
+- `web/src/services/motors/rseParser.ts:3-4` and `:186-188`: "the propellant mass sample by sample"; the `m` column is the motor's mass at that sample (desktop's `RockSimMotorWriter.java:80-86` writes `cg.getWeight()`, and the app flies it as total mass at `thrustcurve.ts:197-199`), and the fixture at `tests/services/motors/rseParser.test.ts:32-43` encodes a propellant-shaped column (447 to 0 under `initWt="822"`) as if that were the format. A thrustcurve.org `.rse` writes the propellant-remaining shape with `auto-calc-mass="1"`, so both apps recompute it and no number is wrong today.
+- `web/src/services/exports/csvExport.ts:107-110`: "the layout is OpenRocket's CSV export ... a script written for a desktop export reads this file the same way"; desktop (`CSVExport.java:270-300`) writes `<name> (Up to date)` and no `Stage:` line, and ` (unit)` after every field name even when empty.
+- `web/src/services/exports/flightPathExport.ts:125, 140, 703-707, 719-724, 731, 1573-1575`: cite `FlightPathModelBuilder`, `FlightPathExportOptions` and "the desktop `FlightPathModel`" as the ported source; no such class exists under `engine-java/.openrocket-src`, so the port cannot be checked against what the comments name.
+- `web/src/prefs/launchUnits.ts:13`: `LAUNCH_SI.degC` is "the app's only offset conversion outside units.ts"; `ork/exportSimulation.ts:239, 295` and `ork/importLaunch.ts:228, 260` do their own.
+- `web/src/state/store.ts:217`: `rocket` is "read by the aero sweep and the dimension fields"; also by `figuresOf` on every file write (`fileSlice.ts:164`) and the report model (`reportModel.ts:156, 431`).
+- `web/src/engine/openrocket-engine.d.ts`: the facade declaration lacks five `@JSExport` entry points (`getComponentFields`, `setShoulderLength`, `setRogersModifiedBarrowman`, `setSupersonicAero`, `runParity`); the kernel tests reach the first two through casts of their own.
+- `web/src/tree/kernelDefaults.ts:6-26`: "the kernel's own defaults ... its values come from OpenRocket"; the bridge's fallbacks are not the Java constructor values (COR-22). `:209-211` says every row cites a `case`, "not a line number", while rows at `:245, 256, 257, 259` cite line numbers.
+- `web/src/services/design/treeEdit.ts:896-906`: the bore-filling parts "start automatic, because that is what their kernel constructors do"; the tube fin set case above it (`:876-884`) has the same constructor rule and does not follow it, with nothing saying why (COR-3).
+- `web/src/components/sim/SimulationsTable.tsx:30-31`: "the columns OpenRocket's own simulation tab carries"; desktop also carries Warnings, Motors, Velocity at deployment and Optimum delay, and orders rod exit before apogee.
+- `web/src/components/layout/SettingsTabs.tsx:288`: "at the default 0.01 s step"; the default is 0.05 s (`settings.ts:478`), so 1000000 s is 20 M steps, not 100 M.
+- `web/src/tree/schematicGeometry.ts:67`: "13 px bold" for the margin text drawn at 11 (`SchematicOverlay.tsx:148`).
+- `web/src/components/canvas/AeroAnalysis.tsx:41-42`: cites "the dataviz skill's validated dark categorical order", a document not in the repo, for a palette used under all three themes.
+- `web/src/components/design/StageRecovery.tsx:12-13`: "OpenRocket's own Recovery tab on the stage dialog, and the only place it lets the drogue be set"; the 24.12 jar has no drogue control in any config dialog, and the swing source that would show one is not checked out.
+- `web/src/components/design/MaterialPicker.tsx:47`: cites `FinSetConfig.java:632`, a file not in the repo.
+- `web/src/services/app/remoteData.ts:25-27` and `web/vite.config.ts:299-305`: the worker's cached download answers offline; after a refresh it does not (TOOL-1).
+- `web/scripts/sync-motors.mjs:236-239`: the row order never depends on the API's order; the committed file was ordered by an earlier comparator, so the next `sync:motors` reorders 13 same-impulse rows and moves the manifest hash once with no motor changed.
+- `web/scripts/lib/presetVolume.mjs:7-10`, `web/scripts/sync-preset-digests.mjs:26-28`, `web/scripts/preset-digests/PresetDump.java:40-48`: upstream's `loadFromPreset` change is described correctly, but see the history rule below.
+- `web/tests/services/design/newParts.kernel.test.ts:13-21`: "A part added from Add ... is the part desktop OpenRocket creates" describes every Add-menu part; the file checks a rail button, a shock cord and a booster (COR-3).
+- `web/tests/lintScope.test.ts:171`: the title names `public/sw.js`, which is never in `public/` (vite-plugin-pwa emits it into `dist`); the assertion passes because `isPathIgnored` needs no file.
+- `web/tests/tree/position.test.ts:15`: "uses the furthest point x for a freeform fin set" describes the rule the code rejects (`position.ts:17-22`: last.x minus first.x); the fixture's last point is also its furthest, so it passes.
+- `web/tests/components/canvas/taperedParent.test.ts:214-247`: pins lugs, rail buttons and tube fins on a conical transition, a tree `Transition.isCompatible` (`Transition.java:910-917`) refuses, so the station it pins is one no simulation uses.
+- `web/index.html:159-160`: "no longer gates this" narrates the removed engine gate.
+- `web/src/components/layout/AboutDialog.tsx:16`: a stray `///` inside a `//` block.
 
-- `tests/services/flight/windLevels.test.ts:22`: says the kernel does not sort levels; it does.
-- `tests/services/flight/interpolate.test.ts:48`: says "extrapolates"; it asserts clamping.
+### Comments that narrate history or a measurement, beyond what `commentsStateTheConstraint.test.ts` catches (gaps in the gate)
 
-**A duplicated helper or rule that has drifted**
+- `web/scripts/lib/presetVolume.mjs:9`: a bare upstream commit hash ("upstream 90a57aa33"); the gate matches issue/PR tags, audit IDs and ISO dates, not a bare hash.
+- `web/scripts/sync-preset-digests.mjs:26-28` and `web/scripts/preset-digests/PresetDump.java:40-43, 47-48`: "Measured on Estes PNC-50KA ... the 24.12 release says b3b5899e... and the 26.xx source tree says d1a20a7d..."; the constraint is that a digest depends on the build that computed it.
+- `web/src/services/motors/thrustcurve.ts:13-14`: "(CORS-enabled; verified reflective Access-Control-Allow-Origin)" narrates a verification.
+- `web/index.html:159-160`: "which no longer gates this"; the gate has no pattern for "no longer".
+- `web/tests/engine/fieldReadback.kernel.test.ts:42-43`: tells the next `KNOWN` entry to cite "a finding in docs/AUDIT.md", which the gate's audit-ID patterns (`commentsStateTheConstraint.test.ts:210-213`) then fail on; `KNOWN` is empty, so the first entry written as told fails. The wording should ask for the constraint in words.
 
-- Stage naming: `components/canvas/EnvironmentLanding.tsx:397` ignores the branch name; `flightChartTraces.ts:267` uses it, so the same branch reads "Booster" on the ground track and "Stage 2" on Environment.
-- `services/flight/powerClass.ts:178-182`: instance count falls back to 1; the bridge and the drawings use 2.
-- `services/design/finImage.ts:27`, `:66-67`: compares luma unrounded; desktop truncates first (under one luma unit).
+### Duplicated helpers below the jscpd floor that have drifted
 
-**A test that pins the app's own number**
+- `web/src/services/exports/schematicExport.ts:151-152` and `:249-250`: the header font size is `Math.max(11, Math.round(viewW * 0.016))` for the SVG and `Math.max(12, Math.round(w * 0.016))` for the PNG, so the two exports of one drawing carry different header sizes at small widths.
 
-- `tests/services/map/geodesy.test.ts:13-15` checks the Earth radius against a hand-typed value, and nothing pins the longitude term at a general bearing.
+Not drifted (listed so nobody re-checks): `windLevels.ts:594 norm` = `groundTrack.ts:69 norm360`; the seeded first wind level in `LaunchPanel.tsx:251-259` and `WindProfileDialog.tsx:48-57`; the cant placement in `finPlanform.ts:591-600` and `rocketPieces.ts:233-268`; `STAGE_*_ELEMENTS` and `SURFACE_DENSITY` in `rktImport.ts`/`rktExport.ts`; the three harness scripts' `serve()`; `scripts/lib/motorRowKey.mjs` and `presetVolume.mjs`, which tests hold to their `src` twins.
 
-**User docs that state something the app does not do, or name a label it does not show**
+### User docs that state something the app does not do, or name a label the app does not show
 
-Each item applies to the Spanish twin at the same line unless noted.
+- `website/docs/running-a-simulation.md:13` (and the es twin, line 13): the run-table CSV writes max q·α "always in kPa·deg"; `csvExport.ts:373-375, 397` writes it in the reader's pressure unit times angle unit, as the column header says. Line 147 of the same page has it right.
+- `website/docs/files-and-exports.md:258` (and es): cites `{{labels.peakAltitude}}`; the key is `maxAltitude` (`flightPathExport.ts:86, 104`), so a custom template written from the doc renders that label empty.
+- `website/docs/files-and-exports.md:38`: the `.rse` mass column is "the propellant mass at every sample"; it is the motor's mass (see the comments rule).
+- `website/docs/glossary.md:154` ("Flown at Cd") and es `glossary.md:78` ("Cd volado"): no such readout exists (`en.json` has no "Flown at" string).
+- `website/docs/designing-a-rocket.md:172` and `features.md:39`: "the material and finish" / "geometry, material, finish and all"; the app has no finish control (COR-4).
+- `website/docs/designing-a-rocket.md:91`: "every delay and angle offset starts at 0"; a new lug and rail button start at 180° (`treeEdit.ts:957, 1018`).
+- `website/docs/designing-a-rocket.md:166`: the parts catalog "is refreshed from OpenRocket's data each week"; the parts come from the pinned database commit and `sync-components.mjs:152-166` refuses any other; the motors are what refresh weekly.
+- `website/docs/running-a-simulation.md:40`: "Launch locations"; the menu item is "Launch Locations" (`location.menu`). `files-and-exports.md:97`: "Design report"; the dialog says "Design Report" (`report.designReport`).
+- `README.md:85`: the pinned OpenRocket commit is shown "on the docs' Overview page"; only the three comparison pages render `<UpstreamPin />` (`docusaurus.config.ts:40-41` says so). `engine-java/extract/UPSTREAM` header says the same of the Overview page.
+- `docs/DEVELOPER.md` (project layout): "290 Java files total" and "~270 kernel files"; today 291 and 273.
 
-- `features.md`:
-  - :52, "five tabs": Results appears only after a run, on desktop too;
-  - :25, the hours fly on the **Fly the hours around this forecast** button, not automatically;
-  - Flight configurations is not listed;
-  - the Motor Dashboard's **Compare** and **Combine** are not mentioned;
-  - the exports list omits the run table CSV, parts CSV, 3D snapshot and per-part 3MF zip;
-  - the Daylight theme is not mentioned;
-  - :40, both **Save as CSV** and **Save parts as CSV** exist.
-- `comparison-openrocket.md`:
-  - :53, the forecast hours are a button;
-  - :42, desktop does have flight configurations (reported).
-- `comparison-zenrockets.md:33-34`: the views draw one flight at a time, one line per stage; they do not overlay several simulations.
-- `files-and-exports.md`:
-  - :193, three swatches per stage (Path, Ground, Pin), each independent;
-  - :231, stage colors are remembered between exports;
-  - :143-144, example filenames use underscores (`Bertha-C6_flight-...`, `Bertha-Nose_cone.stl`);
-  - :262-265, the 3D view also exports PNG/JPG;
-  - :64, streamers are also excluded from mesh export;
-  - :112 and :150-156, the parts CSV columns and the CSV exports list are incomplete (reported).
-- `settings.md`:
-  - :75, motor diameters follow the Motor dimensions unit;
-  - :89 and :93, a rail button gets Delrin;
-  - :69 and :33, the length unit is a flight input (kernel warnings, results age);
-  - :118, wind speed and deviation are not required with a profile;
-  - :194, Reset on Launch and Materials also asks;
-  - :81, only a changed color row has a reset;
-  - :180-184, these settings also age results.
-- `designing-a-rocket.md`:
-  - :36, the editor shows diameters, not radii (the Spanish twin already says diameters);
-  - :30-34, the add menu groups are Body, Fins, Inner, Recovery, Other and Assembly;
-  - :140, upper stages also offer Automatic and Launch ignition (reported);
-  - :258, the stats strip collapses, and its title is **Static statistics**;
-  - :206, a rail button's stock material is Delrin.
-- `flight-configurations.md`:
-  - :24, mount cards run nose to aft;
-  - :52, a file's own simulations come in as they are; only a file with none gets one per configuration.
-- `motors.md`:
-  - :85, `.eng` can also mark a motor plugged;
-  - :96, mount cards run nose to aft.
-- `running-a-simulation.md`:
-  - :13, the run-table q·α is in kPa·° (L29);
-  - :105, wind speed and deviation are required only for single-level wind;
-  - :88, there is no spinner: the button becomes **Cancel run** and the row shows Running;
-  - :146, Max-Q is over the whole flight (reported).
-- `safety.md`:
-  - :23, the kernel warnings list omits drogue too slow, tumble under thrust, out-of-order and early separation, and events after landing;
-  - :20, humidity and a forecast atmosphere are also inputs.
-- `tools.md:75`: the at-exit thrust to weight uses the mass at that moment.
-- `views-and-analysis.md`:
-  - :148, Landing sits above the charts;
-  - :7, each tab's toolbar offers only its own views;
-  - :50, the Mach slider shows on both panes;
-  - :45, AoA follows the angle unit;
-  - :163, the recovery mass tile always shows, with a dash before a motor;
-  - :33, the image menu has **Fit rocket to frame**;
-  - :152, fly the hours is disabled offline too;
-  - :52 and :130 (reported).
-- `glossary.md`:
-  - :18, **Aft** sits beside **Side**, in both 2D and 3D;
-  - :34, aspect ratio is a streamer field;
-  - :84, a cluster is the **Cluster** pattern on an inner tube;
-  - :112, the drift ellipse comes from a Drift sweep at 2σ;
-  - :172, the ignition options;
-  - :178, the field is **Instance spacing**;
-  - :306, the dialog is **Scale rocket**;
-  - :340, the strip also has a normal-force slope tile;
-  - :370, turbulence intensity also shows in the launch conditions;
-  - :405, PNG/JPG also snapshot the 3D view;
-  - :409-463, the flight CSV headers are names, not symbols (`tc` is never sent; `Abz`, `Fta`, `CNα` are missing);
-  - :136 and :238 are out of alphabetical order.
-- `faq.md`:
-  - :15, the `.ork` round trip drops decals and unsupported parts;
-  - :12, settings live in localStorage;
-  - :38, the JS fallback is for browsers without WASM GC.
-- Spanish-only:
-  - `getting-started.md:23`, **Datos**;
-  - `running-a-simulation.md:42`, ° O;
-  - `files-and-exports.md:190`, **Trayectoria**;
-  - `views-and-analysis.md:126`, **CSV de puntos**;
-  - `files-and-exports.md:111`, the CSV header is the English `Scope, Field, Value, Unit`;
-  - `files-and-exports.md:177`, plataforma and eyección;
-  - `files-and-exports.md:208`, the balloon writes `50.0 m`;
-  - `features.md:47` and `running-a-simulation.md:42`, **Sitio de lanzamiento**;
-  - `glossary.md:344` and references, **Traza en tierra**;
-  - `glossary.md:162` drops the motor's burn time;
-  - `glossary.md:34` has an *In the app* line the English entry lacks;
-  - `current.json:3`, "Next" untranslated.
-- App locale text:
-  - `es.json` `about.body` and `about.credits` say JavaScript only;
-  - `es.json` `settings.aeroHeatNote` names an option the menu calls "Por calor";
-  - `es.json` `export.title` means "print or export" where English says "Design Report".
+The es twin is otherwise in order: every en page has its twin, every heading anchor is pinned, every relative link resolves inside the es tree, no untranslated line, no mojibake, and every bold label matches `es.json`.
+
+---
+
+## What the mechanical checks never build or compare
+
+Not findings; the generators' blind spots, so the next port or reader is added where it will be seen.
+
+- `geometryParity.kernel.test.ts`: only `positionX` is compared for a station; the y/z placement of anything but cluster tubes and a pod's `instanceRadius` has no kernel comparison (`placementOffsets`' non-innertube branch, `turnedOffset`). Canted fin sets are skipped for station, so `finBodyPoint` (`finPlanform.ts:591-600`) and the Matrix4 chain in `rocketPieces.ts:233-268` are never checked against `FinSet.getInstanceOffsets`, and `finBodyPoint` has no test at all. Never generated: rings or bulkheads with `instanceCount > 1`, a planar fin set's `rotation`, an `after` position (`resolveFilePositions`' AFTER rule is pinned only by app numbers in `position.test.ts:364-425`), a nose cone without `aftRadius`, a transition with a zero end radius (`calculateClip`'s `r1 === 0` branch), a shape parameter outside its range, a tube fin set inside a pod or booster, a packed device or mass component inside an inner tube or coupler, an automatic coupler, inner tube or engine block whose bore is read off a curved parent, internals in a filled part, a `fairing`.
+- `geometryFlags.test.ts`: no fixture carries a shoulder, so where each reader puts a flipped cone's shoulder is unchecked; `clipped` is toggled on ellipsoid and haack only; `flipped` on a cone holding internals is never toggled; no booster fixture; no transition or fin set in a pod.
+- `fieldReadback.kernel.test.ts`: every internal part is hosted in a 50 mm body tube only; `SEEDS` carries no `flipped` cone, no `filled` part, no `clipped` transition, no inner tube with a radial offset, no lug or button with `instanceCount > 1`, no parachute with both a stated packed size and `radiusAuto`; the overrides, `drogue`, bulk/surface/line and fillet materials are written by the bridge (`ComponentFactory.java:720-731, 821-845`) with no readback.
+- `catalogPatch.kernel.test.ts`: every row is picked onto a new part, so the replace-a-part branches of `statedPatch` (`treeEdit.ts:544-549, 589-593, 700-706`) have only app-pinned unit tests; shoulder thickness is never compared.
+- No canvas test compares a rail button's or lug's station with the kernel (how COR-2 survived); nothing pins a flipped cone's shoulder at the fore end in 2D or 3D.
+- No test runs the geodetic or gravity model from the Launch panel to a kernel run; nothing checks that into-wind with a multilevel profile aims the rod at the pad-level layer; no test takes a digest produced by desktop and checks `motorDigest` reproduces it.
+- Tests that pin the app's own numbers for ported math (fine while the kernel run beside them exists; listed so none is mistaken for an oracle): `shapeProfile.test.ts:65, 221, 228`, `tubefins.test.ts`, `position.test.ts:68-85`, `axialRebase.test.ts:56-66`, `assembly.test.ts`, `cluster.test.ts`, `finTabAuto.test.ts`, `autoShoulder.test.ts`, `discGeometry.test.ts`, `weatherProposal.test.ts` (`turbulenceFromGust`), `windTurbulence.test.ts`.
 
 ---
 
 ## Recommended order of attack
 
-1. The two regressions, small and local: **M6** (finalize curves before combining) and **M18** (make the override cleanup a one-time migration and write every override).
-2. Small verified fixes, a few lines each:
-   - **M17** (mass component at 0 g), **M20** (rail button save), **M9** (drop the 90-day expiry), **M2** (flush on unmount);
-   - **M4** (density label), **M5** (keep the part's material), **M7** (`onApply`), **M14** with **L18** (ISA humidity);
-   - **M8** (slider value text), **L13** and **L14** (motor names).
-3. **M11** (embed custom curves unless the catalog match is certain). This also settles the earlier owner question about same-name custom curves.
-4. **M1** (surface order by open time) and **M3** (undo in the component editor, owner call).
-5. **M13** (storage warning slots), then **L15** and **L16**.
-6. **M12** with **L8** and **L12** (instance angle, fin cant and span in the views), against the kernel.
-7. **M19** (off-the-rail average from the kernel), **M21** (ring fit bounds), then **M22** and **M23** (desktop picker rules).
-8. Gates: **M15** (desktop checks for conditions, configurations and the import direction), **M10** (the two missing scans), then the gaps under "What the mechanical checks do not reach".
-9. **M16** (motor digests ranked on flown mass) with **L22**.
-10. **H1**: publish this tree's catalog.
-11. The remaining LOW items, then upkeep, starting with the docs.
+Small, verified, kernel- or desktop-pinned fixes first; the two gate changes early so the later fixes land under them; the larger parity work last.
+
+1. **SEC-1**: `Map`/`Object.hasOwn` on the seven file-keyed tables plus read-side validation; fixture with each prototype name in each slot.
+2. **TOOL-1**: the manifest rule in `vite.config.ts` and the refresh-then-offline sequence in `check-offline-data.mjs`.
+3. **COR-1 and COR-13**: the PDF ladder for mass, impulse and density; the golden under kg and lb.
+4. **TOOL-2**: the out-of-range probe in `fieldReadback.kernel.test.ts`, which then fails on COR-7, COR-8 and COR-23; fix those three under it.
+5. **COR-9 and COR-6**: gate the altitude boxes on the event; drop lower-stage separation on the bottom stage; fix the `DeploymentSection` test that defends it.
+6. **COR-2**: rail button station in the three views, pinned to `positionX`.
+7. **COR-5**: inner tube Auto end to end (field, bridge, reader), pinned by readback and a `.ork` with `auto`.
+8. **COR-10 and COR-29**: RASAero per-stage mass cells from the kernel and the last-stage-only boat tail.
+9. **DATA-2**: motor diameter to one decimal and the tenth-millimeter digest key; then DATA-1 by publishing from the current scripts with the shared-digest check in `partProblems`.
+10. **COR-4**: the finish select on every external type.
+11. **TOOL-3, TOOL-5, TOOL-4**: RockSim-authored sources, the missing `everyPart()` variants, the wider `OrkFields` comparison; COR-27 and COR-30 fall out of the first.
+12. **COR-3 and COR-22**: seed new parts from the constructors and align the bridge fallbacks, pinned by `newParts.kernel.test.ts` over every type.
+13. The remaining LOWs (COR-11, 12, 14 to 21, 23 to 26, 28, 31, 32; TOOL-6) as they are touched.
+14. The upkeep sections, in one sweep, with the two comment-gate gaps (bare commit hashes, "no longer") added to `commentsStateTheConstraint.test.ts`.
+
+
+---
+
+## Resolutions (same day)
+
+Every finding above was fixed on the tree the report describes, each with a test whose expected value comes from the kernel through the bridge, from the Java, or from desktop 24.12 through `npm run check:fields`, and each new test was run against a scratch copy of the pre-fix tree and failed there. The gates were rerun on the fixed tree (see the end of this section).
+
+- **SEC-1**: `Map` or `Object.hasOwn` lookups in every file-keyed table; `finish`, `shape` and `crosssection` validated on read with a keyed note. Pinned by `tests/services/files/orkPrototypeNames.kernel.test.ts`.
+- **TOOL-1**: a `NetworkFirst` rule for `@data/manifest.json` ahead of the catalog rule (`vite.config.ts`); `scripts/check-offline-data.mjs` serves a second manifest and catalog set between an online visit and an offline read.
+- **TOOL-2**: `fieldReadback.kernel.test.ts` probes every numeric field outside the panel's range; the kernel must clamp it or the panel must admit it.
+- **TOOL-3**: `e2e/fixtures/rocksim.rkt`, as a RockSim file (no XML prolog, a finish code and a material on every part), is written under `source/` by the samples test and read by desktop's RockSim handlers in `check:fields`. That surfaced and fixed three importer differences: a part with no `Xb`/`LocationMode` sits at the front of its parent (desktop's `PositionDependentHandler` defaults), a lug is `ID/2 + 1 mm` across with a 1 mm wall (`LaunchLug.setInnerRadius` keeps the wall), and a shock cord with no density stays weightless rather than taking an invented line density. `KNOWN` names in words what desktop's RockSim import does not create (a configuration, a simulation) and drops (spill holes, ring tails).
+- **TOOL-4**: `ComponentFields.java` also reports the comment, the ring and mass-object automatic flags, the Cd automatic flag and the fillet material; `OrkFields` compares them through the same class. Comparing the fillet material found a defect of its own: the `.ork` reader dropped a fin set's fillet material when the fillet radius was 0 (`importTags.readFillet` returned before reading it) and the bridge applied the material only with a radius, so a bundled example's PETG fillet material came in as Cardboard. Both now keep the material at any radius, as desktop does. Pinned by `tests/services/files/filletMaterialAtZero.kernel.test.ts` and by desktop's readback of `source/3d-printable-nose-cone-and-fins.ork`.
+- **TOOL-5**: `everyPart()` carries a haack nose with a parameter, a filled flipped nose, an ellipsoid transition with the clip off placed `after` and carrying freeform fins, canted fins with a fillet material, a stated tube fin radius, an automatic off-axis inner tube, an absolute bulkhead, a lug with an angle and a spacing, altitude and lower-stage deploy events, a battery mass component, a pod with a body and fins, a Cd override, a comment and a burnout separation. Desktop 24.12 reads every one of them back.
+- **TOOL-6**: `dist-*` in `web/.prettierignore` and `web/dist-*/` in `.gitignore`.
+- **COR-1, COR-13**: mass, impulse and density use the magnitude ladder or significant figures. Pinned by `tests/services/report/reportMassUnits.kernel.test.ts` (kernel masses and impulses under kg, lb, N·s and lbf·s) and the golden under kg and lb.
+- **COR-2**: every view centers a rail button on its station. Pinned by `tests/components/canvas/lugButtonStation.kernel.test.ts` against `getComponentFields().positionX`.
+- **COR-3, COR-22**: `defaultNode` seeds every type with its constructor's values, the bridge's absent-key fallbacks are the constructor's, and `KERNEL_DEFAULTS` says so. Pinned by `tests/services/design/newParts.kernel.test.ts` (every type: the seeded part equals the keyless part in `getComponentFields`, less the keys the docstring lists as the app's own) and `tests/tree/kernelDefaults.kernel.test.ts`. The deliberate seeds (shoulder auto flags, the mount flag and overhang on a new inner tube, apogee deployment, the booster's seeded tube, rail button sizes) are listed in the `defaultNode` docstring.
+- **COR-4**: a `finish` select on every external part type; the readback compares it, and `fieldCoverage.kernel.test.ts` lists it as skin friction in flight only.
+- **COR-5**: withdrawn. An inner tube cannot be automatic on desktop: `InnerTube` has no public `setOuterRadiusAutomatic` (a `TubeCoupler` and an `EngineBlock` republish it, an inner tube does not, in the kernel and in the 24.12 jar alike), so `DoubleModel.isAutomaticAvailable` offers no checkbox, 24.12's saver never writes `auto` for one, and its loader rejects `auto` there ("Invalid parameter encountered"). The finding's claim about the dialog was wrong; the app matches desktop as it is.
+- **COR-6**: the lower-stage separation is offered only to a device whose stage has one below it (`fieldRange.fieldOptions`, `hasStageBelow`), in the panel and in the configuration card; an imported value stays selectable. Pinned by `DeploymentSection.test.tsx`.
+- **COR-7, COR-8, COR-23**: `sweep`, `motorOverhang` and `instanceSeparation` are signed with no bound; the Cd override has no floor; every generic angle is bounded at both ends or neither (radial direction). Pinned by the readback probe (TOOL-2) and the `OverridesSection` tests.
+- **COR-9**: the deploy and separation altitude boxes appear under the altitude events only (`fieldApplies`, both configuration cards). Pinned by the `fieldApplies` tests, `DeploymentSection.test.tsx` and `SeparationSection.test.tsx`.
+- **COR-10, COR-29**: the RASAero simulation block takes each stage's cumulative launch mass and CG from a stage-only kernel build (`rasaero/stageLaunch.ts`, wired in `fileSlice.saveRasaero`); a design the kernel cannot weigh per stage warns that the cells were written as 0; a boat tail is written for the last stage only. Pinned by `tests/services/files/rasaeroStageLaunch.kernel.test.ts` and the RASAero golden.
+- **COR-11**: an edit made before the stored design arrives, or before a failed load resolves, is kept as a design of its own. Pinned by `useWorkspaceEffects.test.tsx`.
+- **COR-12**: a retry clears the built rocket. Pinned by `useWorkspaceEffects.test.tsx`.
+- **COR-14**: the drawing export's date is the local one. Pinned by `schematicExport.test.ts` under two time zones.
+- **COR-15**: the thrustcurve.org cache keys carry the diameter and code. Pinned by `thrustcurve.test.ts`.
+- **COR-16**: documented as it stands: the import keeps a `.rse` file's launch CG, which is what the doc says it carries.
+- **COR-17**: the rod angle field admits a negative angle while launching into the wind. Pinned by `LaunchPanel.test.tsx` and a `simulations.test.ts` case that reads the kernel's `MAX_LAUNCH_ROD_ANGLE`.
+- **COR-18**: the Settings launch-defaults note says the app starts in still air where desktop starts in a 2 m/s wind into the wind. Pinned by `settingsLaunchNote.test.ts`, which reads both seeds from the Java.
+- **COR-19**: no coordinate is printed for a result without the kernel's series. Pinned by `EnvironmentLanding.test.tsx`.
+- **COR-20**: a packed part's stated radius is drawn as stated. Pinned by `tests/components/canvas/packedRadius.kernel.test.ts`.
+- **COR-21**: a keyless nose cone reads at the bridge's radius everywhere. Pinned by `tests/tree/keylessParts.kernel.test.ts`.
+- **COR-24**: Kit name in the design dialog, round-tripped as `<kitname>`.
+- **COR-25**: every ignition event is offered on every mount.
+- **COR-26**: the shoulder "Follow the bore" switches and the per-configuration stage grounding are listed as deliberate differences in `docs/AUDIT_PROMPT.md` and `website/docs/comparison-openrocket.md`.
+- **COR-27**: a `.rkt` shoulder opens open, as 24.12 reads it. Pinned by `tests/services/files/rktShoulderCap.kernel.test.ts`.
+- **COR-28**: a freeform outline with fewer than three usable points raises a keyed note. Pinned by `tests/services/files/finPointsNotes.kernel.test.ts`.
+- **COR-30, COR-32**: the material group and shear modulus round-trip. Pinned by `tests/services/files/ork/materialGroupShear.test.ts`.
+- **COR-31**: a motor with no designation imports empty with a keyed note naming the mount. Pinned by `tests/services/files/orkMotorNoDesignation.test.ts`.
+- **DATA-1**: `partProblems` refuses a digest carried by more than one row. Pinned by `digestCoverage.test.ts`.
+- **DATA-2**: motor diameters keep a tenth of a millimeter and the digest key matches on tenths; the catalog was regenerated. Pinned by `tests/scripts/motorDiameter.test.ts` against desktop's `thrustcurves.ser`.
+- **Upkeep**: every comment, test title and doc line listed above was corrected; the comment gate also fails on a bare commit hash beside `upstream` or `commit`; the facade declaration carries its five missing entry points; the image exports share one header size.

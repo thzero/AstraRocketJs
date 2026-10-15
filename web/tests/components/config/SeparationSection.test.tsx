@@ -59,4 +59,20 @@ describe('SeparationSection event override', () => {
     const offered = [...select.options].map((o) => o.value).filter((v) => v !== '');
     expect(offered).toEqual([...SEPARATION_EVENTS]);
   });
+
+  // StageSeparationConfiguration reads the altitude for its two altitude events
+  // only; under any other event the box would set a number nothing reads.
+  it('offers the altitude under an altitude event alone', () => {
+    const stage = findStages(st().tree)[1]!;
+    const config = selectConfig(st());
+    const { unmount } = renderWithProviders(<SeparationSection config={config} stage={stage} index={1} separates />);
+    expect(screen.queryByRole('spinbutton', { name: /altitude/i })).toBeNull();
+    unmount();
+    const onAltitude = {
+      ...config,
+      separations: { [stage.id as string]: { separationEvent: 'altitudeascending' } },
+    } as unknown as typeof config;
+    renderWithProviders(<SeparationSection config={onAltitude} stage={stage} index={1} separates />);
+    expect(screen.getByRole('spinbutton', { name: /altitude/i })).toBeTruthy();
+  });
 });
