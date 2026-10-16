@@ -40,7 +40,7 @@ sidebar_position: 2
 - **Exports**:
   - **Rocket design report** to **PDF**: summary, parts detail, motors, 1:1 fin / nose / transition templates, and wrap-around fin marking guides. **Save as CSV** writes the design summary and **Save parts as CSV** the parts list.
   - **RASAero II (`.CDX1`)** for aero analysis.
-  - **JSON (`.json`)** for the AstraRocketOnshapeImport feature, which builds the rocket as parts in an Onshape Part Studio.
+  - **JSON (`.json`)** for the [AstraRocketOnshapeImport](https://cad.onshape.com/documents/8e0814e355abcb7f2e678124/w/e2a90792fddced2ca802f65f/e/6eb2e92aea957e94a813c25e) feature, which builds the rocket as parts in an Onshape Part Studio.
   - **3MF** for the whole design's printable parts: one file, a named object per part, ready for a slicer, or **One file per part (a .zip)**.
   - **3D models (STL / OBJ / GLB / 3MF)** per component for printing and CAD, and **DXF** cut sheets for flat parts (fins, rings, bulkheads).
   - **CSV** for flight data, drag tables, the flight events timeline and the run table (every simulation and its results).

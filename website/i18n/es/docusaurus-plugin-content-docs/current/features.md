@@ -40,7 +40,7 @@ sidebar_position: 2
 - **Exportaciones**:
   - **Informe de diseño** a **PDF**: resumen, detalle de piezas, motores, plantillas 1:1 de aletas, ojivas y transiciones, y guías de marcado de aletas envolventes. **Guardar como CSV** escribe el resumen del diseño y **Guardar piezas como CSV** la lista de piezas.
   - **RASAero II (`.CDX1`)** para análisis aerodinámico.
-  - **JSON (`.json`)** para la función AstraRocketOnshapeImport, que construye el cohete como piezas en un Part Studio de Onshape.
+  - **JSON (`.json`)** para la función [AstraRocketOnshapeImport](https://cad.onshape.com/documents/8e0814e355abcb7f2e678124/w/e2a90792fddced2ca802f65f/e/6eb2e92aea957e94a813c25e), que construye el cohete como piezas en un Part Studio de Onshape.
   - **3MF** para todas las piezas imprimibles del diseño: un archivo, un objeto con nombre por pieza, listo para el laminador, o **Un archivo por pieza (un .zip)**.
   - **Modelos 3D (STL / OBJ / GLB / 3MF)** por componente para impresión y CAD, y hojas de corte **DXF** para las piezas planas (aletas, anillos, mamparos).
   - **CSV** para los datos de vuelo, las tablas de resistencia, la cronología de eventos de vuelo y la tabla de simulaciones (cada simulación y sus resultados).

@@ -61,7 +61,7 @@ Como RASAero no puede representar todas las formas, la exportación **se detiene
 
 ## Exportar JSON para Onshape (`.json`) {#exporting-json-for-onshape-json}
 
-**Menú → Exportar → JSON** escribe el diseño como un archivo `.json` para la función personalizada **AstraRocketOnshapeImport** de Onshape, que construye el cohete como piezas en un Part Studio. La función lee el formato de archivo del proyecto **[OpenRocket-Onshape](https://github.com/thzero/openrocket-onshape)**.
+**Menú → Exportar → JSON** escribe el diseño como un archivo `.json` para la función personalizada **[AstraRocketOnshapeImport](https://cad.onshape.com/documents/8e0814e355abcb7f2e678124/w/e2a90792fddced2ca802f65f/e/6eb2e92aea957e94a813c25e)** de Onshape, que construye el cohete como piezas en un Part Studio. La función lee el formato de archivo del proyecto **[OpenRocket-Onshape](https://github.com/thzero/openrocket-onshape)**.
 
 Para construir el cohete en Onshape:
 
