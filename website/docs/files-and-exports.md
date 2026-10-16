@@ -128,6 +128,7 @@ Some details worth knowing:
 - The strip is cut to the circumference **plus one paper thickness** (0.1 mm), because the marks sit on the outside of the wrapped paper rather than on the tube. Without it the ends fall short, and the smaller the tube the more it shows.
 - The **seam** is placed in the widest gap between marks, so nothing you have to mark ends up under the tape.
 - **Canted fins** are marked on the slant, with dashed lines at the root's fore and aft ends and a cross at its center.
+- A fin with a **tab** gets a box on its line for the **slot**, one fin thickness wide. Line the strip's left edge up with the aft end of the fin's root; the box runs from the slot's aft end to its fore end, measured forward from that edge, and both numbers are printed after the fin's name, so a tab longer than the strip is still marked. There is no allowance for glue or cutting. Canted fins get no box, since their slot is not a rectangle on the tube, and neither does a filled tube. Desktop OpenRocket's guide has no slots.
 - A strip too long for the page is **cut into pieces** that butt together and are taped in order, with the joins kept off the marks. Nothing is ever scaled down: a shrunk marking guide is worse than none. A 4 in tube wraps 320 mm, so it always takes two pieces.
 - A part no strip can carry is **named in a footnote** rather than dropped, so nothing disappears silently: a lug on a nose cone or transition, whose circumference changes along its length, or a lug on a tube with no fin set.
 

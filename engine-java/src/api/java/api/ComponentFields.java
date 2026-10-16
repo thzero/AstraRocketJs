@@ -1,6 +1,7 @@
 package api;
 
 import info.openrocket.core.material.Material;
+import info.openrocket.core.motor.MotorConfiguration;
 import info.openrocket.core.rocketcomponent.AxialStage;
 import info.openrocket.core.rocketcomponent.ExternalComponent;
 import info.openrocket.core.rocketcomponent.StructuralComponent;
@@ -12,6 +13,7 @@ import info.openrocket.core.rocketcomponent.InnerTube;
 import info.openrocket.core.rocketcomponent.LaunchLug;
 import info.openrocket.core.rocketcomponent.MassComponent;
 import info.openrocket.core.rocketcomponent.MassObject;
+import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.ParallelStage;
 import info.openrocket.core.rocketcomponent.Parachute;
@@ -132,6 +134,7 @@ public final class ComponentFields {
             o.bool("filled", b.isFilled());
             o.bool("motorMount", b.isMotorMount());
             o.num("motorOverhang", b.getMotorOverhang());
+            defaultIgnition(o, b);
         }
 
         if (c instanceof FinSet) {
@@ -183,6 +186,7 @@ public final class ComponentFields {
                 InnerTube t = (InnerTube) c;
                 o.bool("motorMount", t.isMotorMount());
                 o.num("motorOverhang", t.getMotorOverhang());
+                defaultIgnition(o, t);
                 o.str("cluster", t.getClusterConfiguration().getXMLName());
                 o.num("clusterScale", t.getClusterScale());
                 o.num("clusterRotation", t.getClusterRotation());
@@ -261,6 +265,16 @@ public final class ComponentFields {
             o.num("separationAltitude", sep.getSeparationAltitude());
         }
         return o.done();
+    }
+
+    /**
+     * The mount's own ignition (`getDefaultMotorConfig()`), in the app's names:
+     * lowercase with the underscore dropped, as the .ork spells them.
+     */
+    private static void defaultIgnition(Out o, MotorMount mount) {
+        MotorConfiguration config = mount.getDefaultMotorConfig();
+        o.str("ignitionEvent", config.getIgnitionEvent().name().replace("_", ""));
+        o.num("ignitionDelay", config.getIgnitionDelay());
     }
 
     /** A flat JSON object. A later key replaces nothing: each key is written once per class branch. */

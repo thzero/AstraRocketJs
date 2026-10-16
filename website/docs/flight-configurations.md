@@ -26,6 +26,8 @@ One card per motor mount, nose to aft. **Change…** opens the [motor picker](./
 - **Automatic** is the low and mid-power pattern: the launch stage lights at launch, an upper stage on the ejection charge of the stage below.
 - **Launch**, **Ejection of stage below**, **Burnout of stage below** and **Never**, each with a delay in seconds (except **Never**), are what an electronically-timed sustainer or an air-start needs. All five are offered on every mount, as on the desktop. **Ejection of stage below** and **Burnout of stage below** fire from the stage under the mount's own (a strap-on booster counts), so on a mount with nothing below it they never fire and the motor stays unlit, as it does on **Never**.
 
+The choice under the ignition says which configurations a change reaches. **This configuration** changes only the one you are editing, and is where the choice starts each time you open a configuration. **All configurations** changes this mount's ignition in every configuration and also sets the mount's own ignition, the **Ignition at** on the mount in the Design tab; **Apply to all configurations** does that with the ignition as it already stands here. A motor new to the mount, such as the one a new configuration starts with, lights the way the mount's own ignition says. **Reset ignition** sets this configuration back to **Automatic** with no delay. These follow desktop OpenRocket's ignition dialog and its **Reset ignition** button.
+
 Editing a motor here changes it for **every** simulation flying this configuration. That is what sharing a setup means, and it is why motors are edited here and nowhere else: two surfaces writing the same loadout under different rules is how they come to disagree.
 
 ## Recovery

@@ -8,6 +8,15 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
 ## [Unreleased]
 
+### Added
+- **A mount has its own ignition.** The **Motor** section of a body tube or inner tube on the Design tab has **Ignition at** and a delay, as desktop OpenRocket's Motor tab does. A motor new to the mount, such as the one a new flight configuration starts with, lights that way. A `.ork` keeps it in the mount's own ignition tags, where desktop reads and writes it. Before, those tags were rewritten from the default configuration's motor on save, so a file whose mount said something else lost it.
+- **Ignition scope and Reset ignition.** The ignition control on the Configurations tab can change **This configuration** or **All configurations**; the second also sets the mount's own ignition. **Reset ignition** sets this configuration back to **Automatic** with no delay. Both work as they do on desktop.
+- **Tab slots on the fin marking guide.** A fin with a tab gets a box on its line, one fin thickness wide, running from the slot's aft end to its fore end as measured from the aft end of the fin's root, with both numbers printed after the fin's name. Canted fins and filled tubes get none. Desktop's guide marks lines only.
+
+### Fixed
+- **Motor overhang shows only on a motor mount**, with the mount's ignition, as desktop grays them out on a tube that is not one. Off a mount the box changed nothing that flew or saved.
+- **Motor events at the same moment keep one order.** Two motors in one stage that ignite or burn out at the same time were listed in a different order each time the design was opened, because the engine kept its motors in a map ordered by each mount's random id. They now come out in the same order every time.
+
 ## [0.3.0]
 
 ### Changed

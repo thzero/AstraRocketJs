@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import info.openrocket.core.material.Material;
+import info.openrocket.core.motor.MotorConfiguration;
 import info.openrocket.core.rocketcomponent.BodyTube;
 import info.openrocket.core.rocketcomponent.Bulkhead;
 import info.openrocket.core.rocketcomponent.CenteringRing;
@@ -17,6 +18,7 @@ import info.openrocket.core.rocketcomponent.FreeformFinSet;
 import info.openrocket.core.rocketcomponent.InnerTube;
 import info.openrocket.core.rocketcomponent.LaunchLug;
 import info.openrocket.core.rocketcomponent.MassComponent;
+import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.Parachute;
 import info.openrocket.core.rocketcomponent.RailButton;
@@ -135,7 +137,7 @@ final class ComponentFactory {
             "lineLength", "width", "cordLength", "stripLength", "stripWidth",
             "density", "surfaceDensity", "lineDensity", "filletDensity", "mass", "overrideMass",
             "filletRadius", "finLeRadius", "tabHeight", "tabLength", "flangeHeight", "baseHeight",
-            "screwHeight", "instanceSeparation", "deployDelay", "deployAltitude", "cd"));
+            "screwHeight", "instanceSeparation", "deployDelay", "deployAltitude", "cd", "ignitionDelay"));
 
     /**
      * A component number: {@link JsonLite#dbl}, refused past {@link #MAX_MAGNITUDE},
@@ -300,6 +302,7 @@ final class ComponentFactory {
                 // Motor overhang (m): protrusion past the mount's aft end,
                 // standard min-diameter practice (~6 mm); shifts the motor mass.
                 bodyTube.setMotorOverhang(dbl(node, "motorOverhang", 0));
+                defaultIgnition(bodyTube, node);
                 // Solid, with no bore: the desktop's Filled checkbox,
                 // `<thickness>filled</thickness>` in the file.
                 bodyTube.setFilled(bool(node, "filled", false));
@@ -411,6 +414,7 @@ final class ComponentFactory {
                 tube.setThickness(dbl(node, "thickness", 0.0005));
                 tube.setMotorMount(bool(node, "motorMount", false));
                 tube.setMotorOverhang(dbl(node, "motorOverhang", 0));
+                defaultIgnition(tube, node);
                 // Cluster: pattern by its .ork XML name ("3-ring", "double"…).
                 // One motor definition serves the whole cluster: the kernel
                 // multiplies thrust by tube count and places mass/inertia at
@@ -901,6 +905,26 @@ final class ComponentFactory {
         double delay = dbl(node, "deployDelay", Double.NaN);
         if (!Double.isNaN(delay)) {
             config.setDeployDelay(delay);
+        }
+    }
+
+    /**
+     * The mount's own ignition: the desktop Motor tab's "Ignition at", stored on
+     * `getDefaultMotorConfig()` and written bare in `<motormount>`. A motor put in
+     * the mount starts from it, and the app does that copy itself, since
+     * setMotorById builds its MotorConfiguration without the default. So it
+     * changes no flight here. Keys: ignitionEvent
+     * (automatic|launch|ejectioncharge|burnout|never), ignitionDelay (s).
+     */
+    private static void defaultIgnition(MotorMount mount, Map<String, Object> node) {
+        MotorConfiguration config = mount.getDefaultMotorConfig();
+        String event = str(node, "ignitionEvent", null);
+        if (event != null) {
+            config.setIgnitionEvent(OpenRocketEngine.ignitionEventOf(event));
+        }
+        double delay = dbl(node, "ignitionDelay", Double.NaN);
+        if (!Double.isNaN(delay)) {
+            config.setIgnitionDelay(delay);
         }
     }
 

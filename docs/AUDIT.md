@@ -8,11 +8,11 @@ Date: 2026-10-15. Scope: the `web/` package per `docs/AUDIT_PROMPT.md`. Eight sl
 
 | Severity | Count | Where |
 | --- | --- | --- |
-| HIGH | 1 | reference data (R1) |
-| MED | 5 | files (F1, F2), state (S1), components (C1), accessibility (A1); C2 withdrawn, see its entry |
-| LOW | 7 | files (F3, F4), state (S2), geometry (G1, G2), reference data (R2) |
+| HIGH | 2 | reference data (R1); design services (G3) |
+| MED | 7 | files (F1, F2), state (S1), components (C1, C3), accessibility (A1), design services (G4); C2 withdrawn, see its entry |
+| LOW | 10 | files (F3, F4, F5), state (S2, S3), components (C4), geometry (G1, G2), reference data (R2); S4 withdrawn, see its entry |
 
-Every finding was fixed on this tree the same day; see Resolutions at the end. No security finding. No dead code. No gate whose scope excludes what it claims to cover. No ported formula disagrees with the Java; the one geometry rule that does (G2) is a wall inheritance, not a formula.
+Every finding was fixed on this tree the same day; see Resolutions at the end. C3, C4, F5, G3, G4, S3 and S4 come from the change audit of the mount ignition, motor event order and marking guide slot changes, run the same day; see "Change audit" after the Resolutions. No security finding. No dead code. No gate whose scope excludes what it claims to cover. No ported formula disagrees with the Java; the one geometry rule that does (G2) is a wall inheritance, not a formula.
 
 ## Gates, run locally for this audit
 
@@ -61,6 +61,12 @@ None. Checked and holding: the `.ork` unzip caps every member, the archive and e
 - Why it matters: a reload or hybrid curve imported from an `.rse` and saved into a design reopens in desktop typed single-use. Label only; the curve, mass and digest are unaffected.
 - Fix: carry the type on `MotorSpec` from `CustomMotor.type` and write `Type` from it. REPORTED (writer line verified; desktop's reading of the attribute not re-run).
 
+### F5 (LOW) A tab slot's numbers print where a nearby mark's name goes
+
+- `web/src/services/report/markingSection.ts` drew the slot's "Slot a to b mm" line under the slot box at the strip's one-third mark, the same x every other mark's name is drawn at, a few millimeters further round the tube.
+- Why it matters: a lug or rail button clocked a few degrees from a tabbed fin, or many fins on a small tube, prints its name over the numbers the builder cuts the slot to.
+- Fix: the slot's ends go on the fin's own label line (`markingSection.ts:176`), one label per mark. Checked by rendering the page through an SVG shim with a lug 3.6 mm from a fin line. VERIFIED.
+
 ## 🟡 Correctness: state and engine
 
 ### S1 (MED) A file cannot be opened until the engine has loaded
@@ -75,6 +81,17 @@ None. Checked and holding: the `.ork` unzip caps every member, the archive and e
 - Why it matters: an edit inside that window (the read plus up to 3 s on a first run in a non-English locale) is treated as already stored; the autosave did not fire for it (`hydrated` was false), the unload flush and the hidden-tab save skip on `unchangedSinceWrite`, and closing the tab without another edit loses the part. Rare.
 - Fix: mirror the catch branch. Test: the existing "keeps an edit made before the load rejected" case in `tests/state/useWorkspaceEffects.test.tsx:221` with `load` resolving null, requiring `unchangedSinceWrite` false and a `saveSync` on `pagehide`. VERIFIED.
 
+### S3 (LOW) "All configurations" at automatic with no delay records a step that changes nothing
+
+- `web/src/state/store.ts` `setMountIgnition`, scope `all`: the mount was compared with `patchChangesNode` on raw keys, so a mount with no ignition keys read as changed by `{ ignitionEvent: 'automatic', ignitionDelay: 0 }`, although it flies exactly that.
+- Why it matters: clearing the delay box and typing 0 with the scope on "all" recorded an empty undo step, wrote explicit keys into the mount and aged every result.
+- Fix: the mount is compared as it flies (`store.ts:1275`, `sameIgnition(mountIgnition(mount), target)`). VERIFIED.
+
+### S4 (withdrawn) The nozzle exit areas are summed in hash order
+
+- Reported as: `FlightConditions.thrustingNozzleExitAreas` is a `HashMap` keyed by `ComponentAssembly`, whose hash is its random UUID, and `getThrustingNozzleExitArea` sums `values()` for the pressure-thrust correction (`AbstractRKSimulationStepper.java:217-226`), so the order of the sum changes from build to build.
+- Withdrawn: the order is real but cannot reach a flight. The area enters thrust only as `(P0 - Pa) * area`; one ulp of an area near 1e-4 m² is near 1e-20 m², which moves that term by near 1e-16 N, below one ulp of a thrust of a few newtons. A core and three boosters with four different nozzle exits flew bit-identically over four builds on an engine without a fix, so no test can fail without one, and no patch was kept.
+
 ## 🟡 Correctness: components
 
 ### C1 (MED) Mass and distance fields have no floor in the box
@@ -88,6 +105,17 @@ None. Checked and holding: the `.ork` unzip caps every member, the archive and e
 - Reported as: `web/src/components/design/RecoverySizingReadout.tsx:89` reads the stored Cd and ignores `cdAuto`, so the dialog solves the diameters for a typed Cd while the flight uses the kernel's automatic one.
 - Withdrawn: a parachute's automatic Cd is its stored Cd. `RecoveryDevice.getCD` takes `getComponentCD` when automatic (`RecoveryDevice.java:50-54`), and `Parachute.getComponentCD` returns the stored `cd` (`Parachute.java:80-82`); only a streamer computes one (`Streamer.java:140-144`). The dialog is parachute-only, so the Cd it reads is the Cd the kernel flies, Auto or not, and the bridge confirms it (`componentInfo.cd` is 1.5 for `cd: 1.5, cdAuto: true`). The audit applied the streamer rule to a parachute.
 - Kept: a kernel pin, `web/tests/components/design/RecoverySizingReadout.kernel.test.tsx`, holds the dialog's diameters to the Cd the bridge reports, so the dialog needs the kernel read the day the kernel starts estimating a parachute Cd; and the comment at `RecoverySizingReadout.tsx:84-89` states the constraint.
+
+### C3 (MED) "All configurations" could not apply the ignition as it stood
+
+- `web/src/components/sim/MotorRow.tsx` `IgnitionControl`: the scope radio changed only where the next edit went. The select fires on a new value and the delay box on typing, so an ignition already set in this configuration could not be pushed to the others. Desktop's OK applies the dialog's values to the mount and every motor whether or not they were edited (`IgnitionSelectionDialog$1.actionPerformed`, javap of the 24.12 jar).
+- Why it matters: "make every configuration match this one" is the everyday use, and the only way to do it was to change the value away and back, which set every configuration to a value nobody wanted on the way.
+- Fix: with the scope on "all", **Apply to all configurations** (`MotorRow.tsx:265`) applies the ignition as it stands, disabled once every motor and the mount already have it (`ignitionEverywhere`, computed in `ConfigEditor.tsx`). VERIFIED.
+
+### C4 (LOW) The ignition scope carried into the next configuration edited
+
+- `web/src/components/config/ConfigEditor.tsx`: `MotorRow` was keyed by mount id only, so the scope held in `IgnitionControl` survived a switch of the edited configuration, and the first edit in the next configuration rewrote every configuration. Desktop builds the dialog afresh each time and starts on this configuration for a mount with a motor (`IgnitionSelectionDialog.<init>`).
+- Fix: the card is keyed by configuration and mount (`ConfigEditor.tsx:106`). VERIFIED.
 
 ## 🟡 Accessibility
 
@@ -110,6 +138,18 @@ None. Checked and holding: the `.ork` unzip caps every member, the archive and e
 - `web/src/services/design/autoRadius.ts:862` takes `num(parent, 'thickness', ...)`, the stored wall key, whatever the tube's `filled` flag. The kernel hands it `getThickness()` (`BodyTube.java:583-591`), which returns the tube's radius when filled (`SymmetricComponent.java:104-108`), and `TubeFinSet.setThickness` clamps that to the fin tube's own radius (`TubeFinSet.java:201`): solid tube fins.
 - Why it matters: on a filled body tube the app stores a 2 mm wall and the bridge flies it (`applyWallThickness`, `ComponentFactory.java:991-995`), so the fins fly hollow and lighter than desktop and the kernel make them, and the panel, the drawings and the `.ork` all state that wall. Rare.
 - Fix: in `parentDerived`, when the parent is filled take its radius (as `autoShoulder.solidWall` does). Test: build the pair with no `thickness` key and read `getComponentFields(...).thickness` back from the bridge. VERIFIED.
+
+### G3 (HIGH) A mount's automatic ignition with a delay showed the delay and flew without it
+
+- `web/src/services/flight/flightConfigs.ts` `mountIgnition` dropped an `automatic` event but kept a nonzero delay, so a new configuration's motor was seeded `{ spec: C6, ignitionDelay: 2 }`; `buildConfiguredRocket` (`web/src/services/design/buildRocket.ts`) and the import probe build (`web/src/services/files/loadOrk.ts`) called `setMotorIgnitionById` only when an event was set.
+- Why it matters: the Configurations card showed +2 s and the `.ork` wrote it, so desktop flies the delay (`BasicEventSimulationEngine.java:407` adds `getIgnitionDelay()` to the event time), while the app flew 0 s: wrong flight numbers with nothing on screen to say so. The card could not repair it, since the store read "automatic, 2" as already set.
+- Fix: `mountIgnition` returns both keys whenever either differs from automatic with no delay (`flightConfigs.ts:129`), and both kernel call sites send a delay without an event (`buildRocket.ts:63`, `loadOrk.ts:476`). VERIFIED.
+
+### G4 (MED) The mount's own ignition never reached a motor chosen after it was set
+
+- Desktop copies the mount's ignition into a motor chosen for an empty slot (`MotorConfigurationPanel.selectMotor`, `new MotorConfiguration(mount, fcid, mount.getMotorConfig(fcid))`, javap of the 24.12 jar). Here every slot already holds a motor: ticking **Motor mount** seats a C6 at automatic (`reconcileConfigs`), choosing a motor keeps the slot's ignition (`setMountMotor`), and a slot a `.ork` left empty got a placeholder with no ignition (`loadOrk.ts`).
+- Why it matters: tick the mount, set **Ignition at** to Burnout of stage below + 1 s, choose a motor: desktop flies burnout, the app flew automatic (the stage-below ejection charge for an upper stage). The Design tab control reached only configurations made later and the saved file.
+- Fix: a change to the mount's ignition carries into every configuration's motor still on the mount's previous ignition (`flightConfigs.ts:161`, `followMountIgnition`, called from `patchSelected` at `store.ts:1152`); a motor whose ignition was set otherwise keeps it. The `.ork` placeholder carries the mount's ignition (`loadOrk.ts:445`). VERIFIED.
 
 ## 🟠 Reference data and its pipeline
 
@@ -168,10 +208,14 @@ No severity. Grouped by rule, every site listed.
 - `web/scripts/check-catalog-digests.mjs:5-6` says the publish step copies every catalog in `public/data`; it copies motors and components only (`sync-catalogs.yml:220-224`).
 - `web/scripts/sync-components.mjs:203-205` says only a row identical in every field is dropped; not for parachutes (R2). `docs/DEVELOPER.md` repeats it in the staging paragraph.
 
+- Change audit: `web/src/services/design/componentFields.ts` (comment above `MOTOR_MOUNT`) and `engine-java/src/api/java/api/ComponentFactory.java` (`defaultIgnition`) said a motor put in the mount starts from its ignition, true then only for a seeded C6 (G4); `web/src/services/flight/flightConfigs.ts` (`mountIgnition`) said an absent event with a present delay flies as stated (G3); `web/src/services/files/ork/importConfigs.ts` (`readMotor`) did not name the mount's own ignition among what it reads. All corrected.
+
 ### A comment or test title narrates history, or a disable states no reason
 
 - Nothing in `web/src` beyond what `commentsStateTheConstraint.test.ts` already checks. The gate's file list leaves out authored code under `website/` (`docusaurus.config.ts`, `sidebars.ts`) and `engine-java/` (`audit.mjs`, `build-engine.mjs`, `gradle-exec.mjs`, `extract/extract.mjs`, `build.gradle`, `validation/score.mjs`); a grep of its patterns over those files finds nothing today, so this is a gap in the gate, not a defect.
 - `web/tests/state/saveFiguresVintage.kernel.test.ts:37` carries an `eslint-disable-next-line @typescript-eslint/no-explicit-any` with no reason; its twenty siblings say "the TeaVM bundle is untyped".
+
+- Change audit: `engine-java/patches/LEDGER.md` (the `FlightConfiguration.java` row) narrated the event order in the past tense; restated as the present constraint. The patch comment in `FlightConfiguration.java` named only the event tie and not the thrust and motor mass sums the same order sets; added, and the patch re-blessed.
 
 ### A duplicated helper, formula or list
 
@@ -183,9 +227,13 @@ No severity. Grouped by rule, every site listed.
 - Drifted: `e2e/a11y.spec.ts:131-144` `answerOpenMeteo` vs `e2e/weather.spec.ts:22-38` (the latter records each request); `scripts/check-offline-help.mjs:53-71`, `check-update-flow.mjs:59-77`, `check-offline-data.mjs:124-143` each hold their own `serve()` and build step; `tests/commentsStateTheConstraint.test.ts:73-90` and `tests/noEmDash.test.ts:47-77` copy `slashed` and `walk` with different skip lists.
 - Not yet drifted: `exportSimulation.ts:109-117` `DESKTOP_SIM_PREFS` repeats `storage/settings.ts:478-488` number for number; `exportWriters.ts:374-377` writes the stock line material as a literal that repeats `KERNEL_MATERIALS.line`, which `exportParts.ts:118-129` already writes from the table; the seconds symbol is hard-coded at `sim/MotorRow.tsx:96`, `:206` and `MotorSpecDialog.tsx:40` where every other row uses `t('units.second')`; the `clipped` flag reader is copied at `schematicGeometry.ts:148`, `shapeProfile.ts:326`, `solidMesh.ts:472`, `reportGeometry.ts:63`, `:177`; the `tabOffsetMethod` reader with its `'middle'` default at `finPlanform.ts:287` and `axialRebase.ts:119`; the lost/gone digest report at `sync-motor-digests.mjs:158-167` and `sync-preset-digests.mjs:326-335`; `shortName` at `check-ork-opens.mjs:199` and `check-desktop-fields.mjs:542`; a local `Stat` dt/dd row at `tools/OffTheRail.tsx:350-357` beside `common/TermRow.tsx` and `sim/MotorDetail.tsx:194-201`; scan-open sequences copied from feature specs into `a11y.spec.ts` (`:94-117`, `:435-446`, `:595-602`, `:1187-1195`).
 
+- Change audit, not yet drifted: the ignition scope union was written as `IgnitionScope` in `web/src/components/sim/MotorRow.tsx` and inline in `web/src/state/store.ts`; the store exports it now and the card imports it.
+
 ### User docs that state something the app does not do
 
 - `docs/ARCHITECTURE.md:128` says the committed catalog copy is the fallback when the data host is unreachable; a data-host build leaves the two hosted catalogs out and reads them from the host and nowhere else (`remoteData.ts:22-25`, `vite.config.ts:91-100`), as `ARCHITECTURE.md:191` and `DEVELOPER.md:158` state. `docs/AUDIT_PROMPT.md:29` repeats the fallback claim.
+
+- Change audit: `sims.ignitionAllHint` (en and nine locales) and `website/docs/flight-configurations.md` with its Spanish twin said **All configurations** changes the mount's motor; it changes the ignition. The same docs said the scope and reset "work as they do on desktop" while C3 and C4 stood. `website/docs/files-and-exports.md`, its twin, the CHANGELOG and `report.markingSlotHint` said the slot numbers print under the box (F5). Terms that differed from each file's own: es `sims.resetIgnition` (now "Restablecer encendido"), pl `sims.resetIgnition` (now "Przywróć zapłon") and its hint's "Automatyczny" (now "Automatycznie", the option's label), nl `sims.resetIgnition` (now "Ontsteking herstellen"). `engine-java/extract/MMROCKET-SIM` stated that openrocket-database master carries the corrected SEMROC mass; the local clone's master does not, and the line now says what mmrocket-sim's commit reports. All corrected.
 
 ## Recommended order of attack (as planned before the resolutions below)
 
@@ -229,3 +277,28 @@ Gates on the fixed tree, run locally:
 | `npx playwright test` in `web/` | pass; 543 of 544 on the first run, the one spec that read the stored note as English text rerun green after it was pointed at the note's key |
 | `npm run audit` in `web/` | pass; all five steps, fields 0 new differences, 46 known, 0 stale |
 | `npm run audit` in `engine-java/` | pass before the fixes; the fixes touch no file under `engine-java/` |
+
+## Change audit (same day)
+
+Of the mount ignition, motor event order and marking guide slot changes, base `HEAD` (edits not yet committed), per `docs/AUDIT_PROMPT_CHANGES.md`. Four review agents (files and report; state and components; design services and the bridge; the engine patch) read the changed files whole with their callers, and the lead re-checked G3 and G4 against the source and the 24.12 jar.
+
+- **G3**: pinned by `web/tests/state/mountIgnition.kernel.test.ts` ("flies an automatic ignition with a delay in a configuration made after it": the IGNITION time and apogee against the same motor handed the mount's ignition, as `getComponentFields` reads it, through `setMotorIgnitionById`). With the fix reverted alone: fails.
+- **G4**: pinned by `web/tests/state/mountIgnition.kernel.test.ts` ("carries a change to the mount into a motor still on its old ignition, and not into one set otherwise", expected ignition from `getComponentFields`) and `web/tests/services/files/loadOrk.emptyMount.test.ts` ("carries each mount's own ignition into its placeholder"). With each part reverted alone: each fails.
+- **C3**: pinned by `web/tests/components/sim/ignitionScope.test.tsx` and `web/tests/components/config/ConfigEditor.ignitionScope.test.tsx` ("applies the ignition as it stands to every configuration, then has nothing left to apply"). Without the button: fails.
+- **C4**: pinned by `web/tests/components/config/ConfigEditor.ignitionScope.test.tsx` ("starts on this configuration again when another one is edited"). With the old key: fails.
+- **S3**: pinned by `web/tests/state/mountIgnition.test.ts` ("records no step when \"all\" asks for automatic with no delay on a mount that states none"). With the raw-key comparison: fails.
+- **F5**: the report golden moved only where the label moved; the layout was checked by rendering.
+- **S4**: withdrawn, see its entry; the two patches tried for it were removed, and the patch count stays 18.
+- The desktop field check now sees a mount with its own ignition and delay (the every-part sample in `orkDesktopSamples.test.ts`): the `.ork` reads back the same in desktop 24.12, and the `.rkt` differences are the two `KNOWN` entries that say RockSim carries no mount ignition.
+- Every new test of the change set was also run against a scratch copy of `HEAD` and fails there.
+
+Gates on this tree, run locally:
+
+| Gate | Result |
+| --- | --- |
+| `npm run audit` in `engine-java/` (run first, before any rebuild) | pass; all five checks |
+| `npm run gates` in `web/` (format, spell, typecheck, lint, knip, dupes, build) | pass |
+| `npm run audit` in `web/` (coverage, samples, desktop, fields, helpers) | pass; 592 test files, 7227 tests; fields 0 new differences, 48 known, 0 stale |
+| `npx playwright test` in `web/`, the whole suite | pass; 544 tests |
+
+`npm run verify:ci` was not run as one command: it is `npm run gates` plus the coverage run, and the coverage step of the web audit is that same run, so running both repeats it.

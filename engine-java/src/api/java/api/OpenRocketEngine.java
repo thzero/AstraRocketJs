@@ -648,7 +648,7 @@ public final class OpenRocketEngine {
         mc.setIgnitionDelay(ignitionDelay);
     }
 
-    private static IgnitionEvent ignitionEventOf(String name) {
+    static IgnitionEvent ignitionEventOf(String name) {
         switch (name.toLowerCase().replace("_", "")) {
             case "automatic": return IgnitionEvent.AUTOMATIC;
             case "launch": return IgnitionEvent.LAUNCH;
