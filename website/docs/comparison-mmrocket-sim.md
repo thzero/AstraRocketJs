@@ -8,7 +8,7 @@ import UpstreamPin from '@site/src/components/UpstreamPin';
 
 :::info Snapshot, and how to read it
 
-Written **2026-09-22**, comparing **AstraRocketJs <AppVersion />** (engine built from OpenRocket <UpstreamPin />) against **[mmrocket-sim](https://github.com/mtnmanak/mmrocket-sim)** at v0.137 (2026-09-21), the release reviewed here when this page was written. `engine-java/extract/MMROCKET-SIM` records that review and the ones after it.
+Checked **2026-10-10**, comparing **AstraRocketJs <AppVersion />** (engine built from OpenRocket <UpstreamPin />) against **[mmrocket-sim](https://github.com/mtnmanak/mmrocket-sim)** at v0.171 (2026-10-09), the release last reviewed here. `engine-java/extract/MMROCKET-SIM` records each review.
 
 This page is deliberately shorter than the other two: mmrocket-sim’s public documentation covers its build and its layout, not its interface, and a feature table assembled by guessing at somebody else’s app is worse than no table.
 

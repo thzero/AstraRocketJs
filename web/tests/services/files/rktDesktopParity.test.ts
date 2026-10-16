@@ -76,6 +76,34 @@ describe('a zero ID is solid, not missing', () => {
   });
 });
 
+describe('a ring with a bore and no outer diameter', () => {
+  /**
+   * `RingHandler` builds every ring as a detached CenteringRing, whose
+   * `setInnerRadius` raises a stored outer radius of 0 to the bore and turns
+   * Automatic off; `copyValues` hands that radius on. Desktop 24.12 opens both
+   * of these at a 30 mm outer radius in a 39 mm bore.
+   */
+  const ring = (usage: number): ComponentNode =>
+    find(
+      parts(
+        `<BodyTube><Name>B</Name><Len>300</Len><OD>80</OD><ID>78</ID><AttachedParts>
+        <Ring><Name>R</Name><UsageCode>${usage}</UsageCode><Len>5</Len><ID>60</ID></Ring>
+        </AttachedParts></BodyTube>`,
+      ),
+      'R',
+    );
+
+  it('is a centering ring with no wall', () => {
+    const r = ring(0);
+    expect(r['outerRadius']).toBeCloseTo(0.03, 12);
+    expect(r['innerRadius']).toBeCloseTo(0.03, 12);
+  });
+
+  it('is a bulkhead the size of the bore', () => {
+    expect(ring(1)['outerRadius']).toBeCloseTo(0.03, 12);
+  });
+});
+
 describe('a recovery device fabric', () => {
   const chute = (density: string, type: string, thickness = '<Thickness>0.05</Thickness>'): ComponentNode =>
     find(
@@ -210,18 +238,32 @@ describe('a fin set', () => {
 
   /**
    * A tab is measured from the front of the fin root, so on a tapering body its
-   * stated depth already contains the drop from the fore radius to the aft one:
-   * `setTabHeight(tabDepth - max(front - trailing, 0))`.
+   * stated depth already contains the radius drop along the tab:
+   * `setTabHeight(tabDepth - max(front - trailing, 0))`, where `front` and
+   * `trailing` are `getParentFrontRadius` / `getParentTrailingRadius`, read
+   * before the fin is attached, so at the tab's own offset and end from the
+   * parent's fore end.
    */
   it('gives back the taper a tab depth already contains', () => {
     const onTube = fin('<TabLength>40</TabLength><TabDepth>5</TabDepth>');
     expect(onTube['tabHeight']).toBeCloseTo(0.005, 12);
-    const onTransition = fin(
-      '<TabLength>40</TabLength><TabDepth>5</TabDepth>',
-      '<Transition><Name>T</Name><Len>60</Len><FrontDia>24</FrontDia><RearDia>18</RearDia>',
+    // A 30 mm freeform fin standing 40 mm down a 60 mm conical transition,
+    // 24 mm to 18 mm, with a 30 mm tab from the root's front. Desktop 24.12
+    // opens this with a tab height of 3.5 mm: the radius drops from 12 mm at
+    // 0 mm to 10.5 mm at 30 mm. Neither the whole taper (3 mm) nor the drop
+    // under where the fin stands (1 mm) is what it reads.
+    const onTransition = find(
+      parts(
+        `<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia></NoseCone>
+        <Transition><Name>T</Name><Len>60</Len><FrontDia>24</FrontDia><RearDia>18</RearDia><ShapeCode>0</ShapeCode><AttachedParts>
+        <FinSet><Name>F</Name><ShapeCode>2</ShapeCode><FinCount>3</FinCount><Xb>40</Xb><LocationMode>0</LocationMode>
+        <PointList>30,0|20,30|0,30|0,0</PointList><Thickness>3</Thickness>
+        <TabLength>30</TabLength><TabDepth>5</TabDepth><TabOffset>0</TabOffset></FinSet>
+        </AttachedParts></Transition>`,
+      ),
+      'F',
     );
-    // 24 mm down to 18 mm is 3 mm of radius, so 5 mm of depth is 2 mm of tab.
-    expect(onTransition['tabHeight']).toBeCloseTo(0.002, 12);
+    expect(onTransition['tabHeight']).toBeCloseTo(0.0035, 12);
   });
 });
 
@@ -327,12 +369,15 @@ describe('a mass object', () => {
 });
 
 describe('a pod', () => {
+  // On a body tube: a stage's own parts are only nose cones, body tubes and
+  // transitions (StageHandler), so a pod rides in a tube's attached parts.
   const pod = (extra: string): ComponentNode[] =>
     parts(
-      `<ExternalPod><Name>P</Name><RadialLoc>30</RadialLoc><RadialAngle>90</RadialAngle>${extra}
-      <AttachedParts><BodyTube><Name>Pod tube</Name><Len>100</Len><OD>18</OD><ID>17</ID></BodyTube>
-      <LaunchLug><Name>Pod lug</Name><Len>20</Len><OD>5</OD><ID>4</ID><RadialAngle>120</RadialAngle></LaunchLug>
-      </AttachedParts></ExternalPod>`,
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <ExternalPod><Name>P</Name><RadialLoc>30</RadialLoc><RadialAngle>90</RadialAngle>${extra}
+      <AttachedParts><BodyTube><Name>Pod tube</Name><Len>100</Len><OD>18</OD><ID>17</ID>
+      <AttachedParts><LaunchLug><Name>Pod lug</Name><Len>20</Len><OD>5</OD><ID>4</ID><RadialAngle>120</RadialAngle></LaunchLug></AttachedParts>
+      </BodyTube></AttachedParts></ExternalPod></AttachedParts></BodyTube>`,
     );
 
   /**
@@ -502,6 +547,41 @@ describe('a fin set on a nose cone or transition', () => {
   });
 });
 
+/**
+ * `FinSetHandler.toCoordinates`: RockSim writes a custom fin from the trailing
+ * root point back to `0,0`. Desktop drops a `0,0` that repeats the one before
+ * it and reverses a list that ends at `0,0`, so the outline runs leading edge
+ * first; read in file order, the fin flies backward.
+ */
+describe('a RockSim point list', () => {
+  const points = (list: string): unknown =>
+    find(
+      parts(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+        <CustomFinSet><Name>F</Name><ShapeCode>2</ShapeCode><FinCount>3</FinCount><Thickness>3</Thickness>
+        <PointList>${list}</PointList></CustomFinSet></AttachedParts></BodyTube>`,
+      ),
+      'F',
+    )['points'];
+  const LEADING_FIRST = [
+    [0, 0],
+    [0.02, 0.04],
+    [0.05, 0],
+  ];
+
+  it('is read leading edge first when RockSim wrote it trailing edge first', () => {
+    expect(points('50,0|20,40|0,0|')).toEqual(LEADING_FIRST);
+  });
+
+  it('drops a 0,0 that repeats the one before it', () => {
+    expect(points('50,0|20,40|0,0|0,0|0,0|')).toEqual(LEADING_FIRST);
+  });
+
+  it('keeps a list that already runs leading edge first', () => {
+    expect(points('0,0|20,40|50,0')).toEqual(LEADING_FIRST);
+  });
+});
+
 describe('a shoulder RockSim gives a length to', () => {
   /**
    * Neither RockSim nor its handlers have a cap flag: the kernel caps a shoulder
@@ -554,4 +634,124 @@ describe('a tube fin set', () => {
     expect(tubes(12)['finCount']).toBe(8);
     expect(tubes(6)['finCount']).toBe(6);
   });
+});
+
+describe('a part goes where its container puts it', () => {
+  /**
+   * The handler that opens a `BodyTube` decides its type, not `IsInsideTube`:
+   * `StageHandler` builds a BodyTube, and `AttachedPartsHandler` builds an
+   * InnerTube unless its parent is a pod.
+   */
+  it('reads a stage-level tube as a body tube whatever IsInsideTube says', () => {
+    const tube = find(
+      parts('<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><IsInsideTube>1</IsInsideTube></BodyTube>'),
+      'Air',
+    );
+    expect(tube.type).toBe('bodytube');
+  });
+
+  it('reads a tube attached to a tube as an inner tube whatever IsInsideTube says', () => {
+    const list = parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <BodyTube><Name>Mount</Name><Len>70</Len><OD>18.7</OD><ID>18</ID><IsInsideTube>0</IsInsideTube></BodyTube>
+      </AttachedParts></BodyTube>`,
+    );
+    expect(find(list, 'Mount').type).toBe('innertube');
+  });
+
+  /**
+   * `BaseHandler.isCompatible`: a part its parent cannot hold is left out with
+   * a warning ("can not be attached to ..., ignoring component") and the rest
+   * of the design opens.
+   */
+  it('leaves out a part its parent cannot hold, says so, and opens the rest', () => {
+    const res = importRkt(
+      doc(`<NoseCone><Name>Nose</Name><Len>100</Len><BaseDia>24</BaseDia><AttachedParts>
+      <LaunchLug><Name>Lug</Name><Len>20</Len><OD>5</OD><ID>4</ID></LaunchLug>
+      </AttachedParts></NoseCone>
+      <BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID></BodyTube>`),
+    );
+    const list = res.tree.components[0]!.children ?? [];
+    expect(() => find(list, 'Lug')).toThrow();
+    expect(find(list, 'Nose').children ?? []).toEqual([]);
+    expect(find(list, 'Air').type).toBe('bodytube');
+    expect(noteTexts(res.notes).some((t) => t.includes('Launch lug') && t.includes('Nose cone'))).toBe(true);
+  });
+
+  it('leaves out a part the stage itself cannot hold', () => {
+    const res = importRkt(
+      doc(`<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID></BodyTube>
+      <Parachute><Name>Chute</Name><Dia>300</Dia></Parachute>`),
+    );
+    expect(() => find(res.tree.components, 'Chute')).toThrow();
+    expect(noteTexts(res.notes).some((t) => t.includes('Parachute') && t.includes('Stage'))).toBe(true);
+  });
+});
+
+/**
+ * `TransitionHandler` extends `BaseHandler`, not `PositionDependentHandler`, so
+ * desktop never reads a transition's `Xb` or `LocationMode`: the transition
+ * sits where the body chain puts it, whatever the file says.
+ */
+describe('a transition', () => {
+  it('takes no placement from the file', () => {
+    const t = find(
+      parts(
+        `<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia></NoseCone>
+        <Transition><Name>T</Name><Len>40</Len><FrontDia>24</FrontDia><RearDia>18</RearDia>
+        <ShapeCode>0</ShapeCode><Xb>50</Xb><LocationMode>1</LocationMode></Transition>`,
+      ),
+      'T',
+    );
+    expect(t.position).toBeUndefined();
+  });
+
+  /** A new `Transition` is conical and a new `NoseCone` an ogive; neither handler sets a shape the file leaves out. */
+  it('with no ShapeCode is conical, where a nose cone with none is an ogive', () => {
+    const read2 = parts(
+      `<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia></NoseCone>
+      <Transition><Name>T</Name><Len>40</Len><FrontDia>24</FrontDia><RearDia>18</RearDia></Transition>`,
+    );
+    expect(find(read2, 'T')['shape']).toBe('conical');
+    expect(find(read2, 'N')['shape']).toBe('ogive');
+  });
+});
+
+/** `RingHandler.endHandler` converts usage codes 1, 2 and 4 and leaves the rest, a sleeve (3) included, the centering ring it started as. */
+it('reads a sleeve ring as a centering ring', () => {
+  const ring = find(
+    parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <Ring><Name>Sleeve</Name><UsageCode>3</UsageCode><Len>20</Len><OD>26</OD><ID>24</ID></Ring>
+      </AttachedParts></BodyTube>`,
+    ),
+    'Sleeve',
+  );
+  expect(ring.type).toBe('centeringring');
+});
+
+/** The same `else`: a usage code past the five RockSim defines is a centering ring too, not the last of them. */
+it('reads a ring with an unknown usage code as a centering ring', () => {
+  const ring = find(
+    parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <Ring><Name>Odd</Name><UsageCode>7</UsageCode><Len>20</Len><OD>23</OD><ID>18</ID></Ring>
+      </AttachedParts></BodyTube>`,
+    ),
+    'Odd',
+  );
+  expect(ring.type).toBe('centeringring');
+});
+
+/** `ParachuteHandler` keeps a chute with no shroud lines (`Math.max(0, n)`). */
+it('reads a parachute with no shroud lines as none', () => {
+  const chute = find(
+    parts(
+      `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>
+      <Parachute><Name>Chute</Name><Dia>300</Dia><ShroudLineCount>0</ShroudLineCount></Parachute>
+      </AttachedParts></BodyTube>`,
+    ),
+    'Chute',
+  );
+  expect(chute['lineCount']).toBe(0);
 });

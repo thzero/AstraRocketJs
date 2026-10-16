@@ -34,7 +34,7 @@ const COARSE_STEP = 64;
  *
  * It is a real `separator` widget, so it is reachable and usable from the
  * keyboard: arrows nudge, Shift+arrows move in bigger steps, Home and End go to
- * the extremes, and a double-click puts it back where it started.
+ * the extremes, and a double-click restores the default width.
  */
 export function PaneSplitter({
   paneRef,

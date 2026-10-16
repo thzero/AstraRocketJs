@@ -3,6 +3,8 @@ import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from './requiredComp
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
 import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
+import { RAIL_BUTTON_BOUNDS, RAIL_BUTTON_FALLBACK, RING_BOUNDS, type DimensionBounds } from './linkedDimensions';
+import { num } from '../../tree/nodeProps';
 
 /**
  * The component field table: which properties each component type exposes,
@@ -11,7 +13,7 @@ import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
  * This is domain data, not presentation. It encodes the OpenRocket component
  * vocabulary, the shape lists, the deploy and separation event vocabularies,
  * the unit kinds and the required-ness. It does not live in `PropertyPanel`:
- * services (`treeEdit`) and tests import it directly, and it takes its required
+ * services (`files/ork/importTags`) and tests import it directly, and it takes its required
  * list from `services/design/requiredComponent`, so a service would otherwise be
  * depending on a component module for the shape of its own domain.
  */
@@ -88,6 +90,20 @@ type FieldFlags = {
    * string that says what is being followed, which differs per field.
    */
   auto?: { flag: string; tip: 'autoShoulder' | 'autoRadius' | 'autoComputed' };
+  /**
+   * A length that may be negative, bounded on both sides by the part's own
+   * axial length (a fin set's root chord). The fin tab offset is one: the
+   * kernel takes any offset (FinSet.setTabOffset), and from the default middle
+   * reference a tab ahead of the root's middle is a negative one.
+   */
+  signedWithinLength?: true;
+  /**
+   * The range the kernel's setter holds this value in, from the rest of the
+   * part, in the node's own units. See services/design/linkedDimensions.ts.
+   */
+  bounds?: DimensionBounds;
+  /** What an absent key flies as, when that is not zero. */
+  whenAbsent?: number;
 };
 
 export type Field = FieldFlags &
@@ -129,11 +145,13 @@ export type Field = FieldFlags &
 const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haack'];
 
 // Recovery-device deployment triggers: the kernel DeployEvent vocabulary
-// (ComponentFactory.deployEventOf); the same strings .ork import/export use.
-// Apogee first: it is what a new part is created with and the most common
-// single-deploy trigger. A device with no event flies the kernel's default,
-// which the field names as its fallback.
-const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never'];
+// (ComponentFactory.deployEventOf). The .ork file spells them with the
+// underscores removed (OpenRocketSaver.enumToXMLName); the .ork reader and
+// writer map at that boundary. Apogee first: it is what a new part is created
+// with and the most common single-deploy trigger. A device with no event flies
+// the kernel's default, which the field names as its fallback. The
+// per-configuration deployment override offers this same list.
+export const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never'];
 
 // What a mass component represents (MassComponent.MassComponentType). Naming
 // only, no physics, and the same strings the .ork carries.
@@ -148,10 +166,11 @@ const MASS_COMPONENT_TYPES = [
   'battery',
 ];
 
-// Stage-separation triggers (SeparationEvent, ComponentFactory.separationEventOf)
+// Stage-separation triggers (SeparationEvent, OpenRocketEngine.separationEventOf)
 // (when a stage lets go of the one above it). Ejection first: the desktop default
 // and the low/mid-power norm (drop off on the upper stage's ejection charge).
-const SEPARATION_EVENTS = [
+// The per-configuration separation override offers this same list.
+export const SEPARATION_EVENTS = [
   'ejection',
   'burnout',
   'launch',
@@ -168,12 +187,15 @@ const SEPARATION_EVENTS = [
 const FIN_TABS: Field[] = [
   { key: 'tabLength', label: 'tabLength', kind: 'length', section: 'finTab' },
   { key: 'tabHeight', label: 'tabHeight', kind: 'length', section: 'finTab' },
-  { key: 'tabOffset', label: 'tabOffset', kind: 'length', section: 'finTab' },
+  { key: 'tabOffset', label: 'tabOffset', kind: 'length', section: 'finTab', signedWithinLength: true },
   {
     key: 'tabOffsetMethod',
     label: 'tabOffsetMethod',
     kind: 'select',
     options: ['top', 'middle', 'bottom'],
+    // Unset reads as the kernel's default (FinSet.tabOffsetMethod), which the
+    // bridge also falls back to.
+    fallback: 'middle',
     optI18n: 'tabOffsetMethod',
     section: 'finTab',
   },
@@ -246,12 +268,76 @@ const PACKED: Field[] = [
  */
 const TUBE_BORE: Field = { key: 'innerDiameter', label: 'innerDiameter', kind: 'bore' };
 
+/**
+ * One rail button length. Every one has a nonzero kernel default an absent key
+ * flies as, and four are clamped against each other by the kernel's setters.
+ */
+const railButtonLength = (key: keyof typeof RAIL_BUTTON_FALLBACK): Field => ({
+  key,
+  label: key,
+  kind: 'length',
+  whenAbsent: RAIL_BUTTON_FALLBACK[key],
+  ...(RAIL_BUTTON_BOUNDS[key] ? { bounds: RAIL_BUTTON_BOUNDS[key] } : {}),
+});
+
+const LENGTH: Field = { key: 'length', label: 'length', kind: 'length' };
+const WALL: Field = { key: 'thickness', label: 'thickness', kind: 'length' };
+
+/**
+ * At most the larger of these radii, an absent one leaving the value unbounded.
+ * Every wall and shoulder setter below clamps against radii the node stores.
+ */
+const atMostRadius = (...keys: string[]): DimensionBounds => ({
+  max: (n) => Math.max(...keys.map((k) => num(n, k, Infinity))),
+});
+
+/**
+ * A tube's wall, at most its outer radius: `ThicknessRingComponent.setThickness`,
+ * `LaunchLug.setThickness` and `TubeFinSet.setThickness` clamp to it, and a body
+ * tube's `SymmetricComponent.setThickness` clamps to `getMaxRadius()`, which on
+ * a tube is the same radius.
+ */
+const TUBE_WALL_THICKNESS: Field = { ...WALL, bounds: atMostRadius('outerRadius') };
+
+// Solid all the way through, with no bore. The desktop's Filled checkbox, and
+// `<thickness>filled</thickness>` in the file. The wall row is dropped while it
+// is on, the way the desktop grays it out.
+const FILLED: Field = { key: 'filled', label: 'filled', kind: 'bool' };
+
+// A tube's outside diameter, automatic when it follows the part it fits.
+const OUTER_DIAMETER: Field = {
+  key: 'outerRadius',
+  label: 'diameter',
+  kind: 'length',
+  diameter: true,
+  auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+};
+
+// A straight tube with a wall: length, outside, bore and wall, in that order.
+const TUBE_WALL: Field[] = [LENGTH, OUTER_DIAMETER, TUBE_BORE, TUBE_WALL_THICKNESS];
+
+const MOTOR_MOUNT: Field[] = [
+  { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
+  { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
+];
+
 // `rotation` is a fin set's base rotation: where its first fin sits around the
 // body, with the rest spaced evenly from it. It round-trips through .ork
 // (importTags.ts / exportParts.ts) and the 3D view places every fin and tube fin
 // at it (rocketPieces.ts). The fin marking guide prints where each fin goes
 // relative to the launch lug, and that relationship is this field.
 const FIN_ROTATION: Field = { key: 'rotation', label: 'rotation', kind: 'angle', step: 5, section: 'placement' };
+
+// What every planar fin set has after its outline: the fin's wall, cant and
+// section, where the set sits, the root fillet and the tab.
+const PLANAR_FIN: Field[] = [
+  WALL,
+  { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
+  FIN_CROSS_SECTION,
+  FIN_ROTATION,
+  FIN_FILLET,
+  ...FIN_TABS,
+];
 
 // Off-axis assembly placement (PodSet / ParallelStage): how many instances
 // ring the parent axis, how far off it, and where they start. radiusMethod:
@@ -331,11 +417,9 @@ const RAW_FIELDS: Record<string, Field[]> = {
       diameter: true,
       auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
     },
-    // Solid all the way through, with no bore. The desktop's Filled
-    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop grays it out.
-    { key: 'filled', label: 'filled', kind: 'bool' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    FILLED,
+    // SymmetricComponent.setThickness: at most getMaxRadius(), the base.
+    { ...WALL, bounds: atMostRadius('aftRadius') },
     // A flipped nose cone is a tail cone: the same part turned round.
     { key: 'flipped', label: 'flipped', kind: 'bool' },
     { key: 'shoulderLength', label: 'shoulderLength', kind: 'length', section: 'shoulder' },
@@ -345,29 +429,14 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'shoulderAuto', tip: 'autoShoulder' },
+      // NoseCone.setShoulderRadius: at most the base it plugs in behind.
+      bounds: atMostRadius('aftRadius'),
       section: 'shoulder',
     },
     { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length', section: 'shoulder' },
     { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool', section: 'shoulder' },
   ],
-  bodytube: [
-    { key: 'length', label: 'length', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
-    TUBE_BORE,
-    // Solid all the way through, with no bore. The desktop's Filled
-    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop grays it out.
-    { key: 'filled', label: 'filled', kind: 'bool' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
-  ],
+  bodytube: [LENGTH, OUTER_DIAMETER, TUBE_BORE, FILLED, TUBE_WALL_THICKNESS, ...MOTOR_MOUNT],
   transition: [
     {
       key: 'shape',
@@ -396,11 +465,9 @@ const RAW_FIELDS: Record<string, Field[]> = {
       diameter: true,
       auto: { flag: 'aftRadiusAuto', tip: 'autoRadius' },
     },
-    // Solid all the way through, with no bore. The desktop's Filled
-    // checkbox, and `<thickness>filled</thickness>` in the file. The wall row
-    // is dropped while it is on, the way the desktop grays it out.
-    { key: 'filled', label: 'filled', kind: 'bool' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    FILLED,
+    // SymmetricComponent.setThickness: at most getMaxRadius(), the wider end.
+    { ...WALL, bounds: atMostRadius('foreRadius', 'aftRadius') },
     // Clipped or full profile, for the shapes where it means anything
     // (ellipsoid, power, haack). The drawing, the mesh and the kernel all read
     // it.
@@ -412,6 +479,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'foreShoulderAuto', tip: 'autoShoulder' },
+      // Transition.setForeShoulderRadius: at most the fore radius.
+      bounds: atMostRadius('foreRadius'),
       section: 'foreShoulder',
     },
     // Each shoulder's own wall, and whether its far end is closed by a disc of
@@ -427,6 +496,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'aftShoulderAuto', tip: 'autoShoulder' },
+      // Transition.setAftShoulderRadius: at most the aft radius.
+      bounds: atMostRadius('aftRadius'),
       section: 'aftShoulder',
     },
     { key: 'aftShoulderThickness', label: 'aftShoulderThickness', kind: 'length', section: 'aftShoulder' },
@@ -441,33 +512,15 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // which is the one row here where a minus sign is meaningful.
     { key: 'sweepAngle', label: 'sweepAngle', kind: 'derived', derived: 'sweepAngle', step: 5 },
     { key: 'height', label: 'height', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    FIN_CROSS_SECTION,
-    FIN_ROTATION,
-    FIN_FILLET,
-    ...FIN_TABS,
+    ...PLANAR_FIN,
   ],
   ellipticalfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    FIN_CROSS_SECTION,
-    FIN_ROTATION,
-    FIN_FILLET,
-    ...FIN_TABS,
+    ...PLANAR_FIN,
   ],
-  freeformfinset: [
-    { key: 'finCount', label: 'finCount', kind: 'count' },
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'cant', label: 'cant', kind: 'angle', step: 0.5 },
-    FIN_CROSS_SECTION,
-    FIN_ROTATION,
-    FIN_FILLET,
-    ...FIN_TABS,
-  ],
+  freeformfinset: [{ key: 'finCount', label: 'finCount', kind: 'count' }, ...PLANAR_FIN],
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
     { key: 'length', label: 'length', kind: 'length' },
@@ -479,16 +532,15 @@ const RAW_FIELDS: Record<string, Field[]> = {
       auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
     },
     TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    TUBE_WALL_THICKNESS,
     FIN_ROTATION,
   ],
   innertube: [
-    { key: 'length', label: 'length', kind: 'length' },
+    LENGTH,
     { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
     TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
-    { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
+    TUBE_WALL_THICKNESS,
+    ...MOTOR_MOUNT,
     // `cluster` round-trips through .ork, and the 2D, aft and 3D views all draw
     // the tube at every cluster offset.
     {
@@ -502,7 +554,8 @@ const RAW_FIELDS: Record<string, Field[]> = {
     },
     // What the pattern is drawn at: the spacing between tubes, as a multiple of
     // the tube diameter, and the roll of the whole group.
-    { key: 'clusterScale', label: 'clusterScale', kind: 'number', step: 0.1, section: 'motor' },
+    // Absent, the bridge flies a scale of 1 (ComponentFactory, case "innertube").
+    { key: 'clusterScale', label: 'clusterScale', kind: 'number', step: 0.1, section: 'motor', whenAbsent: 1 },
     // The same spacing as a distance between tube walls. The desktop has one
     // spinner and a Relative/Absolute switch over it; both rows are live here.
     {
@@ -515,19 +568,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     { key: 'clusterRotation', label: 'clusterRotation', kind: 'angle', step: 15, section: 'motor' },
     ...RADIAL_PLACEMENT,
   ],
-  tubecoupler: [
-    { key: 'length', label: 'length', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
-    TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    ...RADIAL_PLACEMENT,
-  ],
+  tubecoupler: [...TUBE_WALL, ...RADIAL_PLACEMENT],
   centeringring: [
     { key: 'length', label: 'thickness', kind: 'length' },
     {
@@ -536,6 +577,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
+      bounds: RING_BOUNDS.outerRadius,
     },
     {
       key: 'innerRadius',
@@ -543,35 +585,18 @@ const RAW_FIELDS: Record<string, Field[]> = {
       kind: 'length',
       diameter: true,
       auto: { flag: 'innerRadiusAuto', tip: 'autoRadius' },
+      bounds: RING_BOUNDS.innerRadius,
     },
     ...LINE_INSTANCES,
     ...RADIAL_PLACEMENT,
   ],
   bulkhead: [
     { key: 'length', label: 'thickness', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
+    OUTER_DIAMETER,
     ...LINE_INSTANCES,
     ...RADIAL_PLACEMENT,
   ],
-  engineblock: [
-    { key: 'length', label: 'length', kind: 'length' },
-    {
-      key: 'outerRadius',
-      label: 'diameter',
-      kind: 'length',
-      diameter: true,
-      auto: { flag: 'outerRadiusAuto', tip: 'autoRadius' },
-    },
-    TUBE_BORE,
-    { key: 'thickness', label: 'thickness', kind: 'length' },
-    ...RADIAL_PLACEMENT,
-  ],
+  engineblock: [...TUBE_WALL, ...RADIAL_PLACEMENT],
   launchlug: [
     { key: 'length', label: 'length', kind: 'length' },
     { key: 'outerRadius', label: 'diameter', kind: 'length', diameter: true },
@@ -580,19 +605,19 @@ const RAW_FIELDS: Record<string, Field[]> = {
     // exportWriters.ts) and sizes its printed solid. With the diameter it sets
     // the bore, which is the one dimension of a lug that has to be right: the
     // rod has to fit through it.
-    { key: 'thickness', label: 'thickness', kind: 'length' },
+    TUBE_WALL_THICKNESS,
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
   ],
   railbutton: [
-    { key: 'outerDiameter', label: 'outerDiameter', kind: 'length' },
+    railButtonLength('outerDiameter'),
     // The rest of the button. The file services carry these and the kernel
     // takes them, so a 1010 button sized by hand weighs what it should.
-    { key: 'innerDiameter', label: 'innerDiameter', kind: 'length' },
-    { key: 'height', label: 'height', kind: 'length' },
-    { key: 'baseHeight', label: 'baseHeight', kind: 'length' },
-    { key: 'flangeHeight', label: 'flangeHeight', kind: 'length' },
-    { key: 'screwHeight', label: 'screwHeight', kind: 'length' },
+    railButtonLength('innerDiameter'),
+    railButtonLength('height'),
+    railButtonLength('baseHeight'),
+    railButtonLength('flangeHeight'),
+    railButtonLength('screwHeight'),
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
   ],

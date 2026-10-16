@@ -38,7 +38,7 @@ ARJ is multilingual. Translations live in `web/src/i18n/locales/<lang>.json`. Te
 To add or update a translation:
 
 - Copy the structure of `en.json` and translate the values (keep the keys and any `{{placeholders}}` intact).
-- To add a **new language**, add its `<lang>.json` and a row in `LOCALES` in `web/src/i18n/index.ts`, plus the test lists that name every locale: `LOCALES` in `locales.test.ts`, `componentFields.options.test.ts`, the expected option list in `FlightPathExport.test.tsx`, and the language's native name in `.cspell/project-words.txt` when cspell does not know the word.
+- To add a **new language**, add its `<lang>.json` and a row in `LOCALES` in `web/src/i18n/index.ts`, plus the test lists that name every locale: `LOCALES` in `locales.test.ts`, `componentFields.options.test.ts`, the expected option list in `FlightPathExport.test.tsx`, and the language's native name in `.cspell/project-words.txt` when cspell does not know the word. The British spelling check (`localeFlagWords.test.ts`) reads the locale list from `web/src/i18n/index.ts` and needs no edit; if a British form on the list is an ordinary word in the new language, add it to that test's `NATIVE` table.
 
 ## Documentation
 

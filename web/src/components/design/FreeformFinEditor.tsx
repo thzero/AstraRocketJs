@@ -69,10 +69,15 @@ export function FreeformFinEditor({
   // at the origin (setPoints translates the outline there) and snaps the last
   // onto the body (clampLastPoint), and removePoint refuses either one.
   const fixedEnd = (i: number) => i === 0 || i === last;
-  // Fin stays above the body (y ≥ 0) and forward of the origin (x ≥ 0).
+  // The fin stays above the body (y >= 0), and the root trailing edge stays on
+  // it at or aft of the origin. An interior point may sit forward of the origin:
+  // FreeformFinSet.setPoint does not bound x, and a swept-forward leading edge
+  // needs it.
   const setPoint = (i: number, x: number, y: number) => {
     if (i === 0) return;
-    onChange(pts.map((p, j) => (j === i ? ([Math.max(0, x), i === last ? 0 : Math.max(0, y)] as Pt) : p)));
+    onChange(
+      pts.map((p, j) => (j === i ? ([i === last ? Math.max(0, x) : x, i === last ? 0 : Math.max(0, y)] as Pt) : p)),
+    );
   };
 
   const onMove = (e: React.PointerEvent) => {
@@ -102,9 +107,14 @@ export function FreeformFinEditor({
     }
   };
 
+  // The closing edge (last point back to the first) is the root on the body,
+  // not part of the outline: FreeformFinSet.addPoint refuses an index past the
+  // root trailing edge, and a point there would become the new trailing edge
+  // at half the root's length.
   const insertAfter = (i: number) => {
+    if (i >= last) return;
     const a = pts[i]!,
-      b = pts[(i + 1) % pts.length]!;
+      b = pts[i + 1]!;
     onChange([...pts.slice(0, i + 1), [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2] as Pt, ...pts.slice(i + 1)]);
     setSel(i + 1);
     onCommit?.();
@@ -189,9 +199,10 @@ export function FreeformFinEditor({
           stroke={token('warn-400')}
           strokeWidth="1.5"
         />
-        {/* edge midpoints: click to insert a vertex */}
-        {pts.map((p, i) => {
-          const b = pts[(i + 1) % pts.length]!;
+        {/* edge midpoints: click to insert a vertex. None on the closing root
+            edge, where the kernel takes no point (see insertAfter). */}
+        {pts.slice(0, last).map((p, i) => {
+          const b = pts[i + 1]!;
           return (
             <circle
               key={`add-${i}`}
@@ -201,7 +212,8 @@ export function FreeformFinEditor({
               role="button"
               tabIndex={0}
               aria-label={t('freeform.insertAfter', { n: i + 1 })}
-              className="cursor-pointer fill-accent-500/60 hover:fill-accent-400 focus:outline-none focus:ring-2 focus:ring-accent-400"
+              // Focus is a stroke: an SVG shape draws no box-shadow ring.
+              className="cursor-pointer fill-accent-500/60 hover:fill-accent-400 focus:outline-none focus-visible:stroke-ink-strong focus-visible:stroke-2"
               onPointerDown={(e) => {
                 e.stopPropagation();
                 insertAfter(i);
@@ -237,7 +249,7 @@ export function FreeformFinEditor({
               role="button"
               tabIndex={0}
               aria-label={t('freeform.vertex', { n: i + 1 })}
-              className={`cursor-grab stroke-surface focus:outline-none focus:ring-2 focus:ring-accent-400 ${
+              className={`cursor-grab stroke-surface focus:outline-none focus-visible:stroke-ink-strong focus-visible:stroke-[2.5] ${
                 sel === i ? 'fill-warn-300' : 'fill-warn-500'
               }`}
               onPointerDown={startDrag(i)}

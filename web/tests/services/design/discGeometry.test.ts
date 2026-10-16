@@ -1,5 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { boreAt, discDims, plateOuter, tubeRadii, type Tube } from '../../../src/services/design/discGeometry';
+import {
+  boreAt,
+  discDims,
+  plateOuter,
+  ringBore,
+  tubeRadii,
+  type Tube,
+} from '../../../src/services/design/discGeometry';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
@@ -21,7 +28,7 @@ describe('discDims', () => {
     expect(d!.length).toBeCloseTo(0.05, 12);
   });
 
-  it('refuses a wall at or past the radius instead of reporting a solid rod', () => {
+  it('refuses a wall past the radius instead of reporting a solid rod', () => {
     // `discSolid` takes its no-bore branch on innerR === 0 and lathes a solid
     // cylinder, so a units slip (a 20 mm wall on a 12 mm radius) would print the
     // coupler as a plug with nothing saying so. `solidMesh`'s tube branch
@@ -30,11 +37,15 @@ describe('discDims', () => {
     expect(discDims(node({ type: 'engineblock', thickness: 0.05 }), tube, [])).toBeNull();
   });
 
-  it('refuses a wall exactly equal to the radius', () => {
-    // The boundary: a clamp like `Math.max(0, outerR - wall)` would turn it
-    // into a 0 bore rather than a refusal.
+  it('takes a wall exactly equal to the radius as a solid part', () => {
+    // A catalog part that states an inner diameter of 0 (a balsa nose block)
+    // is solid, and `ThicknessRingComponent.loadFromPreset` gives it a wall of
+    // its whole radius; the kernel flies it solid, so it is drawn, cut and
+    // printed solid. Only a wall past the radius is a slip.
     const r = plateOuter(node({ type: 'tubecoupler' }), tube);
-    expect(discDims(node({ type: 'tubecoupler', thickness: r }), tube, [])).toBeNull();
+    const d = discDims(node({ type: 'tubecoupler', thickness: r }), tube, []);
+    expect(d).not.toBeNull();
+    expect(d!.innerR).toBe(0);
   });
 
   it('still accepts a wall a real coupler uses', () => {
@@ -87,5 +98,70 @@ describe('a keyless tube wall', () => {
   ])('is the kernel default for a %s', (type, wall) => {
     expect(tubeRadii(tube(type, 0.02))!.innerR).toBeCloseTo(0.02 - wall, 12);
     expect(boreAt(tube(type, 0.02), 'fore')).toBeCloseTo(0.02 - wall, 12);
+  });
+});
+
+/**
+ * A filled part is solid: `BodyTube.getInnerRadius` returns 0 when `filled`,
+ * so there is no bore for a shoulder to plug into.
+ */
+describe('boreAt on a filled part', () => {
+  it('offers no bore, as tubeRadii says', () => {
+    const solid = {
+      type: 'bodytube',
+      id: 'b',
+      outerRadius: 0.02,
+      thickness: 0.001,
+      filled: true,
+    } as unknown as ComponentNode;
+    expect(tubeRadii(solid)!.innerR).toBe(0);
+    expect(boreAt(solid, 'fore')).toBeNull();
+    expect(boreAt(solid, 'aft')).toBeNull();
+  });
+});
+
+/**
+ * `CenteringRing.getInnerRadius` compares the ring's span with each inner
+ * tube's as placed (`toRelative`, no clamp): it skips a tube when
+ * `pos2 < 0 || pos1 > sibling.getLength()`, with `pos1`/`pos2` the ring's fore
+ * and aft faces measured from the tube's front.
+ */
+describe('ringBore past the parent end', () => {
+  const parent = (ringAt: number, mountAt: number) =>
+    ({
+      type: 'bodytube',
+      id: 'b',
+      length: 0.1,
+      outerRadius: 0.02,
+      children: [
+        { type: 'centeringring', id: 'r', length: 0.002, position: { method: 'top', offset: ringAt } },
+        { type: 'innertube', id: 'i', length: 0.05, outerRadius: 0.009, position: { method: 'top', offset: mountAt } },
+      ],
+    }) as unknown as ComponentNode;
+
+  it('misses a mount wholly aft of the ring, though both overhang the tube', () => {
+    // Ring 105-107 mm, mount 120-170 mm: pos2 = 0.107 - 0.12 < 0.
+    const p = parent(0.105, 0.12);
+    expect(ringBore(p.children![0]!, p, 0.019, 0)).toBe(0);
+  });
+
+  it('takes a mount that overlaps it past the tube end', () => {
+    // Ring 105-107 mm, mount 90-140 mm.
+    const p = parent(0.105, 0.09);
+    expect(ringBore(p.children![0]!, p, 0.019, 0)).toBe(0.009);
+  });
+});
+
+describe('boreAt on a nose cone', () => {
+  // NoseCone.getBaseRadius: `isFlipped ? getForeRadius() : getAftRadius()`. The
+  // base is the open end; the tip, radius 0, offers nothing.
+  const cone = (flipped: boolean) =>
+    ({ type: 'nosecone', id: 'n', aftRadius: 0.025, thickness: 0.002, flipped }) as unknown as ComponentNode;
+
+  it('is open at the base, which a flipped cone has at its fore end', () => {
+    expect(boreAt(cone(false), 'aft')).toBeCloseTo(0.023, 12);
+    expect(boreAt(cone(false), 'fore')).toBeNull();
+    expect(boreAt(cone(true), 'fore')).toBeCloseTo(0.023, 12);
+    expect(boreAt(cone(true), 'aft')).toBeNull();
   });
 });

@@ -4,13 +4,14 @@ import type { Units } from '../../prefs/useUnits';
 import { flightBranches } from '../../services/flight/flightColumns';
 import { dynamicPressure, qAlpha, rollRate } from '../../services/flight/flightEvents';
 import { token } from '../common/colorTokens';
+import { ladderDigits } from '../../i18n/format';
 
 /**
  * Owns what the flight chart draws: the series catalog (one panel per
  * measure, with its unit group and y-domain rules), the saved-panel filter,
  * and the flight-to-branch build that turns one simulation into one colored
- * line per stage. Pure data and functions; FlightChart re-exports the public
- * ones for its callers and tests.
+ * line per stage. Pure data and functions; FlightChart re-exports
+ * `buildTraces` and `ChartFlight` for GroundTrack.
  */
 
 export type Key =
@@ -33,8 +34,10 @@ export type Key =
 export interface Meta {
   key: Key;
   label: string;
-  /** Fixed unit label, for series that have no user-selectable unit (Mach, cal). */
+  /** Fixed unit label, for series that have no user-selectable unit (Mach). */
   unit: string;
+  /** A fixed unit label that is a word, so it is translated (calibers). */
+  unitKey?: string;
   digits: number;
   /**
    * The preference group this series belongs to. When set it supplies both the
@@ -53,7 +56,7 @@ export interface Meta {
   /** Level bands (CG/CP/mass/stability) get a tight y-domain + no area fill;
    *  flow series (altitude/velocity/…) get a zero baseline + filled area. */
   level?: boolean;
-  /** Aero-derived (CP / stability): only meaningful while flying forward; after
+  /** Aero-derived (CP / stability / q·α): only meaningful while flying forward; after
    *  recovery deploys the rocket tumbles (AoA≈90°) and these collapse to junk, so
    *  the series is clipped to the boost→apogee window. */
   aero?: boolean;
@@ -73,7 +76,15 @@ export const SERIES: Meta[] = [
   { key: 'thrust', label: 'flight.thrust', unit: 'N', digits: 1, quantity: 'force' },
   { key: 'drag', label: 'flight.drag', unit: 'N', digits: 2, quantity: 'force' },
   { key: 'mass', label: 'flight.mass', unit: 'g', digits: 0, scale: 1000, level: true, quantity: 'mass' },
-  { key: 'stability', label: 'flight.stability', unit: 'cal', digits: 2, level: true, aero: true },
+  {
+    key: 'stability',
+    label: 'flight.stability',
+    unit: '',
+    unitKey: 'stability.caliber',
+    digits: 2,
+    level: true,
+    aero: true,
+  },
   {
     key: 'cpLocation',
     label: 'flight.cp',
@@ -105,8 +116,88 @@ export const traceScale = (m: Meta, u: Pick<Units, 'factor'>): number =>
   m.quantity ? u.factor(m.quantity) * (m.times ? u.factor(m.times) : 1) : (m.scale ?? 1);
 
 /** The unit a series is labeled in: the reader's, or its fixed label. */
-export const traceUnit = (m: Meta, u: Pick<Units, 'sym'>): string =>
-  m.quantity ? (m.times ? `${u.sym(m.quantity)}·${u.sym(m.times)}` : u.sym(m.quantity)) : m.unit;
+export const traceUnit = (m: Meta, u: Pick<Units, 'sym'>, t: (key: string) => string): string =>
+  m.quantity
+    ? m.times
+      ? `${u.sym(m.quantity)}·${u.sym(m.times)}`
+      : u.sym(m.quantity)
+    : m.unitKey
+      ? t(m.unitKey)
+      : m.unit;
+
+/** One stage's samples on a panel: the points drawn and the span it flew. */
+export interface PanelLine {
+  color: string;
+  name: string;
+  pts: (readonly [number, number])[];
+  xs: number[];
+  ys: number[];
+  t0?: number;
+  t1?: number;
+}
+
+/**
+ * A time panel's lines, one per shown stage, and the y-domain they share so
+ * they read against each other. Aero series stop at `clipT`, where the rocket
+ * stops flying forward.
+ */
+export function panelSeries(
+  branches: readonly Branch[],
+  meta: Meta,
+  scale: number,
+  clipT: number,
+): { list: PanelLine[]; lo: number; hi: number } {
+  let dMin = Infinity;
+  let dMax = -Infinity;
+  // A plain loop: the domain scan writes dMin/dMax, and doing that from
+  // inside a `.map` callback hid a side effect in what reads as a pure
+  // transform.
+  const out: PanelLine[] = [];
+  for (const b of branches) {
+    const time = b.series.time ?? [];
+    const raw = b.series[meta.key] ?? [];
+    const p: (readonly [number, number])[] = [];
+    const xa: number[] = [];
+    const ya: number[] = [];
+    for (let i = 0; i < time.length; i++) {
+      const ti = time[i];
+      const v = raw[i];
+      if (ti == null || v == null || !Number.isFinite(ti) || !Number.isFinite(v)) continue;
+      if (meta.aero && ti > clipT) continue;
+      const y = v * scale;
+      p.push([ti, y] as const);
+      xa.push(ti);
+      ya.push(y);
+      if (y < dMin) dMin = y;
+      if (y > dMax) dMax = y;
+    }
+    out.push({ color: b.color, name: b.name, pts: p, xs: xa, ys: ya, t0: xa[0], t1: xa[xa.length - 1] });
+  }
+  if (!(dMin < Infinity)) {
+    dMin = 0;
+    dMax = 1;
+  }
+  let l: number;
+  let h: number;
+  if (meta.level) {
+    const r = dMax - dMin || Math.abs(dMax) || 1;
+    l = dMin - r * 0.1;
+    h = dMax + r * 0.1;
+  } else {
+    l = Math.min(0, dMin);
+    h = dMax + (dMax - l || 1) * 0.08;
+  }
+  return { list: out, lo: l, hi: h === l ? l + 1 : h };
+}
+
+/**
+ * The decimals a panel's readouts carry. A fixed count belongs to a fixed
+ * unit: "0 dp" is right for meters of altitude and wrong for kilometers, so a
+ * quantity-backed series takes its count from the span on screen. The header
+ * and the live region both read it, so what is heard is what is shown.
+ */
+export const panelDigits = (meta: Meta, lo: number, hi: number): number =>
+  meta.quantity ? ladderDigits(Math.abs(hi - lo)) : meta.digits;
 
 /** Every key the chart can draw, for validating what comes back from settings. */
 const KEYS = new Set<string>(SERIES.map((m) => m.key));
@@ -125,7 +216,6 @@ export function visibleSeries(saved: readonly string[]): Key[] {
 }
 
 // One color per trace, in series-token order.
-// Matches the component-tree palette so a stage reads the same color everywhere.
 // Cycles if a design or a comparison somehow runs past six.
 const STAGE_COLORS = [
   token('series-1'),

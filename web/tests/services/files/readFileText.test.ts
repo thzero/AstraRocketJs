@@ -1,7 +1,8 @@
+// cspell:ignore Fusée
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { MAX_IMPORT_FILE_BYTES, readFileText } from '../../../src/services/files/decodeText';
+import { MAX_IMPORT_FILE_BYTES, decodeFileText, readFileText } from '../../../src/services/files/decodeText';
 
 /** UTF-16LE with its byte order mark, as Windows tools write it. */
 const utf16le = (s: string): Blob => {
@@ -28,6 +29,39 @@ describe('readFileText', () => {
 
   it('reads a UTF-16 file as its characters, not with a NUL between each', async () => {
     expect(await readFileText(utf16le('; C6 motor'))).toBe('; C6 motor');
+  });
+
+  describe('a declared encoding', () => {
+    /** The text as single bytes: each char code is one byte, as Latin-1 writes it. */
+    const latin1 = (s: string) => Uint8Array.from(s, (c) => c.charCodeAt(0));
+
+    it('reads an ISO-8859-1 file by its declaration, as an XML parser does', () => {
+      const bytes = latin1(`<?xml version="1.0" encoding="ISO-8859-1"?><rocket><name>Fusée µ</name></rocket>`);
+      expect(decodeFileText(bytes)).toContain('<name>Fusée µ</name>');
+    });
+
+    it('reads windows-1252 by its declaration', () => {
+      // 0x80 is the euro sign in windows-1252 and a control in Latin-1.
+      const bytes = latin1(`<?xml version='1.0' encoding='windows-1252'?><a>\u0080</a>`);
+      expect(decodeFileText(bytes)).toContain('<a>€</a>');
+    });
+
+    it('stays UTF-8 for a UTF-8 declaration, an unknown label or none', () => {
+      const utf8 = new TextEncoder().encode('<a>é</a>');
+      for (const head of [
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        '<?xml version="1.0" encoding="x-nonsense"?>',
+        '',
+      ]) {
+        const bytes = new Uint8Array([...new TextEncoder().encode(head), ...utf8]);
+        expect(decodeFileText(bytes)).toBe(`${head}<a>é</a>`);
+      }
+    });
+
+    it('ignores a UTF-16 label on bytes that are not UTF-16', () => {
+      const bytes = new TextEncoder().encode('<?xml version="1.0" encoding="UTF-16"?><a>é</a>');
+      expect(decodeFileText(bytes)).toContain('<a>é</a>');
+    });
   });
 
   it('is how every hand import reads a file', () => {

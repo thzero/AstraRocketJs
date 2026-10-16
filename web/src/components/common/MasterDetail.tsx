@@ -27,13 +27,22 @@ export function useGuardedSelection(discardMessage: string) {
     return true;
   };
 
+  /**
+   * Closes the dialog, asking first when the editor holds unsaved edits.
+   * Closing throws the draft away as surely as moving the selection does.
+   */
+  const close = async (onClose: () => void): Promise<void> => {
+    if (dirty && !(await confirm({ message: discardMessage, confirmLabel: t('common.discard'), danger: true }))) return;
+    onClose();
+  };
+
   /** Moves the selection after a save or a delete, which leaves nothing to discard. */
   const settle = (id: string | null) => {
     setDirty(false);
     setSelectedId(id);
   };
 
-  return { selectedId, dirty, select, settle, onDirtyChange };
+  return { selectedId, dirty, select, settle, close, onDirtyChange };
 }
 
 /**
@@ -151,7 +160,7 @@ export function EditorFooter({
         onClick={onSave}
         disabled={!dirty || saveDisabled}
         title={saveTitle}
-        className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
+        className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
       >
         {t('common.save')}
       </button>

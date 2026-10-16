@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
-import { exportCdx1, rasaeroSurface, RASAERO_SURFACE_DEFAULT } from '../../../src/services/files/rasaeroExport';
+import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
+import {
+  rasaeroSurface,
+  RASAERO_SURFACE_DEFAULT,
+  RASAERO_SURFACE_WARNING,
+} from '../../../src/services/files/rasaero/surface';
+import type { Keyed } from '../../../src/i18n/keyedError';
 
 // A 1-inch-diameter rocket with clean-inch geometry so the meter→inch (×39.37)
 // conversions land on round numbers the assertions can pin exactly.
@@ -75,6 +81,19 @@ describe('exportCdx1', () => {
     expect(xml).toContain('</SimulationList>');
   });
 
+  // An absolute station is from the nose tip: 0.1 of nose plus the 0.254 tube,
+  // less the 0.0508 root, is the same fin set flush with the tube's aft end.
+  it('places an absolute fin set by its station from the nose tip', () => {
+    const at = (position: object): string => {
+      const t = structuredClone(tree);
+      t.components[0]!.children![1]!.children![0]!.position = position as never;
+      const out = exportCdx1({ tree: t, name: 'Test Bird' });
+      return /<Fin>[\s\S]*?<Location>([^<]*)<\/Location>/.exec(out)![1]!;
+    };
+    expect(at({ method: 'absolute', offset: 0.1 + 0.254 - 0.0508 })).toBe(at({ method: 'bottom', offset: 0 }));
+    expect(at({ method: 'absolute', offset: 0.1 })).toBe(at({ method: 'top', offset: 0 }));
+  });
+
   it('rejects a design RASAero cannot represent (tube fins)', () => {
     const bad: RocketTree = {
       components: [
@@ -112,7 +131,7 @@ describe('finish to RASAero surface (desktop table)', () => {
   it.each(['rough', 'polished', 'nosuchfinish'])('%s falls to Smooth with the desktop warning', (finish) => {
     const r = rasaeroSurface(finish);
     expect(r.surface).toBe(RASAERO_SURFACE_DEFAULT);
-    expect(r.warning).toBe(`Unknown surface finish: ${finish}, defaulting to Smooth.`);
+    expect(r.warning).toEqual(RASAERO_SURFACE_WARNING);
   });
 
   const withFinish = (finish: string | undefined): RocketTree => ({
@@ -136,10 +155,10 @@ describe('finish to RASAero surface (desktop table)', () => {
   });
 
   it('collects the warning for a finish with no row', () => {
-    const warnings: string[] = [];
+    const warnings: Keyed[] = [];
     const xml = exportCdx1({ tree: withFinish('rough'), name: 'x', warnings });
     expect(xml).toContain('<Surface>Smooth (Zero Roughness)</Surface>');
-    expect(warnings).toEqual(['Unknown surface finish: rough, defaulting to Smooth.']);
+    expect(warnings).toEqual([RASAERO_SURFACE_WARNING]);
   });
 });
 
@@ -235,5 +254,233 @@ describe('a trapezoid fin with no sweep key', () => {
     delete fin['sweep'];
     const out = exportCdx1({ tree: bare, name: 'bare', launchMassKg: 0.45, launchCgM: 0.127 });
     expect(out).toContain(`<SweepDistance>${(0.02 * 39.37).toFixed(4).replace(/0+$/, '')}</SweepDistance>`);
+  });
+});
+
+/**
+ * The sustainer order rules the desktop's RocketDesignDTO enforces: a nose cone
+ * first and nowhere else, never flipped, then a body tube or a closing
+ * transition; a single-stage rocket's closing transition is a boat tail.
+ */
+describe('sustainer part order', () => {
+  const nose = { type: 'nosecone', id: 'nc', name: 'Nose', length: 0.1, aftRadius: 0.0127, shape: 'ogive' };
+  const tube = { type: 'bodytube', id: 'bt', name: 'Body', length: 0.254, outerRadius: 0.0127 };
+  const tail = {
+    type: 'transition',
+    id: 'tr',
+    name: 'Tail',
+    length: 0.03,
+    foreRadius: 0.0127,
+    aftRadius: 0.009,
+    shape: 'conical',
+  };
+  const one = (children: Record<string, unknown>[]): RocketTree =>
+    ({ components: [{ type: 'stage', children }] }) as unknown as RocketTree;
+
+  it('refuses a chain that does not start with a nose cone', () => {
+    expect(() => exportCdx1({ tree: one([tube, nose]), name: 'x' })).toThrow(/start with a nose cone.*Body/);
+  });
+
+  it('refuses a second nose cone further down', () => {
+    const tailCone = { ...nose, id: 'nc2', name: 'Tail cone' };
+    expect(() => exportCdx1({ tree: one([nose, tube, tailCone]), name: 'x' })).toThrow(
+      /only as the first part.*Tail cone/,
+    );
+  });
+
+  it('refuses a flipped nose cone', () => {
+    expect(() => exportCdx1({ tree: one([{ ...nose, flipped: true }, tube]), name: 'x' })).toThrow(
+      /flipped nose cones.*Nose/,
+    );
+  });
+
+  it('refuses a transition second unless it closes the chain', () => {
+    expect(() => exportCdx1({ tree: one([nose, tail, tube]), name: 'x' })).toThrow(/right after the nose cone.*Tail/);
+    expect(() => exportCdx1({ tree: one([nose, tail]), name: 'x' })).not.toThrow();
+  });
+
+  it("writes a single-stage rocket's closing transition as a boat tail", () => {
+    const xml = exportCdx1({ tree: one([nose, tube, tail]), name: 'x' });
+    expect(xml).toContain('<BoatTail>\n<PartType>BoatTail</PartType>');
+    expect(xml).not.toContain('<Transition>');
+  });
+
+  it("writes a transition's <Diameter> from its aft radius, as desktop's BasePartDTO does", () => {
+    const xml = exportCdx1({ tree: one([nose, tube, tail]), name: 'x' });
+    const part = /<BoatTail>[\s\S]*?<\/BoatTail>/.exec(xml)![0];
+    // aftRadius 0.009 m: 0.018 m across, 0.708661 in; the fore radius would be 1 in.
+    expect(part).toContain('<Diameter>0.7087</Diameter>');
+    expect(part).toContain('<RearDiameter>0.7087</RearDiameter>');
+  });
+});
+
+/**
+ * A booster is one RASAero body as long as all its tubes, and its fin Location
+ * is measured from that body's bottom. Desktop's `BoosterDTO` adds the length of
+ * every tube after the one the fins are on (`finLocationOffset`): fins with a
+ * 2 in root flush with the bottom of the first of a 5 in and a 4 in tube sit
+ * 2 + 4 = 6 in from the booster's bottom.
+ */
+describe('a booster made of two tubes', () => {
+  const tube = (id: string, inches: number, children: unknown[] = []) => ({
+    type: 'bodytube',
+    id,
+    name: id,
+    length: inches * 0.0254,
+    outerRadius: 0.0127,
+    children,
+  });
+  const fins = {
+    type: 'trapezoidfinset',
+    id: 'bf',
+    name: 'Booster fins',
+    finCount: 3,
+    rootChord: 0.0508,
+    tipChord: 0.0254,
+    sweep: 0.0254,
+    height: 0.0254,
+    thickness: 0.003,
+    position: { method: 'bottom', offset: 0 },
+  };
+  const staged = (boosterTubes: unknown[]): RocketTree =>
+    ({
+      name: 'Two',
+      components: [tree.components[0]!, { type: 'stage', id: 'b', name: 'Booster', children: boosterTubes }],
+    }) as RocketTree;
+  const boosterFinLocation = (t: RocketTree): number => {
+    const out = exportCdx1({ tree: t, name: 'Two', launchMassKg: 0.5, launchCgM: 0.2 });
+    const doc = new DOMParser().parseFromString(out, 'text/xml');
+    return Number(doc.querySelector('Booster > Fin > Location')?.textContent);
+  };
+
+  it('measures the fin location from the bottom of the whole booster', () => {
+    expect(boosterFinLocation(staged([tube('A', 5, [fins]), tube('B', 4)]))).toBeCloseTo(6, 3);
+  });
+
+  it('adds nothing when the fins are on the last tube', () => {
+    expect(boosterFinLocation(staged([tube('A', 5), tube('B', 4, [fins])]))).toBeCloseTo(2, 3);
+  });
+});
+
+/** The base design with one parachute in the body tube. */
+const withChute = (chute: Record<string, unknown>): RocketTree => ({
+  ...tree,
+  components: [
+    {
+      ...tree.components[0]!,
+      children: [
+        tree.components[0]!.children![0]!,
+        { ...tree.components[0]!.children![1]!, children: [{ type: 'parachute', id: 'p', name: 'Main', ...chute }] },
+      ],
+    },
+  ],
+});
+const exported = (t: RocketTree) =>
+  new DOMParser().parseFromString(
+    exportCdx1({ tree: t, name: 'Chute', launchMassKg: 0.45, launchCgM: 0.12 }),
+    'text/xml',
+  );
+
+/**
+ * RASAero deploys at apogee or at an altitude and nothing else. Desktop's
+ * RecoveryDTO raises RASAeroExport.error21 for any other event rather than write
+ * a chute that never opens. A key the part does not carry is the kernel's
+ * default: a new parachute deploys on the ejection charge, is 0.3 m across, and
+ * flies Parachute.DEFAULT_CD.
+ */
+describe('a parachute with no deployment or size of its own', () => {
+  it('is refused on the ejection charge, naming the part and the event', () => {
+    expect(() => exported(withChute({}))).toThrow(
+      expect.objectContaining({
+        key: 'errors.rasaero.chuteEvent',
+        values: { name: 'Main', event: { key: 'deployEvent.ejection' } },
+      }),
+    );
+  });
+
+  it('goes out at the kernel diameter and drag coefficient once it deploys at apogee', () => {
+    const doc = exported(withChute({ deployEvent: 'apogee' }));
+    expect(doc.querySelector('Recovery > EventType1')?.textContent).toBe('Apogee');
+    expect(doc.querySelector('Recovery > Event1')?.textContent).toBe('True');
+    expect(Number(doc.querySelector('Recovery > Size1')?.textContent)).toBeCloseTo(0.3 / 0.0254, 3);
+    expect(Number(doc.querySelector('Recovery > CD1')?.textContent)).toBe(0.8);
+  });
+});
+
+/**
+ * Desktop's exporter reads the parachutes under each stage's own body tubes,
+ * a tube's whole subtree in order (RecoveryDTO.getParachutesFromRocket iterates
+ * the tube), and no other: one in a nose cone is not a recovery entry, and its
+ * event does not stop the export.
+ */
+describe('which parachutes are recovery', () => {
+  const design = (noseKids: object[], tubeKids: object[]): RocketTree => ({
+    ...tree,
+    components: [
+      {
+        ...tree.components[0]!,
+        children: [
+          { ...tree.components[0]!.children![0]!, children: noseKids },
+          { ...tree.components[0]!.children![1]!, children: tubeKids },
+        ],
+      } as RocketTree['components'][number],
+    ],
+  });
+
+  it('reads one inside an inner tube in a body tube, and none in the nose cone', () => {
+    const doc = exported(
+      design(
+        [{ type: 'parachute', id: 'n', name: 'Nose chute' }],
+        [
+          {
+            type: 'innertube',
+            id: 'it',
+            length: 0.1,
+            children: [{ type: 'parachute', id: 'p', name: 'Main', diameter: 0.6, deployEvent: 'apogee' }],
+          },
+        ],
+      ),
+    );
+    expect(doc.querySelector('Recovery > Size1')?.textContent).toBe(String(Number((0.6 / 0.0254).toFixed(3))));
+    expect(doc.querySelector('Recovery > DeviceType2')?.textContent).toBe('None');
+  });
+});
+
+/**
+ * RASAero has one ogive (tangent) and two Haack noses. Desktop
+ * (RASAeroCommonConstants.OPENROCKET_TO_RASAERO_SHAPE) takes an ogive only at
+ * shape parameter 1 and a Haack only at 0 (Von Karman) or within 1% of 0.33
+ * (LV-Haack), and refuses the rest. An absent parameter is the shape's default.
+ */
+describe('the nose shape parameter', () => {
+  const withNose = (nose: Record<string, unknown>): RocketTree => ({
+    ...tree,
+    components: [
+      {
+        ...tree.components[0]!,
+        children: [{ ...tree.components[0]!.children![0]!, name: 'Nose', ...nose }, tree.components[0]!.children![1]!],
+      },
+    ],
+  });
+  const shapeOf = (nose: Record<string, unknown>) =>
+    exported(withNose(nose)).querySelector('NoseCone > Shape')?.textContent;
+
+  it.each([
+    [{ shape: 'ogive' }, 'Tangent Ogive'],
+    [{ shape: 'ogive', shapeParameter: 1 }, 'Tangent Ogive'],
+    [{ shape: 'haack' }, 'Von Karman Ogive'],
+    [{ shape: 'haack', shapeParameter: 0 }, 'Von Karman Ogive'],
+    [{ shape: 'haack', shapeParameter: 0.333 }, 'LV-Haack'],
+  ])('writes %o as %s', (nose, expected) => {
+    expect(shapeOf(nose)).toBe(expected);
+  });
+
+  it.each([
+    [{ shape: 'ogive', shapeParameter: 0.5 }, 'errors.rasaero.noseOgiveParameter', 0.5],
+    [{ shape: 'haack', shapeParameter: 0.2 }, 'errors.rasaero.noseHaackParameter', 0.2],
+    // The kernel's LV-Haack, 1/3, is outside desktop's 1% of 0.33.
+    [{ shape: 'haack', shapeParameter: 1 / 3 }, 'errors.rasaero.noseHaackParameter', 0.333],
+  ])('refuses %o', (nose, key, value) => {
+    expect(() => shapeOf(nose)).toThrow(expect.objectContaining({ key, values: { name: 'Nose', value } }));
   });
 });

@@ -114,7 +114,7 @@ A delta of 0 fails `--check` and `--bless` refuses it; delete the patch.
 
 Comparing `src/java` to the patch also can never see upstream moving underneath; the per-patch numbers and upstream hashes are what surface that on an upgrade.
 
-`--check` is only meaningful against the exact upstream the extraction was made from, pinned in `extract/UPSTREAM` and enforced by the `reproducible` job in `.github/workflows/gates.yml`.
+`--check` is only meaningful against the exact upstream the extraction was made from, pinned in `extract/UPSTREAM`. CI does not run it; `npm run audit` does.
 
 **At build time nothing is applied**: `src/java/` is committed already in its final state, so Gradle just compiles it. Extraction is a deliberate step you run only on an OpenRocket upgrade (then re-audit each `patches/` file against the new upstream).
 
@@ -124,6 +124,7 @@ There is a `package.json` here with no dependencies and nothing to install. It e
 the Node helper scripts named entry points, so `npm run parity` works the way it does in `web/`:
 
 ```bash
+npm run audit          # every engine check CI does not run, in order, stopping at the first failure
 npm run build          # both targets, vendored into ../web/   (= node build-engine.mjs)
 npm run build:js       # JS only
 npm run build:wasm     # WASM-GC only
@@ -138,11 +139,11 @@ npm run extract:bless    # re-record extract/DIVERGENCE.txt + SHIMS.txt
 **You do not need to clone OpenRocket by hand.** With no `--src` and no
 `OPENROCKET_SRC`, the extractor clones the exact repo and ref from
 `extract/UPSTREAM` into `engine-java/.openrocket-src` (gitignored, sparse to
-`core/src/main/java`, blobless: about 2 s and 7 MB) and reuses it afterwards -
+`core/src/main/java`, blobless: about 2 s and 7 MB) and reuses it afterward -
 a warm `extract:check` is under half a second. The cache is keyed to the ref,
 so bumping the pin re-fetches instead of silently checking against the old
 commit. `--refresh` forces it; `--src <path>` still points at your own checkout,
-which is what CI does and what you want offline.
+which is what you want offline.
 
 `--bless` and `--check` both write nothing to `src/java`. Only a bare
 `extract --src …` regenerates the tree, and on a CRLF checkout that rewrites all
@@ -160,7 +161,7 @@ node build-engine.mjs --wasm     # WASM → ../web/public/engine/openrocket-engi
 ./gradlew buildWasmGC            # WASM-GC target (teavm.wasmGC)
 ```
 
-Both targets compile from the same sources and are checked against the JVM (tolerances under Tests below). Change a Java source → rebuild **both** artifacts (`.mjs` + `.wasm`); the parity job fails if the committed artifacts do not match the sources.
+Both targets compile from the same sources and are checked against the JVM (tolerances under Tests below). Change a Java source → rebuild **both** artifacts (`.mjs` + `.wasm`); `npm run audit` rebuilds them and fails if the committed artifacts differ. CI does not, so run it before pushing an engine change.
 
 Non-obvious, load-bearing settings in `build.gradle`:
 
@@ -175,5 +176,5 @@ Every build prints **"Deprecated Gradle features were used in this build, making
 
 ## Tests
 
-- **Parity test**: `node test/parity/parity.mjs`. Compiles `ParityMain` to the JVM and to BOTH TeaVM targets (JS and WASM-GC), runs the same battery of scenarios on each, and requires static values to be bit-identical (1e-13 relative, for JS `Math` ULP noise) and time-integrated flight lines to agree within 5e-3 relative (5e-2 in gusty wind). Both targets are checked by default because both ship, and they share the one JVM reference; `--js` / `--wasm` narrow it to one. This proves the browser build matches the reference JVM. Self-contained: it builds and vendors the engine (`build-engine.mjs`, the same step as `npm run build`), then runs the VENDORED files, the ones the app loads, through `runParity()`, against the JVM running the same scenarios. Pass `--expect-lines <n>` to also require the golden to hold exactly that many values, as CI does. It also checks every value against `test/parity/golden.txt`, so a change that moves a NUMBER is caught even when both targets still agree with each other. `npm run parity:golden` rewrites it, and is for deliberate changes only. Note the last column of each `*.info` row is the WARNING COUNT, not a physical quantity: it moves whenever the set of warnings a design raises changes, which is a legitimate golden update rather than drifted physics.
+- **Parity test**: `node test/parity/parity.mjs`. Compiles `ParityMain` to the JVM and to BOTH TeaVM targets (JS and WASM-GC), runs the same battery of scenarios on each, and requires static values to be bit-identical (1e-13 relative, for JS `Math` ULP noise) and time-integrated flight lines to agree within 5e-3 relative (5e-2 in gusty wind). Both targets are checked by default because both ship, and they share the one JVM reference; `--js` / `--wasm` narrow it to one. This proves the browser build matches the reference JVM. Self-contained: it builds and vendors the engine (`build-engine.mjs`, the same step as `npm run build`), then runs the VENDORED files, the ones the app loads, through `runParity()`, against the JVM running the same scenarios. Pass `--expect-lines <n>` to also require the golden to hold exactly that many values, as `npm run audit` does. It also checks every value against `test/parity/golden.txt`, so a change that moves a NUMBER is caught even when both targets still agree with each other. `npm run parity:golden` rewrites it, and is for deliberate changes only. Note the last column of each `*.info` row is the WARNING COUNT, not a physical quantity: it moves whenever the set of warnings a design raises changes, which is a legitimate golden update rather than drifted physics.
 - **Aero validation**: `node validation/score.mjs [--supersonic]`. Scores the drag/CP/CNα sweep against published wind-tunnel anchors (ARCAS, Basic Finner, HB-2). Classic Barrowman degrades above Mach 1 (CP frozen); the opt-in supersonic model closes much of that gap, which is the reason the extensions exist.

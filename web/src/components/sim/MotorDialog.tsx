@@ -23,12 +23,14 @@ import {
   UsedFilter,
   useMotorFilter,
 } from './MotorFilterBar';
-import { readFileText } from '../../services/files/decodeText';
 import { loadDia, loadMfrs, saveDia, saveMfrs } from './motorPrefs';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
+import { listWriteErrorText } from '../../services/storage/jsonListStore';
+import { fmtList } from '../../i18n/format';
 import { useFilePick } from '../common/useFilePick';
 import { ToggleButton } from '../common/ToggleButton';
 import { confirm } from '../../state/confirmStore';
+import { ImportedStar } from './ImportedStar';
 
 /** The delay a motor with no delay data starts at (a common mid-range charge). */
 const DEFAULT_DELAY = 3;
@@ -36,9 +38,9 @@ const DEFAULT_DELAY = 3;
 /**
  * The catalog row a seated motor came from, for pre-selecting it.
  *
- * A MotorSpec carries no `code`, so a spec built from the bundled catalog says
- * "AeroTech F67" for both the F67W and the F67C, which are one common name
- * in one bore. Match on the common name OR the full code (a spec resolved from
+ * A MotorSpec's `code` is display-only and absent when it adds nothing, so a
+ * spec is matched by its designation, which says "AeroTech F67" for both the
+ * F67W and the F67C: one common name in one bore. Match on the common name OR the full code (a spec resolved from
  * thrustcurve.org carries the full designation), then narrow same-name pairs
  * by bore and by the curve source the spec was built from. Two motors sharing
  * all of manufacturer, name, bore and curve label remain indistinguishable
@@ -58,7 +60,7 @@ function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | und
 /**
  * Modal motor picker. Filters the catalog by engine code (text), manufacturer(s),
  * impulse class, total impulse, diameter, whether the motor comes plugged, and
- * (by default) whether it fits the mount; imports a custom .eng; resolves the
+ * (by default) whether it fits the mount; imports a custom .eng or .rse; resolves the
  * chosen motor's thrust curve via `onSelect`.
  *
  * Mounted only while open (`{open && <MotorDialog />}`), so every piece of
@@ -201,7 +203,7 @@ export function MotorDialog({
       onClose();
     } catch (e) {
       if (!mine()) return;
-      onError(errorMessage(e));
+      onError(errorText(e, t));
     } finally {
       if (mine()) setLoadingKey(null);
     }
@@ -221,8 +223,7 @@ export function MotorDialog({
     // a closed dialog, or behind a second import, is discarded.
     const mine = catalogWrite.claim();
     try {
-      const texts = await Promise.all(files.map(async (f) => ({ name: f.name, text: await readFileText(f) })));
-      const { catalog, imported, failed } = await importCustomMotors(texts);
+      const { catalog, imported, failed } = await importCustomMotors(files.map((f) => ({ name: f.name, blob: f })));
       if (!mine()) return;
       setCatalog(catalog);
       // Reported in the dialog rather than through onError, which is the
@@ -230,10 +231,10 @@ export function MotorDialog({
       // manufacturer's whole range, and one motor landing looks exactly like
       // forty in a list of 800.
       const done = t('motor.importedN', { count: imported });
-      setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: failed.join(', ') })}` : done);
+      setNote(failed.length ? `${done} ${t('motor.importSkipped', { files: fmtList(failed) })}` : done);
     } catch (err) {
       if (!mine()) return;
-      onError(errorMessage(err));
+      onError(listWriteErrorText(err, t));
     }
   };
   const motorFile = useFilePick({ accept: '.eng,.ENG,.rse,.RSE', onFiles: (f) => void onImport(f) });
@@ -256,7 +257,7 @@ export function MotorDialog({
       setCatalog(catalog);
     } catch (err) {
       if (!mine()) return;
-      onError(errorMessage(err));
+      onError(listWriteErrorText(err, t));
     }
   };
 
@@ -294,6 +295,7 @@ export function MotorDialog({
                 onChange={(e) => setText(e.target.value)}
                 autoFocus
                 placeholder={t('motorDlg.searchCode')}
+                aria-label={t('motorDlg.searchCode')}
                 className="min-w-0 flex-1 rounded-lg bg-canvas px-3 py-2 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
               />
               <button
@@ -358,16 +360,12 @@ export function MotorDialog({
                       }`}
                     >
                       <span className="min-w-0">
-                        {m.custom && (
-                          <span className="mr-1 text-warn-400" title={t('motor.importedTitle')}>
-                            ★
-                          </span>
-                        )}
+                        {m.custom && <ImportedStar />}
                         <span className="font-medium text-ink-strong">{m.code || m.designation}</span>
                         <span className="ml-2 text-xs text-ink-faint">{m.manufacturer}</span>
                         {!m.custom && !hasCurve(m) && (
                           <span
-                            className="ml-2 rounded bg-elevated px-1 py-0.5 text-[9px] uppercase tracking-wide text-ink-muted"
+                            className="ml-2 rounded bg-elevated px-1 py-0.5 text-[9px] uppercase tracking-wide text-ink-soft"
                             title={t('motorDlg.noBundledCurve')}
                           >
                             {t('dash.noCurve')}
@@ -425,7 +423,7 @@ export function MotorDialog({
                 <button
                   onClick={() => pick(shown, curveIdx)}
                   disabled={loadingKey !== null}
-                  className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
+                  className="shrink-0 rounded-lg bg-accent-600 px-5 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700 disabled:cursor-not-allowed disabled:bg-raised disabled:text-ink-faint"
                 >
                   {loadingKey !== null ? t('motorDlg.loading') : t('motorDlg.select')}
                 </button>

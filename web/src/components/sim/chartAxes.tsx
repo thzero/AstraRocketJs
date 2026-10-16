@@ -5,7 +5,7 @@ import { polylinePath } from '../common/svgPath';
 // Shared scaffold for the thrust-vs-time charts (MotorDetail's ThrustChart plus
 // the motor dashboard's MotorCombinePane and MotorComparePane): one set of linear
 // scales, axis furniture and path builders, so the three cannot drift apart.
-// FlightChart's Panel is deliberately not built on this: it has a per-panel
+// FlightChartPanel is deliberately not built on this: it has a per-panel
 // y-domain, a hover crosshair, clipping, and event overlays that don't generalize.
 
 export type XY = readonly [number, number];
@@ -103,7 +103,7 @@ export function ChartAxes({
 }
 
 /** The sample with the largest value (the first one on a tie). `pts` must not be empty. */
-export const peakOf = (pts: readonly XY[]): XY => pts.reduce((a, b) => (b[1] > a[1] ? b : a));
+export const highestSample = (pts: readonly XY[]): XY => pts.reduce((a, b) => (b[1] > a[1] ? b : a));
 
 /** One series curve, optionally named in its own color just above its peak
  *  (the direct label that backs up the legend). Render it inside the chart's `<svg>`. */
@@ -129,7 +129,7 @@ export function SeriesPath({
   /** Tailwind size and weight classes for the label. */
   labelClass: string;
 }) {
-  const peak = peakOf(pts);
+  const peak = highestSample(pts);
   return (
     <g>
       <path d={linePath(pts, X, Y)} fill="none" stroke={color} strokeWidth={String(strokeWidth)} />

@@ -7,23 +7,9 @@ import { OverrideCard, overrideFieldLabel, OverrideNumber, OverrideRow, Override
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { partLabel } from '../../i18n/format';
-
-/**
- * The kernel's SeparationEvent vocabulary, in the order the property panel
- * offers it (ejection first: the desktop default and the low-power norm).
- */
-const SEPARATION_EVENTS = [
-  'ejection',
-  'burnout',
-  'launch',
-  'ignition',
-  'upperignition',
-  'apogee',
-  'altitudeascending',
-  'altitudedescending',
-  'never',
-] as const;
+import { fmtUpTo } from '../../i18n/format';
+import { partName } from './ConfigsTable';
+import { SEPARATION_EVENTS } from '../../services/design/componentFields';
 
 /**
  * Whether one stage flies under this configuration, and when it lets go.
@@ -37,10 +23,13 @@ const SEPARATION_EVENTS = [
 export function SeparationSection({
   config,
   stage,
+  index,
   separates,
 }: {
   config: FlightConfig;
   stage: ComponentNode;
+  /** The stage's place in the design, for an unnamed one's label. */
+  index: number;
   /** False for the top stage, which has nothing above it to let go of. */
   separates: boolean;
 }) {
@@ -61,7 +50,7 @@ export function SeparationSection({
   const baseEvent = design.separationEvent;
   const event = over?.separationEvent ?? baseEvent;
   const alt = u.at(unitScope('prop', stage.type, 'separationAltitude'), 'distance');
-  const name = partLabel(t, stage);
+  const name = partName(stage, index, t);
 
   return (
     <OverrideCard name={name} overridden={!!over}>
@@ -101,7 +90,7 @@ export function SeparationSection({
             name={name}
             label={t('prop.separationDelay')}
             value={over?.separationDelay ?? null}
-            placeholder={String(design.separationDelay)}
+            placeholder={fmtUpTo(design.separationDelay, 2)}
             step={0.5}
             min={0}
             unit="s"

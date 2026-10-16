@@ -13,7 +13,7 @@ import { answer } from '../../testing/openMeteoFixture';
 
 const hour = (elevation = 1500) => parseForecast(answer(elevation), [elevation])[0]!.samples[0]!;
 
-describe('turbulenceFromGust (desktop OpenRocket PR #3211)', () => {
+describe("turbulenceFromGust, desktop's estimateTurbulenceIntensity", () => {
   it('is the gust spread over three times the mean wind', () => {
     expect(turbulenceFromGust(4, 7)).toBeCloseTo(0.25, 12);
   });

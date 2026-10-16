@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { useUnits } from '../../prefs/useUnits';
 import type { Ctx } from '../../tree/schematicGeometry';
+import { token } from '../common/colorTokens';
 
 /**
  * The TreeSchematic measure tool: the two caliper overlays (length and
@@ -8,6 +9,17 @@ import type { Ctx } from '../../tree/schematicGeometry';
  * the measured span tagged between them. The schematic owns the caliper
  * positions and the drag/key handlers; this file owns how a caliper looks.
  */
+
+/** What both calipers take from the schematic: the two ends, the drawing's
+ *  frame, and the handlers that move an end. */
+interface CaliperProps {
+  cal: { a: number; b: number };
+  ctx: Ctx;
+  scale: number;
+  totalLen: number;
+  onDragStart: (end: 'a' | 'b') => (e: React.PointerEvent) => void;
+  onKey: (end: 'a' | 'b') => (e: React.KeyboardEvent) => void;
+}
 
 /**
  * Length calipers: two draggable vertical lines spanning the drawing height,
@@ -23,16 +35,7 @@ export function HorizontalCaliper({
   totalLen,
   onDragStart,
   onKey,
-}: {
-  cal: { a: number; b: number };
-  ctx: Ctx;
-  scale: number;
-  h: number;
-  rBot: number;
-  totalLen: number;
-  onDragStart: (end: 'a' | 'b') => (e: React.PointerEvent) => void;
-  onKey: (end: 'a' | 'b') => (e: React.KeyboardEvent) => void;
-}) {
+}: CaliperProps & { h: number; rBot: number }) {
   const { t } = useTranslation();
   const u = useUnits();
   const ax = ctx.x0 + cal.a * scale,
@@ -89,13 +92,16 @@ export function HorizontalCaliper({
           strokeWidth="1"
           vectorEffect="non-scaling-stroke"
         />
+        {/* The theme's surface under the accent text, not a fixed dark box: the
+            accent is dark in the light themes, and the readout must hold
+            4.5:1 in every theme (e2e/schematic-interaction.spec.ts). */}
         <rect
           x={mid - 28}
           y={dimY - 9}
           width={56}
           height={14}
           rx="3"
-          fill="rgba(13,14,18,0.92)"
+          fill={token('surface')}
           stroke="var(--accent)"
           strokeWidth="0.8"
         />
@@ -117,15 +123,7 @@ export function VerticalCaliper({
   vHalf,
   onDragStart,
   onKey,
-}: {
-  cal: { a: number; b: number };
-  ctx: Ctx;
-  scale: number;
-  totalLen: number;
-  vHalf: number;
-  onDragStart: (end: 'a' | 'b') => (e: React.PointerEvent) => void;
-  onKey: (end: 'a' | 'b') => (e: React.KeyboardEvent) => void;
-}) {
+}: CaliperProps & { vHalf: number }) {
   const { t } = useTranslation();
   const u = useUnits();
   const ay = ctx.cy - cal.a * scale,
@@ -192,7 +190,7 @@ export function VerticalCaliper({
           width={60}
           height={14}
           rx="3"
-          fill="rgba(13,14,18,0.92)"
+          fill={token('surface')}
           stroke="var(--accent)"
           strokeWidth="0.8"
         />

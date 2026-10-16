@@ -143,7 +143,7 @@ describe('MotorDialog', () => {
     renderWithProviders(<Host current={null} onSelect={() => {}} />);
     openPicker();
     fireEvent.click(await row('X'));
-    const search = screen.getByPlaceholderText(/Search by code/);
+    const search = screen.getByRole('textbox', { name: /Search by code/ });
     fireEvent.change(search, { target: { value: 'Y' } });
     expect(screen.queryByRole('button', { name: /^X\s?Test/ })).toBeNull();
     fireEvent.change(search, { target: { value: '' } });
@@ -161,7 +161,7 @@ describe('MotorDialog', () => {
     openPicker();
     fireEvent.click(await row('X'));
     expect(screen.getByRole('button', { name: /^Select$/ })).toBeTruthy();
-    const search = screen.getByPlaceholderText(/Search by code/);
+    const search = screen.getByRole('textbox', { name: /Search by code/ });
     fireEvent.change(search, { target: { value: 'Y' } });
     expect(screen.queryByRole('button', { name: /^Select$/ })).toBeNull();
     fireEvent.change(search, { target: { value: '' } });

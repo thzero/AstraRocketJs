@@ -14,8 +14,10 @@
 // Deliberate differences from upstream, each because the thing it needs does
 // not exist on this side:
 //
-//   - No `MotorDigest`. It exists to recognize the same motor arriving from two
-//     files; nothing here does that.
+//   - No `MotorDigest`. A parsed motor carries none. The one caller that needs
+//     it, matching a `.ork`'s embedded `.rse` to the motor the design names,
+//     hashes the file text itself (`ork/embeddedMotors.rseDigest`, through
+//     `motorDigest.ts`).
 //   - No manufacturer-based type inference. Upstream falls back to
 //     `Manufacturer.getMotorType()` for a file with no `Type`, from a table of
 //     known manufacturers we do not carry. An unrecognized type stays absent
@@ -33,7 +35,8 @@ import { impulseClass } from './motorCombine';
 import { delayList } from './motorPicker';
 import { totalImpulse } from './engParser';
 import { parseXmlText } from '../files/xmlUtil';
-import { mathEquals } from './mathEquals';
+import { MAX_CURVE_SAMPLES, finalizeCurve } from './curveFinalize';
+import { KeyedError } from '../../i18n/keyedError';
 
 /** RockSim's `Type` attribute, mapped to the catalog's own vocabulary. */
 const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
@@ -51,13 +54,12 @@ const TYPES: Record<string, NonNullable<CustomMotor['type']>> = {
  * shroud lines for the same reason: without a cap, a member with a million
  * `<engine>` elements would freeze the tab while merely opening a shared design.
  *
- * A manufacturer's whole range is a few hundred motors, and the longest real
- * curve is a few thousand samples.
+ * A manufacturer's whole range is a few hundred motors. The per-motor sample
+ * ceiling is `MAX_CURVE_SAMPLES`, shared with the `.eng` reader.
  */
 export const MAX_RSE_ENGINES = 2000;
-export const MAX_RSE_SAMPLES = 20_000;
 
-/** One `<eng-data>` row, before the quirk fixing below. */
+/** One `<eng-data>` row, before `finalizeCurve` fixes the curve's quirks. */
 interface Point {
   time: number;
   thrust: number;
@@ -76,102 +78,52 @@ export function removeDelay(designation: string): string {
   return /-([0-9]+|[pP])$/.test(designation) ? designation.slice(0, designation.lastIndexOf('-')) : designation;
 }
 
-/** A required numeric attribute, in the file's own units. */
-function num(el: Element, name: string, what: string): number {
+/** A required numeric attribute, in the file's own units. `whatKey` is the i18n key a refusal names it by. */
+function num(el: Element, name: string, whatKey: string): number {
   const raw = el.getAttribute(name);
-  if (raw === null) throw new Error(`.rse motor is missing its ${what}.`);
-  const v = Number(raw);
-  if (!Number.isFinite(v)) throw new Error(`.rse motor has an invalid ${what} (${raw}).`);
+  if (raw === null) throw new KeyedError('errors.motorFile.rseMissing', { what: { key: whatKey } });
+  // `Number('')` is 0, where upstream's `Double.parseDouble` refuses a blank.
+  const v = raw.trim() === '' ? NaN : Number(raw);
+  if (!Number.isFinite(v)) throw new KeyedError('errors.motorFile.rseInvalid', { what: { key: whatKey }, raw });
   return v;
 }
 
-/** An optional numeric attribute; NaN when absent or unparseable, as upstream. */
+/** An optional numeric attribute; NaN when absent, blank or unparseable, as upstream. */
 function optNum(el: Element, name: string): number {
   const raw = el.getAttribute(name);
-  if (raw === null) return NaN;
+  if (raw === null || raw.trim() === '') return NaN;
   const v = Number(raw);
   return Number.isFinite(v) ? v : NaN;
-}
-
-/**
- * Sort by time, carrying the other columns along.
- *
- * Upstream's `sortLists`, which exists because the samples are not guaranteed
- * ordered. A plain stable sort of the rows does the same job.
- */
-function sortByTime(points: Point[]): Point[] {
-  return [...points].sort((a, b) => a.time - b.time);
-}
-
-/** Upstream's `MathUtil.equals`, relative to `b`. */
-const eq = mathEquals;
-
-/**
- * The real-world quirk fixing from `AbstractMotorLoader.finalizeThrustCurve`,
- * ported case for case because each case is a shape of file that exists.
- *
- * What is not ported is the commented-out block upstream keeps at the end: it
- * appends a zero-thrust point at the last sample's own time, which makes two
- * points share a time and then breaks the interpolation that reads them.
- */
-function finalizeThrustCurve(points: Point[]): Point[] {
-  if (points.length === 0) return points;
-  const p = [...points];
-
-  // No datapoint at t=0: put one there. A nonzero thrust at t=0 is an error in
-  // the file, but not one worth refusing it over, and a second zero-thrust
-  // point at the same time would be the duplicate-time problem below.
-  if (!eq(p[0]!.time, 0)) p.unshift({ ...p[0]!, time: 0, thrust: 0 });
-
-  // Two points at t=0, one zero-thrust and one not. Drop the zero.
-  if (p.length > 1 && eq(p[0]!.time, 0) && eq(p[1]!.time, 0)) p.shift();
-
-  // Two adjacent points identical in both time and thrust (KBA K1750 does
-  // this). Drop the second.
-  for (let i = 0; i < p.length - 1; i++) {
-    while (i < p.length - 1 && eq(p[i]!.time, p[i + 1]!.time) && eq(p[i]!.thrust, p[i + 1]!.thrust)) {
-      p.splice(i, 1);
-    }
-  }
-
-  // Two final points at the same time, one of them zero thrust. Drop the zero.
-  const n = p.length - 1;
-  if (n > 0 && eq(p[n - 1]!.time, p[n]!.time)) {
-    if (eq(p[n - 1]!.thrust, 0)) p.splice(n - 1, 1);
-    else if (eq(p[n]!.thrust, 0)) p.splice(n, 1);
-  }
-
-  return p;
 }
 
 /** One `<engine>` element as a stored custom motor. */
 function parseEngine(el: Element): CustomMotor {
   const manufacturer = el.getAttribute('mfg')?.trim();
-  if (!manufacturer) throw new Error('.rse motor is missing its manufacturer (mfg).');
+  if (!manufacturer) throw new KeyedError('errors.motorFile.rseNoMaker');
   const code = el.getAttribute('code')?.trim();
-  if (!code) throw new Error('.rse motor is missing its designation (code).');
+  if (!code) throw new KeyedError('errors.motorFile.rseNoCode');
   const designation = removeDelay(code);
 
   // The file's units are the ones this app stores: mm and grams. Upstream
   // divides all four by 1000 because the kernel is SI; `CustomMotor` is not,
   // and `samplesToMotorSpec` does that conversion at the engine boundary.
-  const diameter = num(el, 'dia', 'diameter');
-  const length = num(el, 'len', 'length');
-  const totalWeightG = num(el, 'initWt', 'initial mass');
-  const propWeightG = num(el, 'propWt', 'propellant mass');
+  const diameter = num(el, 'dia', 'errors.motorFile.attrDiameter');
+  const length = num(el, 'len', 'errors.motorFile.attrLength');
+  const totalWeightG = num(el, 'initWt', 'errors.motorFile.attrInitialMass');
+  const propWeightG = num(el, 'propWt', 'errors.motorFile.attrPropellantMass');
 
   if (!(diameter > 0) || !(length > 0)) {
-    throw new Error(`.rse motor ${designation} has a non-positive diameter or length.`);
+    throw new KeyedError('errors.motorFile.rseSize', { motor: designation });
   }
   // Upstream refuses this too. Without it the rocket gains mass as the motor
   // burns, which nothing downstream would report.
   if (!(propWeightG >= 0) || !(totalWeightG > 0) || propWeightG > totalWeightG) {
-    throw new Error(`.rse motor ${designation} lists more propellant than total mass.`);
+    throw new KeyedError('errors.motorFile.rseMass', { motor: designation });
   }
 
   const sampleEls = el.querySelectorAll('data > eng-data');
-  if (sampleEls.length > MAX_RSE_SAMPLES) {
-    throw new Error(`.rse motor ${designation} has more than ${MAX_RSE_SAMPLES} data points.`);
+  if (sampleEls.length > MAX_CURVE_SAMPLES) {
+    throw new KeyedError('errors.motorFile.rseTooManyPoints', { motor: designation, max: MAX_CURVE_SAMPLES });
   }
   const rows: Point[] = [...sampleEls].map((d) => ({
     time: optNum(d, 't'),
@@ -181,11 +133,21 @@ function parseEngine(el: Element): CustomMotor {
   }));
   for (const r of rows) {
     if (!Number.isFinite(r.time) || !Number.isFinite(r.thrust)) {
-      throw new Error(`.rse motor ${designation} has a data point with no time or thrust.`);
+      throw new KeyedError('errors.motorFile.rseBadPoint', { motor: designation });
     }
+    // A curve that starts before t = 0 gets a zero point put ahead of it, and
+    // ThrustCurveMotor refuses a time that runs backward. The bridge builds
+    // every seated motor through it, so the file is refused here.
+    if (r.time < 0) throw new KeyedError('errors.motorFile.rseNegativeTime', { motor: designation });
   }
-  const points = finalizeThrustCurve(sortByTime(rows));
-  if (points.length < 2) throw new Error(`.rse motor ${designation} has no thrust-curve data.`);
+  const points = finalizeCurve(rows);
+  if (points.length < 2) throw new KeyedError('errors.motorFile.rseNoCurve', { motor: designation });
+
+  // ThrustCurveMotor refuses both of these, and the bridge builds every
+  // seated motor through it, so the file is refused here as desktop drops it.
+  if (points.some((p) => p.thrust < 0)) {
+    throw new KeyedError('errors.motorFile.rseNegativeThrust', { motor: designation });
+  }
 
   const samples = points.map((p) => ({ time: p.time, thrust: p.thrust }));
 
@@ -201,7 +163,10 @@ function parseEngine(el: Element): CustomMotor {
   // refuses it, and as the stored-motor check (motorStore `isMassArray`) would
   // drop the motor later without a word.
   if (haveMass && points.some((p) => p.mass < 0)) {
-    throw new Error(`.rse motor ${designation} has a negative mass in its data.`);
+    throw new KeyedError('errors.motorFile.rseNegativeMass', { motor: designation });
+  }
+  if (haveCg && points.some((p) => p.cg < 0 || p.cg > length)) {
+    throw new KeyedError('errors.motorFile.rseCgOutside', { motor: designation, length });
   }
 
   const type = TYPES[(el.getAttribute('Type') ?? '').trim().toLowerCase()];
@@ -237,18 +202,17 @@ const isFalse = (v: string | null) => v === '0' || v?.toLowerCase() === 'false';
  * Every motor in a `.rse` file.
  *
  * A list, not one motor: `<engine-database>` files carry a manufacturer's whole
- * range, and upstream's loader returns a list for the same reason. `.eng`
- * import takes only the first because a RASP file's second motor is a separate
- * header block that the format gives no way to name.
+ * range, and upstream's loader returns a list for the same reason. `parseEng`
+ * returns a list too, one motor per RASP header block.
  */
 export function parseRse(text: string): CustomMotor[] {
-  const doc = parseXmlText(text, 'Not a valid .rse file (XML parse error).');
+  const doc = parseXmlText(text, '.rse');
   const engineEls = doc.querySelectorAll('engine');
-  if (engineEls.length === 0) throw new Error('Not a valid .rse file (no <engine> found).');
+  if (engineEls.length === 0) throw new KeyedError('errors.motorFile.rseNoEngine');
   // Counted before the spread, so a crafted member does not materialize a
   // million-element array on the way to being refused.
   if (engineEls.length > MAX_RSE_ENGINES) {
-    throw new Error(`This .rse declares more than ${MAX_RSE_ENGINES} motors (possibly malformed).`);
+    throw new KeyedError('errors.motorFile.rseTooManyMotors', { max: MAX_RSE_ENGINES });
   }
   return [...engineEls].map(parseEngine);
 }

@@ -6,10 +6,10 @@ import { OverrideCard, OverrideNumber, OverrideSelect } from './OverrideFields';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import { partLabel } from '../../i18n/format';
-
-/** The kernel's DeployEvent vocabulary, in the order the property panel offers it. */
-const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'] as const;
+import { fmtUpTo } from '../../i18n/format';
+import { partName } from './ConfigsTable';
+// The design field's list, so the override offers every event the part can.
+import { DEPLOY_EVENTS } from '../../services/design/componentFields';
 
 /**
  * When one recovery device opens under this configuration.
@@ -20,7 +20,16 @@ const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'never'] as c
  * simulation's preference overrides have, and it is what makes "deploy the main
  * at 150 m on this flight only" one field rather than a second copy of the part.
  */
-export function DeploymentSection({ config, device }: { config: FlightConfig; device: ComponentNode }) {
+export function DeploymentSection({
+  config,
+  device,
+  index,
+}: {
+  config: FlightConfig;
+  device: ComponentNode;
+  /** The device's place among the design's recovery devices, for an unnamed one's label. */
+  index: number;
+}) {
   const { t } = useTranslation();
   const u = useUnits();
   const setDeployment = useWorkspaceStore((s) => s.setDeployment);
@@ -35,7 +44,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
   const scope = unitScope('prop', device.type, 'deployAltitude');
   const alt = u.at(scope, 'distance');
 
-  const name = partLabel(t, device);
+  const name = partName(device, index, t);
   return (
     <OverrideCard name={name} overridden={!!over}>
       <OverrideSelect
@@ -76,7 +85,7 @@ export function DeploymentSection({ config, device }: { config: FlightConfig; de
         name={name}
         label={t('prop.deployDelay')}
         value={over?.deployDelay ?? null}
-        placeholder={String(design.deployDelay)}
+        placeholder={fmtUpTo(design.deployDelay, 2)}
         step={0.5}
         min={0}
         unit="s"

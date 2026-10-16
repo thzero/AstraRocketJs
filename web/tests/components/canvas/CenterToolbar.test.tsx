@@ -5,7 +5,8 @@ import { screen } from '@testing-library/react';
 import { CenterToolbar } from '../../../src/components/canvas/CenterToolbar';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
-import type { SimRun } from '../../../src/services/flight/simulations';
+import { resultKey, type SimRun } from '../../../src/services/flight/simulations';
+import { configOf } from '../../../src/state/workspaceSelectors';
 
 const st = () => useWorkspaceStore.getState();
 
@@ -53,6 +54,44 @@ describe('CenterToolbar run state', () => {
     setRun({ phase: 'queued' });
     renderToolbar();
     expect(screen.getByRole('status').textContent).toBe('Running');
+  });
+});
+
+/**
+ * The Outdated chip sits beside the heading, so it describes the flight the
+ * heading names: the picked row when the picker is on one, not the active row.
+ */
+describe('CenterToolbar Outdated chip', () => {
+  /** Two rows flown, the active one first, with the picker on the second. */
+  const setRows = (activeFresh: boolean, shownFresh: boolean) => {
+    st().resetWorkspace();
+    st().addSim();
+    const [a, b] = st().sims.map((x) => ({ ...x, result: {} as never }));
+    const keyed = (sim: NonNullable<typeof a>, fresh: boolean) => ({
+      ...sim,
+      // No key reads as outdated against any design.
+      resultKey: fresh ? resultKey(st().tree, configOf(st().configs, sim), sim, st().simPrefs) : undefined,
+    });
+    useWorkspaceStore.setState({
+      tab: 'results',
+      view: 'flight',
+      sims: [keyed(a!, activeFresh), keyed(b!, shownFresh)],
+      activeId: a!.id,
+      resultSimId: b!.id,
+      simRuns: {},
+    });
+  };
+
+  it('shows when the picked flight is stale and the active row is fresh', () => {
+    setRows(true, false);
+    renderToolbar();
+    expect(screen.getByText('Outdated')).toBeTruthy();
+  });
+
+  it('stays hidden when the picked flight is fresh and the active row is stale', () => {
+    setRows(false, true);
+    renderToolbar();
+    expect(screen.queryByText('Outdated')).toBeNull();
   });
 });
 

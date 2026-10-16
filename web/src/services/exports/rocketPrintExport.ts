@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { asStageNodes } from '../design/orkTree';
-import { parentRadiusOf } from '../../tree/finPlanform';
+import { finMountOf } from '../../tree/finPlanform';
 import { findNode } from '../../tree/treeWalk';
 import { discSolidForNode, makeWatertight, solidForNode } from './solidMesh';
 import { resolveDisc } from '../design/discGeometry';
@@ -9,6 +9,7 @@ import { printableParts } from './printableParts';
 import { colorForType } from '../design/partColors';
 import { buildThreeMf, THREE_MF_MIME, type ThreeMfPart } from './threeMf';
 import { exportFilename, saveBlob, safeFilename } from '../files/saveFile';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * Whole-rocket 3MF export.
@@ -19,10 +20,10 @@ import { exportFilename, saveBlob, safeFilename } from '../files/saveFile';
  * a named object per part (the thing 3MF is for) or as a zip of one file per
  * part, for a workflow that wants them separate.
  *
- * Parts with no solid are left out and named: a parachute, a shock cord, a mass
- * component and a rail button have no printable body, and a part whose geometry
- * fails `solidForNode`'s manifold check would produce a file no slicer accepts.
- * Both are the caller's to report.
+ * Only parts with a printable body are offered (a parachute, a shock cord, a
+ * mass component and a rail button have none). A printable part whose geometry
+ * fails `solidForNode`'s manifold check would produce a file no slicer accepts,
+ * so it is left out and named, for the caller to report.
  *
  * The heavy half: this pulls in the three.js meshers and the 3MF writer, so it
  * is reached only through the dynamic import in the store's `exportPrint`.
@@ -68,7 +69,7 @@ export function solidFor(tree: RocketTree, node: ComponentNode): ReturnType<type
     const d = resolveDisc(tree, id);
     return d ? discSolidForNode(d.outerR, d.innerR, d.length) : null;
   }
-  return solidForNode(node, parentRadiusOf(tree, id));
+  return solidForNode(node, finMountOf(tree, id));
 }
 
 /** A part by id, searched below the stages (a stage itself is never a part). */
@@ -113,7 +114,7 @@ export async function downloadRocket3mf(
     });
   }
 
-  if (built.length === 0) throw new Error('No printable parts were selected.');
+  if (built.length === 0) throw new KeyedError('errors.export.noPrintable');
 
   if (!separateFiles) {
     const bytes = buildThreeMf(
@@ -132,7 +133,9 @@ export async function downloadRocket3mf(
   for (const b of built) {
     // Two parts can legitimately share a name ("Centering ring" twice), and a
     // zip entry cannot: the second would silently replace the first.
-    let entry = safeFilename(b.part.name, b.part.name || 'part');
+    // The fallback is fixed text: `safeFilename` returns it as is, and a part
+    // name with no letter or digit (`../..`) must not become an entry name.
+    let entry = safeFilename(b.part.name, 'part');
     let n = 2;
     while (used.has(entry)) entry = `${safeFilename(b.part.name, 'part')}-${n++}`;
     used.add(entry);

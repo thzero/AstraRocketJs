@@ -1,5 +1,5 @@
-// cspell:ignore astrarrocketjs -- the old misspelled prefix, named below where the legacy
-// key and the kernel's patch marker are explained.
+// cspell:ignore astrarrocketjs -- the misspelled prefix, named below where the
+// kernel's patch marker is explained.
 import { describe, it, expect } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -31,10 +31,6 @@ const KEY_FORM = `${STORAGE_PREFIX}:`;
 const ALLOWED = new Set([
   // Holds the prefix.
   'web/src/services/storage/storageKeys.ts',
-  // The one legacy read chain: a DEBUG switch quoted in the docs, so someone who
-  // set it by hand is not asked to do it twice. It names the old misspelled
-  // prefix, which does not match `KEY_FORM`, plus this comment.
-  'web/src/engine/openRocketEngine.ts',
   // Plain .mjs harnesses: no TS loader, so they cannot import the constant. A
   // mismatch is self-detecting (the app comes up without settings and the check
   // fails), which is why a literal is tolerable here and nowhere else.
@@ -43,17 +39,13 @@ const ALLOWED = new Set([
   'web/scripts/check-update-flow.mjs',
   // Documents that describe the namespace.
   'docs/ARCHITECTURE.md',
-  // This test, and the audit and changelog that mention the prefix.
-  'web/tests/services/storage/storageKeys.test.ts',
-  'docs/AUDIT.md',
-  'CHANGELOG.md',
 ]);
 
 /** Every text file under the repo, skipping what is generated or vendored. */
 const walk = (dir: string, out: string[] = []): string[] => {
   for (const entry of readdirSync(dir)) {
     // `engine-java` is skipped deliberately: the kernel's patch marker tag is
-    // `PATCH(astrarrocketjs)`, the old misspelling, in the patched sources and in
+    // `PATCH(astrarrocketjs)`, the misspelling, in the patched sources and in
     // the extraction tooling that greps for it. It is not a storage key, and
     // renaming it would mean re-blessing every patched file.
     if (
@@ -86,7 +78,7 @@ describe('the storage namespace has one home', () => {
     expect(nsKey('workspace')).toBe(`${STORAGE_PREFIX}:workspace`);
   });
 
-  it('is spelled correctly, which is the whole point of the rename', () => {
+  it('is spelled astrarocketjs, pinned as a literal', () => {
     // Pinned as a literal on purpose. This is the one assertion in the file that
     // does not derive from `STORAGE_PREFIX`, because deriving it would pass for
     // any spelling at all.
@@ -101,6 +93,19 @@ describe('the storage namespace has one home', () => {
       .filter((rel) => !ALLOWED.has(rel))
       .sort();
     expect(offenders).toEqual([]);
+  });
+
+  it('allows no file that does not spell a key', () => {
+    // An entry that matches nothing is an exemption waiting for a file to
+    // misuse it; the list shrinks when the last literal leaves a file.
+    const stale = [...ALLOWED].filter((rel) => {
+      try {
+        return !readFileSync(repo(rel), 'utf8').includes(KEY_FORM);
+      } catch {
+        return true;
+      }
+    });
+    expect(stale).toEqual([]);
   });
 
   it('keeps every key on one namespace', () => {

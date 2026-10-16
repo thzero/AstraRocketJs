@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
+import { RASAERO_SURFACE_WARNING } from '../../../src/services/files/rasaero/surface';
+import type { Keyed } from '../../../src/i18n/keyedError';
 
 /**
  * Golden output of the .CDX1 writer, covering the sustainer, booster, recovery,
@@ -60,6 +62,7 @@ const threeStage = (): RocketTree =>
                 deployEvent: 'altitude',
                 deployAltitude: 200,
               }),
+              node({ type: 'parachute', id: 'drogue', diameter: 0.4, deployEvent: 'apogee' }),
               node({ type: 'innertube', id: 'sMount', length: 0.2 }),
             ],
           }),
@@ -79,7 +82,9 @@ const threeStage = (): RocketTree =>
                 finLeRadius: 0.001,
                 position: { method: 'top', offset: 0.01 },
               }),
-              node({ type: 'parachute', id: 'drogue', diameter: 0.4, deployEvent: 'apogee' }),
+              // In a transition, which desktop's exporter does not read
+              // (RecoveryDTO.getParachutesFromRocket), so its ejection-charge
+              // event does not stop the export.
               node({ type: 'parachute', id: 'third', diameter: 0.5 }),
             ],
           }),
@@ -139,8 +144,8 @@ const threeStage = (): RocketTree =>
   }) as unknown as RocketTree;
 
 describe('golden .CDX1 export', () => {
-  it('writes the three-stage design with engines, recovery and launch site exactly as before', () => {
-    const warnings: string[] = [];
+  it('pins the three-stage design with engines, recovery and launch site', () => {
+    const warnings: Keyed[] = [];
     const xml = exportCdx1({
       name: 'Golden <Triple> & co',
       tree: threeStage(),
@@ -171,7 +176,7 @@ describe('golden .CDX1 export', () => {
   });
 
   it('writes a bare single-stage design with RASAero defaults and an unmapped finish', () => {
-    const warnings: string[] = [];
+    const warnings: Keyed[] = [];
     const tree = {
       name: 'Bare',
       components: [
@@ -181,7 +186,7 @@ describe('golden .CDX1 export', () => {
     } as unknown as RocketTree;
     const xml = exportCdx1({ name: 'Bare', tree, warnings, motors: { b: { designation: 'X' } } });
     expect(xml).toMatchSnapshot();
-    expect(warnings).toEqual(['Unknown surface finish: rough, defaulting to Smooth.']);
+    expect(warnings).toEqual([RASAERO_SURFACE_WARNING]);
   });
 
   it('maps each remaining nose shape', () => {

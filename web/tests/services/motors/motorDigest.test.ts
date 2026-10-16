@@ -3,7 +3,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { unzipSync, strToU8 } from 'fflate';
 import { md5Hex } from '../../../src/services/motors/md5';
-import { embeddedMotorFile, rowsDigest } from '../../../src/services/files/ork/embeddedMotors';
+import { embeddedMotorFile, rowsDigest, rseDigest } from '../../../src/services/files/ork/embeddedMotors';
 import type { MotorSpec } from '../../../src/engine/openRocketEngine';
 
 describe('md5Hex', () => {
@@ -61,6 +61,47 @@ describe('the motor digest, against files the desktop wrote', () => {
       }
     });
   }
+});
+
+/**
+ * Desktop's `RockSimMotorLoader` sorts the rows by time before it finalizes
+ * and hashes them. The digests are what OpenRocket 24.12's own loader computes
+ * for these two files (`RockSimMotorLoader.load(...).build().getDigest()`).
+ */
+describe('rseDigest, rows out of time order', () => {
+  const rse = (rows: string[]) =>
+    [
+      '<engine-database>',
+      ' <engine-list>',
+      '  <engine mfg="Estes" code="C6" Type="single-use" dia="18" len="70" initWt="24" propWt="12" auto-calc-mass="0" auto-calc-cg="0">',
+      '   <data>',
+      ...rows.map((r) => `    <eng-data ${r}/>`),
+      '   </data>',
+      '  </engine>',
+      ' </engine-list>',
+      '</engine-database>',
+    ].join('\n');
+
+  it('sorts before hashing, as desktop does', () => {
+    const text = rse([
+      't="0.2" f="14" m="21" cg="35"',
+      't="0" f="0" m="24" cg="35"',
+      't="1.8" f="0" m="12" cg="35"',
+      't="1" f="9" m="16" cg="34"',
+    ]);
+    expect(rseDigest(text)).toBe('53b7e867ec245a1935341254ecb8793d');
+  });
+
+  it('keeps the mass and CG entry desktop leaves behind when it drops a doubled t = 0 point', () => {
+    const text = rse([
+      't="0.2" f="14" m="21" cg="36"',
+      't="0" f="0" m="24" cg="35"',
+      't="0" f="3" m="23.5" cg="35.5"',
+      't="1.8" f="0" m="12" cg="33"',
+      't="1" f="9" m="16" cg="34"',
+    ]);
+    expect(rseDigest(text)).toBe('db1800174bc27717e987931e63fa4012');
+  });
 });
 
 describe('embeddedMotorFile', () => {

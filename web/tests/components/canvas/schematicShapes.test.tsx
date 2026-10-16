@@ -121,6 +121,12 @@ describe('a nose cone shoulder', () => {
     expect(shoulder({ color: '#ff0000' })!.props['stroke']).toBe('#ff0000');
   });
 
+  // The 3D model holds a shoulder to its part's radius; the side view has to
+  // agree, or an oversized shoulder stands proud in one view and flush in the other.
+  it('is never wider than the cone it belongs to', () => {
+    expect(shoulder({ shoulderRadius: 0.03 })!.props['height']).toBeCloseTo(40, 6); // the 20 mm base, across
+  });
+
   it('is not drawn at all when the part has no shoulder', () => {
     expect(shoulder({ shoulderLength: 0 })).toBeUndefined();
     expect(shoulder({ shoulderRadius: 0 })).toBeUndefined();

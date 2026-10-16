@@ -15,10 +15,21 @@ import {
   zoomStep,
   MAX_ZOOM,
   marginText,
+  internalExtent,
 } from '../../src/tree/schematicGeometry';
 import i18n from '../../src/i18n';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
+
+describe('internalExtent with no length on record', () => {
+  it('draws the length the bridge builds each type at', () => {
+    // ComponentFactory: masscomponent `dbl(node, "length", 0.02)`, parachute 0.025.
+    const mass = { type: 'masscomponent', id: 'm' } as unknown as ComponentNode;
+    const chute = { type: 'parachute', id: 'p' } as unknown as ComponentNode;
+    expect(internalExtent(mass, 0.012).length).toBe(0.02);
+    expect(internalExtent(chute, 0.012).length).toBe(0.025);
+  });
+});
 
 describe('rulerGraduations', () => {
   // A 1000 px baseline at 1000 px/m with the datum at x=100: majors every
@@ -197,7 +208,7 @@ describe('computeSchematicLayout: tube fins on a narrow aft tube', () => {
     expect(out.vHalf).toBeLessThan(0.09);
   });
 
-  it('still honours an explicitly sized tube fin set', () => {
+  it('still honors an explicitly sized tube fin set', () => {
     const explicit = JSON.parse(JSON.stringify(stepped)) as RocketTree;
     const aft = explicit.components[0]!.children![3]!;
     (aft.children![0] as Record<string, unknown>)['outerRadius'] = 0.008;
@@ -285,9 +296,9 @@ describe('marginText', () => {
   const t = (k: string) => i18n.t(k);
 
   it('marks each band with its own glyph and word', () => {
-    expect(marginText(7, 12, t)!.text).toBe(`△ 7.00 cal · 12.0% — ${t('schematic.overStable')}`);
-    expect(marginText(0.5, 1, t)!.text).toBe(`⚠ 0.50 cal · 1.0% — ${t('schematic.underStable')}`);
-    expect(marginText(2, 8, t)!.text).toBe(`✓ 2.00 cal · 8.0% — ${t('schematic.ok')}`);
+    expect(marginText(7, 12, t)!.text).toBe(`△ 7.00 cal · 12.0% (${t('schematic.overStable')})`);
+    expect(marginText(0.5, 1, t)!.text).toBe(`⚠ 0.50 cal · 1.0% (${t('schematic.underStable')})`);
+    expect(marginText(2, 8, t)!.text).toBe(`✓ 2.00 cal · 8.0% (${t('schematic.ok')})`);
   });
 
   it('prints nothing without a finite margin and percentage', () => {

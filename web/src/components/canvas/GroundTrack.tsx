@@ -1,8 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtGroundDistance, groundDistanceNumber, useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, fmtGroundDistance, groundDistanceNumber, useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
-import { fmtNum, stageLabel } from '../../i18n/format';
+import { stageLabel } from '../../i18n/format';
 import {
   groundTrackLine,
   trackExtent,
@@ -64,9 +64,9 @@ export function GroundTrack({
   const site = latitudeDeg != null && longitudeDeg != null ? { lat: latitudeDeg, lon: longitudeDeg } : null;
   const ground = useGroundLayer(site !== null);
 
-  // Share the chart's unit scope, so a drift read in feet on one view reads in
-  // feet on the other.
-  const dist = u.at(unitScope('sim', 'apogee'), 'distance');
+  // The Downrange tile's unit scope, so the landing distance reads in the same
+  // unit on the summary, here and in the hourly landings.
+  const dist = u.at(unitScope('sim', 'downrange'), 'distance');
 
   const lines = useMemo<GroundTrackLine[]>(
     () =>
@@ -243,6 +243,15 @@ export function GroundTrack({
                   }`}
                 >
                   {t('sweep.button')}
+                  {/* A flown sweep fills the button even while it is closed, so
+                      it carries a mark and words as well as the color. */}
+                  {mine && (
+                    <>
+                      {' '}
+                      <span aria-hidden>●</span>
+                      <span className="sr-only">{`(${t('sweep.flown')})`}</span>
+                    </>
+                  )}
                 </button>
                 {sweepOpen && <DriftSweepPanel simId={flight.id} launch={launch} />}
               </div>
@@ -327,7 +336,7 @@ export function GroundTrack({
                 so it can be read (and matched) apart from the figures beside it. */}
               <span>{l.name}</span>
               <span className="tabular-nums text-ink-muted">
-                {fmtDist(l.distance)} · {fmtNum(l.bearing, 0)}°
+                {fmtDist(l.distance)} · {fmtDegrees(u, l.bearing)}
               </span>
               {/* The swept spread, when there is one: the walk to plan for is
                   the FURTHEST landing over the conditions asked about, not the

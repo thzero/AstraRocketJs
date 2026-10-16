@@ -255,14 +255,90 @@ describe('catalogPatch', () => {
   });
 
   it('defaults parachute Cd to 0.8 when the catalog omits it', () => {
-    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: null } as unknown as Component)).toEqual({
+    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: null } as unknown as Component)).toMatchObject({
       diameter: 0.3,
       cd: 0.8,
+      cdAuto: true,
     });
-    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: 1.5 } as unknown as Component)).toEqual({
+    expect(catalogPatch({ type: 'parachute', diameter: 0.3, cd: 1.5 } as unknown as Component)).toMatchObject({
       diameter: 0.3,
       cd: 1.5,
+      cdAuto: false,
     });
+  });
+
+  // Parachute.loadFromPreset: lines, materials and packed size from the part.
+  it('applies the lines, materials and packed size a parachute row states', () => {
+    const patch = catalogPatch({
+      type: 'parachute',
+      diameter: 0.6,
+      cd: 0.99,
+      lineCount: 10,
+      lineLength: 0.7,
+      packedLength: 0.058,
+      packedDiameter: 0.05,
+      material: 'Ripstop nylon, lightweight, 3 mil',
+      materialDensity: 0.0357,
+      lineMaterial: 'Spectra #200',
+      lineMaterialDensity: 0.00066,
+      mass: 0.035,
+    } as unknown as Component);
+    expect(patch).toMatchObject({
+      lineCount: 10,
+      lineLength: 0.7,
+      lineLengthAuto: false,
+      surfaceMaterialName: 'Ripstop nylon, lightweight, 3 mil',
+      surfaceDensity: 0.0357,
+      lineMaterialName: 'Spectra #200',
+      lineDensity: 0.00066,
+      length: 0.058,
+      radius: 0.025,
+      // Both packed sizes stated: the radius follows the bore, as on the desktop.
+      radiusAuto: true,
+      overrideMass: 0.035,
+    });
+  });
+
+  it('resets what a parachute row leaves out to the values of a new parachute', () => {
+    const patch = catalogPatch({
+      type: 'parachute',
+      diameter: 0.3,
+      cd: null,
+      packedDiameter: 0.04,
+      mass: 0,
+    } as unknown as Component);
+    expect(patch).toMatchObject({
+      lineCount: 6,
+      lineLength: 0.3,
+      surfaceMaterialName: 'Ripstop nylon',
+      lineMaterialName: 'Elastic cord (round 2 mm, 1/16 in)',
+      radius: 0.02,
+      radiusAuto: false,
+    });
+    // A zero mass is no mass: no override, rather than a weightless canopy.
+    expect(patch['overrideMass']).toBeUndefined();
+    // No packed length stated, so the part keeps the one it had.
+    expect(patch).not.toHaveProperty('length');
+  });
+
+  it('applies a saved part without the keys a saved part never keeps', () => {
+    // A stored entry from storage can carry anything; applying its id, type,
+    // name, position or children would duplicate an id or change the part.
+    const patch = catalogPatch({
+      type: 'bodytube',
+      custom: true,
+      patch: {
+        id: 'stale',
+        type: 'nosecone',
+        name: 'Old name',
+        position: { method: 'top', offset: 0.1 },
+        children: [{ id: 'kid', type: 'finset' }],
+        outerRadius: 0.02,
+        length: 0.3,
+      },
+    } as unknown as Component);
+    expect(patch).toMatchObject({ outerRadius: 0.02, length: 0.3 });
+    for (const key of ['id', 'type', 'name', 'position', 'children']) expect(patch).not.toHaveProperty(key);
   });
 
   it('omits material fields when the part has no density', () => {
@@ -306,7 +382,7 @@ describe('recovery-device defaults', () => {
     expect(pts.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('streamer defaults use stripLength/stripWidth (not length/width) + Cd + apogee', () => {
+  it('streamer defaults use stripLength/stripWidth (not length/width) + automatic Cd + apogee', () => {
     const s = defaultNode('streamer') as Record<string, unknown>;
     // The editor, engine and .ork all key on stripLength/stripWidth; a default
     // under length/width would silently drop streamer sizing.
@@ -314,7 +390,9 @@ describe('recovery-device defaults', () => {
     expect(s.stripWidth).toBeGreaterThan(0);
     expect(s.length).toBeUndefined();
     expect(s.width).toBeUndefined();
-    expect(s.cd).toBeGreaterThan(0);
+    // Streamer() starts with cdAutomatic set; a stated cd would fly as the user's own.
+    expect(s.cdAuto).toBe(true);
+    expect(s.cd).toBeUndefined();
     expect(s.deployEvent).toBe('apogee');
   });
 });
@@ -475,10 +553,128 @@ describe('catalogPatch for a rail button', () => {
     });
   });
 
-  it('clears the overrides for a part that states neither', () => {
+  it('leaves the overrides alone for a part that states neither', () => {
+    // RailButton.loadFromPreset sets the mass override only when the preset has
+    // a MASS, SCREW_MASS or NUT_MASS, and the drag override only for a CD > 0.
     const patch = catalogPatch({ ...row, mass: undefined } as never);
-    expect(patch.overrideMass).toBeUndefined();
-    expect(patch.overrideCD).toBeUndefined();
-    expect('overrideMass' in patch).toBe(true);
+    expect('overrideMass' in patch).toBe(false);
+    expect('overrideCD' in patch).toBe(false);
+  });
+
+  it('applies a stated drag coefficient as the drag override', () => {
+    expect(catalogPatch({ ...row, cd: 0.6 } as never).overrideCD).toBe(0.6);
+  });
+});
+
+/**
+ * A centering ring from the catalog, as RadiusRingComponent.loadFromPreset
+ * applies it: the inner radius only when the part states one, with the bore no
+ * longer automatic either way.
+ */
+describe('catalogPatch for a centering ring', () => {
+  const row = {
+    type: 'centeringring',
+    mfr: 'Estes',
+    partNo: 'CR-1',
+    desc: 'ring',
+    outerDiameter: 0.04,
+    innerDiameter: 0.019,
+    length: 0.003,
+    materialDensity: 0,
+  } as const;
+
+  it('takes a stated inner diameter', () => {
+    expect(catalogPatch(row as never)).toMatchObject({
+      outerRadius: 0.02,
+      innerRadius: 0.0095,
+      innerRadiusAuto: false,
+    });
+  });
+
+  it('keeps the bore the ring had when the part states none', () => {
+    const patch = catalogPatch({ ...row, innerDiameter: null } as never);
+    expect('innerRadius' in patch).toBe(false);
+    expect(patch['innerRadiusAuto']).toBe(false);
+  });
+
+  // RadiusRingComponent.setInnerRadius never leaves the bore past the outer
+  // radius, and the panel holds a typed bore inside it the same way. Quest
+  // CR2924 states a 28.8 mm bore in a 25.25 mm ring.
+  it('holds a stated bore inside the outer radius', () => {
+    const patch = catalogPatch({ ...row, outerDiameter: 0.02525, innerDiameter: 0.0288 } as never);
+    expect(patch['outerRadius']).toBe(0.02525 / 2);
+    expect(patch['innerRadius']).toBe(0.02525 / 2);
+  });
+
+  it('holds the bore the ring had inside a smaller new part', () => {
+    const node = { type: 'centeringring', id: 'r', outerRadius: 0.03, innerRadius: 0.025 } as unknown as ComponentNode;
+    const patch = catalogPatch({ ...row, innerDiameter: null } as never, node);
+    expect(patch['innerRadius']).toBe(0.02);
+  });
+});
+
+describe('a new pod set or parallel stage', () => {
+  // The seed tube is slim on purpose. A new body tube is automatic, and an
+  // automatic tube with no neighbor in its own chain resolves to the kernel's
+  // SymmetricComponent.DEFAULT_RADIUS (25 mm), so the seed has to be fixed.
+  for (const type of ['podset', 'parallelstage'] as const) {
+    it(`keeps the ${type} seed tube at 9 mm radius once added`, () => {
+      const { tree, id } = addPart(makeTree(), type, 'b1');
+      const tube = findNode(tree, id)!.children![0]!;
+      expect(tube.type).toBe('bodytube');
+      expect(tube['outerRadiusAuto']).toBe(false);
+      expect(tube['outerRadius']).toBe(0.009);
+    });
+  }
+});
+
+/**
+ * The catalog link follows the kernel's `clearPreset()` callers: an edit through
+ * a setter that calls it drops the `<preset>`, any other edit keeps it.
+ */
+describe('updateNode and the catalog link', () => {
+  const LINK = { type: 'x', manufacturer: 'Estes', partNo: 'P1' };
+  const kept = (node: Record<string, unknown>, patch: Record<string, unknown>) => {
+    const tree = { components: [{ id: 'p', preset: LINK, ...node }] } as unknown as RocketTree;
+    const out = updateNode(tree, 'p', patch as Partial<ComponentNode>);
+    return findNode(out, 'p')!['preset'] !== undefined;
+  };
+
+  it.each([
+    // Transition.setForeShoulderRadius / setAftShoulderRadius
+    [{ type: 'transition' }, { foreShoulderRadius: 0.01 }],
+    [{ type: 'transition' }, { aftShoulderRadius: 0.01 }],
+    // NoseCone.setShoulderRadius
+    [{ type: 'nosecone' }, { shoulderRadius: 0.01 }],
+    // RingComponent.setLength
+    [{ type: 'tubecoupler' }, { length: 0.05 }],
+    // Parachute.setLineLength with lines
+    [{ type: 'parachute', lineCount: 6 }, { lineLength: 0.5 }],
+    // Streamer.setStripWidth
+    [{ type: 'streamer' }, { stripWidth: 0.06 }],
+  ])('drops it on %o edited with %o', (node, patch) => {
+    expect(kept(node, patch)).toBe(false);
+  });
+
+  it.each([
+    // RecoveryDevice deployment and MassObject packed size
+    [{ type: 'parachute' }, { deployEvent: 'altitude' }],
+    [{ type: 'parachute' }, { deployAltitude: 150 }],
+    [{ type: 'parachute' }, { deployDelay: 1 }],
+    [{ type: 'parachute' }, { length: 0.05 }],
+    [{ type: 'parachute' }, { radius: 0.01 }],
+    // Parachute.setLineLength on a chute with no lines
+    [{ type: 'parachute', lineCount: 0 }, { lineLength: 0.5 }],
+    // NoseCone.setFlipped, Transition.setClipped, the shoulder lengths
+    [{ type: 'nosecone' }, { flipped: true }],
+    [{ type: 'transition' }, { clipped: false }],
+    [{ type: 'transition' }, { foreShoulderLength: 0.02 }],
+    // BodyComponent.setLength, LaunchLug.setLength
+    [{ type: 'bodytube' }, { length: 0.3 }],
+    [{ type: 'launchlug' }, { length: 0.03 }],
+    // Streamer.setStripLength
+    [{ type: 'streamer' }, { stripLength: 0.5 }],
+  ])('keeps it on %o edited with %o', (node, patch) => {
+    expect(kept(node, patch)).toBe(true);
   });
 });

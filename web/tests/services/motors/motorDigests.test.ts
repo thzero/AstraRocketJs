@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, it, expect, vi } from 'vitest';
-import { catalogDigest, type CatalogMotor } from '../../../src/services/motors/motorDb';
+import { catalogDigest, loadCatalog, type CatalogMotor } from '../../../src/services/motors/motorDb';
 import { buildExportMotorMap, fillMotorDigests } from '../../../src/services/motors/exportMotors';
 import { newFlightConfig, type MountMotor } from '../../../src/services/flight/flightConfigs';
 import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services/files/orkFile';
@@ -127,6 +127,16 @@ describe('a saved .ork names which motor it means', () => {
   const exported = async (delay = 5) =>
     xmlFor(await fillMotorDigests(buildExportMotorMap(tree, newFlightConfig({ body: seated(delay) }))));
 
+  /**
+   * `MotorHandler` passes `<type>` to `ThrustCurveMotorSetDatabase.findMotors`,
+   * which drops every motor of another type, so a reload or hybrid motor written
+   * as `single` is found under no type when there is no digest to find it by.
+   * With no `<type>` the type is null and filters nothing.
+   */
+  it('writes no motor type for the desktop to filter by', async () => {
+    expect(xmlFor(buildExportMotorMap(tree, newFlightConfig({ body: seated(5) })))).not.toContain('<type>');
+  });
+
   it('writes the digest into the <motor> block, where the desktop reads it', async () => {
     const digest = catalogDigest(row('Estes', 'C6'), 5)!;
     const xml = await exported(5);
@@ -220,6 +230,33 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
     const digest = motors.body!.digest!;
     expect(digest).not.toBe(catalogDigest(row('Estes', 'C6'), 5));
     expect(rseDigest(new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!))).toBe(digest);
+  });
+
+  /**
+   * `loadCatalog` puts the user's imported motors first, and an imported motor
+   * matches its own row there, which carries no digest. Matched against that,
+   * it went out with neither a digest nor its curve.
+   */
+  describe('with the motor also in the imported list', () => {
+    const imported = (m: Partial<CatalogMotor>): CatalogMotor =>
+      ({ designation: 'ZZ9', manufacturer: 'Nobody', diameter: 18, custom: true, ...m }) as CatalogMotor;
+
+    it('still embeds the curve of a motor only the user has', async () => {
+      vi.mocked(loadCatalog).mockResolvedValueOnce([imported({}), ...CATALOG]);
+      const { motors, zip } = await save(curve);
+      const digest = motors.body!.digest!;
+      expect(digest).toBeDefined();
+      expect(rseDigest(new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!))).toBe(digest);
+    });
+
+    it('still writes the catalog digest for a motor the catalog has', async () => {
+      vi.mocked(loadCatalog).mockResolvedValueOnce([
+        imported({ designation: 'C6', manufacturer: 'Estes' }),
+        ...CATALOG,
+      ]);
+      const { motors } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes' });
+      expect(motors.body!.digest).toBe(catalogDigest(row('Estes', 'C6'), 5));
+    });
   });
 
   it('is found by our own importer under that digest', async () => {

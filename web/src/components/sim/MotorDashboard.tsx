@@ -139,6 +139,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
               onChange={(e) => setText(e.target.value)}
               autoFocus
               placeholder={t('motorDlg.searchCode')}
+              aria-label={t('motorDlg.searchCode')}
               className="min-w-[140px] flex-1 rounded-lg bg-canvas px-3 py-1.5 text-sm text-ink-strong ring-1 ring-line/10 placeholder:text-ink-faint focus:outline-none focus:ring-accent-500"
             />
             <ManufacturerMenu manufacturers={manufacturers} mfrs={mfrs} onChange={setMfrs} align="right" />
@@ -185,7 +186,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
                 onClick={() => setMode('detail')}
                 className="rounded-lg bg-raised px-3 py-1 text-xs font-medium text-ink hover:bg-elevated"
               >
-                ← {t('dash.back')}
+                <span aria-hidden="true">←</span> {t('dash.back')}
               </button>
               <ToggleButton
                 active={effMode === 'compare'}
@@ -220,7 +221,7 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
                 <div className="space-y-2 text-left">
                   <button
                     onClick={() => setMode('compare')}
-                    className="w-full rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-on-accent hover:bg-accent-500"
+                    className="w-full rounded-lg bg-accent-600 px-3 py-2 text-sm font-medium text-on-accent hover:bg-accent-700"
                   >
                     {t('dash.compareN', { n: checked.size })}
                   </button>

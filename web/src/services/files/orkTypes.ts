@@ -4,6 +4,24 @@ import { type MotorSpec, type RocketTree } from '../../engine/openRocketEngine';
 import { type LaunchConditions } from '../design/orkTree';
 import type { EmbeddedMotorFile } from './ork/embeddedMotors';
 import type { ImportNote } from './importNote';
+import type { SimPrefs } from '../flight/simulations';
+import type { ComponentFigures } from './rktExport';
+
+/**
+ * The simulation preferences a `.ork` states in every simulation's
+ * `<conditions>`: the ones a run flies under that the desktop also holds per
+ * simulation.
+ */
+export type OrkSimPrefs = Pick<
+  SimPrefs,
+  | 'timeStep'
+  | 'maxTime'
+  | 'randomSeed'
+  | 'deploymentSpeedWarn'
+  | 'mainHighSpeedWarn'
+  | 'mainLowSpeedWarn'
+  | 'drogueLowSpeedWarn'
+>;
 
 export interface OrkMotorRef {
   designation: string;
@@ -21,10 +39,10 @@ export interface OrkMotorRef {
   ignitionDelay?: number;
 }
 
-export interface OrkTreeImportResult {
+interface OrkTreeImportResult {
   name: string;
   tree: RocketTree;
-  /** First motor found (legacy callers). */
+  /** First motor found. */
   motor?: OrkMotorRef;
   /** Every mount's motor, keyed by the mount's editor node id. */
   motors: Record<string, OrkMotorRef>;
@@ -175,7 +193,7 @@ export interface DesignInfo {
 }
 
 /** One flight configuration to write, with its stable id from import. */
-export interface OrkExportConfig {
+interface OrkExportConfig {
   id: string;
   /** Written as <name> only when non-null (desktop writes renamed configs only). */
   name: string | null;
@@ -212,6 +230,8 @@ export interface OrkExportSimulation {
   status: 'uptodate' | 'outdated' | 'notsimulated';
   /** Simulation children carried from the file this design was opened from (desktop extensions and the like). */
   xmlExtra?: string[];
+  /** The run settings this simulation flies with, its own overrides over the globals. Absent, the export's own. */
+  prefs?: OrkSimPrefs;
 }
 
 export interface OrkTreeExportInput {
@@ -234,6 +254,18 @@ export interface OrkTreeExportInput {
    * its result. Takes precedence over `launch`.
    */
   simulations?: OrkExportSimulation[];
+  /**
+   * The simulation preferences the runs used, written into every simulation's
+   * conditions so a result saved as up to date carries the step and limits
+   * that reproduce it. Absent, the desktop's own defaults are written.
+   */
+  simPrefs?: OrkSimPrefs;
   /** Derived statistics block; emitted only when the caller opts in (preference). */
   designInfo?: DesignInfo;
+  /**
+   * The kernel's figures for a part, by node id, for the values it works out
+   * itself (an automatic line or cord length), which desktop cannot read as
+   * `auto`.
+   */
+  componentInfo?: ComponentFigures;
 }

@@ -161,7 +161,7 @@ const DESKTOP_ORK = `<?xml version='1.0' encoding='utf-8'?>
           <direction>0.7853981633974483</direction>
           <standarddeviation>0.3</standarddeviation>
         </wind>
-        <wind model="multilevel" altituderef="AGL">
+        <wind model="multilevel" altituderef="agl">
           <windlevel altitude="0.0" speed="3.0" direction="0.7853981633974483" standarddeviation="0.3"/>
           <windlevel altitude="500.0" speed="7.0" direction="1.5707963267948966" standarddeviation="1.4"/>
         </wind>
@@ -209,6 +209,25 @@ describe('a desktop-authored .ork', () => {
     expect(res.launch?.windLevels?.[1]?.directionDeg).toBeCloseTo(90, 10);
   });
 
+  it('reads an upper-case reference too', () => {
+    const old = importOrk(DESKTOP_ORK.replace('altituderef="agl"', 'altituderef="AGL"'));
+    expect(old.launch?.windAltitudeReference).toBe('agl');
+  });
+
+  it('writes the reference in the lower case DocumentConfig.findEnum matches', () => {
+    for (const ref of ['msl', 'agl'] as const) {
+      const xml = exportOrk({
+        name: res.name,
+        tree: res.tree,
+        launch: { ...res.launch, windAltitudeReference: ref } as never,
+        configs: res.configs,
+        activeConfigId: res.chosenConfigId,
+      });
+      expect(xml).toContain(`altituderef="${ref}"`);
+      expect(xml).not.toMatch(/altituderef="[A-Z]/);
+    }
+  });
+
   it('reads the launch fields the desktop wrote', () => {
     expect(res.launch?.launchIntoWind).toBe(false);
     expect(res.launch?.launchRodDirectionDeg).toBe(45);
@@ -245,7 +264,7 @@ describe('a desktop-authored .ork', () => {
       configs: res.configs,
       activeConfigId: res.chosenConfigId,
     });
-    expect(xml).toContain('<wind model="multilevel" altituderef="AGL">');
+    expect(xml).toContain('<wind model="multilevel" altituderef="agl">');
     expect(xml).toContain('<launchintowind>false</launchintowind>');
     expect(xml).toContain('<launchroddirection>45</launchroddirection>');
     expect(xml).toContain('<launchlongitude>12.34</launchlongitude>');

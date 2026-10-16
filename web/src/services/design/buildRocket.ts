@@ -4,13 +4,15 @@ import { configuredTree, liveMotors, seatedMotorsKey, stageFlies, type FlightCon
 import { findStages } from './treeEdit';
 import { badDimensions, type BadDimension } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
-import { errorMessage } from '../app/errorMessage';
+import { errorReason, type Keyed } from '../../i18n/keyedError';
 
 /**
  * A key over every configuration input that can change the static info.
  *
- * `buildConfiguredRocket` reads three things off the configuration: the motors,
- * their ignition (both in `seatedMotorsKey`) and the grounded stages. Without
+ * `buildConfiguredRocket` reads three things off the configuration: the motors
+ * (in `seatedMotorsKey`), their ignition and the grounded stages. Ignition is
+ * left out on purpose, since it moves no static figure (see `seatedMotorsKey`).
+ * Without
  * `grounded` in the key, grounding a booster would leave `info` describing the
  * whole stack while the worker flies the sustainer alone, and the mass, CG, CP
  * and caliber readouts would describe a different rocket from the flight.
@@ -72,15 +74,18 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
 /**
  * Static info + the live handle it was read from, or a build/read failure.
  *
- * A failure carries the engine's own message and, where the design explains
- * itself, the dimensions that are zero. The engine's message does not name a
+ * A failure carries the engine's own message (as its key and values when it is
+ * keyed, so the banner can show it in the app's language) and, where the
+ * design explains itself, the dimensions that are zero. The engine's message
+ * does not name a
  * part: a tube fin set with a zero length divides by its own chord for the
  * aspect ratio (`TubeFinSetCalc`), and what reaches the banner is "The number
  * NaN cannot be converted to a BigInt", which tells nobody which part to go and
  * fix. The app already knows (`badDimensions`), and the Run button already says
  * so in those words, so the banner says the same thing.
  */
-export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | { error: string; bad?: BadDimension[] };
+export type StaticInfoResult =
+  { info: StaticInfo; rocket: OpenRocketDesign } | { error: string | Keyed; bad?: BadDimension[] };
 
 /**
  * Build the configured rocket and read its static info (CG / CP / stability),
@@ -88,7 +93,7 @@ export type StaticInfoResult = { info: StaticInfo; rocket: OpenRocketDesign } | 
  * from the static JSON) via a best-effort single-point drag sweep. This is the
  * pure core of the rebuild effect (useWorkspaceEffects), lifted out so the app's
  * central physics orchestration is testable and reusable: it returns the static
- * info plus the live engine handle, or an `error` message if the build/read
+ * info plus the live engine handle, or an `error` reason if the build/read
  * throws. The `build` step is injectable so tests need no real engine.
  */
 export function computeStaticInfo(
@@ -108,6 +113,6 @@ export function computeStaticInfo(
     return { info, rocket };
   } catch (e) {
     const bad = badDimensions(tree);
-    return { error: errorMessage(e), ...(bad.length ? { bad } : {}) };
+    return { error: errorReason(e), ...(bad.length ? { bad } : {}) };
   }
 }

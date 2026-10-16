@@ -27,7 +27,7 @@ import java.util.List;
  * than the motor as a product. Our curves come from thrustcurve.org and theirs
  * from a database serialized at their release; equal motors, not always equal
  * samples. A digest we computed ourselves would therefore name no entry at all,
- * which is the failure being fixed, and a digest that matches nothing is worse
+ * and a digest that matches nothing is worse
  * than none: with one candidate the desktop then reports the motor as CHANGED
  * rather than resolving it.
  *

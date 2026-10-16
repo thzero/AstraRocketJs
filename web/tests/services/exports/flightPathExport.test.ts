@@ -316,7 +316,7 @@ describe('stage track start', () => {
 
   it("scans a booster's peak speed from separation, not from the pad", () => {
     // The stack's 50 m/s peak happens at t=1. A booster released at t=1 should
-    // report the fastest thing it did afterwards, not the stack's maximum.
+    // report the fastest thing it did afterward, not the stack's maximum.
     const slowAfter = {
       ...result,
       series: { ...result.series, velocity: [0, 50, 10] },
@@ -477,8 +477,24 @@ describe('stage colors', () => {
     // The picker keys its swatches by index, so a disagreement here would paint
     // a stage the color of the one beside it.
     const meta = { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' };
-    expect(exportBranchNames(staged, meta)).toEqual(build(staged).branches.map((b) => b.name));
-    expect(exportBranchNames(result, meta)).toEqual(['My <Rocket>']);
+    expect(exportBranchNames(staged, meta, label)).toEqual(build(staged).branches.map((b) => b.name));
+    expect(exportBranchNames(result, meta, label)).toEqual(['My <Rocket>']);
+  });
+
+  it('names an unnamed stage as every view does, and an unnamed flight in the export language', () => {
+    const unnamed = {
+      ...staged,
+      branches: [staged.branches![0]!, { ...staged.branches![1]!, name: '  ' }],
+    } as unknown as FlightResult;
+    const meta = { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' };
+    expect(exportBranchNames(unnamed, meta, label)).toEqual(['Sustainer', 'Stage 2']);
+    const kml = renderKml(build(unnamed));
+    expect(kml).toContain('<name>Stage 2</name>');
+    expect(kml).not.toContain('<name></name>');
+    const es_ = localeTranslator(es);
+    expect(exportBranchNames(result, { simName: '', rocketName: '', motorName: '' }, es_)).toEqual([
+      es.pathExport.doc.flight,
+    ]);
   });
 });
 
@@ -520,7 +536,7 @@ describe('buildFlightPathModel', () => {
     expect(w.find((x) => x.type === 'maxvelocity')!.timeStr).toBe('1.00');
   });
 
-  it('honours the waypoint selection', () => {
+  it('honors the waypoint selection', () => {
     const opts = defaultExportOptions();
     opts.waypoints = new Set<WaypointKind>(['apogee']);
     const m = buildFlightPathModel(result, launch, { simName: 'S', rocketName: 'R', motorName: 'C6' }, opts, label);
@@ -981,9 +997,24 @@ describe('export language', () => {
   });
 
   it('orders a distance and a bearing the way the language does', () => {
-    const expected = fill(esDoc.distanceBearing, { distance: '223.6', unit: 'm', bearing: '27' });
+    const expected = fill(esDoc.distanceBearing, { distance: '223.6', unit: 'm', bearing: '27°' });
     expect(spanish()).toContain(expected);
     expect(renderKml(model())).toContain('223.6 m at 27\u00b0');
+  });
+
+  it("writes the bearing in the reader's angle unit", () => {
+    const inRadians = buildFlightPathModel(
+      result,
+      launch,
+      { simName: 'Sim 1', rocketName: 'My <Rocket>', motorName: 'C6' },
+      defaultExportOptions(),
+      label,
+      'rad',
+    );
+    // atan2(100, 200) is 26.57 degrees, 0.4636 rad.
+    const kml = renderKml(inRadians);
+    expect(kml).toContain('223.6 m at 0.46 rad');
+    expect(kml).not.toContain('223.6 m at 27');
   });
 
   it('leaves the numbers and the geometry alone', () => {
@@ -1161,11 +1192,42 @@ describe('renderWaypointCsv', () => {
 });
 
 describe('escaping', () => {
-  it('XML-escapes text fields in KML/GPX', () => {
+  it('XML-escapes text fields in KML, and leaves angle brackets out of them', () => {
     const m = model(); // rocketName "My <Rocket>", but title is simName
     m.branches[0]!.name = 'A & B <c>';
     const kml = renderKml(m);
-    expect(kml).toContain('<name>A &amp; B &lt;c&gt;</name>');
+    expect(kml).toContain('<name>A &amp; B c</name>');
+  });
+
+  /**
+   * A KML viewer can set a feature's name into HTML (Google Earth's default
+   * balloon places `<name>` there), and markup needs a `<`. So no value the
+   * KML carries may decode to one outside the balloons' own escaped HTML.
+   */
+  it('gives no name in KML a way to become markup', () => {
+    const m = model();
+    const payload = '<img src=x onerror=alert(1)>';
+    m.title = payload;
+    m.rocketName = payload;
+    m.branches[0]!.name = payload;
+    // An element's text as a viewer reads it after decoding the file once.
+    // Escaped text holds no raw `<`, so it ends at the first one.
+    const decoded = (tag: string) =>
+      [...renderKml(m).matchAll(new RegExp(`<${tag}>([^<]*)</${tag}>`, 'g'))].map((x) =>
+        x[1]!
+          .replace(/&lt;/g, '<')
+          .replace(/&gt;/g, '>')
+          .replace(/&quot;/g, '"')
+          .replace(/&apos;/g, "'")
+          .replace(/&amp;/g, '&'),
+      );
+    const names = decoded('name');
+    expect(names.length).toBeGreaterThan(0);
+    for (const n of names) expect(n).not.toMatch(/[<>]/);
+    // In a balloon the same name is text: it decodes once to escaped HTML.
+    const descriptions = decoded('description');
+    expect(descriptions.length).toBeGreaterThan(0);
+    for (const d of descriptions) expect(d).not.toContain('<img');
   });
   it('CSV-escapes embedded quotes by doubling', () => {
     const m = model();
@@ -1200,7 +1262,7 @@ describe('renderUserTemplate (Mustache)', () => {
   it('escapes by extension: XML for kml, doubled quotes for csv, none for txt', () => {
     const m = model();
     m.title = 'A & B "<c>"';
-    expect(renderUserTemplate('{{title}}', 'kml', m)).toBe('A &amp; B &quot;&lt;c&gt;&quot;');
+    expect(renderUserTemplate('{{title}}', 'kml', m)).toBe('A &amp; B &quot;c&quot;');
     expect(renderUserTemplate('{{title}}', 'csv', m)).toBe('A & B ""<c>""');
     expect(renderUserTemplate('{{title}}', 'txt', m)).toBe('A & B "<c>"');
   });
@@ -1209,7 +1271,7 @@ describe('renderUserTemplate (Mustache)', () => {
     const m = model();
     m.title = '<x>';
     renderUserTemplate('{{title}}', 'kml', m); // XML escaper during this call
-    expect(renderUserTemplate('{{title}}', 'txt', m)).toBe('<x>'); // txt unaffected afterwards
+    expect(renderUserTemplate('{{title}}', 'txt', m)).toBe('<x>'); // txt unaffected afterward
   });
 });
 

@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from 'react';
 
 const VARIANT = {
-  primary: 'bg-accent-600 text-on-accent hover:bg-accent-500',
+  primary: 'bg-accent-600 text-on-accent hover:bg-accent-700',
   secondary: 'bg-raised text-ink ring-1 ring-line/10 hover:bg-elevated',
   danger: 'bg-danger-600 text-on-accent hover:bg-danger-500',
 } as const;

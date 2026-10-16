@@ -6,6 +6,7 @@
   "author": "thZero.com",
   "license": "GPL-3.0",
   "scripts": {
+    "audit": "node audit.mjs",
     "build": "node build-engine.mjs",
     "build:js": "node build-engine.mjs --js",
     "build:wasm": "node build-engine.mjs --wasm",

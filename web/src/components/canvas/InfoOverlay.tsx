@@ -17,7 +17,7 @@ export function InfoOverlay({ info }: { info: StaticInfo | null }) {
   const cal = info.stabilityCalibers;
   // A margin the kernel could not compute has no band: neutral and no glyph.
   const state = stabilityState(cal);
-  // Margin as a fraction of overall length: the same figure the stat tiles and
+  // Margin as a percentage of the aerodynamic length: the same figure the stat tiles and
   // the CP callout carry, so the quick-glance card isn't missing a data item.
   // The engine's own figure, not ours: see StaticInfo.stabilityPercent.
   const pct = info.stabilityPercent;

@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { NO_VALUE } from '../../src/i18n/noValue';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { useUnits, type Units } from '../../src/prefs/useUnits';
 import { unitScope } from '../../src/prefs/units';
@@ -69,8 +70,8 @@ describe('useUnits', () => {
   it('shows an em dash rather than a confident zero for an absent value', () => {
     // The kernel emits null for NaN/Infinity and `null / toSI` is 0, which
     // would print a missing apogee as 0.
-    expect(value((u) => u.fmt('distance', NaN))).toBe('—');
-    expect(value((u) => u.at(SCOPE, 'length').fmt(Number.POSITIVE_INFINITY))).toBe('—');
+    expect(value((u) => u.fmt('distance', NaN))).toBe(NO_VALUE);
+    expect(value((u) => u.at(SCOPE, 'length').fmt(Number.POSITIVE_INFINITY))).toBe(NO_VALUE);
   });
 });
 

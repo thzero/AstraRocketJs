@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import {
   forgetLandingEstimator,
@@ -10,7 +10,20 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport } from '../../../src/services/weather/openMeteo';
 
+/** The site each landing map was drawn over, newest last. */
+const mapSites = vi.hoisted(() => [] as { lat: number; lon: number }[]);
+vi.mock('../../../src/components/tools/LandingMap', async (importOriginal) => {
+  const real = await importOriginal<typeof import('../../../src/components/tools/LandingMap')>();
+  return {
+    LandingMap: (p: Parameters<typeof real.LandingMap>[0]) => {
+      mapSites.push({ lat: p.latitudeDeg, lon: p.longitudeDeg });
+      return real.LandingMap(p);
+    },
+  };
+});
+
 beforeEach(() => {
+  mapSites.length = 0;
   resetWeatherState();
   forgetLandingEstimator();
   setWeatherTransport(((url: string) => {
@@ -61,6 +74,68 @@ describe('LandingEstimator', () => {
       screen.getByText(/^An estimate from typed descent rates\. The zone covers 135 descents: 5 forecast hours/),
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'CC BY 4.0' })).toBeTruthy();
+  });
+});
+
+const OUTDATED = /have changed since this estimate/;
+
+/**
+ * The result belongs to the inputs it was computed from. The map stays over the
+ * site the drift was computed for, and the result says so once the form no
+ * longer matches it.
+ */
+describe('a result after its inputs change', () => {
+  const estimate = async () => {
+    fireEvent.click(screen.getByRole('button', { name: 'Estimate landing' }));
+    await screen.findByText('Lands at');
+  };
+
+  it('stays drawn over the site it was computed for, and says the site moved', async () => {
+    renderWithProviders(<LandingEstimator />);
+    await estimate();
+    const at = mapSites.at(-1)!;
+    expect(screen.queryByText(OUTDATED)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Latitude'), { target: { value: String(at.lat + 1) } });
+
+    expect(mapSites.at(-1)).toEqual(at);
+    expect(screen.getByText(OUTDATED)).toBeTruthy();
+  });
+
+  it('keeps a real site under the map when a coordinate is cleared', async () => {
+    renderWithProviders(<LandingEstimator />);
+    await estimate();
+    const at = mapSites.at(-1)!;
+
+    fireEvent.change(screen.getByLabelText('Longitude'), { target: { value: '' } });
+
+    expect(mapSites.at(-1)).toEqual(at);
+    expect(Number.isFinite(mapSites.at(-1)!.lon)).toBe(true);
+    expect(screen.getByText(OUTDATED)).toBeTruthy();
+  });
+
+  it('says so when the apogee or a descent rate changes, and not when it is put back', async () => {
+    renderWithProviders(<LandingEstimator />);
+    await estimate();
+    const apogee = screen.getByLabelText('Apogee above the pad');
+
+    fireEvent.change(apogee, { target: { value: '400' } });
+    expect(screen.getByText(OUTDATED)).toBeTruthy();
+    fireEvent.change(apogee, { target: { value: '300' } });
+    expect(screen.queryByText(OUTDATED)).toBeNull();
+
+    fireEvent.change(screen.getByLabelText('Descent rate'), { target: { value: '7' } });
+    expect(screen.getByText(OUTDATED)).toBeTruthy();
+  });
+
+  it('clears the mark when estimated again', async () => {
+    renderWithProviders(<LandingEstimator />);
+    await estimate();
+    fireEvent.change(screen.getByLabelText('Descent rate'), { target: { value: '7' } });
+    expect(screen.getByText(OUTDATED)).toBeTruthy();
+
+    await estimate();
+    expect(screen.queryByText(OUTDATED)).toBeNull();
   });
 });
 

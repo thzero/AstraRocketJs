@@ -21,6 +21,9 @@
  * independent designs.
  */
 
+import { fetchFailure, HttpError } from '../app/remoteData';
+import { KeyedError } from '../../i18n/keyedError';
+
 /** One entry of `examples.generated.json`. */
 export interface ExampleMeta {
   /** Slug of the upstream filename; the id used in the UI and the file's stem. */
@@ -49,17 +52,29 @@ const BASE = `${import.meta.env.BASE_URL}examples/`;
 /** Read once per session: the index is a few kB and never changes at runtime. */
 let cached: Promise<ExampleMeta[]> | undefined;
 
+/** One file under {@link BASE}; a failure rejects with a keyed reason, never the browser's English. */
 async function get(path: string): Promise<Response> {
-  const res = await fetch(`${BASE}${path}`);
-  if (!res.ok) throw new Error(`${path}: ${res.status} ${res.statusText}`);
+  let res: Response;
+  try {
+    res = await fetch(`${BASE}${path}`);
+  } catch (e) {
+    throw fetchFailure(e, false);
+  }
+  if (!res.ok) throw new HttpError(res.status);
   return res;
 }
 
 /** The bundled examples, read once per session. Rejects if absent. */
 export function loadExampleIndex(): Promise<ExampleMeta[]> {
   cached ??= (async () => {
-    const index = (await (await get('examples.generated.json')).json()) as ExampleIndex;
-    if (!Array.isArray(index?.examples)) throw new Error('examples.generated.json has no examples');
+    const res = await get('examples.generated.json');
+    let index: ExampleIndex;
+    try {
+      index = (await res.json()) as ExampleIndex;
+    } catch (e) {
+      throw fetchFailure(e, false);
+    }
+    if (!Array.isArray(index?.examples)) throw new KeyedError('errors.remote.noExamples');
     return index.examples;
   })().catch((e) => {
     // Do not cache a failure: a transient miss (a service worker mid-update, a
@@ -73,5 +88,10 @@ export function loadExampleIndex(): Promise<ExampleMeta[]> {
 
 /** One example's raw `.ork` bytes, ready for the normal import path. */
 export async function fetchExample(file: string): Promise<ArrayBuffer> {
-  return (await get(file)).arrayBuffer();
+  const res = await get(file);
+  try {
+    return await res.arrayBuffer();
+  } catch (e) {
+    throw fetchFailure(e, false);
+  }
 }

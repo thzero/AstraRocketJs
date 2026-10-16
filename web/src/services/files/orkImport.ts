@@ -1,3 +1,5 @@
+import { fmtList } from '../../i18n/format';
+import i18n from '../../i18n';
 import { xmlText as text } from './xmlUtil';
 import { syncAutoRadii } from '../design/autoRadius';
 import { findStages } from '../design/treeEdit';
@@ -10,6 +12,7 @@ import { readLaunchConditions } from './ork/importLaunch';
 import { readSimulations } from './ork/importSimulations';
 import { configNotes, ignoredNotes, modelingNotes } from './ork/importNotes';
 import { keyedNote, type ImportNote } from './importNote';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * .ork import: unpack and parse the file, pick the flight configuration to
@@ -21,9 +24,11 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const archive = unpackOrk(data);
   const doc = parseOrkXml(archive.xml);
   const rocketEl = doc.querySelector('openrocket > rocket');
-  if (!rocketEl) throw new Error('Not a .ork file (missing <rocket>)');
+  if (!rocketEl) throw new KeyedError('errors.file.notOrk');
 
-  const name = text(rocketEl, ':scope > name') ?? 'Imported rocket';
+  // A file that names no rocket opens under the app's name for an unnamed one,
+  // in the UI language.
+  const name = text(rocketEl, ':scope > name') ?? i18n.t('library.untitled');
   // Design-level metadata (OpenRocket's Rocket configuration), preserved so a
   // round-trip export doesn't drop the designer / comments / revision.
   const designer = text(rocketEl, ':scope > designer') ?? undefined;
@@ -49,7 +54,7 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   const docEl = doc.querySelector('openrocket');
   const docExtra = docEl ? readPassthrough(docEl, KNOWN_DOCUMENT_TAGS) : undefined;
   const stages = Array.from(rocketEl.querySelectorAll(':scope > subcomponents > stage'));
-  if (stages.length === 0) throw new Error('No stage found');
+  if (stages.length === 0) throw new KeyedError('errors.file.noStage');
 
   const { configEls, configs, chosenConfigId } = readFlightConfigs(rocketEl);
   const ctx: OrkImportContext = {
@@ -62,13 +67,17 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
     nodeCount: 0,
   };
 
+  // Read first: it refuses a file with more simulations than the cap before
+  // any other pass walks them.
+  const simulations = readSimulations(doc);
+
   // A file spells an automatic diameter as `auto`, which the readers turn into
   // a flag. Resolve it here rather than waiting for the first edit: everything
   // downstream of an import (the drawing, the mesh, the exports) reads a
   // plain radius, and an unresolved one would draw at a default nobody chose.
   const components = syncAutoRadii({ name, components: readStages(ctx, stages) }).components;
   if (components.every((s) => (s.children ?? []).length === 0)) {
-    throw new Error('No supported components found in this design.');
+    throw new KeyedError('errors.file.noComponents');
   }
   // Stage activeness, once the tree exists: the file addresses a stage by
   // number and the configurations address it by node id.
@@ -85,7 +94,6 @@ export function importOrk(data: ArrayBuffer | string): OrkImportResult {
   notes.push(...archiveNotes(doc, archive.dropped));
 
   const launch = readLaunchConditions(doc);
-  const simulations = readSimulations(doc);
 
   return {
     name,
@@ -149,6 +157,39 @@ function versionNotes(doc: Document): ImportNote[] {
 }
 
 /**
+ * Desktop's names for the simulation extensions it ships, by class name: each
+ * class's `getName()` (core/simulation/extension/example and impl). Air-start,
+ * Java code and scripting names are translated there, so they are keys here;
+ * the rest are English in desktop whatever its language. CSVSave has none of its
+ * own, so desktop shows its class name, as this does for any id not listed here.
+ */
+const EXTENSION_NAMES: Readonly<Record<string, string | { key: string }>> = {
+  AirStart: { key: 'importNote.extensionName.airStart' },
+  RollControl: 'Roll Control',
+  StopSimulation: 'Stop Simulation',
+  PrintSimulation: 'Print Simulation Values',
+  DampingMoment: 'Damping moment coefficient (Cdm) (built-in)',
+  JavaCode: { key: 'importNote.extensionName.javaCode' },
+  ScriptingExtension: { key: 'importNote.extensionName.script' },
+};
+
+/**
+ * An extension's name as desktop shows it, from its id's last segment. A
+ * script names its language, from the extension's `language` entry, with
+ * desktop's default when the file gives none.
+ */
+function extensionName(id: string, el: Element): string {
+  const cls = id.trim().split('.').pop() || 'unnamed';
+  // Own keys only: the id comes from the file, and "constructor" must not read Object.prototype.
+  const name = Object.hasOwn(EXTENSION_NAMES, cls) ? EXTENSION_NAMES[cls]! : cls;
+  if (typeof name === 'string') return name;
+  const language =
+    [...el.querySelectorAll(':scope > entry')].find((e) => e.getAttribute('key') === 'language')?.textContent?.trim() ||
+    'JavaScript';
+  return i18n.t(name.key, { language });
+}
+
+/**
  * What the file carried that this app does not use, said out loud.
  *
  * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
@@ -174,19 +215,14 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
     ),
   ];
   if (extensions.length) {
-    // The id's last segment is the extension's class name: AirStart, RollControl.
     const names = [
-      ...new Set(
-        extensions.map(
-          (e) => (e.getAttribute('extensionid') ?? e.textContent ?? '').trim().split('.').pop() || 'unnamed',
-        ),
-      ),
+      ...new Set(extensions.map((e) => extensionName(e.getAttribute('extensionid') ?? e.textContent ?? '', e))),
     ];
-    out.push(keyedNote('importNote.extensions', { names: names.join(', ') }));
+    out.push(keyedNote('importNote.extensions', { names: fmtList(names) }));
   }
   if (dropped.length) {
     out.push(
-      keyedNote('importNote.notRead', { items: `${dropped.slice(0, 6).join(', ')}${dropped.length > 6 ? ', …' : ''}` }),
+      keyedNote('importNote.notRead', { items: `${fmtList(dropped.slice(0, 6))}${dropped.length > 6 ? ' …' : ''}` }),
     );
   }
   // Whole features rather than fields, so they are named: someone who set a
@@ -194,7 +230,7 @@ function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
   // does not discard it either.
   const docLevel = ['photostudio', 'docprefs', 'datatypes'].filter((t) => doc.querySelector(`openrocket > ${t}`));
   if (docLevel.length) {
-    out.push(keyedNote('importNote.noEditor', { items: docLevel.join(', ') }));
+    out.push(keyedNote('importNote.noEditor', { items: fmtList(docLevel) }));
   }
   return out;
 }

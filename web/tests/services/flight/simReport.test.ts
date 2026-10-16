@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest';
 import {
   stabilityState,
   stabilityTone,
+  railVerdictKey,
   stabilityVerdictKey,
   stabilityToneOf,
   EVENT_LABEL,
@@ -103,5 +104,22 @@ describe('clusterEventLabels', () => {
       { time: 40, type: 'RECOVERY_DEVICE_DEPLOYMENT' },
     ];
     expect(clusterEventLabels(evts, x)).toHaveLength(2);
+  });
+});
+
+/** The rail-exit margin's color and word come from one set of bands. */
+describe('railVerdictKey', () => {
+  it('names the band its tone colors', () => {
+    const pairs: [number, string, string][] = [
+      [1, 'stability.stable', 'text-ok-400'],
+      [7, 'stability.stable', 'text-ok-400'],
+      [0.99, 'stability.marginal', 'text-warn-400'],
+      [0, 'stability.marginal', 'text-warn-400'],
+      [-0.01, 'stability.unstable', 'text-danger-400'],
+    ];
+    for (const [cal, key, tone] of pairs) {
+      expect(railVerdictKey(cal)).toBe(key);
+      expect(stabilityTone(cal)).toBe(tone);
+    }
   });
 });

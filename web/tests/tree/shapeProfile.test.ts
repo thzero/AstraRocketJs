@@ -8,6 +8,7 @@ import {
   outerProfile,
   nodeShape,
   stationRadius,
+  profileEnds,
 } from '../../src/tree/shapeProfile';
 import { KERNEL_SHAPES } from '../../src/tree/kernelDefaults';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
@@ -188,7 +189,7 @@ describe('calculateClip (via the clipped profile)', () => {
     for (let i = 1; i < pts.length; i++) expect(pts[i]![1]).toBeGreaterThanOrEqual(pts[i - 1]![1]);
   });
 
-  it('a nose cone (foreR 0) is never clipped — clipLength is 0 by definition', () => {
+  it('a nose cone (foreR 0) is never clipped: clipLength is 0 by definition', () => {
     // r1 == 0 short-circuits the search: the profile is the shape itself.
     for (const shape of CLIPPABLE) {
       const p = shapeParamDefault(shape);
@@ -269,5 +270,25 @@ describe('a node with no shape key', () => {
   it('gives a keyless nose cone the radius of an ogive at a station', () => {
     expect(stationRadius(nose(), 0.05)).toBeCloseTo(stationRadius(nose('ogive'), 0.05), 12);
     expect(stationRadius(nose(), 0.05)).not.toBeCloseTo(stationRadius(nose('conical'), 0.05), 6);
+  });
+});
+
+describe('stationRadius on a part with no length on record', () => {
+  it('reads the profile at the length the bridge builds it at', () => {
+    // ComponentFactory builds a keyless transition at `dbl(node, "length", 0.05)`.
+    // A conical transition is r1 + (r2 - r1) x / L.
+    const t = { type: 'transition', shape: 'conical', foreRadius: 0.02, aftRadius: 0.03 } as unknown as ComponentNode;
+    expect(stationRadius(t, 0)).toBeCloseTo(0.02, 12);
+    expect(stationRadius(t, 0.0125)).toBeCloseTo(0.02 + (0.01 * 0.0125) / 0.05, 12);
+  });
+});
+
+describe('profileEnds for a transition with no radius on record', () => {
+  it('reads each missing end as SymmetricComponent.DEFAULT_RADIUS, 0.025 m', () => {
+    expect(profileEnds({ type: 'transition' } as unknown as ComponentNode)).toEqual({ fore: 0.025, aft: 0.025 });
+    expect(profileEnds({ type: 'transition', foreRadius: 0.01 } as unknown as ComponentNode)).toEqual({
+      fore: 0.01,
+      aft: 0.025,
+    });
   });
 });

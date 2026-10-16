@@ -4,9 +4,11 @@ import { KERNEL_DEFAULTS } from './kernelDefaults';
 import { countOf, numOpt } from './nodeProps';
 
 /**
- * Tube-fin tube radius (m). When the set carries no explicit outerRadius the
- * kernel's "auto" rule applies: N tubes just touching each other around the
- * body: r = R·sin(π/N) / (1 − sin(π/N)) (TubeFinSet.getOuterRadius).
+ * Tube-fin tube radius (m). When the set carries no outerRadius the kernel's
+ * "auto" rule applies: N tubes just touching each other around the body:
+ * r = R·sin(π/N) / (1 − sin(π/N)) (TubeFinSet.getOuterRadius). A stored radius
+ * is what the bridge passes to `TubeFinSet.setOuterRadius`, which keeps
+ * `max(r, 0)` and turns the automatic size off, so a stored zero is a zero.
  */
 export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
   // `numOpt`, not a hand-rolled typeof check: it carries the Number.isFinite
@@ -14,7 +16,7 @@ export function tubeFinRadius(node: ComponentNode, bodyRadius: number): number {
   // Infinity through, which propagates to the schematic's scale and collapses the
   // whole drawing to nothing, where the auto radius still draws something.
   const explicit = numOpt(node, 'outerRadius');
-  if (explicit !== undefined && explicit > 0) return explicit;
+  if (explicit !== undefined) return Math.max(explicit, 0);
   // The kernel's default tube-fin count (ComponentFactory, case "tubefinset"),
   // read from the shared defaults table so it cannot drift from the kernel.
   const n = countOf(node, 'finCount', KERNEL_DEFAULTS.tubefinset.finCount);

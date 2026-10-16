@@ -54,8 +54,7 @@ export function DesignPropertiesDialog({
       id="designProperties"
       title={title}
       onClose={onCancel}
-      // It renders inside the library's overlay, so it needs the layer above it.
-      // The shell stops the backdrop click bubbling, so it does not dismiss both.
+      // It opens over the library and other dialogs, so it needs the top layer.
       layer="top"
       layout="pad"
       // One field and two buttons. Nothing to widen.

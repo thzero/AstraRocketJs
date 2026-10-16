@@ -1,4 +1,29 @@
 /**
+ * Pure, immutable helpers for editing a component tree (add / update / remove
+ * nodes) plus sensible defaults for new parts. Each op returns a fresh tree so
+ * React state updates cleanly; the caller rebuilds the engine design from it to
+ * recompute the physics. Keeps App/PropertyPanel free of tree-walking bookkeeping.
+ */
+import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
+import { defaultStageName } from './orkTree';
+import type { Component, ParachuteComponent } from '../parts/componentDb';
+import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
+import { presetNode } from '../parts/customParts';
+import { KERNEL_DEFAULTS, KERNEL_MATERIALS } from '../../tree/kernelDefaults.js';
+import { COMPONENT_DEFAULTS } from './componentDefaults.js';
+import { isChainType } from '../../tree/componentKinds';
+import { uuid } from '../app/uuid';
+import { KeyedError } from '../../i18n/keyedError';
+// Every mutator here ends by resolving the radii and shoulders that follow a
+// neighbor (syncDerived): this is the one door the tree is edited through, so
+// nothing downstream has to know the feature exists.
+import { shoulderSeed, syncAutoShoulders } from './autoShoulder';
+import { syncAutoRadii } from './autoRadius';
+import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
+import { shapeChange } from '../../tree/shapeProfile';
+import { clampToBounds, RING_BOUNDS } from './linkedDimensions';
+
+/**
  * Both derived-value passes, in the order they depend on each other: an
  * automatic diameter moves a tube's bore, and a shoulder follows that bore.
  *
@@ -7,27 +32,6 @@
  * some unrelated edit happens to fix them.
  */
 export const syncDerived = (tree: RocketTree): RocketTree => syncAutoShoulders(syncAutoRadii(tree));
-
-/**
- * Pure, immutable helpers for editing a component tree (add / update / remove
- * nodes) plus sensible defaults for new parts. Each op returns a fresh tree so
- * React state updates cleanly; the caller rebuilds the engine design from it to
- * recompute the physics. Keeps App/PropertyPanel free of tree-walking bookkeeping.
- */
-import type { ComponentNode, ComponentType, RocketTree } from '../../engine/openRocketEngine';
-import { defaultStageName } from './orkTree';
-import type { Component } from '../parts/componentDb';
-import { DEFAULT_CHUTE_CD } from '../parts/componentFilter';
-import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
-import { isChainType } from '../../tree/componentKinds';
-import { uuid } from '../app/uuid';
-// Every mutator here ends by resolving the radii and shoulders that follow a
-// neighbor (syncDerived): this is the one door the tree is edited through, so
-// nothing downstream has to know the feature exists.
-import { syncAutoShoulders } from './autoShoulder';
-import { syncAutoRadii } from './autoRadius';
-import { FIELDS } from './componentFields';
-import { findNode as findNodeIn, findSiblings, findWithParent, walkNodes } from '../../tree/treeWalk';
 
 /**
  * A unique id for a new node.
@@ -47,29 +51,77 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
   return findNodeIn(tree.components, id);
 }
 
+/** The bulk material, `ExternalComponent.setMaterial` and `StructuralComponent.setMaterial`. */
+const BULK_MATERIAL = ['materialName', 'density'];
+/** The canopy or strip, `RecoveryDevice.setMaterial`. */
+const SURFACE_MATERIAL = ['surfaceMaterialName', 'surfaceDensity'];
+/** `Transition.setLength`, the two `set*Radius` and `set*RadiusAutomatic`, `setShapeType`, `setShapeParameter`; `SymmetricComponent.setThickness` and `setFilled`. */
+const TAPER = ['length', 'shape', 'shapeParameter', 'aftRadius', 'aftRadiusAuto', 'thickness', 'filled'];
+/** `RingComponent.setLength`, `ThicknessRingComponent.setOuterRadius` and `setThickness`. */
+const THICKNESS_RING = ['length', 'outerRadius', 'thickness', ...BULK_MATERIAL];
+
+/**
+ * The node keys whose kernel setter calls `clearPreset()`, per part type that
+ * can come from the catalog. Placement, deployment, packed size, a nose cone's
+ * `flipped`, a transition's `clipped`, the shoulder lengths, walls and caps, a
+ * body tube's or launch lug's length and a streamer's strip length all have
+ * setters that leave the preset in place, so the link survives them.
+ */
+const PRESET_SETTERS: Record<string, ReadonlySet<string>> = {
+  nosecone: new Set([...TAPER, 'shoulderRadius', ...BULK_MATERIAL]),
+  transition: new Set([
+    ...TAPER,
+    'foreRadius',
+    'foreRadiusAuto',
+    'foreShoulderRadius',
+    'aftShoulderRadius',
+    ...BULK_MATERIAL,
+  ]),
+  // BodyTube.setOuterRadius, setOuterRadiusAutomatic; SymmetricComponent.setThickness, setFilled.
+  bodytube: new Set(['outerRadius', 'outerRadiusAuto', 'thickness', 'filled', ...BULK_MATERIAL]),
+  innertube: new Set(THICKNESS_RING),
+  tubecoupler: new Set(THICKNESS_RING),
+  engineblock: new Set(THICKNESS_RING),
+  // RingComponent.setLength, RadiusRingComponent.setOuterRadius and setInnerRadius.
+  centeringring: new Set(['length', 'outerRadius', 'innerRadius', ...BULK_MATERIAL]),
+  // The same, with Bulkhead.setOuterRadiusAutomatic.
+  bulkhead: new Set(['length', 'outerRadius', 'outerRadiusAuto', ...BULK_MATERIAL]),
+  // LaunchLug.setOuterRadius and setThickness.
+  launchlug: new Set(['outerRadius', 'thickness', ...BULK_MATERIAL]),
+  railbutton: new Set([
+    'outerDiameter',
+    'innerDiameter',
+    'height',
+    'baseHeight',
+    'flangeHeight',
+    'screwHeight',
+    ...BULK_MATERIAL,
+  ]),
+  // Parachute.setDiameter and setLineCount, RecoveryDevice.setCD.
+  parachute: new Set(['diameter', 'lineCount', 'cd', ...SURFACE_MATERIAL]),
+  // Streamer.setStripWidth (and setArea, setAspectRatio, which the derived
+  // rows write as a width), RecoveryDevice.setCD.
+  streamer: new Set(['stripWidth', 'cd', ...SURFACE_MATERIAL]),
+};
+
+/** `Parachute.setLineLength` and `setLineMaterial` clear the link only on a chute that has lines. */
+const PARACHUTE_LINE_KEYS = ['lineLength', 'lineMaterialName', 'lineDensity'];
+
 /**
  * Does this edit make the part stop being the catalog part it came from?
  *
- * The kernel answers this by calling `clearPreset()` from the setters a preset
- * defines (`BodyTube.setOuterRadius`, `ExternalComponent.setMaterial`, and so
- * on). Here the FIELDS table is the same list: everything in a type's dimension
- * rows, plus the material, describes the part itself, while placement, motor
- * mount, comment, color and the overrides describe where it sits and how it is
- * accounted for.
- *
- * Deliberately conservative. Keeping a link that no longer matches would label a
- * hand-sized tube with somebody's part number; dropping one the desktop would
- * have kept costs nothing but the label.
+ * The kernel answers this by calling `clearPreset()` from some of its setters,
+ * and {@link PRESET_SETTERS} is that list keyed by node key, so a design keeps
+ * or drops its `<preset>` exactly where the desktop would.
  */
-function breaksPreset(type: string, patch: Partial<ComponentNode>): boolean {
+function breaksPreset(node: ComponentNode, patch: Partial<ComponentNode>): boolean {
   if ('preset' in patch) return false; // the picker sets the link and the dimensions together
   const keys = Object.keys(patch);
-  if (
-    keys.some((k) => k === 'materialName' || k === 'density' || k === 'surfaceMaterialName' || k === 'surfaceDensity')
-  )
-    return true;
-  const dimensions = new Set((FIELDS[type] ?? []).filter((f) => f.section === undefined).map((f) => f.key));
-  return keys.some((k) => dimensions.has(k));
+  const setters = PRESET_SETTERS[node.type];
+  if (setters && keys.some((k) => setters.has(k))) return true;
+  if (node.type !== 'parachute') return false;
+  const lines = (patch['lineCount'] ?? node['lineCount']) as number | undefined;
+  return lines !== 0 && keys.some((k) => PARACHUTE_LINE_KEYS.includes(k));
 }
 
 /**
@@ -94,7 +146,7 @@ export function patchChangesNode(tree: RocketTree, id: string, patch: Partial<Co
   for (const key of Object.keys(incoming)) {
     if (current[key] !== incoming[key]) return true;
   }
-  return node['preset'] !== undefined && breaksPreset(node.type, patch);
+  return node['preset'] !== undefined && breaksPreset(node, patch);
 }
 
 /**
@@ -114,8 +166,11 @@ export function updateNode(tree: RocketTree, id: string, patch: Partial<Componen
       if (n.id === id) {
         found = true;
         const out = nodes.slice();
-        const next = { ...n, ...patch };
-        if (n['preset'] && breaksPreset(n.type, patch)) delete next['preset'];
+        const patched = { ...n, ...patch };
+        // A shoulder length set from or back to 0 brings its wall, radius and
+        // cap with it, as desktop's setter does.
+        const next = { ...patched, ...shoulderSeed(n, patched, patch, nodes, i) };
+        if (n['preset'] && breaksPreset(n, patch)) delete next['preset'];
         out[i] = next;
         return out;
       }
@@ -448,6 +503,10 @@ function hollowWall(node: ComponentNode | undefined, radius: number): Partial<Co
  * its radius and length, replacing the one that follows the neighboring tube;
  * solid on a filled part; and with a stated wall, that wall. `side` is '' for a
  * nose cone's one shoulder, 'fore' or 'aft' for a transition's.
+ *
+ * Only a stated shoulder diameter applies anything here. Desktop also gives
+ * both shoulders a stated wall when the row states no shoulder diameter; no
+ * shipped row is hollow with a wall and without a shoulder diameter.
  */
 function presetShoulder(
   side: '' | 'fore' | 'aft',
@@ -467,14 +526,51 @@ function presetShoulder(
   };
 }
 
+/** A new parachute's shroud line count, `Parachute.DEFAULT_LINE_COUNT`. */
+const DEFAULT_LINE_COUNT = 6;
+
+/**
+ * A catalog parachute as `Parachute.loadFromPreset` applies it. Everything the
+ * part leaves unstated goes back to a new parachute's value rather than keeping
+ * the replaced part's: the name to the type's own, the drag coefficient to
+ * automatic, six lines of 0.3 m, the default canopy and line materials, and no
+ * mass override. A stated description becomes the part's name. The packed
+ * length and diameter are set only where stated, and with both stated the
+ * packed radius follows the parent's bore. The stated pair is written as is:
+ * `syncAutoRadii` then resizes it to the bore at the volume the pair packs.
+ */
+function parachutePatch(p: ParachuteComponent): Partial<ComponentNode> {
+  const packedLength = p.packedLength ?? null;
+  const packedDiameter = p.packedDiameter ?? null;
+  return {
+    name: p.desc ? p.desc : undefined,
+    diameter: p.diameter,
+    cd: p.cd ?? DEFAULT_CHUTE_CD,
+    cdAuto: p.cd == null,
+    lineCount: p.lineCount ?? DEFAULT_LINE_COUNT,
+    lineLength: p.lineLength ?? KERNEL_DEFAULTS.parachute.lineLength,
+    lineLengthAuto: false,
+    surfaceMaterialName: p.material ?? KERNEL_MATERIALS.surface.name,
+    surfaceDensity: p.materialDensity ?? KERNEL_MATERIALS.surface.density,
+    lineMaterialName: p.lineMaterial ?? KERNEL_MATERIALS.line.name,
+    lineDensity: p.lineMaterialDensity ?? KERNEL_MATERIALS.line.density,
+    ...(packedLength != null ? { length: packedLength } : {}),
+    ...(packedDiameter != null ? { radius: packedDiameter / 2, radiusAuto: packedLength != null } : {}),
+    overrideMass: p.mass != null && p.mass > 0 ? p.mass : undefined,
+  };
+}
+
 /** The dimensions the chosen part states, before {@link pinStated} pins them. */
 function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode> {
   // A saved part (customParts.ts) carries its whole node, not the handful of
   // dimensions a catalog row publishes, and applying only the switch below
   // would drop the nose cone's shoulder, the parachute's lines, the tube's
   // motor mount and the part's color: everything the user saved it for.
-  // Copied, so the stored object cannot be mutated through the tree.
-  if (p.custom && p.patch) return { ...p.patch };
+  // Copied, so the stored object cannot be mutated through the tree, and
+  // without the keys a saved part never keeps: a stored entry is read back
+  // from the browser's storage, and an id, type or children in it would
+  // duplicate an id or turn the node into another part.
+  if (p.custom && p.patch) return presetNode(p.patch);
   const mat =
     'materialDensity' in p && p.materialDensity
       ? { density: p.materialDensity, materialName: (p as { material?: string }).material }
@@ -494,7 +590,7 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
             ? { thickness: KERNEL_DEFAULTS.nosecone.thickness }
             : hollowWall(node, radius);
       return {
-        shape: p.shape,
+        ...shapeChange('nosecone', p.shape),
         length: p.length,
         aftRadius: radius,
         // Said outright, both ways. The kernel reads solidness from this flag
@@ -508,22 +604,43 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...mat,
       };
     }
+    // BodyTube and ThicknessRingComponent.loadFromPreset: the outer radius, and
+    // the wall the two diameters leave whenever the part states an inner
+    // diameter. A stated 0 is a solid part (the Estes balsa nose blocks), not a
+    // missing one: its wall is its whole radius.
     case 'bodytube':
     case 'tubecoupler':
+    case 'engineblock':
+    case 'launchlug':
       return {
         outerRadius: p.outerDiameter / 2,
         length: p.length,
-        ...(p.innerDiameter ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
+        ...(p.innerDiameter != null ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
         ...mat,
       };
-    case 'centeringring':
-      return { outerRadius: p.outerDiameter / 2, innerRadius: (p.innerDiameter ?? 0) / 2, length: p.length, ...mat };
+    // RadiusRingComponent.loadFromPreset: the bore is pinned either way, and
+    // takes the part's inner diameter only when it states one, so a row with no
+    // inner diameter keeps the bore the ring had. Either bore is held inside the
+    // new outer radius, as the panel holds a typed one: a few catalog rows state
+    // an inner diameter above the outer.
+    case 'centeringring': {
+      const outerRadius = p.outerDiameter / 2;
+      const kept = typeof node?.['innerRadius'] === 'number' ? node['innerRadius'] : null;
+      const bore = p.innerDiameter != null ? p.innerDiameter / 2 : kept != null && kept > outerRadius ? kept : null;
+      return {
+        outerRadius,
+        ...(bore != null
+          ? { innerRadius: clampToBounds({ outerRadius } as unknown as ComponentNode, RING_BOUNDS.innerRadius, bore) }
+          : {}),
+        innerRadiusAuto: false,
+        length: p.length,
+        ...mat,
+      };
+    }
     case 'bulkhead':
       return { outerRadius: p.outerDiameter / 2, length: p.length, ...mat };
     case 'parachute':
-      // A stated mass becomes the mass override, and a part with none clears
-      // it, as `Parachute.loadPreset` does.
-      return { diameter: p.diameter, cd: p.cd ?? DEFAULT_CHUTE_CD, overrideMass: p.mass };
+      return parachutePatch(p);
     // Transition.loadFromPreset: both ends pinned, the shoulders as stated, and
     // a filled part's shoulders solid too. A stated shoulder replaces the one
     // that follows the neighboring tube.
@@ -531,7 +648,7 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
       const shoulder = (side: 'fore' | 'aft', diameter: number | null, length: number | null) =>
         presetShoulder(side, diameter, length, p);
       return {
-        shape: p.shape,
+        ...shapeChange('transition', p.shape),
         length: p.length,
         foreRadius: p.foreOuterDiameter / 2,
         aftRadius: p.aftOuterDiameter / 2,
@@ -542,19 +659,10 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...mat,
       };
     }
-    // ThicknessRingComponent.loadFromPreset: the outer radius, and the wall the
-    // two diameters leave.
-    case 'engineblock':
-    case 'launchlug':
-      return {
-        outerRadius: p.outerDiameter / 2,
-        length: p.length,
-        ...(p.innerDiameter ? { thickness: Math.max(0.0001, (p.outerDiameter - p.innerDiameter) / 2) } : {}),
-        ...mat,
-      };
     // RailButton.loadFromPreset: the button's geometry; the button, screw and
-    // nut masses together as its mass override, and a stated drag coefficient
-    // as its drag override. A part that states neither clears them.
+    // nut masses together as its mass override, and a stated positive drag
+    // coefficient as its drag override. An override the part does not state is
+    // left as it was.
     case 'railbutton':
       return {
         outerDiameter: p.outerDiameter,
@@ -563,17 +671,22 @@ function statedPatch(p: Component, node?: ComponentNode): Partial<ComponentNode>
         ...(p.baseHeight != null ? { baseHeight: p.baseHeight } : {}),
         ...(p.flangeHeight != null ? { flangeHeight: p.flangeHeight } : {}),
         ...(p.screwHeight != null ? { screwHeight: p.screwHeight } : {}),
-        overrideMass: p.mass,
-        overrideCD: p.cd ?? undefined,
+        ...(p.mass != null ? { overrideMass: p.mass } : {}),
+        ...(p.cd != null && p.cd > 0 ? { overrideCD: p.cd } : {}),
         ...mat,
       };
-    // Streamer.loadFromPreset: the strip, its surface material, and the drag
-    // coefficient left for the kernel to work out from them.
+    // Streamer.loadFromPreset: the strip, its surface material (the default
+    // one when the part states none, `RecoveryDevice.loadFromPreset`), the drag
+    // coefficient left for the kernel to work out from them, and the packed
+    // length set to the strip width.
     case 'streamer':
       return {
         stripLength: p.stripLength,
         stripWidth: p.stripWidth,
-        ...(p.materialDensity ? { surfaceMaterialName: p.material, surfaceDensity: p.materialDensity } : {}),
+        length: p.stripWidth,
+        ...(p.materialDensity
+          ? { surfaceMaterialName: p.material, surfaceDensity: p.materialDensity }
+          : { surfaceMaterialName: KERNEL_MATERIALS.surface.name, surfaceDensity: KERNEL_MATERIALS.surface.density }),
         cdAuto: true,
       };
   }
@@ -765,14 +878,21 @@ export function defaultNode(type: ComponentType): ComponentNode {
         angleOffset: Math.PI,
         position: { method: 'middle', offset: 0 },
       };
+    // A new recovery device works out its own drag coefficient, and a new
+    // parachute its shroud line length (1.5 times its diameter), as `Streamer()`
+    // and `Parachute()` start with `cdAutomatic` and `lineLengthAutomatic` set.
+    // The bridge reads a stated `cd` or `lineLength` as the user's own number
+    // unless the matching flag is on.
     case 'parachute':
       return {
         type,
         id,
         diameter: 0.3,
         cd: 0.8,
+        cdAuto: true,
         lineCount: 6,
-        lineLength: 0.3,
+        lineLength: 0.45,
+        lineLengthAuto: true,
         drogue: false,
         deployEvent: 'apogee',
         deployAltitude: 200,
@@ -785,16 +905,15 @@ export function defaultNode(type: ComponentType): ComponentNode {
         id,
         stripLength: 0.4,
         stripWidth: 0.05,
-        cd: 0.6,
+        cdAuto: true,
         drogue: false,
         deployEvent: 'apogee',
         deployAltitude: 200,
         deployDelay: 0,
         position: { method: 'top', offset: 0.02 },
       };
-    // `radius` is set explicitly rather than left to each side's own default.
-    // Omitting it would let the kernel fly KERNEL_DEFAULTS.masscomponent.radius
-    // while the schematic draws 70% of the parent radius.
+    // `radius` is set explicitly rather than left to each side's own default,
+    // so the drawing, the export and the kernel read the one stored value.
     case 'masscomponent':
       return {
         type,
@@ -804,15 +923,34 @@ export function defaultNode(type: ComponentType): ComponentNode {
         radius: KERNEL_DEFAULTS.masscomponent.radius,
         position: { method: 'top', offset: 0 },
       };
-    // The kernel's own diameter, stated on the node. A bare `{ type, id }` would
-    // fly and save at the kernel's 9.7 mm but be drawn at 4 mm.
+    // Desktop's RailButton() dimensions, stated on the node. A bare `{ type, id }`
+    // would fly and save at the kernel's 9.7 mm but be drawn at 4 mm, and the
+    // panel would show the other five dimensions blank.
     case 'railbutton':
       return {
         type,
         id,
-        outerDiameter: KERNEL_DEFAULTS.railbutton.outerDiameter,
+        outerDiameter: COMPONENT_DEFAULTS.railbutton.outerDiameter,
+        innerDiameter: COMPONENT_DEFAULTS.railbutton.innerDiameter,
+        height: COMPONENT_DEFAULTS.railbutton.height,
+        baseHeight: COMPONENT_DEFAULTS.railbutton.baseHeight,
+        flangeHeight: COMPONENT_DEFAULTS.railbutton.flangeHeight,
+        screwHeight: COMPONENT_DEFAULTS.railbutton.screwHeight,
         angleOffset: Math.PI,
         position: { method: 'middle', offset: 0 },
+      };
+    // On Auto, as `ShockCord()` starts: the kernel sizes the cord from the
+    // rocket's length and the panel shows its figure. The stored length is what
+    // the cord keeps if Auto is turned off before a build reports one. Packed
+    // like a chute, at the top of its parent.
+    case 'shockcord':
+      return {
+        type,
+        id,
+        cordLength: KERNEL_DEFAULTS.shockcord.cordLength,
+        cordLengthAuto: true,
+        length: KERNEL_DEFAULTS.shockcord.length,
+        position: { method: 'top', offset: 0.02 },
       };
     // An external pod: a mini body chain riding alongside the airframe. Seeded
     // with one slim body tube so it's visible and immediately editable.
@@ -822,10 +960,36 @@ export function defaultNode(type: ComponentType): ComponentNode {
       const body = defaultNode('bodytube');
       body.length = 0.12;
       body.outerRadius = 0.009;
+      // A fixed radius: a new body tube is automatic, and an automatic tube with
+      // nothing ahead of it or behind it in its own chain resolves to the
+      // kernel's 25 mm, which is no longer slim.
+      body.outerRadiusAuto = false;
       return {
         type,
         id,
         instanceCount: 1,
+        radiusOffset: 0,
+        radiusMethod: 'relative',
+        angleOffset: 0,
+        position: { method: 'bottom', offset: 0 },
+        children: [body],
+      };
+    }
+    // A strap-on booster: a parallel stage beside its parent tube, two of them
+    // as `ParallelStage()` starts. Seeded with one body tube like a pod, so it
+    // is visible and has something to add fins and a motor mount to.
+    case 'parallelstage': {
+      const body = defaultNode('bodytube');
+      body.length = 0.2;
+      body.outerRadius = 0.009;
+      // A fixed radius: a new body tube is automatic, and an automatic tube with
+      // nothing ahead of it or behind it in its own chain resolves to the
+      // kernel's 25 mm, which is no longer slim.
+      body.outerRadiusAuto = false;
+      return {
+        type,
+        id,
+        instanceCount: KERNEL_DEFAULTS.parallelstage.instanceCount,
         radiusOffset: 0,
         radiusMethod: 'relative',
         angleOffset: 0,
@@ -946,7 +1110,7 @@ export function addPart(
     return { tree: syncDerived(next), id };
   }
   if (!allowedChildren('stage').includes(type)) {
-    throw new Error(`A ${type} cannot be added here: neither the selected part nor the stage may host it.`);
+    throw new KeyedError('errors.design.cannotAdd', { part: { key: `part.${type}` } });
   }
   return { tree: addChild(tree, stageId, node), id };
 }

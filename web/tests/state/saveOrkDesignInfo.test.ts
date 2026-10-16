@@ -77,4 +77,26 @@ describe('saveOrk with design info', () => {
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
     expect((downloadOrk.mock.calls[0]![0] as { designInfo?: unknown }).designInfo).toBeTruthy();
   });
+
+  it('writes the file and says so when the block cannot be built', async () => {
+    useWorkspaceStore.setState({ info: null, rocket: null, err: null });
+    computeStaticInfo.mockReturnValue({ error: 'engine not loaded' });
+    // As the real one does: nothing to describe without a build.
+    assembleReport.mockImplementation(() => (useWorkspaceStore.getState().info ? {} : null));
+    const saving = s().saveOrk();
+    await releaseDigests();
+    await saving;
+
+    expect(downloadOrk).toHaveBeenCalledTimes(1);
+    expect((downloadOrk.mock.calls[0]![0] as { designInfo?: unknown }).designInfo).toBeUndefined();
+    expect(s().err).toMatch(/without design info/);
+  });
+
+  it('says nothing when the block was written', async () => {
+    useWorkspaceStore.setState({ err: null });
+    const saving = s().saveOrk();
+    await releaseDigests();
+    await saving;
+    expect(s().err).toBeNull();
+  });
 });

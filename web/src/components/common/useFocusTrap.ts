@@ -42,7 +42,8 @@ const SURFACE = 'data-modal-surface';
  *
  * Document order rather than z-index, because that is what decides which of two
  * overlays is actually on top here: a nested dialog is rendered after the one
- * it opens from, and the app's own ConfirmDialog is the last thing in App. It
+ * it opens from, and the app's own ConfirmDialog and PromptDialog are the last
+ * things in App. It
  * is also the only one of the two a test can see, since jsdom computes no
  * styles from the Tailwind classes that carry the z-index.
  */
@@ -149,7 +150,8 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
   useEffect(() => {
     if (!active || !onEscape) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape') return;
+      // Spent already: a menu or popover inside the surface closed on it.
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
       // Not mine to answer: something is open on top of me. A panel that never
       // received the ref cannot be placed in the stack, so it still answers.
       const panel = ref.current;

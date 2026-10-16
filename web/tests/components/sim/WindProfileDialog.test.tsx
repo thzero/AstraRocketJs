@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore Schicht entfernen
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
@@ -145,6 +146,71 @@ describe('WindProfileDialog rows', () => {
   });
 });
 
+/** One gusty level: 5 m/s with a 0.75 m/s deviation, 15% turbulence. */
+function GustyHost({ onLevels }: { onLevels?: (l: WindLevel[]) => void }) {
+  const [launch, setLaunch] = useState<LaunchConditions>({
+    windLevels: [{ altitudeM: 0, speed: 5, directionDeg: 90, stddev: 0.75 }],
+  } as LaunchConditions);
+  return (
+    <WindProfileDialog
+      launch={launch}
+      onChange={(p) =>
+        setLaunch((l) => {
+          const next = { ...l, ...p };
+          onLevels?.(next.windLevels ?? []);
+          return next;
+        })
+      }
+      onClose={() => {}}
+    />
+  );
+}
+
+/**
+ * The speed box reports every keystroke, and the turbulence follows the speed as
+ * a fraction. Typing "0.5" passes through "0", where a ratio carried from the
+ * previous keystroke would become 0 and stay there.
+ */
+describe('WindProfileDialog speed edits keep the turbulence', () => {
+  it('keeps 15% when "0.5" is typed over a 5 m/s, 15% layer', () => {
+    let last: WindLevel[] = [];
+    renderWithProviders(<GustyHost onLevels={(l) => (last = l)} />);
+    const speed = screen.getByLabelText('Speed 1') as HTMLInputElement;
+    fireEvent.focus(speed);
+    for (const text of ['', '0', '0.', '0.5']) fireEvent.change(speed, { target: { value: text } });
+    fireEvent.blur(speed);
+
+    expect((screen.getByLabelText('Turbulence 1') as HTMLInputElement).value).toBe('15');
+    expect(last[0]!.speed).toBe(0.5);
+    expect(last[0]!.stddev).toBeCloseTo(0.075, 9);
+  });
+
+  it('writes nothing for a cleared speed box', () => {
+    const seen: WindLevel[][] = [];
+    renderWithProviders(<GustyHost onLevels={(l) => seen.push(l)} />);
+    const speed = screen.getByLabelText('Speed 1') as HTMLInputElement;
+    fireEvent.focus(speed);
+    fireEvent.change(speed, { target: { value: '' } });
+
+    expect(seen).toEqual([]);
+  });
+
+  it('carries the turbulence from the new speed once the edit is committed', () => {
+    let last: WindLevel[] = [];
+    renderWithProviders(<GustyHost onLevels={(l) => (last = l)} />);
+    const speed = screen.getByLabelText('Speed 1') as HTMLInputElement;
+    fireEvent.focus(speed);
+    fireEvent.change(speed, { target: { value: '10' } });
+    fireEvent.blur(speed);
+    // A second visit starts from 10 m/s and 1.5 m/s, still 15%.
+    fireEvent.focus(speed);
+    fireEvent.change(speed, { target: { value: '2' } });
+    fireEvent.blur(speed);
+
+    expect(last[0]!.stddev).toBeCloseTo(0.3, 9);
+  });
+});
+
 describe('WindProfileDialog direction header', () => {
   it('names the angle unit the cells are shown in', () => {
     seedSettings({ units: { angle: 'rad' } });
@@ -152,5 +218,21 @@ describe('WindProfileDialog direction header', () => {
     expect(screen.getByText(/\(rad\)$/)).toBeTruthy();
     expect(screen.queryByText(/\(°\)$/)).toBeNull();
     localStorage.clear();
+  });
+});
+
+describe('WindProfileDialog row labels', () => {
+  /** A language that names the level after the field, not with a bare number. */
+  it('builds each row label from one key, so the order follows the language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('de');
+    try {
+      renderWithProviders(<Host />);
+      const field = i18n.t('windProfile.altitude');
+      expect(screen.getByLabelText(`${field}, Schicht 1`)).toBeTruthy();
+      expect(screen.getByLabelText('Schicht 2 entfernen')).toBeTruthy();
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

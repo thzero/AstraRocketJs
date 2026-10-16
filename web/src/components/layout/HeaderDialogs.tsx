@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { defaultDesignName } from '../../services/app/appInfo';
 import { useWorkspaceStore } from '../../state/store';
+import { selectDesignName } from '../../state/workspaceSelectors';
+import { fireAction } from '../../state/fireAction';
 import { LazyBoundary, lazyNamed } from '../common/ErrorBoundary';
 import { DesignLibraryDialog } from './DesignLibraryDialog';
 import { DesignPropertiesDialog } from './DesignPropertiesDialog';
@@ -9,7 +10,7 @@ import { ExamplesDialog } from './ExamplesDialog';
 import { AboutDialog } from './AboutDialog';
 import { UpdateCheckDialog } from './UpdateCheckDialog';
 // Lazily loaded: it is the only eager holder of `services/report/reportModel`,
-// which `store.saveDesign` already imports dynamically to keep the report model
+// which `saveOrk` (fileSlice) already imports dynamically to keep the report model
 // out of the main bundle. One static import from a dialog this host mounts
 // eagerly pins the module and everything under it, and the build says so
 // (INEFFECTIVE_DYNAMIC_IMPORT). Nothing needs the report until it is opened.
@@ -22,6 +23,7 @@ import { MotorDashboard } from '../sim/MotorDashboard';
 import { LocationsDialog } from '../sim/LocationsDialog';
 import { SavedPartsDialog } from '../design/SavedPartsDialog';
 import { useHelpStore } from '../../state/helpStore';
+import type { HeaderDialog } from './dialogKeys';
 
 /**
  * The header's dialog host: the open flag of every dialog the bar and its
@@ -34,20 +36,6 @@ import { useHelpStore } from '../../state/helpStore';
  * {@link useHelpStore} instead, and it is mounted here only because the header
  * is where the app-wide dialogs already are.
  */
-
-export type HeaderDialog =
-  | 'motors'
-  | 'report'
-  | 'about'
-  | 'updates'
-  | 'privacy'
-  | 'settings'
-  | 'library'
-  | 'examples'
-  | 'print'
-  | 'locations'
-  | 'parts'
-  | 'saveAs';
 
 type OpenFlags = Record<HeaderDialog, boolean>;
 
@@ -81,8 +69,9 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
   const closeHelp = useHelpStore((s) => s.closeHelp);
   const saveDesignAs = useWorkspaceStore((s) => s.saveDesignAs);
   const designs = useWorkspaceStore((s) => s.designs);
-  // Pre-fill Save As with the imported .ork's name when there is one.
-  const loadedName = useWorkspaceStore((s) => s.loadedMeta?.name);
+  // Save As offers the name every export carries: the rocket's own, else the
+  // imported file's, else the default.
+  const designName = useWorkspaceStore(selectDesignName);
 
   return (
     <>
@@ -112,12 +101,12 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
         <DesignPropertiesDialog
           title={t('file.saveAs')}
           confirmLabel={t('common.save')}
-          initialName={loadedName ?? defaultDesignName()}
+          initialName={designName}
           takenNames={designs.map((d) => d.name)}
           onCancel={() => onClose('saveAs')}
           onConfirm={(name) => {
             onClose('saveAs');
-            void saveDesignAs(name);
+            fireAction(saveDesignAs(name));
           }}
         />
       )}

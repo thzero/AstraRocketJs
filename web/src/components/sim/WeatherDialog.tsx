@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions } from '../../services/design/orkTree';
+import type { LaunchConditions, LaunchPatch } from '../../services/design/orkTree';
 import { Dialog } from '../common/Dialog';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import {
   fetchWeather,
   hourInZone,
@@ -20,10 +20,11 @@ import {
   type ProposalGroup,
 } from '../../services/weather/weatherProposal';
 import { readWeatherKey } from '../../services/weather/weatherKey';
-import { sourceFor } from '../../services/weather/weatherSource';
+import { sameSite, sourceFor } from '../../services/weather/weatherSource';
 import { formatLat, formatLon } from '../../services/map/slippyMap';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { fmtSiteTime } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { LAUNCH_SI } from '../../prefs/launchUnits';
 import { OpenMeteoCredit } from '../common/OpenMeteoCredit';
 import { Check } from '../common/Check';
@@ -62,13 +63,16 @@ type State =
 
 export function WeatherDialog({
   launch,
+  diff,
   onChange,
   onCommit,
   onClose,
   refresh = false,
 }: {
   launch: LaunchConditions;
-  onChange: (patch: Partial<LaunchConditions>) => void;
+  /** Launch keys the simulations being edited together disagree on (see LaunchPanel). */
+  diff?: ReadonlySet<keyof LaunchConditions>;
+  onChange: (patch: LaunchPatch) => void;
   onCommit?: () => void;
   onClose: () => void;
   /** Start from `launch.weatherSource` and fetch on opening. */
@@ -87,14 +91,19 @@ export function WeatherDialog({
 
   const lat = launch.latitudeDeg;
   const lon = launch.longitudeDeg;
-  const siteM = launch.launchAltitudeM ?? 0;
+  // A blank elevation is not sea level: the forecast is corrected to the
+  // site's height, so the dialog asks for one rather than assume 0 m.
+  const siteM = launch.launchAltitudeM ?? null;
+  // Some of the simulations being edited launch from another site or elevation,
+  // and Apply leaves those as they are.
+  const elsewhere = !!(diff?.has('latitudeDeg') || diff?.has('longitudeDeg') || diff?.has('launchAltitudeM'));
   const hasSite = lat != null && lon != null;
 
   const errorText = (err: unknown): string => weatherErrorText(err, t);
 
   /** `force` asks Open-Meteo even when an answer under 30 minutes old is held. */
   const fetchNow = async (force = false) => {
-    if (!hasSite) return;
+    if (!hasSite || siteM === null) return;
     const signal = request.claimSignal();
     setState({ kind: 'loading' });
     try {
@@ -126,7 +135,8 @@ export function WeatherDialog({
     void fetchNow();
   });
 
-  const answer = state.kind === 'ready' ? state.answer : null;
+  // Held only while the elevation it was fetched for is still set.
+  const answer = state.kind === 'ready' && siteM !== null ? state.answer : null;
   const variantIndex = answer && useTerrain && answer.variants.length > 1 ? 1 : 0;
   const variant = answer?.variants[variantIndex];
   const sample = answer && variant ? sampleAt(variant, answer.timezone, answer.date, hour) : null;
@@ -159,7 +169,15 @@ export function WeatherDialog({
       elevationApplied,
       applied: patch,
     });
-    onChange({ ...patch, weatherSource });
+    // A forecast is for one place and one height: the pressure is corrected to
+    // the site's elevation and the wind levels start above it. A simulation
+    // being edited with this one that launches from another site or elevation
+    // keeps its own conditions (the dialog says so; see `elsewhere`).
+    onChange((l) =>
+      sameSite(l.latitudeDeg, l.longitudeDeg, lat, lon) && l.launchAltitudeM === siteM
+        ? { ...patch, weatherSource }
+        : {},
+    );
     onCommit?.();
     onClose();
   };
@@ -194,8 +212,8 @@ export function WeatherDialog({
         const top = w.levels[w.levels.length - 1]!;
         return t('weather.windValue', {
           speed: wind(w.surfaceSpeed),
-          from: Math.round(w.surfaceFromDeg),
-          gust: w.gust === null ? '—' : wind(w.gust),
+          from: fmtDegrees(u, w.surfaceFromDeg),
+          gust: w.gust === null ? NO_VALUE : wind(w.gust),
           top: alt(top.altitudeM),
         });
       }
@@ -221,7 +239,7 @@ export function WeatherDialog({
             {t('common.cancel')}
           </button>
           <button
-            className="rounded-md bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-500 disabled:opacity-50"
+            className="rounded-md bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-700 disabled:opacity-50"
             disabled={!proposal || chosen.size === 0}
             onClick={apply}
           >
@@ -233,6 +251,8 @@ export function WeatherDialog({
       <div className="space-y-3 p-3 text-sm">
         {!hasSite ? (
           <p className="text-warn-400">{t('weather.needSite')}</p>
+        ) : siteM === null ? (
+          <p className="text-warn-400">{t('weather.needElevation')}</p>
         ) : (
           <>
             <div className="flex flex-wrap items-end gap-3">
@@ -296,7 +316,7 @@ export function WeatherDialog({
                 {t('weather.fetchFresh')}
               </button>
             </div>
-            {answer.variants.length > 1 && answer.terrainM !== null && (
+            {answer.variants.length > 1 && answer.terrainM !== null && siteM !== null && (
               <Check
                 align="start"
                 className="text-xs text-ink-soft"
@@ -342,6 +362,7 @@ export function WeatherDialog({
                   </dl>
                 </div>
               )}
+            {elsewhere && <p className="text-xs text-warn-400">{t('weather.otherSitesNote')}</p>}
             <p className="text-xs text-ink-faint">{t('weather.forecastNote')}</p>
             <OpenMeteoCredit className="text-xs text-ink-faint" />
           </div>

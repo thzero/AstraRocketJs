@@ -4,9 +4,9 @@ sidebar_position: 5
 ---
 ## Open the app
 
-AstraRocketJs runs in your web browser — **there's nothing to install**. Open **[https://thzero.github.io/AstraRocketJs/](https://thzero.github.io/AstraRocketJs/)** and you're ready. It works on desktop and mobile; a modern browser (Chrome, Firefox, Safari, Edge) is all you need.
+AstraRocketJs runs in your web browser: **there's nothing to install**. Open **[https://thzero.github.io/AstraRocketJs/](https://thzero.github.io/AstraRocketJs/)** and you're ready. It works on desktop and mobile; a modern browser (Chrome, Firefox, Safari, Edge) is all you need.
 
-After that first visit it keeps working **offline**, so you can design and simulate at a launch site with no signal, and your browser will offer to **install** it alongside your other apps — see **[Offline & Installing](./offline-and-installing.md)**.
+After that first visit it keeps working **offline**, so you can design and simulate at a launch site with no signal, and your browser will offer to **install** it alongside your other apps: see **[Offline & Installing](./offline-and-installing.md)**.
 
 When it loads you'll see a brief splash while the physics engine loads, then a starter rocket. The header shows a small **`WASM`** or **`JS`** badge indicating which engine backend loaded (WebAssembly is the fast default; JavaScript is the fallback).
 
@@ -16,11 +16,11 @@ On a desktop the workbench is five **tabs**, in the top bar beside the app name.
 
 - **Design.** The component tree on the left, the rocket view in the center, the selected part's editor on the right. That third column needs a window at least 1536px wide, which most laptops are not; narrower than that the editor opens as a dialog over the drawing instead, with the same fields in the same units.
 - **Configurations.** The design's [flight configurations](./flight-configurations.md): which motors fly, with which delays and which recovery.
-- **Simulations.** The table of runs across the full width, with the selected simulation's editor (motor, ignition, launch setup, options) on the right.
+- **Simulations.** The table of runs across the full width, with the selected simulation's editor (name, the configuration it flies, launch setup, options) on the right.
 - **Results.** The flight charts, ground track and 3D path in the center, the run's numbers on the right. It appears once a simulation has produced a result, and a finished run takes you straight to it.
-- **Tools.** [Quick answers that need no design](./tools.md): a landing estimate, a rail exit check and parachute sizing. Below the widest screens the tab shows as 🧰.
+- **Tools.** [Quick answers that need no design](./tools.md): a landing estimate, a rail exit check and parachute sizing.
 
-The **rocket view** in the center has a toolbar to switch views (2D · 3D · Aero · and, after a sim, Flight · Ground track · 3D path), toggles for the **CG / CP** markers and the quick-glance **info** card, and, in 2D, presets, calipers and zoom. A **static statistics** strip along the bottom shows length, mass, CG, CP, stability and more.
+The **rocket view** in the center has a toolbar to switch views (2D · 3D · Aero on the Design tab; Flight · 3D path · Ground track · Environment on the Results tab), toggles for the **CG / CP** markers and the quick-glance **info** card, and, in 2D, presets, calipers and zoom. A **static statistics** strip along the bottom shows length, mass, CG, CP, stability and more.
 
 ### Sizing the panes {#sizing-the-panes}
 
@@ -30,26 +30,26 @@ The **⤢** button at the right end of the rocket view's toolbar gives the drawi
 
 On a **phone** the same areas become tabs along the bottom, because there is no room to show them side by side:
 
-- **Rocket** — the loaded-design banner and the stats strip.
-- **Sketch** — the rocket view and its toolbar (2D · 3D · Aero). The 2D and 3D views are turned a quarter turn when you hold the phone upright, so the rocket runs down the long edge of the screen instead of being squeezed into its width; turn the phone sideways and they turn back. Dialogs fill the screen there too.
+- **Rocket**: the loaded-design banner and the stats strip.
+- **Sketch**: the rocket view and its toolbar (2D · 3D · Aero). The 2D and 3D views are turned a quarter turn when you hold the phone upright, so the rocket runs down the long edge of the screen instead of being squeezed into its width; turn the phone sideways and they turn back. Dialogs fill the screen there too.
 - **Config**: the flight configurations.
-- **Simulate** — motor, launch setup, **Run**, and the result summary.
-- **Results** — the run's numbers (apogee, launcher exit, max speed, landing, downrange …) with the flight charts and the 3D flight path below them. It appears once a simulation has produced a result, and a finished run takes you straight to it.
+- **Simulate**: configuration, launch setup, **Run**, and the result summary.
+- **Results**: the run's numbers (apogee, rail or rod exit, max speed, landing, downrange …) with the flight charts and the 3D flight path below them. It appears once a simulation has produced a result, and a finished run takes you straight to it.
 - **Tools**: the landing estimator, rail exit check and parachute sizing.
 
 The components panel is desktop-only, so a phone cannot add, reorder or delete parts. It can edit the ones a design already has: tap a part in the **Sketch** view and its editor opens as a dialog. Two things follow the panel rather than the drawing, and are not offered where it is absent: **My Parts**, since a saved part is applied through a component, and the **rocket's name and configuration**, since naming a design is something you do to one you are building. Both also step aside while the drawing is maximized, for the same reason the panel does.
 
-The top bar has **undo / redo**, a language switcher (ten languages), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket** and **Export ▸ OpenRocket / RASAero II** for `.ork` and other files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Privacy** and **About**.
+The top bar has **undo / redo**, a **☀** button that switches to the **Daylight (high contrast)** theme, a language switcher (ten languages), a note of when your rocket was last saved, and the **app menu**: New, Open… and Save As… (the in-app design library), **Import ▸ OpenRocket / RockSim / Examples** and **Export ▸ OpenRocket / RockSim / 3D print (.3mf) / RASAero II** for files on disk, **Rocket Design Report**, **Motor Dashboard**, **Launch Locations**, **My Parts**, **Settings**, **Help**, **Safety**, **Privacy**, **Check for updates** and **About**.
 
 **Help** opens this guide inside the app rather than sending you to a website, and the whole guide ships with the app, so it reads at a field with no signal. Its contents rail lists every page and the headings of the one you are on, and the box above that list searches all of them at once: pick a result and the page opens with your words marked.
 
 ## Your first rocket
 
-1. **Start from the default rocket**, or **New** (menu) for a fresh one, or **Open** an existing `.ork` file. There are also **[example rockets](#example-rockets)** built in, which is the quickest way to see what the app can do.
-2. **Edit components** in the left panel — select a part and adjust its dimensions; the 2D view and the stability stats update live. See [Designing a Rocket](./designing-a-rocket.md).
-3. **Pick a motor** in the right panel. See [Motors](./motors.md).
+1. **Start from the default rocket**, or **New** (menu) for a fresh one, or **Import** an existing `.ork` file. There are also **[example rockets](#example-rockets)** built in, which is the quickest way to see what the app can do.
+2. **Edit components** in the left panel: select a part and adjust its dimensions; the 2D view and the stability stats update live. See [Designing a Rocket](./designing-a-rocket.md).
+3. **Pick a motor** on the **Configurations** tab. See [Motors](./motors.md).
 4. **Set your launch conditions** and press **Run flight simulation**. See [Running a Simulation](./running-a-simulation.md).
-5. **Explore the results** — apogee and other tiles, plus the Flight and 3D-path views. See [Views & Analysis](./views-and-analysis.md).
+5. **Explore the results**: apogee and other tiles, plus the Flight and 3D-path views. See [Views & Analysis](./views-and-analysis.md).
 6. Your rocket **saves itself as you work**, and menu → **Open…** switches between saved rockets. To keep a copy on your disk or open it in desktop OpenRocket, use menu → **Export → OpenRocket**. See [Files & Exports](./files-and-exports.md).
 
 ## Example rockets
@@ -62,4 +62,4 @@ Opening one behaves exactly like importing a `.ork`: you get your own unsaved co
 
 ## Where your data lives
 
-Your rocket is a `.ork` file **on your disk** — open and save it explicitly. The app also keeps a **working copy in your browser** so a refresh or accidental close won't lose your current design, along with your custom motors, saved parts, materials, saved launch locations and [settings](./settings.md). Nothing is uploaded anywhere.
+Your rockets are saved **in this browser, on this device**, automatically as you edit, and menu → **Open…** lists them under **My rockets**. There is no Save: **Save As…** stores the design there under the name you give it. Your custom motors, saved parts, materials, saved launch locations and [settings](./settings.md) are kept in the browser too. Export a `.ork` to keep a copy on your disk, move it to another machine or share it. Nothing is uploaded anywhere.

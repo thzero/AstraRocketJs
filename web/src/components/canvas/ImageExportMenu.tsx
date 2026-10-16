@@ -18,11 +18,14 @@ export interface ImageExportOptions {
  * frame" toggle it needs to spend its megapixels on the rocket.
  */
 export function ImageExportMenu({
+  icon,
   label,
   title,
   onPick,
   fitOption,
 }: {
+  /** A decorative glyph before the label, kept out of the accessible name. */
+  icon?: string;
   label: string;
   title: string;
   onPick: (format: ImageFormat, widthPx: number, opts: ImageExportOptions) => void;
@@ -32,7 +35,7 @@ export function ImageExportMenu({
   fitOption?: boolean;
 }) {
   const { t } = useTranslation();
-  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
+  const { open, toggle, closeAndRestore, wrapRef, triggerRef, menuRef, onMenuKeyDown } = useMenuPopover();
   // Default on: an export that spends most of its pixels on background is
   // rarely what was wanted. Unchecked, the export keeps the on-screen framing.
   const [fit, setFit] = useState(true);
@@ -50,13 +53,16 @@ export function ImageExportMenu({
         ref={triggerRef}
         onClick={toggle}
       >
+        {icon && <span aria-hidden>{`${icon} `}</span>}
         {label}
       </button>
       {open && (
-        <div
+        <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: focus moves to the items, as in the ARIA menu pattern, so the container is not
           // A `role="menu"` whose children are plain buttons is an invalid
           // structure: screen readers announce "menu, 0 items".
           role="menu"
+          ref={menuRef}
+          onKeyDown={onMenuKeyDown}
           style={{
             position: 'absolute',
             right: 0,
@@ -89,11 +95,13 @@ export function ImageExportMenu({
               <button
                 key={`${fmt}-${w}`}
                 role="menuitem"
+                tabIndex={-1}
                 className="file-btn"
                 title={t('export.pxWide', { width: w })}
-                aria-label={`${formatName(fmt)} ${widthLabel(w)}, ${w} px`}
+                aria-label={t('export.imageOption', { format: formatName(fmt), size: widthLabel(w), width: w })}
                 onClick={() => {
-                  close();
+                  // Back to the trigger: the item holding focus unmounts.
+                  closeAndRestore();
                   onPick(fmt, w, { fit: !!fitOption && fit });
                 }}
               >
@@ -121,6 +129,7 @@ export function ImageExportMenu({
               <input
                 type="checkbox"
                 role="menuitemcheckbox"
+                tabIndex={-1}
                 aria-checked={fit}
                 checked={fit}
                 onChange={(e) => setFit(e.target.checked)}

@@ -1,8 +1,15 @@
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { TILE_SIZE, TILE_SOURCES, visibleTiles, type TileSourceId } from '../../../services/map/slippyMap';
+import { useEsriKey } from '../../../services/map/esriKey';
+import { useHelpStore } from '../../../state/helpStore';
 
-/** The layer buttons over a map. `className` places the group. */
+/**
+ * The layer buttons over a map. `className` places the group. While a tile
+ * layer is picked and the user has entered no Esri key of their own, a note
+ * under the buttons says where to add one, with a link to the Help section on
+ * getting one.
+ */
 export function TileLayerButtons<Id extends string>({
   layers,
   value,
@@ -15,20 +22,32 @@ export function TileLayerButtons<Id extends string>({
   className?: string;
 }) {
   const { t } = useTranslation();
+  const key = useEsriKey();
+  const openHelp = useHelpStore((s) => s.openHelp);
   return (
-    <div className={`${className} flex overflow-hidden rounded-md ring-1 ring-shade/40`}>
-      {layers.map((l) => (
-        <button
-          key={l.id}
-          onClick={() => onPick(l.id)}
-          aria-pressed={value === l.id}
-          className={`px-2 py-1 text-[11px] font-medium ${
-            value === l.id ? 'bg-accent-600 text-on-accent' : 'bg-surface/80 text-ink-soft hover:bg-raised'
-          }`}
-        >
-          {t(l.labelKey)}
-        </button>
-      ))}
+    <div className={`${className} flex flex-col items-start gap-1`}>
+      <div className="flex overflow-hidden rounded-md ring-1 ring-shade/40">
+        {layers.map((l) => (
+          <button
+            key={l.id}
+            onClick={() => onPick(l.id)}
+            aria-pressed={value === l.id}
+            className={`px-2 py-1 text-[11px] font-medium ${
+              value === l.id ? 'bg-accent-600 text-on-accent' : 'bg-surface/80 text-ink-soft hover:bg-raised'
+            }`}
+          >
+            {t(l.labelKey)}
+          </button>
+        ))}
+      </div>
+      {!key && value in TILE_SOURCES && (
+        <p className="max-w-64 rounded-md bg-surface/90 px-2 py-1 text-[11px] leading-snug text-warn-400 ring-1 ring-shade/40">
+          {t('map.keyNag')}{' '}
+          <button onClick={() => openHelp('settings#esri-key')} className="underline hover:text-warn-300">
+            {t('map.keyHelp')}
+          </button>
+        </p>
+      )}
     </div>
   );
 }
@@ -47,9 +66,10 @@ export function TileImg({
   onError: () => void;
   className?: string;
 }) {
+  const key = useEsriKey();
   return (
     <img
-      src={TILE_SOURCES[source].url(tile.z, tile.x, tile.y)}
+      src={TILE_SOURCES[source].url(tile.z, tile.x, tile.y, key)}
       alt=""
       draggable={false}
       // CORS, to match the 3D ground map (FlightGroundMap.tsx), which loads

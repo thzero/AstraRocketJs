@@ -23,7 +23,7 @@
  *    tell.
  */
 
-import { anonymousGet } from './anonymousFetch';
+import { AnonymousFetchError, anonymousGet } from './anonymousFetch';
 import { isFiniteNumber, roundTo } from '../app/numbers';
 
 // --------------------------------------------------------------- endpoints
@@ -179,7 +179,7 @@ function addDaysYmd(ymd: string, days: number): string {
 }
 
 export type Endpoint = 'forecast' | 'archive';
-export type DateRefusalReason = 'tooFarAhead' | 'tooEarly' | 'badDate';
+type DateRefusalReason = 'tooFarAhead' | 'tooEarly' | 'badDate';
 
 export type DateWindow =
   { ok: true; endpoint: Endpoint; startDate: string; endDate: string } | { ok: false; reason: DateRefusalReason };
@@ -266,7 +266,11 @@ function elevationUrl(latitudeDeg: number, longitudeDeg: number, apiKey?: string
 export type WeatherErrorKind =
   'offline' | 'timeout' | 'aborted' | 'refused' | 'badKey' | 'quota' | 'http' | 'shape' | 'units' | 'noData';
 
-/** A failed lookup. `detail` is Open-Meteo's own words or the offending value, when there are any. */
+/**
+ * A failed lookup. `detail` is Open-Meteo's own words for `refused` and `http`,
+ * which the user is shown; for `shape` and `units` it is an English note on
+ * the offending value, for the logs only.
+ */
 export class WeatherError extends Error {
   readonly kind: WeatherErrorKind;
   readonly detail: string | undefined;
@@ -284,7 +288,7 @@ export class WeatherError extends Error {
 const unitText = (u: unknown): string => (u === undefined ? 'no unit' : typeof u === 'string' ? u : JSON.stringify(u));
 
 /** One pressure level at one hour. Null means missing, never zero. */
-export interface PressureLevelSample {
+interface PressureLevelSample {
   pressureHPa: number;
   /** Geopotential height, which for a rocket's purposes is meters above sea level. */
   altitudeM: number | null;
@@ -517,6 +521,7 @@ async function getJson(url: string, o: FetchOpts): Promise<{ status: number; jso
     return { status, json };
   } catch (err) {
     if (err instanceof WeatherError) throw err;
+    if (err instanceof AnonymousFetchError && err.kind === 'tooLarge') throw new WeatherError('shape', 'too large');
     if (ctl.signal.aborted) throw new WeatherError(ctl.signal.reason === 'timeout' ? 'timeout' : 'aborted');
     throw new WeatherError('offline');
   } finally {

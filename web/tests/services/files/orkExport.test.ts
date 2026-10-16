@@ -32,15 +32,12 @@ const absoluteTree = () =>
 const xmlFor = (tree: RocketTree) => exportOrk({ name: 'Rocket', tree } as never);
 
 /**
- * An imported `absolute` position is rewritten into the parent frame on load,
- * because the editor works only in that frame; leaving it would make the app draw
- * a part where the engine does not fly it.
- *
- * That rewrite must not leak into what we write back out: `.ork` round-trips
- * are meant to be byte-stable, so the original is kept on the position and the
- * exporter restores it.
+ * An imported `absolute` position stays absolute on load: every reader measures
+ * it from the nose tip, as the kernel does, and the editor offers the method.
+ * What goes back out is what the file said, or the user's edit of it, in the
+ * same frame: `.ork` round-trips are meant to be byte-stable.
  */
-describe('exportOrk — imported absolute positions', () => {
+describe('exportOrk: imported absolute positions', () => {
   const load = (tree: RocketTree) =>
     wireLoadedOrk(
       {
@@ -70,12 +67,11 @@ describe('exportOrk — imported absolute positions', () => {
   it('writes the CURRENT position once the user has moved the part', () => {
     const tree = load(absoluteTree());
     const fins = tree.components[1]!.children![0]! as ComponentNode;
-    // A drag in the editor rewrites `offset` and leaves the import marker be;
-    // the marker no longer matches, so the edited value is the truthful one.
-    fins.position = { ...fins.position!, offset: 0.12 };
+    // An edit in the editor rewrites `offset` in the method the part shows.
+    fins.position = { ...fins.position!, offset: 0.42 };
 
     const xml = xmlFor(tree);
-    expect(xml).toContain('<axialoffset method="top">0.12</axialoffset>');
+    expect(xml).toContain('<axialoffset method="absolute">0.42</axialoffset>');
     // Narrow: the <rocket> element legitimately carries its own
     // method="absolute" offset, so only the fin set's original must be gone.
     expect(xml).not.toContain('>0.35<');

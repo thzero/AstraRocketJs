@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
+import { MAX_INSTANCE_COUNT } from '../../../src/tree/nodeProps';
 import {
   canConvertToFreeform,
   canSplit,
@@ -104,6 +105,8 @@ describe('convert to freeform', () => {
 describe('split fins', () => {
   it('counts the fins, and refuses a single one', () => {
     expect(splitCount(fins())).toBe(3);
+    // A split makes one node per instance, so it stops at the same ceiling.
+    expect(splitCount(fins({ finCount: 100000 }))).toBe(MAX_INSTANCE_COUNT);
     expect(canSplit(fins())).toBe(true);
     expect(canSplit(fins({ finCount: 1 }))).toBe(false);
     // Not a splittable type at all.

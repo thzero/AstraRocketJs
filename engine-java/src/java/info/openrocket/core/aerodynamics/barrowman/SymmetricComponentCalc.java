@@ -682,7 +682,7 @@ public class SymmetricComponentCalc extends RocketComponentCalc {
 	 * Fineness at and above which a nose's shape stops mattering subsonically.
 	 * Centuri TIR-100 section 8 (Mark Mercer's wind-tunnel series on a Centuri
 	 * Javelin, one nose swapped at a time, whole-rocket Cd) measures no
-	 * significant variation across the standard catalogue nose shapes from L/D
+	 * significant variation across the standard catalog nose shapes from L/D
 	 * 4.0 down to the BC-70's L/D 1.8.
 	 */
 	private static final double STUBBY_NOSE_FINENESS_LIMIT = 1.8;

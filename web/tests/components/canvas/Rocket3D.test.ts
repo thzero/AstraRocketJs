@@ -1,13 +1,7 @@
 import * as THREE from 'three';
 import { describe, it, expect } from 'vitest';
-import {
-  buildPieces,
-  exportCamera,
-  fitCameraToBox,
-  isFittableBox,
-  piecesBounds,
-  type Piece,
-} from '../../../src/components/canvas/Rocket3D';
+import { buildPieces, piecesBounds, type Piece } from '../../../src/components/canvas/rocketPieces';
+import { exportCamera, fitCameraToBox, isFittableBox } from '../../../src/components/canvas/rocketExportCamera';
 import { internalExtent } from '../../../src/tree/schematicGeometry';
 import { resolveDisc } from '../../../src/services/design/discGeometry';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
@@ -424,5 +418,133 @@ describe('a chain part with no length key', () => {
     const body = extent(byId(pieces, 'body')[0]!);
     expect(nose.x1 - nose.x0).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
     expect(body.x0).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
+  });
+});
+
+/**
+ * An `absolute` part is measured from the nose tip, whatever holds it. Inside a
+ * pod the pod's own parts are drawn in a turned and lifted copy of the rocket
+ * frame, so the station of a part in its second tube still has to come out at
+ * that offset (the kernel's station, pinned in axialAbsolute.kernel.test.ts).
+ */
+describe('buildPieces rail buttons', () => {
+  const withButton = (angleOffset: number) =>
+    ({
+      name: 'Button',
+      components: [
+        {
+          type: 'stage',
+          name: 'S',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'body',
+              length: 0.3,
+              outerRadius: 0.013,
+              children: [
+                {
+                  type: 'railbutton',
+                  id: 'rb',
+                  outerDiameter: 0.01,
+                  angleOffset,
+                  position: { method: 'top', offset: 0.1 },
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+
+  it('draws one, so selecting it highlights something', () => {
+    const [button] = byId(buildPieces(withButton(Math.PI)).pieces, 'rb');
+    expect(button).toBeDefined();
+    const e = extent(button!);
+    // Standing on the 13 mm surface, as wide as its 10 mm diameter and as tall
+    // as the kernel's default total height, 9.7 mm (RailButton.java:62).
+    expect(e.x0).toBeCloseTo(0.1, 6);
+    expect(e.x1).toBeCloseTo(0.11, 6);
+    expect(e.r1).toBeGreaterThan(0.013 + 0.0097 - 1e-6);
+  });
+
+  it('stands at its radial mount angle', () => {
+    const center = (ang: number) => {
+      const [button] = byId(buildPieces(withButton(ang)).pieces, 'rb');
+      return button!.position!;
+    };
+    // y = R cos(angle), z = R sin(angle), with R the surface plus half the
+    // button's 9.7 mm height.
+    expect(center(Math.PI)[1]).toBeCloseTo(-(0.013 + 0.0097 / 2), 6);
+    expect(center(Math.PI / 2)[2]).toBeCloseTo(0.013 + 0.0097 / 2, 6);
+  });
+});
+
+describe('buildPieces absolute placement', () => {
+  const podded = {
+    name: 'Pod',
+    components: [
+      {
+        type: 'stage',
+        name: 'S',
+        children: [
+          { type: 'nosecone', id: 'nose', length: 0.1, aftRadius: 0.013 },
+          {
+            type: 'bodytube',
+            id: 'body',
+            length: 0.5,
+            outerRadius: 0.013,
+            thickness: 0.001,
+            children: [
+              {
+                type: 'bulkhead',
+                id: 'bh',
+                length: 0.004,
+                outerRadius: 0.012,
+                position: { method: 'absolute', offset: 0.45 },
+              },
+              {
+                type: 'podset',
+                id: 'pod',
+                instanceCount: 2,
+                radiusOffset: 0.01,
+                position: { method: 'top', offset: 0.1 },
+                children: [
+                  { type: 'nosecone', id: 'podNose', length: 0.05, aftRadius: 0.008 },
+                  {
+                    type: 'bodytube',
+                    id: 'podTube',
+                    length: 0.2,
+                    outerRadius: 0.008,
+                    thickness: 0.001,
+                    children: [
+                      {
+                        type: 'bulkhead',
+                        id: 'podBh',
+                        length: 0.004,
+                        outerRadius: 0.007,
+                        position: { method: 'absolute', offset: 0.32 },
+                      },
+                    ],
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ],
+  } as unknown as RocketTree;
+
+  it('puts an absolute part at its station from the nose tip', () => {
+    const { pieces } = buildPieces(podded);
+    expect(extent(byId(pieces, 'bh')[0]!).x0).toBeCloseTo(0.45, 6);
+  });
+
+  it('does so inside a pod as well, every copy', () => {
+    const copies = byId(buildPieces(podded).pieces, 'podBh');
+    expect(copies).toHaveLength(2);
+    for (const c of copies) expect(extent(c).x0).toBeCloseTo(0.32, 6);
+    // The pod's own tube still starts behind its nose, 0.2 + 0.05 from the tip.
+    for (const c of byId(buildPieces(podded).pieces, 'podTube')) expect(extent(c).x0).toBeCloseTo(0.25, 6);
   });
 });

@@ -30,43 +30,65 @@ const scripts = readdirSync(`${web}scripts`).filter((f) => f.endsWith('.mjs'));
 /** Shared modules under `scripts/lib`, which are imported rather than run. */
 const libs = readdirSync(`${web}scripts/lib`).filter((f) => f.endsWith('.mjs'));
 
+/** A file that can name a script, keyed by its path from `web`. */
+interface Source {
+  path: string;
+  text: string;
+}
+
 /**
  * Everywhere a script could be named: the package manifest, every workflow, and
  * the other scripts (one driving another is a real pattern here).
  */
-const haystack = (): string => {
-  const parts = [read(`${web}package.json`)];
+const sources = (): Source[] => {
   const wf = `${repo}/.github/workflows`;
-  for (const f of readdirSync(wf)) parts.push(read(`${wf}/${f}`));
-  for (const f of scripts) parts.push(read(`${web}scripts/${f}`));
-  for (const f of libs) parts.push(read(`${web}scripts/lib/${f}`));
-  return parts.join('\n');
+  return [
+    { path: 'package.json', text: read(`${web}package.json`) },
+    ...readdirSync(wf).map((f) => ({ path: `../.github/workflows/${f}`, text: read(`${wf}/${f}`) })),
+    ...scripts.map((f) => ({ path: `scripts/${f}`, text: read(`${web}scripts/${f}`) })),
+    ...libs.map((f) => ({ path: `scripts/lib/${f}`, text: read(`${web}scripts/lib/${f}`) })),
+  ];
 };
 
+/**
+ * The files under `dir` that no source but their own names. A script's header
+ * often names its own path, so its own file is never a caller.
+ */
+const orphansIn = (dir: 'scripts' | 'scripts/lib', files: string[], from: Source[]): string[] =>
+  files.filter((f) => {
+    const self = `${dir}/${f}`;
+    const asPath = new RegExp(`${dir === 'scripts' ? 'scripts' : 'lib'}/${f.replace('.', '\\.')}\\b`);
+    return !from.some((s) => s.path !== self && asPath.test(s.text));
+  });
+
 describe('no orphan build script', () => {
-  const text = haystack();
+  const all = sources();
 
   it('finds a caller for every scripts/*.mjs', () => {
-    const orphans = scripts.filter((f) => {
-      // Its own file is in the haystack, so match the name as a path reference -
-      // `scripts/sync-motors.mjs` - rather than the bare filename, which every
-      // script trivially contains in its own header comment.
-      const asPath = new RegExp(`scripts/${f.replace('.', '\\.')}\\b`);
-      return !asPath.test(text);
-    });
-    expect(orphans).toEqual([]);
+    expect(orphansIn('scripts', scripts, all)).toEqual([]);
   });
 
   it('finds an importer for every scripts/lib module', () => {
     // These are not entries: nothing runs them, so an unimported one is plain dead
     // code that knip also cannot see, for the same reason.
-    const orphans = libs.filter((f) => !new RegExp(`lib/${f.replace('.', '\\.')}\\b`).test(text));
-    expect(orphans).toEqual([]);
+    expect(orphansIn('scripts/lib', libs, all)).toEqual([]);
+  });
+
+  it('does not count a script naming itself as its caller', () => {
+    // `gen-icons.mjs` and `lib/dataManifest.mjs` name their own paths.
+    const own = (path: string) => all.filter((s) => s.path === path);
+    expect(own('scripts/gen-icons.mjs')[0]?.text).toMatch(/scripts\/gen-icons\.mjs/);
+    expect(orphansIn('scripts', ['gen-icons.mjs'], own('scripts/gen-icons.mjs'))).toEqual(['gen-icons.mjs']);
+    expect(own('scripts/lib/dataManifest.mjs')[0]?.text).toMatch(/lib\/dataManifest\.mjs/);
+    expect(orphansIn('scripts/lib', ['dataManifest.mjs'], own('scripts/lib/dataManifest.mjs'))).toEqual([
+      'dataManifest.mjs',
+    ]);
   });
 
   it('scans a plausible number of scripts, so an empty glob cannot pass', () => {
     // At least 13 programs and 3 shared modules (`openrocketJava.mjs`, the library
-    // several programs import, lives in `scripts/lib` with the other two).
+    // several programs import, lives in `scripts/lib` with the other shared
+    // modules).
     expect(scripts.length).toBeGreaterThanOrEqual(13);
     expect(libs.length).toBeGreaterThanOrEqual(3);
   });

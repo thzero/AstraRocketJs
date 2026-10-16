@@ -11,17 +11,6 @@ import { type HelpTarget, helpTarget, helpTargetFromUrl } from '../../services/a
  */
 const SPY_OFFSET_PX = 96;
 
-/**
- * The Help dialog's iframe: what happens on each load, the links clicked inside
- * it, and the heading it is scrolled to.
- *
- * `ready` is only the iframe reporting that it has finished loading `target`.
- * Like the page probe (useHelpPage) it is tagged with the src it describes, so
- * a page change makes it stop matching instead of having to be cleared.
- *
- * `navigate` is the one way to move: an anchor on the page already showing
- * scrolls the frame, anything else goes through `open` onto the back stack.
- */
 /** How long an anchor is held against the page settling under it. */
 const ANCHOR_HOLD_MS = 10_000;
 
@@ -82,6 +71,17 @@ function holdAnchor(doc: Document, win: Window, id: string): () => void {
   return release;
 }
 
+/**
+ * The Help dialog's iframe: what happens on each load, the links clicked inside
+ * it, and the heading it is scrolled to.
+ *
+ * `ready` is only the iframe reporting that it has finished loading `target`.
+ * Like the page probe (useHelpPage) it is tagged with the src it describes, so
+ * a page change makes it stop matching instead of having to be cleared.
+ *
+ * `navigate` is the one way to move: an anchor on the page already showing
+ * scrolls the frame, anything else goes through `open` onto the back stack.
+ */
 export function useHelpFrame(
   target: HelpTarget,
   language: string,
@@ -241,7 +241,9 @@ export function useHelpFrame(
       // Once now, so a page opened on an anchor is highlighted before it is
       // touched.
       spy();
-      const wanted = pendingAnchor.current;
+      // A page opened on an anchor (openHelp('settings#esri-key')) is held on it
+      // too: the browser's own jump to the fragment is undone by hydration.
+      const wanted = pendingAnchor.current ?? (target.hash ? decodeURIComponent(target.hash.slice(1)) : null);
       pendingAnchor.current = null;
       if (wanted !== null) hold(doc, win, wanted);
     }
@@ -252,7 +254,7 @@ export function useHelpFrame(
     // this reports is that the page is on screen and can be revealed.
     loaded.current = target.src;
     setFrame(target.src);
-  }, [onFrameClick, target.src, hold]);
+  }, [onFrameClick, target.src, target.hash, hold]);
 
   return { frameRef, ready, activeHash, navigate, onFrameLoad };
 }

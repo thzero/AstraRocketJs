@@ -24,6 +24,7 @@ import { uuid } from '../app/uuid';
 import type { ComponentNode, IgnitionEvent, MotorSpec, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../tree/kernelDefaults';
 import { motorName } from '../motors/motorName';
+import { hasUsableCurve } from '../motors/motorCurve';
 
 /** One mount's cell: the motor seated in it, and when that motor ignites. */
 export interface MountMotor {
@@ -168,15 +169,19 @@ export function liveMotors(tree: RocketTree, config: FlightConfig): [string, Mou
 }
 
 /**
- * The motor whose absence blocks a flight: the first mount in tree order.
+ * The motor the run gate judges: the first mount in tree order that holds a
+ * motor with a usable curve, else the first mount, so a configuration with no
+ * usable motor anywhere is still refused for want of one.
  *
- * One mount has to carry a usable motor for a run to mean anything, and it is
- * the first one, the way the run gate judges it. An upper stage left
- * empty is a design decision; a rocket with nothing in its aft mount is not a
- * flight.
+ * One usable motor is what makes a flight, wherever it sits. A loaded `.ork`
+ * puts a curve-less placeholder in a mount the file left empty, and the
+ * sustainer comes first in tree order, so the first mount alone would refuse
+ * a two-stage design that seats only its booster, which desktop OpenRocket
+ * flies.
  */
 export function primaryMotor(tree: RocketTree, config: FlightConfig): MotorSpec | undefined {
-  return liveMotors(tree, config)[0]?.[1].spec;
+  const live = liveMotors(tree, config);
+  return (live.find(([, m]) => hasUsableCurve(m.spec)) ?? live[0])?.[1].spec;
 }
 
 /** Every seated motor's spec, in tree order (mass totals, report rows). */
@@ -246,7 +251,6 @@ export function reconcileConfig(tree: RocketTree, config: FlightConfig): FlightC
     : config;
 }
 
-/** {@link reconcileConfig} over every configuration, preserving identity. */
 /**
  * Give each copied part the per-configuration settings of the part it was
  * copied from: its motor, its deployment override and its separation override,
@@ -278,6 +282,7 @@ export function carryToCopies(configs: FlightConfig[], origins: ReadonlyMap<stri
   });
 }
 
+/** {@link reconcileConfig} over every configuration, preserving identity. */
 export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): FlightConfig[] {
   let changed = false;
   const next = configs.map((c) => {
@@ -422,9 +427,9 @@ export function loadoutSignature(motors: Record<string, MountMotor>): string {
         s.length,
         m.ignitionEvent ?? '',
         m.ignitionDelay ?? 0,
-      ].join('');
+      ].join('\u0001');
     })
-    .join('');
+    .join('\u0002');
 }
 
 /** Whether a configuration overrides any deployment, separation or stage on the design. */

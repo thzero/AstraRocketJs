@@ -14,11 +14,15 @@ import { readWeatherKey } from '../../services/weather/weatherKey';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { useOnline } from '../common/useOnline';
 
-/** What choosing a place writes into the site: elevation only when one is known. */
+/**
+ * What choosing a place writes into the site. The elevation is always written,
+ * null when the lookup found none: keeping the previous site's elevation under
+ * new coordinates would fly the wrong air unannounced.
+ */
 export interface PlacePick {
   latitudeDeg: number;
   longitudeDeg: number;
-  launchAltitudeM?: number;
+  launchAltitudeM: number | null;
 }
 
 /** A row the dialog offers. Pasted coordinates are one row whose elevation is looked up. */
@@ -35,10 +39,20 @@ interface Row {
 type State =
   { kind: 'idle' } | { kind: 'searching' } | { kind: 'rows'; rows: Row[] } | { kind: 'message'; text: string };
 
-const placeRow = (p: PlaceMatch, i: number): Row => ({
+/**
+ * Where a place is, below its name: region and country through one key, so a
+ * language orders and punctuates them its own way, or whichever one exists.
+ * Not a list format, which would join the two with "and".
+ */
+const placeDetail = (p: PlaceMatch, t: (k: string, o?: Record<string, unknown>) => string): string | null =>
+  p.region && p.country
+    ? t('placeSearch.regionCountry', { region: p.region, country: p.country })
+    : p.region || p.country || null;
+
+const placeRow = (p: PlaceMatch, i: number, t: (k: string, o?: Record<string, unknown>) => string): Row => ({
   key: `${i}:${p.latitudeDeg},${p.longitudeDeg}`,
   title: p.name,
-  detail: [p.region, p.country].filter(Boolean).join(', ') || null,
+  detail: placeDetail(p, t),
   latitudeDeg: p.latitudeDeg,
   longitudeDeg: p.longitudeDeg,
   elevationM: p.elevationM,
@@ -102,7 +116,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
       setState(
         places.length === 0
           ? { kind: 'message', text: t('placeSearch.none') }
-          : { kind: 'rows', rows: places.map(placeRow) },
+          : { kind: 'rows', rows: places.map((p, i) => placeRow(p, i, t)) },
       );
     } catch (err) {
       if (!signal.aborted) setState({ kind: 'message', text: weatherErrorText(err, t) });
@@ -114,7 +128,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
       ? t('placeSearch.elevationLooking')
       : e === null
         ? t('placeSearch.elevationUnknown')
-        : `${altUnit.fmt(e, 0)} ${altUnit.sym}`;
+        : altUnit.fmtSym(e, 0);
 
   return (
     <Dialog id="placeSearch" title={t('placeSearch.title')} onClose={onClose} layout="pad" size="md">
@@ -157,7 +171,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
                     onPick({
                       latitudeDeg: r.latitudeDeg,
                       longitudeDeg: r.longitudeDeg,
-                      ...(r.elevationM != null ? { launchAltitudeM: r.elevationM } : {}),
+                      launchAltitudeM: r.elevationM ?? null,
                     })
                   }
                   // Not before the elevation lookup has answered: picking then

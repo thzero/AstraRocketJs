@@ -8,6 +8,15 @@ import { DesignPropertiesDialog } from '../layout/DesignPropertiesDialog';
 import { LocationsDialog } from './LocationsDialog';
 import { PlaceSearchDialog } from './PlaceSearchDialog';
 
+/** The three fields a location sets. */
+type LocationSite = Pick<LaunchConditions, 'latitudeDeg' | 'longitudeDeg' | 'launchAltitudeM'>;
+
+/** The launch defaults from Settings, as a site. */
+const launchDefaultSite = (): LocationSite => {
+  const site = loadSettings().launchDefaults;
+  return { latitudeDeg: site.latitudeDeg, longitudeDeg: site.longitudeDeg, launchAltitudeM: site.launchAltitudeM };
+};
+
 /**
  * Saved launch locations, at the top of the launch panel's Site group.
  *
@@ -28,10 +37,13 @@ export function LocationPicker({
   launch,
   onChange,
   onCommit,
+  defaultSite = launchDefaultSite,
 }: {
   launch: LaunchConditions;
   onChange: (patch: Partial<LaunchConditions>) => void;
   onCommit?: () => void;
+  /** The site "Custom location" writes; the launch defaults unless the caller has its own rule. */
+  defaultSite?: () => LocationSite;
 }) {
   const { t } = useTranslation();
   const [naming, setNaming] = useState(false);
@@ -44,6 +56,9 @@ export function LocationPicker({
   const { locations: loaded, refresh } = useLocationList();
   const locations = loaded ?? [];
 
+  // A location with no known elevation leaves the elevation blank: a tool then
+  // takes the terrain model's, and a simulation asks for it before it runs.
+  // Keeping the previous site's elevation would fly the wrong air unannounced.
   const apply = (location: LaunchLocation) => {
     onChange({
       latitudeDeg: location.latitudeDeg,
@@ -67,15 +82,13 @@ export function LocationPicker({
    * and the fields stay flyable. Read from Settings rather than hardcoded, so
    * somebody who set their own home field gets that instead of Florida.
    *
+   * A tool passes its own `defaultSite`, which leaves the elevation to the
+   * terrain model as its other site paths do.
+   *
    * One undoable edit like any other.
    */
   const toDefaultSite = () => {
-    const site = loadSettings().launchDefaults;
-    onChange({
-      latitudeDeg: site.latitudeDeg,
-      longitudeDeg: site.longitudeDeg,
-      launchAltitudeM: site.launchAltitudeM,
-    });
+    onChange(defaultSite());
     onCommit?.();
   };
 
@@ -101,11 +114,13 @@ export function LocationPicker({
    * location's stored precision and a typed one need not match bit for bit.
    */
   const near = (a: number | null | undefined, b: number, eps: number) => a != null && Math.abs(a - b) < eps;
+  // A location with no elevation matches a blank one, and only that.
+  const sameAlt = (a: number | null | undefined, b: number | null) => (b === null ? a == null : near(a, b, 0.5));
   const current = locations.find(
     (p) =>
       near(launch.latitudeDeg, p.latitudeDeg, 1e-4) &&
       near(launch.longitudeDeg, p.longitudeDeg, 1e-4) &&
-      near(launch.launchAltitudeM, p.launchAltitudeM, 0.5),
+      sameAlt(launch.launchAltitudeM, p.launchAltitudeM),
   );
 
   /**
@@ -169,11 +184,12 @@ export function LocationPicker({
           ⚙
         </button>
       </div>
-      {err && (
-        <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
-          {err}
-        </p>
-      )}
+      {/* Always mounted, empty until there is something to say: a live region
+          created together with its text is not announced by most screen
+          readers. */}
+      <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
+        {err}
+      </p>
 
       {naming && (
         <DesignPropertiesDialog
@@ -186,7 +202,9 @@ export function LocationPicker({
             setNaming(false);
             // Saving under an existing location's name updates it, rather than
             // leaving two entries a user cannot tell apart in the dropdown.
-            const existing = locations.find((p) => p.name === name.trim());
+            // Matched without case, as the name dialog's duplicate warning is.
+            const key = name.trim().toLowerCase();
+            const existing = locations.find((p) => p.name.toLowerCase() === key);
             void store(async () => {
               const location = locationFrom(name, launch);
               await getLaunchLocationStore().save(existing ? { ...location, id: existing.id } : location);

@@ -4,9 +4,7 @@ import { useTabs } from '../common/useTabs';
 import { LandingEstimator } from './LandingEstimator';
 import { OffTheRail } from './OffTheRail';
 import { ParachuteTool } from './ParachuteTool';
-
-const TOOLS = ['landing', 'rail', 'chute'] as const;
-type Tool = (typeof TOOLS)[number];
+import { TOOLS, type Tool } from '../../state/tabs';
 
 /** The open tool, kept for the page's life like each tool's own inputs. */
 let rememberedTool: Tool = 'landing';

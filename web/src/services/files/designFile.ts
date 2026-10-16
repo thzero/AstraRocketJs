@@ -2,6 +2,8 @@ import type { OrkImportResult } from './orkTypes';
 import { importOrk } from './orkFile';
 import { importRkt } from './rktImport';
 import { assertImportSize, decodeFileText } from './decodeText';
+import { KeyedError } from '../../i18n/keyedError';
+import { isGzip } from './ork/importUnpack';
 
 /**
  * Which design format a file is, decided from its bytes rather than its name.
@@ -30,6 +32,9 @@ export function sniffDesignFormat(data: ArrayBuffer | string): DesignFormat | nu
   if (typeof data !== 'string') {
     const bytes = new Uint8Array(data);
     if (bytes[0] === 0x50 && bytes[1] === 0x4b) return 'ork'; // "PK": a zip
+    // Gzipped XML is how older OpenRocket builds saved a `.ork`; RockSim never
+    // compresses its files.
+    if (isGzip(bytes)) return 'ork';
     // Through the shared decoder: a UTF-16 file sniffed as UTF-8 is a NUL
     // between every character, matches neither root element, and is turned away
     // as not a design file at all.
@@ -54,5 +59,5 @@ export function parseDesignFile(data: ArrayBuffer | string): OrkImportResult {
   const format = sniffDesignFormat(data);
   if (format === 'rkt') return importRkt(data);
   if (format === 'ork') return importOrk(data);
-  throw new Error('Not a rocket design file — expected OpenRocket (.ork) or RockSim (.rkt).');
+  throw new KeyedError('errors.file.notDesign');
 }

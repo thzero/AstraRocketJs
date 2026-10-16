@@ -21,7 +21,7 @@ export function DaylightToggle() {
       title={label}
       className={`rounded-lg px-2 py-1.5 text-sm xl:px-2.5 leading-none ring-1 ${
         on
-          ? 'bg-accent-600 text-on-accent ring-accent-500 hover:bg-accent-500'
+          ? 'bg-accent-600 text-on-accent ring-accent-500 hover:bg-accent-700'
           : 'bg-raised text-ink ring-line/10 hover:bg-elevated'
       }`}
     >

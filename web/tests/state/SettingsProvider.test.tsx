@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { StrictMode } from 'react';
 import { act, render } from '@testing-library/react';
 
@@ -8,11 +8,17 @@ const loadSettings = vi.hoisted(() => vi.fn());
 
 vi.mock('../../src/services/storage/settings', async (orig) => {
   const real = await orig<typeof import('../../src/services/storage/settings')>();
+  // The real reading until a test sets its own: the workspace store reads the
+  // settings when it is built, which happens as the provider is imported.
+  loadSettings.mockImplementation(real.loadSettings);
   return { ...real, saveSettings, loadSettings };
 });
 
 import { SettingsProvider, useSettings } from '../../src/state/SettingsProvider';
 import { DEFAULT_SETTINGS } from '../../src/services/storage/settings';
+import { nsKey } from '../../src/services/storage/storageKeys';
+
+type SettingsUpdate = ReturnType<typeof useSettings>['update'];
 
 /** Renders the provider and hands back its `update` so a test can change one. */
 function Harness({ onReady }: { onReady: (u: (p: Record<string, unknown>) => void) => void }) {
@@ -76,5 +82,53 @@ describe('SettingsProvider persistence', () => {
       </StrictMode>,
     );
     expect(saveSettings).not.toHaveBeenCalled();
+  });
+});
+
+describe('SettingsProvider with another tab writing', () => {
+  const KEY = nsKey('settings:v1');
+
+  /** Renders the provider and hands back the live settings and `update`. */
+  function Probe({ onRender }: { onRender: (ctx: ReturnType<typeof useSettings>) => void }) {
+    onRender(useSettings());
+    return null;
+  }
+
+  afterEach(() => localStorage.clear());
+
+  it('reloads when another tab writes the settings', () => {
+    loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS, theme: 'dark' });
+    let theme = '';
+    render(
+      <SettingsProvider>
+        <Probe onRender={(c) => (theme = c.settings.theme)} />
+      </SettingsProvider>,
+    );
+    expect(theme).toBe('dark');
+
+    loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS, theme: 'light' });
+    act(() => void window.dispatchEvent(new StorageEvent('storage', { key: 'unrelated' })));
+    expect(theme).toBe('dark');
+    act(() => void window.dispatchEvent(new StorageEvent('storage', { key: KEY })));
+    expect(theme).toBe('light');
+    // Read only: echoing the change back would bounce it between tabs.
+    expect(saveSettings).not.toHaveBeenCalled();
+  });
+
+  it('lays a change over what storage holds, not over the stale copy', () => {
+    loadSettings.mockReturnValue({ ...DEFAULT_SETTINGS, theme: 'dark' });
+    let update!: SettingsUpdate;
+    render(
+      <SettingsProvider>
+        <Probe onRender={(c) => (update = c.update)} />
+      </SettingsProvider>,
+    );
+    // Another tab's write, before its storage event reaches this one.
+    localStorage.setItem(KEY, JSON.stringify({ ...DEFAULT_SETTINGS, theme: 'light' }));
+
+    act(() => update({ units: { ...DEFAULT_SETTINGS.units, length: 'in' } }));
+    const written = saveSettings.mock.calls[0]![0] as typeof DEFAULT_SETTINGS;
+    expect(written.units.length).toBe('in');
+    expect(written.theme).toBe('light');
   });
 });

@@ -1,27 +1,28 @@
 name: Sync Catalogs
 
-# Regenerates the runtime reference catalogs — motors ("engines") from the
-# ThrustCurve.org API and components from the OpenRocket-Components database —
+# Regenerates the runtime reference catalogs (motors ("engines") from the
+# ThrustCurve.org API and components from the OpenRocket-Components database)
 # and publishes them to the orphan `data` branch.
 #
 # The app fetches these at runtime (web/src/services/app/remoteData.ts), so a refresh
-# published here is live WITHOUT an app rebuild or a Pages deploy, as soon as the
-# CDN edge expires. The copy committed under web/public/data stays in the build
-# as a fallback for when the data host is unreachable; refresh that one by hand
-# (`npm run sync:motors && npm run sync:motor-digests && npm run sync:components &&
-# npm run sync:preset-digests`, then commit) when you want the offline floor moved up; this workflow
-# deliberately does not touch it.
+# published here is live WITHOUT an app rebuild or a Pages deploy, once the
+# publish step has purged jsDelivr's copy (or the CDN edge expires, if the purge
+# fails). The deployed app reads the motors and components from this branch and
+# nowhere else; offline it uses its cached download. The copy committed under
+# web/public/data is for dev builds and the tests, and the deployed build leaves
+# it out (vite.config.ts); refresh it by hand (`npm run sync:motors && npm run
+# sync:motor-digests && npm run sync:database && npm run sync:components && npm
+# run sync:preset-digests`, then commit). This workflow deliberately does not
+# touch it.
 #
-# The materials and contributors files are published alongside them but are NOT
-# regenerated here: materials is held to the pinned OpenRocket source by the
-# extraction gate, so it changes with a commit or not at all, and contributors
-# is written by the Pages deploy. They ride along so the data branch is a whole
-# copy of public/data — a partial one would 404 for a file the manifest names,
-# costing every session a wasted round trip before it fell back to the build.
+# The materials and contributors files are NOT published here: materials is
+# held to the pinned OpenRocket source by the extraction gate, so it changes
+# with a commit, and contributors is refreshed by the Pages deploy. The app reads
+# both from its own build (remoteData.ts), so a deploy's copy is the one users
+# get. The branch holds the two catalogs and a manifest that names only them.
 #
-# deploy.yml already points the built app at this branch via VITE_DATA_BASE,
-# so no setup is needed: until the first run creates it, the app falls back to the
-# catalogs inside the build.
+# deploy.yml points the built app at this branch via VITE_DATA_BASE. The branch
+# has to exist: the deployed app has no other copy of the two catalogs.
 
 on:
   schedule:
@@ -38,7 +39,7 @@ on:
 permissions:
   contents: write
 
-# Never cancel a half-finished publish — a canceled run could leave the data
+# Never cancel a half-finished publish: a canceled run could leave the data
 # branch holding a manifest that disagrees with its catalogs.
 concurrency:
   group: sync-catalogs
@@ -53,12 +54,14 @@ jobs:
     timeout-minutes: 15
     env:
       TARGET: ${{ inputs.target || 'both' }}
+    # Actions are pinned by commit SHA, the tag in the comment beside it: this
+    # job holds a write token, and a tag can be moved to other code.
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: web/package-lock.json
 
@@ -68,48 +71,67 @@ jobs:
 
       # Start from what is CURRENTLY PUBLISHED, not from the committed fallback.
       # manifest.json carries a hash for both catalogs and is rewritten in full by
-      # either sync script, so a motors-only run would otherwise republish the
-      # committed components file and its hash — silently reverting the live
+      # either digest step, so a motors-only run would otherwise republish the
+      # committed components file and its hash, silently reverting the live
       # component catalog. Seeding first makes every run a no-op for whatever it
       # did not regenerate.
       - name: Seed from the published catalogs
         run: |
           set -euo pipefail
           tmp="$(mktemp -d)"
-          # Authenticated, so "clone failed" can only mean the branch does not
-          # exist yet — never a permissions failure that would silently seed from
-          # the (possibly stale) committed copy and republish it.
           url="https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
-          if git clone --depth 1 --branch data "$url" "$tmp" 2>/dev/null; then
-            # Only the two catalogs this job regenerates. Seeding the others
-            # would republish whatever the branch already had, which for a file
-            # that changes by commit (materials) means reverting the repo's
-            # copy to an older one.
-            for f in motors.generated.json components.generated.json; do
-              [ -f "$tmp/$f" ] && cp "$tmp/$f" "$GITHUB_WORKSPACE/web/public/data/$f"
-            done
-            echo "Seeded from the data branch."
-          else
-            echo "No data branch yet — seeding from the committed copy (first run)."
+          # Exit 2 is the one answer that means "no data branch yet". Any other
+          # failure (network, permissions) fails the run: seeding from the
+          # committed copy would republish it over the live catalogs.
+          status=0
+          git ls-remote --exit-code --heads "$url" data >/dev/null || status=$?
+          if [ "$status" = 2 ]; then
+            echo "No data branch yet. Seeding from the committed copy (first run)."
+            exit 0
           fi
+          if [ "$status" != 0 ]; then
+            echo "::error::Could not query the data branch (git ls-remote exit $status)."
+            exit 1
+          fi
+          git clone --depth 1 --branch data "$url" "$tmp"
+          # Only the two catalogs this job regenerates and publishes.
+          for f in motors.generated.json components.generated.json; do
+            if [ -f "$tmp/$f" ]; then cp "$tmp/$f" "$GITHUB_WORKSPACE/web/public/data/$f"; fi
+          done
+          echo "Seeded from the data branch."
 
-      # The component presets come from the community parts DB that OpenRocket's
-      # own component data is built from. sync-components.mjs defaults to a local
-      # path, so point it at this checkout via OPENROCKET_PRESETS.
+      # The OpenRocket release and the parts database commit, read from the one
+      # file the sync scripts also check against, so the workflow and a local
+      # refresh cannot pin different builds.
+      - name: Read the pinned OpenRocket release
+        id: pins
+        working-directory: web
+        run: |
+          set -euo pipefail
+          node -e '
+            const p = require("./scripts/data/openrocket-release.json");
+            console.log(`release=${p.release}`);
+            console.log(`jar_url=${p.jar.url}`);
+            console.log(`jar_sha256=${p.jar.sha256}`);
+            console.log(`database_ref=${p.database.ref}`);
+          ' >> "$GITHUB_OUTPUT"
+          cat "$GITHUB_OUTPUT"
+
+      # The component presets come from the parts database OpenRocket builds its
+      # own library from, at the commit whose `.orc` files the pinned release
+      # ships (sync-components refuses any other). sync-components.mjs defaults
+      # to a local path, so point it at this checkout via OPENROCKET_PRESETS.
       - name: Check out the OpenRocket components database
         if: env.TARGET != 'motors'
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          repository: dbcook/openrocket-database
+          repository: openrocket/openrocket-database
           path: .openrocket-database
-          # PINNED. This job holds contents: write and pushes to the data branch
-          # the live app reads, so a third-party ref must not float -- master
-          # pulls whatever landed upstream since the last run. Not an RCE path
-          # (the sync scripts are data-only parsing: no eval, no child_process,
-          # no dynamic import), but the pin is free. Bump it deliberately, after
-          # looking at what changed, together with REF in
-          # web/scripts/fetch-parts-database.mjs.
-          ref: 772db251b5cb989ac1a0bca4921dcf91d3bc54de # master @ 2024-03-18
+          # PINNED, in web/scripts/data/openrocket-release.json. This job holds
+          # contents: write and pushes to the data branch the live app reads, so
+          # a third-party ref must not float: master pulls whatever landed
+          # upstream since the last run.
+          ref: ${{ steps.pins.outputs.database_ref }}
 
       # Both catalogs need the OpenRocket release people use. A motor's digest
       # names which of the desktop's same-named entries a saved .ork means (Estes
@@ -120,20 +142,20 @@ jobs:
       # link to the part, and a stated mass, which becomes the part's density so
       # it weighs what the catalog says, come from its loader. The digests
       # depend on the build.
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@de7274f081f381c8f8158605e0321c36c376e2e6 # v6.0.1
         with:
           distribution: temurin
           java-version: '21.0.12'
 
       - name: Download OpenRocket
         env:
-          OR_JAR_URL: https://github.com/openrocket/openrocket/releases/download/release-24.12/OpenRocket-24.12.jar
-          # PINNED, for the reason the database checkout above is: this job
-          # pushes to the branch the live app reads.
-          OR_JAR_SHA256: 4959b72f52f5f607941e9722abbb7b7f0c4a38ebbbf84204a329db9f31c4f897
+          # PINNED by SHA-256, for the reason the database checkout above is:
+          # this job pushes to the branch the live app reads.
+          OR_JAR_URL: ${{ steps.pins.outputs.jar_url }}
+          OR_JAR_SHA256: ${{ steps.pins.outputs.jar_sha256 }}
         run: |
           set -euo pipefail
-          jar="$RUNNER_TEMP/OpenRocket-24.12.jar"
+          jar="$RUNNER_TEMP/OpenRocket-${{ steps.pins.outputs.release }}.jar"
           curl -fsSL -o "$jar" "$OR_JAR_URL"
           echo "$OR_JAR_SHA256  $jar" | sha256sum -c -
           echo "OPENROCKET_JAR=$jar" >> "$GITHUB_ENV"
@@ -160,6 +182,14 @@ jobs:
         working-directory: web
         run: npm run sync:preset-digests -- --jar "$OPENROCKET_JAR"
 
+      # Every catalog the publish step copies, refreshed this run or seeded from
+      # the data branch: a parts or motor catalog without digests makes saved
+      # designs lose their part and motor links in desktop OpenRocket, and must
+      # not publish with a green run. The coverage goes into the job summary.
+      - name: Check digest coverage
+        working-directory: web
+        run: npm run check:digests
+
       - name: Publish to the `data` branch
         run: |
           set -euo pipefail
@@ -171,8 +201,15 @@ jobs:
           git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
 
           # `data` is an ORPHAN branch: catalogs only, none of the app history.
-          if git clone --depth 1 --branch data "$url" "$tmp" 2>/dev/null; then
-            :
+          # As in the seed step, only exit 2 means it does not exist yet.
+          status=0
+          git ls-remote --exit-code --heads "$url" data >/dev/null || status=$?
+          if [ "$status" != 0 ] && [ "$status" != 2 ]; then
+            echo "::error::Could not query the data branch (git ls-remote exit $status)."
+            exit 1
+          fi
+          if [ "$status" = 0 ]; then
+            git clone --depth 1 --branch data "$url" "$tmp"
           else
             echo "Creating the data branch."
             git init -q "$tmp"
@@ -180,25 +217,41 @@ jobs:
             git -C "$tmp" remote add origin "$url"
           fi
 
-          # Everything, so the branch is a complete public/data: the manifest
-          # is regenerated from the whole directory and names all four files.
-          cp "$src"/*.json "$tmp"/
+          # The two catalogs this job regenerates, and a manifest of just those.
+          # The app reads materials and contributors from its own build, so a
+          # copy here would only be an older one; any left from earlier runs goes.
+          cp "$src/motors.generated.json" "$src/components.generated.json" "$tmp"/
+          rm -f "$tmp/materials.generated.json" "$tmp/contributors.generated.json"
+          node "$GITHUB_WORKSPACE/web/scripts/lib/dataManifest.mjs" "$tmp"
 
           git -C "$tmp" add -A
           if git -C "$tmp" diff --cached --quiet; then
-            echo "Catalogs already up to date — nothing published."
+            echo "Catalogs already up to date. Nothing published."
             echo "no_change=1" >> "$GITHUB_ENV"
             exit 0
           fi
           git -C "$tmp" commit -q -m "Refresh ${TARGET} catalog(s) from ${GITHUB_SHA}"
           git -C "$tmp" push -q origin data
 
+          # jsDelivr caches a branch file for up to 12 hours, so without a purge
+          # a refresh goes live that much later, and a client can fetch the new
+          # manifest's hash and get the old catalog under it. The catalogs are
+          # purged before the manifest that names them. Best effort: a failed
+          # purge only delays the refresh, so it warns rather than fails.
+          for f in motors.generated.json components.generated.json manifest.json; do
+            if curl -fsS --max-time 30 -o /dev/null "https://purge.jsdelivr.net/gh/${{ github.repository }}@data/$f"; then
+              echo "Purged $f from jsDelivr."
+            else
+              echo "::warning title=jsDelivr purge failed::$f stays cached until its edge copy expires (up to 12 hours)."
+            fi
+          done
+
       - name: Summary
         run: |
           set -euo pipefail
           cd "$GITHUB_WORKSPACE/web/public/data"
           {
-            echo "### Catalog sync — \`${TARGET}\`"
+            echo "### Catalog sync: \`${TARGET}\`"
             echo
             if [ "${no_change:-0}" = "1" ]; then echo "No change; the \`data\` branch was already current."; echo; fi
             echo "| Catalog | Entries | Manifest hash |"
@@ -208,7 +261,7 @@ jobs:
               const man = JSON.parse(fs.readFileSync("manifest.json", "utf8"));
               const motors = JSON.parse(fs.readFileSync("motors.generated.json", "utf8"));
               const comps = JSON.parse(fs.readFileSync("components.generated.json", "utf8"));
-              const row = (n, c, h) => `| ${n} | ${c.toLocaleString("en-US")} | \`${h ?? "—"}\` |`;
+              const row = (n, c, h) => `| ${n} | ${c.toLocaleString("en-US")} | \`${h ?? "–"}\` |`;
               console.log(row("motors", motors.length, man.motors));
               console.log(row("components", comps.count, man.components));
               const noCurve = motors.filter((m) => m.noCurve).length;

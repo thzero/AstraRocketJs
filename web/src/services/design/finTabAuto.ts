@@ -1,7 +1,8 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { finRootChord } from '../../tree/finPlanform';
 import { num, positionOf } from '../../tree/nodeProps';
-import { startFromPosition } from '../../tree/position';
+import { axialLength, partLength, startFromPosition } from '../../tree/position';
+import { parentStartOf } from '../../tree/axialRebase';
 import { stationRadius } from '../../tree/shapeProfile';
 import { findWithParent } from '../../tree/treeWalk';
 import { isChainType } from '../../tree/componentKinds';
@@ -39,9 +40,14 @@ type Ring = {
 
 const ringBottom = (r: Ring): number => r.top + r.thickness;
 
-/** Where a child's fore end sits, measured from its parent's fore end. */
-function offsetFromTop(child: ComponentNode, parentLength: number): number {
-  return startFromPosition(positionOf(child), num(child, 'length'), parentLength);
+/**
+ * Where a child's fore end sits, measured from its parent's fore end. A fin set
+ * has no `length`: its axial extent is the root chord, which a `bottom` or
+ * `middle` placement needs to find the leading edge. `parentStart` is the
+ * parent's rocket-frame start, which an `absolute` child is measured against.
+ */
+function offsetFromTop(child: ComponentNode, parentLength: number, parentStart: number): number {
+  return startFromPosition(positionOf(child), axialLength(child), parentLength, parentStart);
 }
 
 /**
@@ -152,7 +158,7 @@ export function canAutoFinTab(node: ComponentNode | null | undefined, parent: Co
  *
  * The offset method is forced to **top**, because both numbers it computes are
  * measured from the fin's leading edge. The desktop puts the user's own choice
- * back afterwards, which only matters there because its own spinner shows the
+ * back afterward, which only matters there because its own spinner shows the
  * offset in that frame; here the patch is the answer and the frame is part of it.
  */
 export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode> | null {
@@ -161,9 +167,10 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   const { node, parent } = found;
   if (!canAutoFinTab(node, parent) || !parent) return null;
 
-  const parentLength = num(parent, 'length');
+  const parentLength = partLength(parent);
+  const parentStart = parentStartOf(tree, parent);
   const finLength = finRootChord(node);
-  const finTop = offsetFromTop(node, parentLength);
+  const finTop = offsetFromTop(node, parentLength, parentStart);
 
   // What is inside the body under the fin. A mount tube sets how deep the tab
   // can go; the rings set where along the root it can sit.
@@ -171,13 +178,13 @@ export function autoFinTab(tree: RocketTree, id: string): Partial<ComponentNode>
   let maxRingRadius = 0;
   const rings: Ring[] = [];
   for (const child of parent.children ?? []) {
-    const top = offsetFromTop(child, parentLength);
+    const top = offsetFromTop(child, parentLength, parentStart);
     if (child.type === 'innertube') {
-      if (!overlapsFin(top, num(child, 'length'), finTop, finLength)) continue;
+      if (!overlapsFin(top, partLength(child), finTop, finLength)) continue;
       maxTubeRadius = Math.max(maxTubeRadius, num(child, 'outerRadius'));
     } else if (child.type === 'centeringring') {
       maxRingRadius = Math.max(maxRingRadius, num(child, 'outerRadius'));
-      rings.push({ top, thickness: num(child, 'length'), outerRadius: num(child, 'outerRadius') });
+      rings.push({ top, thickness: partLength(child), outerRadius: num(child, 'outerRadius') });
     }
   }
   // A ring no wider than the mount tube is not an obstruction: the tab clears it

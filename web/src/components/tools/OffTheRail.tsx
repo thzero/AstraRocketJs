@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { defaultToolSite, rememberedSlot, useRemembered } from './remembered';
 import { useTranslation } from 'react-i18next';
-import { useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import type { MotorSpec } from '../../engine/openRocketEngine';
@@ -38,8 +38,21 @@ import { useOnline } from '../common/useOnline';
  * gets these from the engine, on its rail departure event.
  */
 
+/** The site, time and wind field a fetched forecast belongs to. */
+interface FetchedFor {
+  latitudeDeg: number;
+  longitudeDeg: number;
+  launchAltitudeM: number | null;
+  date: string;
+  hour: number;
+  windMs: number;
+}
+
 type Fetch =
-  { kind: 'idle' } | { kind: 'loading' } | { kind: 'error'; message: string } | { kind: 'ready'; wind: SurfaceWind };
+  | { kind: 'idle' }
+  | { kind: 'loading' }
+  | { kind: 'error'; message: string }
+  | { kind: 'ready'; wind: SurfaceWind; for: FetchedFor };
 
 interface Remembered {
   motor: MotorSpec | null;
@@ -81,14 +94,16 @@ export function OffTheRail() {
   const request = useLatest();
 
   const getWind = async () => {
-    if (site.latitudeDeg == null || site.longitudeDeg == null) return;
+    const { latitudeDeg, longitudeDeg, launchAltitudeM } = site;
+    if (latitudeDeg == null || longitudeDeg == null) return;
     const signal = request.claimSignal();
     setFetched({ kind: 'loading' });
     try {
       const wind = await fetchSurfaceWind(
         {
-          latitudeDeg: site.latitudeDeg,
-          longitudeDeg: site.longitudeDeg,
+          latitudeDeg,
+          longitudeDeg,
+          siteM: launchAltitudeM,
           date,
           hour,
           today: todayYmd(),
@@ -97,12 +112,17 @@ export function OffTheRail() {
         { signal },
       );
       if (signal.aborted) return;
-      if (wind === 'noHour') {
-        setFetched({ kind: 'error', message: t('weather.noHour') });
+      if (wind === 'noHour' || wind === 'noElevation') {
+        setFetched({ kind: 'error', message: t(wind === 'noHour' ? 'weather.noHour' : 'weather.needElevation') });
         return;
       }
-      setFetched({ kind: 'ready', wind });
-      setWindMs(roundTo(wind.speedMs, 1));
+      const speed = roundTo(wind.speedMs, 1);
+      setFetched({
+        kind: 'ready',
+        wind,
+        for: { latitudeDeg, longitudeDeg, launchAltitudeM, date, hour, windMs: speed },
+      });
+      setWindMs(speed);
     } catch (err) {
       if (signal.aborted) return;
       setFetched({ kind: 'error', message: weatherErrorText(err, t) });
@@ -117,10 +137,20 @@ export function OffTheRail() {
   const needed = ready && ok ? railNeededM(motor, dryMassKg, minExit) : null;
   const railUnit = u.at(unitScope('launch', 'railLength'), 'length');
   const angle = ok && windMs != null ? weathercockDeg(windMs, ok.exitSpeedMs) : null;
-  const gustAngle =
-    ok && fetched.kind === 'ready' && fetched.wind.gustMs != null
-      ? weathercockDeg(fetched.wind.gustMs, ok.exitSpeedMs)
+  // A forecast counts only while the site, time and wind field still hold what
+  // it was fetched for; after any of them changes, its gust belongs to another
+  // place, time or wind.
+  const forecast =
+    fetched.kind === 'ready' &&
+    fetched.for?.latitudeDeg === site.latitudeDeg &&
+    fetched.for.longitudeDeg === site.longitudeDeg &&
+    fetched.for.launchAltitudeM === site.launchAltitudeM &&
+    fetched.for.date === date &&
+    fetched.for.hour === hour &&
+    fetched.for.windMs === windMs
+      ? fetched.wind
       : null;
+  const gustAngle = ok && forecast?.gustMs != null ? weathercockDeg(forecast.gustMs, ok.exitSpeedMs) : null;
 
   const speed = u.plain('velocity');
   const wind = u.plain('windspeed');
@@ -135,10 +165,7 @@ export function OffTheRail() {
   const flagged = (out: boolean, text: string, word: string) =>
     out ? <span className={warn}>{`${text} · ${word}`}</span> : text;
 
-  const validTime =
-    fetched.kind === 'ready'
-      ? fmtSiteTime(fetched.wind.validUnix * 1000, fetched.wind.answer.timezone, { year: false })
-      : '';
+  const validTime = forecast ? fmtSiteTime(forecast.validUnix * 1000, forecast.answer.timezone, { year: false }) : '';
 
   return (
     <div className="grid gap-4 lg:grid-cols-[22rem_minmax(0,28rem)]">
@@ -157,7 +184,11 @@ export function OffTheRail() {
               {motor ? t('sims.changeMotor') : t('rail.chooseMotor')}
             </button>
           </div>
-          {motorError && <p className="text-xs text-error-400">{motorError}</p>}
+          {motorError && (
+            <p role="alert" className="text-xs text-error-400">
+              {motorError}
+            </p>
+          )}
         </CardGroup>
 
         <CardGroup title={t('rail.rocket')}>
@@ -205,7 +236,7 @@ export function OffTheRail() {
           <details className="rounded-md bg-canvas/40 p-2" open={fetched.kind !== 'idle' || undefined}>
             <summary className="cursor-pointer text-xs font-medium text-accent-300">{t('rail.fromForecast')}</summary>
             <div className="mt-2 space-y-2">
-              <SiteFields site={site} onChange={setSite} />
+              <SiteFields site={site} onChange={setSite} elevation />
               <WhenFields date={date} hour={hour} onDate={setDate} onHour={setHour} />
               <button
                 className={`${toolBtn} w-full`}
@@ -217,13 +248,17 @@ export function OffTheRail() {
               >
                 {fetched.kind === 'loading' ? t('rail.fetching') : t('rail.fetchWind')}
               </button>
-              {fetched.kind === 'error' && <p className="text-xs text-error-400">{fetched.message}</p>}
-              {fetched.kind === 'ready' && (
+              {fetched.kind === 'error' && (
+                <p role="alert" className="text-xs text-error-400">
+                  {fetched.message}
+                </p>
+              )}
+              {forecast && (
                 <>
                   <p className="text-xs text-ink-muted">
-                    {t(fetched.wind.gustMs != null ? 'rail.forecastWindGust' : 'rail.forecastWind', {
-                      wind: fmtWind(fetched.wind.speedMs),
-                      gust: fetched.wind.gustMs != null ? fmtWind(fetched.wind.gustMs) : '',
+                    {t(forecast.gustMs != null ? 'rail.forecastWindGust' : 'rail.forecastWind', {
+                      wind: fmtWind(forecast.speedMs),
+                      gust: forecast.gustMs != null ? fmtWind(forecast.gustMs) : '',
                       when: validTime,
                     })}
                   </p>
@@ -266,15 +301,15 @@ export function OffTheRail() {
               </Stat>
               {angle != null && (
                 <Stat label={t('rail.weathercock')}>
-                  {flagged(angle > WEATHERCOCK_LIMIT_DEG, `${fmtNum(angle, 1)}°`, t('limits.aboveMax'))}
+                  {flagged(angle > WEATHERCOCK_LIMIT_DEG, fmtDegrees(u, angle, 1), t('limits.aboveMax'))}
                 </Stat>
               )}
               {gustAngle != null && (
                 <Stat label={t('rail.weathercockGust')}>
-                  {flagged(gustAngle > WEATHERCOCK_LIMIT_DEG, `${fmtNum(gustAngle, 1)}°`, t('limits.aboveMax'))}
+                  {flagged(gustAngle > WEATHERCOCK_LIMIT_DEG, fmtDegrees(u, gustAngle, 1), t('limits.aboveMax'))}
                 </Stat>
               )}
-              <Stat label={t('rail.maxWind', { angle: WEATHERCOCK_LIMIT_DEG })}>
+              <Stat label={t('rail.maxWind', { angle: fmtDegrees(u, WEATHERCOCK_LIMIT_DEG) })}>
                 {fmtWind(maxWindMs(ok.exitSpeedMs))}
               </Stat>
               <Stat label={t('rail.maxDryMass')}>{heaviest != null ? fmtMass(heaviest) : t('rail.none')}</Stat>
@@ -283,7 +318,7 @@ export function OffTheRail() {
               {t('rail.rules', {
                 ratio: MIN_THRUST_TO_WEIGHT,
                 speed: fmtSpeed(minExit),
-                angle: WEATHERCOCK_LIMIT_DEG,
+                angle: fmtDegrees(u, WEATHERCOCK_LIMIT_DEG),
               })}
             </p>
             <p className="text-[11px] text-ink-faint">{t('rail.estimateNote')}</p>

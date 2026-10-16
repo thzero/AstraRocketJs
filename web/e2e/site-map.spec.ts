@@ -1,4 +1,5 @@
 import { test, expect, openTab, ready, type Page } from './base';
+import { nsKey } from '../src/services/storage/storageKeys';
 
 /**
  * The launch-site map, through the real app.
@@ -125,4 +126,52 @@ test('the location editor carries a map under its fields', async ({ page }) => {
   // published coordinates gets entered at all.
   await mapIn(editor).click({ position: { x: 40, y: 30 } });
   expect(Number(await editor.getByLabel('Latitude', { exact: true }).inputValue())).toBeGreaterThan(51.5);
+});
+
+/**
+ * A user's own Esri key goes on every tile the map asks for, and without one
+ * the credit line suggests adding it. The key lives in its own storage entry
+ * (services/map/esriKey), so it is seeded here the way the Settings field
+ * stores it.
+ */
+test('a saved Esri key goes on every tile, and its absence is noted', async ({ page }) => {
+  const asked: string[] = [];
+  page.on('request', (r) => {
+    if (r.url().includes('arcgisonline.com')) asked.push(r.url());
+  });
+
+  await ready(page);
+  await openTab(page, 'Simulations');
+  await lat(page).fill('39.05');
+  await lon(page).fill('-104.8');
+  await blurFields(page);
+  await page.getByRole('button', { name: 'Show on map' }).click();
+  let dialog = page.getByRole('dialog', { name: 'Launch site' });
+  await expect.poll(() => asked.length).toBeGreaterThan(0);
+  expect(asked.every((u) => !u.includes('token='))).toBe(true);
+  await expect(dialog.getByText('Add your own free Esri key in Settings, Launch.', { exact: false })).toBeVisible();
+
+  // The note's link opens Help over the map, on the section about getting a key.
+  await dialog.getByRole('button', { name: 'How to get one' }).click();
+  const help = page.getByRole('dialog', { name: 'Help' });
+  await expect(help).toBeVisible();
+  await expect(page.frameLocator('iframe[title="Help"]').locator('#esri-key')).toBeInViewport();
+  await help.getByRole('button', { name: 'Close' }).click();
+  await expect(help).toBeHidden();
+
+  await dialog.getByRole('button', { name: 'Close' }).click();
+
+  await page.evaluate((k) => localStorage.setItem(k, 'test-key-e2e'), nsKey('esri:apikey'));
+  await page.reload();
+  asked.length = 0;
+  await ready(page);
+  await openTab(page, 'Simulations');
+  await lat(page).fill('39.05');
+  await lon(page).fill('-104.8');
+  await blurFields(page);
+  await page.getByRole('button', { name: 'Show on map' }).click();
+  dialog = page.getByRole('dialog', { name: 'Launch site' });
+  await expect.poll(() => asked.length).toBeGreaterThan(0);
+  expect(asked.every((u) => u.endsWith('?token=test-key-e2e'))).toBe(true);
+  await expect(dialog.getByText('Add your own free Esri key', { exact: false })).toHaveCount(0);
 });

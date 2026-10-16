@@ -9,9 +9,11 @@ describe('tubeFinRadius', () => {
     expect(tubeFinRadius(node({ outerRadius: 0.02, finCount: 6 }), 0.05)).toBe(0.02);
   });
 
-  it('falls back to auto-sizing when outerRadius is absent or zero', () => {
+  it('auto-sizes only when outerRadius is absent', () => {
     // finCount 6: r = R·sin(π/6)/(1−sin(π/6)) = R·0.5/0.5 = R
-    expect(tubeFinRadius(node({ outerRadius: 0, finCount: 6 }), 0.024)).toBeCloseTo(0.024);
+    expect(tubeFinRadius(node({ finCount: 6 }), 0.024)).toBeCloseTo(0.024);
+    // A stored zero is what TubeFinSet.setOuterRadius keeps (finPlanform.kernel.test.ts).
+    expect(tubeFinRadius(node({ outerRadius: 0, finCount: 6 }), 0.024)).toBe(0);
   });
 
   it('defaults finCount to 6 when unspecified', () => {
@@ -74,7 +76,7 @@ describe('tubeFinRadius numeric guard', () => {
     }
   });
 
-  it('still honours a real explicit radius', () => {
+  it('still honors a real explicit radius', () => {
     const r = tubeFinRadius({ type: 'tubefinset', finCount: 6, outerRadius: 0.005 } as unknown as ComponentNode, 0.012);
     expect(r).toBeCloseTo(0.005, 12);
   });
@@ -92,11 +94,11 @@ describe('tubeFinRadius numeric guard', () => {
 describe('isFinSet / isPlanarFinSet', () => {
   const PLANAR = ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset'];
 
-  it('counts every fin set, tube fins included — what a marking guide collects', () => {
+  it('counts every fin set, tube fins included: what a marking guide collects', () => {
     for (const t of [...PLANAR, 'tubefinset']) expect(isFinSet(t), t).toBe(true);
   });
 
-  it('excludes tube fins from the planar set — what `instanceof FinSet` does', () => {
+  it('excludes tube fins from the planar set: what `instanceof FinSet` does', () => {
     for (const t of PLANAR) expect(isPlanarFinSet(t), t).toBe(true);
     expect(isPlanarFinSet('tubefinset')).toBe(false);
   });

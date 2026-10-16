@@ -72,8 +72,10 @@ describe('keyboard editing', () => {
     expect((onChange.mock.calls[0]![0] as Pt[])[1]![0]).toBeCloseTo(0.03, 9);
   });
 
-  it('keeps the fin above the body and forward of the origin', () => {
-    // The same clamp the drag path applies: x >= 0, y >= 0.
+  it('keeps the fin above the body, and lets an interior point go forward of the origin', () => {
+    // y >= 0 is the drag path's clamp too. x is not bounded for an interior
+    // point (FreeformFinSet.setPoint takes any x), so a swept-forward leading
+    // edge can be drawn.
     const { onChange } = show([
       [0, 0],
       [0.0005, 0.0005],
@@ -81,8 +83,18 @@ describe('keyboard editing', () => {
     ]);
     fireEvent.keyDown(vertex(2), { key: 'ArrowLeft' });
     fireEvent.keyDown(vertex(2), { key: 'ArrowDown' });
-    expect((onChange.mock.calls[0]![0] as Pt[])[1]![0]).toBe(0);
+    expect((onChange.mock.calls[0]![0] as Pt[])[1]![0]).toBeCloseTo(-0.0005, 9);
     expect((onChange.mock.calls[1]![0] as Pt[])[1]![1]).toBe(0);
+  });
+
+  it('keeps the root trailing edge on the body, at or aft of the origin', () => {
+    const { onChange } = show([
+      [0, 0],
+      [0.02, 0.03],
+      [0.0005, 0],
+    ]);
+    fireEvent.keyDown(vertex(3), { key: 'ArrowLeft' });
+    expect((onChange.mock.calls[0]![0] as Pt[])[2]).toEqual([0, 0]);
   });
 
   it('deletes the focused vertex, but never below three points', () => {
@@ -149,6 +161,17 @@ describe('root end points', () => {
     expect((screen.getByRole('button', { name: 'Remove point' }) as HTMLButtonElement).disabled).toBe(true);
   });
 
+  /**
+   * The closing edge, from the root trailing edge back to the origin, is the
+   * root on the body. FreeformFinSet.addPoint refuses a point there, and one
+   * appended would become the trailing edge at half the root's length.
+   */
+  it('offers no insert on the closing root edge', () => {
+    show(FOUR);
+    expect(screen.getByLabelText('Insert a point after 3')).toBeTruthy();
+    expect(screen.queryByLabelText('Insert a point after 4')).toBeNull();
+  });
+
   it('still deletes an interior point', () => {
     const { onChange } = show(FOUR);
     fireEvent.keyDown(vertex(3), { key: 'Backspace' });
@@ -173,5 +196,22 @@ describe('drag cancellation', () => {
     // Nothing is held any more: a later release commits nothing further.
     fireEvent.pointerUp(screen.getByRole('group', { name: 'Fin outline' }), { pointerId: 1 });
     expect(onCommit).toHaveBeenCalledTimes(1);
+  });
+});
+
+/**
+ * An SVG shape renders no box-shadow, so a Tailwind ring on a marker shows
+ * nothing. Keyboard focus has to be drawn as a stroke.
+ */
+describe('keyboard focus on the outline markers', () => {
+  it('is drawn with a stroke, not a ring', () => {
+    show();
+    const markers = [...document.querySelectorAll('circle[role="button"]')];
+    expect(markers.length).toBeGreaterThan(2);
+    for (const m of markers) {
+      const cls = m.getAttribute('class') ?? '';
+      expect(cls).toMatch(/focus-visible:stroke-ink-strong/);
+      expect(cls).not.toMatch(/ring/);
+    }
   });
 });

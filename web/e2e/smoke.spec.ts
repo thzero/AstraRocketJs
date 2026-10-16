@@ -51,7 +51,7 @@ test.describe('AstraRocketJs smoke', () => {
     await page.getByRole('button', { name: 'Duplicate simulation' }).click();
     await autosaved(page, '"launch":', 2);
 
-    await expect(page.getByText(/^Saved/)).toHaveText('Saved just now');
+    await expect(page.getByText('Saved just now', { exact: true })).toBeVisible();
 
     // And the File menu does not offer a Save of its own.
     await page.getByRole('button', { name: 'Menu' }).click();

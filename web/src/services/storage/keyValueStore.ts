@@ -11,6 +11,13 @@
 // unload journal in workspaceStore.ts.
 export interface KeyValueStore {
   get(key: string): Promise<string | null>;
+  /**
+   * As `get`, but rejects when the store could not be read, where `get`
+   * answers null. A caller that would act on "nothing stored" (clear a
+   * journal, seed an empty library) uses this to tell the two apart. Optional:
+   * a store without it reads through `get`.
+   */
+  getChecked?(key: string): Promise<string | null>;
   /** Persist `value`. Resolves `true` on success, `false` on failure (quota
    *  exceeded, storage blocked). Best-effort callers ignore it; callers holding
    *  the only copy of something (the workspace) check it to surface a warning. */
@@ -40,6 +47,14 @@ export class LocalStorageKeyValueStore implements KeyValueStore {
       return Promise.resolve(localStorage.getItem(key));
     } catch {
       return Promise.resolve(null); // storage unavailable (private mode etc.)
+    }
+  }
+
+  getChecked(key: string): Promise<string | null> {
+    try {
+      return Promise.resolve(localStorage.getItem(key));
+    } catch (e) {
+      return Promise.reject(e instanceof Error ? e : new Error('localStorage read failed'));
     }
   }
 

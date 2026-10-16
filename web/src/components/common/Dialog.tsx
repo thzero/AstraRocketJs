@@ -1,6 +1,7 @@
 import { useId, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useFocusTrap } from './useFocusTrap';
+import { useBackdropDismiss } from './useBackdropDismiss';
 import { layerClass, readExpanded, sizeClasses, writeExpanded, type DialogLayer, type DialogSize } from './dialogSize';
 
 /**
@@ -122,6 +123,7 @@ export function Dialog({
   // surface, so a nested dialog closing on Escape does not take the one it
   // opened from with it (useFocusTrap).
   const panelRef = useFocusTrap<HTMLDivElement>(true, { onEscape: dismissible ? onClose : undefined });
+  const backdrop = useBackdropDismiss(dismissible ? onClose : undefined);
   const headingId = useId();
   const [expanded, setExpanded] = useState(() => readExpanded(id));
   const toggleExpanded = () => {
@@ -131,14 +133,11 @@ export function Dialog({
   };
 
   return (
-    <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-static-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
+    <div
+      // A backdrop press is the mouse twin of Escape, which the focus trap
+      // handles (useBackdropDismiss).
       className={`dialog-overlay fixed inset-0 ${layerClass[layer]} flex items-center justify-center bg-shade/60 p-4`}
-      // The stop is required: a nested dialog renders inside its parent's
-      // overlay, so without it the click bubbles up and closes both.
-      onClick={(e) => {
-        e.stopPropagation();
-        if (dismissible) onClose();
-      }}
+      {...backdrop}
     >
       <div // eslint-disable-line jsx-a11y-x/click-events-have-key-events, jsx-a11y-x/no-noninteractive-element-interactions -- a backdrop click is the mouse twin of Escape, which the focus trap handles; the panel only stops that click
         ref={panelRef}
@@ -164,9 +163,7 @@ export function Dialog({
           {leading}
           <div className="min-w-0 flex-1">
             {eyebrow && (
-              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">
-                {eyebrow}
-              </div>
+              <div className="truncate text-[11px] font-semibold uppercase tracking-wider text-warn-300">{eyebrow}</div>
             )}
             <h2
               id={headingId}

@@ -239,6 +239,12 @@ describe('solid mesher (per component)', () => {
     expect(discSolid(0.012, 0.02, 0.003)).toBeNull();
   });
 
+  it('refuses a zero-length disc rather than inventing a thickness for it', () => {
+    expect(discSolid(0.012, 0, 0)).toBeNull();
+    expect(discSolid(0.012, 0.0095, 1e-7)).toBeNull();
+    expect(discSolidForNode(0.012, 0, 0)).toBeNull();
+  });
+
   it('a solid disc (bulkhead) is watertight and manifold', () => {
     const g = discSolid(0.012, 0, 0.003);
     expect(g).not.toBeNull();
@@ -344,7 +350,7 @@ describe('isSimplePolygon', () => {
     ).toBe(true);
   });
 
-  it('rejects a bow tie — the shape FreeformFinEditor lets you drag into', () => {
+  it('rejects a bow tie, the shape FreeformFinEditor lets you drag into', () => {
     expect(
       isSimplePolygon([
         [0, 0],
@@ -437,12 +443,10 @@ describe('discSolidForNode applies the same validation as solidForNode', () => {
     expect(discSolidForNode(0, 0, 0.003)).toBeNull();
   });
 
-  it('substitutes a nominal length for a missing one, on purpose', () => {
-    // Not a degenerate case: `discSolid` reads a length at or below 1e-6 as
-    // "not stated" and uses 2 mm, so a ring whose length the file omitted is
-    // still exportable. Pinned so the guard above is not later widened into
-    // refusing it.
-    expect(discSolidForNode(0.012, 0.008, 0)).not.toBeNull();
+  it('refuses a zero length, which the simulation flew as no part', () => {
+    // A missing `length` key is resolved to the kernel's default before this
+    // point (discGeometry), so a zero here is a stated zero.
+    expect(discSolidForNode(0.012, 0.008, 0)).toBeNull();
   });
 
   it('agrees with discSolid wherever discSolid already refused', () => {
@@ -467,5 +471,18 @@ describe('a keyless chain part as a printable solid', () => {
     geo!.computeBoundingBox();
     const b = geo!.boundingBox!;
     expect(b.max.x - b.min.x).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length, 6);
+  });
+});
+
+describe('a transition with no end radii on record', () => {
+  // The bridge makes such an end automatic, and with nothing to follow the
+  // kernel gives it SymmetricComponent.DEFAULT_RADIUS (0.025 m). The printed
+  // part is that cylinder, not a cone between two invented sizes.
+  it('is meshed at the kernel radius at both ends', () => {
+    const geo = solidForNode({ type: 'transition', length: 0.05, thickness: 0.002 } as unknown as ComponentNode)!;
+    geo.computeBoundingBox();
+    const box = geo.boundingBox!;
+    expect(box.max.y).toBeCloseTo(0.025, 6);
+    expect(box.max.z).toBeCloseTo(0.025, 6);
   });
 });

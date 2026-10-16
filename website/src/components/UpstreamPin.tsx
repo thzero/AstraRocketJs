@@ -10,7 +10,7 @@ type Pin = { ref: string; shortRef: string; date: string; commitUrl: string };
  * Renders inline, so a page can write it into a sentence in its own language:
  *
  *     ...is pinned to OpenRocket commit <UpstreamPin />.
- *     => ...is pinned to OpenRocket commit 98f05af97 (2026-09-21).
+ *     => ...is pinned to OpenRocket commit <short SHA> (<commit date>).
  *
  * The value comes from `engine-java/extract/UPSTREAM` at build time (see
  * customFields in docusaurus.config.ts). That is the only place the ref is

@@ -5,7 +5,7 @@ import type { PickerType } from '../../services/parts/componentDb';
 import { DEFAULT_CUSTOM_MFR, saveCustomPart, type PartMeta } from '../../services/parts/customParts';
 import { PartMetaFields } from './PartMetaFields';
 import { Dialog } from '../common/Dialog';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { DialogButton } from '../common/DialogButton';
 
 /**
@@ -63,7 +63,7 @@ function SavePartDialog({ node, type, onClose }: { node: ComponentNode; type: Pi
     } catch (e) {
       // A refused write, or a node the picker could not list. Either way the
       // dialog stays open: closing it would say the part was saved.
-      setErr(errorMessage(e));
+      setErr(errorText(e, t));
       setSaving(false);
     }
   };

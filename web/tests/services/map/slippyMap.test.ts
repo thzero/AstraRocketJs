@@ -1,3 +1,4 @@
+// cspell:ignore Intermap METI NGCC
 import { afterEach, describe, expect, it } from 'vitest';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -182,10 +183,16 @@ describe('tile sources', () => {
   });
 
   it('carries the attribution each service publishes', () => {
-    expect(TILE_SOURCES.satellite.attribution).toMatch(/Esri/);
+    // Each service's `copyrightText` from its `?f=json` metadata, word for word.
+    expect(TILE_SOURCES.satellite.attribution).toBe(
+      'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
+    );
     // Esri's street map is built on OSM data, so the people who surveyed the
     // roads are still credited - we just are not using their servers.
-    expect(TILE_SOURCES.street.attribution).toMatch(/OpenStreetMap/);
+    expect(TILE_SOURCES.street.attribution).toBe(
+      'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), ' +
+        'Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community',
+    );
   });
 });
 
@@ -260,6 +267,11 @@ describe('formatLat / formatLon', () => {
   it('writes the digits in the reader locale', async () => {
     await i18n.changeLanguage('de');
     expect(formatCoord(39.05, -104.8, 3)).toBe('39,050° N, 104,800° W');
+  });
+
+  it('writes the hemisphere letters in the reader language', async () => {
+    await i18n.changeLanguage('es');
+    expect(formatCoord(39.05, -104.8, 3)).toBe('39,050° N, 104,800° O');
   });
 
   it('is the only way a view prints a coordinate', () => {

@@ -29,8 +29,13 @@ export interface LaunchLocation {
   name: string;
   latitudeDeg: number;
   longitudeDeg: number;
-  /** Site elevation above sea level, in meters (SI, like everything stored). */
-  launchAltitudeM: number;
+  /**
+   * Site elevation above sea level, in meters (SI, like everything stored), or
+   * null when it is not known. A site saved from a tool with its elevation left
+   * to the terrain model has none, and a guessed sea level would fly a high
+   * field's thin air as sea-level air.
+   */
+  launchAltitudeM: number | null;
 }
 
 export interface LaunchLocationStore {
@@ -80,7 +85,7 @@ function isLocation(v: unknown): v is LaunchLocation {
     typeof p.name === 'string' &&
     num(p.latitudeDeg, LAUNCH_SITE_LIMITS.latitudeDeg) &&
     num(p.longitudeDeg, LAUNCH_SITE_LIMITS.longitudeDeg) &&
-    num(p.launchAltitudeM, LAUNCH_SITE_LIMITS.launchAltitudeM)
+    (p.launchAltitudeM === null || num(p.launchAltitudeM, LAUNCH_SITE_LIMITS.launchAltitudeM))
   );
 }
 
@@ -132,9 +137,10 @@ export function locationFrom(
     // The zeroes are a last resort, not a default: both coordinates are
     // required launch fields and the save button is disabled while either is
     // blank, so a location at 0,0 is not reachable from the panel. A `LaunchLocation` has to
-    // be a complete place, hence a number rather than a hole.
+    // be a place, hence numbers rather than holes. Elevation is the exception:
+    // a blank one stays unknown rather than becoming sea level.
     latitudeDeg: site.latitudeDeg ?? 0,
     longitudeDeg: site.longitudeDeg ?? 0,
-    launchAltitudeM: site.launchAltitudeM ?? 0,
+    launchAltitudeM: site.launchAltitudeM,
   };
 }

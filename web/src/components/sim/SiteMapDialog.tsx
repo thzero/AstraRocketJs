@@ -11,9 +11,9 @@ import { SiteMap } from './SiteMap';
  * So it opens rather than sitting inline: the location editor, which is already
  * a dialog, has room for the map under its fields and keeps it there.
  *
- * Clicking the map writes the coordinates through the panel's own change path,
- * so it is one undoable edit like typing them, and it lands on whichever
- * simulations the panel is editing rather than only the active one.
+ * Clicking the map hands the coordinates to the caller's `onPick`: the launch
+ * panel writes them as one undoable edit on whichever simulations it is
+ * editing, and a tool writes them to its own site.
  */
 export function SiteMapDialog({
   latitudeDeg,
@@ -33,8 +33,8 @@ export function SiteMapDialog({
       id="siteMap"
       title={t('map.title')}
       onClose={onClose}
-      // It opens over the simulation panel, which is itself inside a dialog when
-      // reached from the location editor.
+      // It opens over the launch panel, which is itself inside a dialog in
+      // Settings, or over a tool's site fields.
       layer="over"
       size="3xl"
       // A map cannot usefully scroll, so the body takes the height and the map

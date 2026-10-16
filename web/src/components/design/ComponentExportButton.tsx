@@ -23,7 +23,7 @@ const LABEL: Record<ExportFormat, string> = {
 export function ComponentExportButton({ node, tabIndex }: { node: ComponentNode; tabIndex?: number }) {
   const { t } = useTranslation();
   const exportComponent = useWorkspaceStore((s) => s.exportComponent);
-  const { open, toggle, close, wrapRef, triggerRef } = useMenuPopover();
+  const { open, toggle, closeAndRestore, wrapRef, triggerRef, menuRef, onMenuKeyDown } = useMenuPopover();
 
   const formats = componentFormats(node.type);
   const id = node.id;
@@ -47,17 +47,20 @@ export function ComponentExportButton({ node, tabIndex }: { node: ComponentNode;
         ⬇
       </button>
       {open && (
-        <div
+        <div // eslint-disable-line jsx-a11y-x/interactive-supports-focus -- roving tabindex: focus moves to the items, as in the ARIA menu pattern, so the container is not
           role="menu"
+          ref={menuRef}
+          onKeyDown={onMenuKeyDown}
           className="absolute right-0 z-30 mt-1 w-40 overflow-hidden rounded-lg bg-raised py-1 shadow-xl ring-1 ring-line/10"
         >
           {formats.map((f) => (
             <button
               key={f}
               role="menuitem"
+              tabIndex={-1}
               onClick={(e) => {
                 e.stopPropagation();
-                close();
+                closeAndRestore();
                 fireAction(exportComponent(id, f));
               }}
               className="flex w-full items-center px-3 py-1.5 text-left text-xs font-medium text-ink hover:bg-elevated"

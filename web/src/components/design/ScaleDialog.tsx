@@ -78,7 +78,12 @@ export function ScaleDialog({ onClose }: { onClose: () => void }) {
   ];
   const [what, setWhat] = useState<ScaleScope>(scopes.length > 1 && node?.type !== 'stage' ? scopes[1]! : 'rocket');
   const [factor, setFactor] = useState(2);
-  const [from, setFrom] = useState(() => initialSize(node, baseD));
+  // Opening on the whole design (a stage selected), or on a part with no size
+  // of its own (a pod or booster at radius 0), starts from the widest body.
+  const [from, setFrom] = useState(() => {
+    const size = what === 'rocket' ? baseD : initialSize(node, baseD);
+    return size > 0 ? size : baseD;
+  });
   const explicitMass = hasExplicitMass(tree);
   const [masses, setMasses] = useState(true);
   // Positions follow by default, except when one part alone is scaled: there

@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../../src/engine/openRocketEngine';
 import { computeStaticInfo } from '../../../src/services/design/buildRocket';
+import { KeyedError } from '../../../src/i18n/keyedError';
 import { flightKey } from '../../../src/services/flight/simulations';
 import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 
@@ -45,6 +46,13 @@ describe('computeStaticInfo', () => {
       throw new Error('bad geometry');
     });
     expect(res).toEqual({ error: 'bad geometry' });
+  });
+
+  it('keeps a keyed failure as its key and values, for the banner to translate', () => {
+    const res = computeStaticInfo(tree, config, () => {
+      throw new KeyedError('errors.motorCurve.noMass', { motor: 'F67' });
+    });
+    expect(res).toEqual({ error: { key: 'errors.motorCurve.noMass', values: { motor: 'F67' } } });
   });
 
   /**

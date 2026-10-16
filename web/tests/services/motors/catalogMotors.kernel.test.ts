@@ -6,6 +6,7 @@ import { defaultNode } from '../../../src/services/design/treeEdit';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 import type { ComponentType } from '../../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
+import { loadEngine } from '../../testing/kernelGeometry';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -17,13 +18,6 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * (no published weights, more propellant than mass) are not the kernel's
  * business and are skipped.
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
-const loadEngine = async (): Promise<any> => {
-  (globalThis as any).$rt_putStdoutCustom ??= () => {};
-  (globalThis as any).$rt_putStderrCustom ??= () => {};
-  return import('../../../src/engine/vendor/openrocket-engine.mjs' as string);
-};
 
 const catalog = JSON.parse(
   readFileSync(join(__dirname, '../../../public/data/motors.generated.json'), 'utf8'),

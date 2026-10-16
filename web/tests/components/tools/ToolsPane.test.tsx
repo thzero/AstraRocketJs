@@ -76,6 +76,19 @@ describe('the Tools tab', () => {
     expect(main()).toBe(blank);
   });
 
+  it('keeps the site elevation when its box is cleared, rather than sizing for sea level', () => {
+    renderWithProviders(<ToolsPane />);
+    fireEvent.click(screen.getByRole('tab', { name: 'Parachute sizing' }));
+    const result = screen.getByRole('region', { name: 'Parachute sizing result' });
+    const main = () => within(result).getByText(/^Main \(/).nextElementSibling?.textContent;
+    const site = screen.getByLabelText('Site elevation');
+    fireEvent.change(site, { target: { value: '2682' } });
+    const high = main();
+    fireEvent.change(site, { target: { value: '' } });
+    fireEvent.blur(site);
+    expect(main()).toBe(high);
+  });
+
   it('works out a rail exit once there is a motor', () => {
     renderWithProviders(<ToolsPane />);
     fireEvent.click(screen.getByRole('tab', { name: 'Off the rail' }));

@@ -127,6 +127,18 @@ describe('per-configuration separation through a .ork', () => {
     expect(res.configs.find((c) => c.id === 'cfg-b')!.grounded).toEqual([booster]);
   });
 
+  it('writes no block for a configuration that stages as designed, as AxialStageSaver does', () => {
+    const xml = exportOrk({ name: 'Two stage', tree: staged, configs: staging, activeConfigId: 'cfg-a' });
+    expect(xml).not.toContain('<separationconfiguration configid="cfg-a">');
+    expect(xml).toContain('<separationconfiguration configid="cfg-b">');
+    // An imported configuration records the values it resolves to, which for
+    // cfg-a are the design's; a second save still writes no block for it.
+    const first = importOrk(xml);
+    const again = exportOrk({ name: 'Two stage', tree: first.tree, configs: first.configs, activeConfigId: 'cfg-a' });
+    expect(again).not.toContain('<separationconfiguration configid="cfg-a">');
+    expect(again).toContain('<separationconfiguration configid="cfg-b">');
+  });
+
   it('survives a second trip, so saving one setup keeps the other"s staging', () => {
     const first = importOrk(exportOrk({ name: 'Two stage', tree: staged, configs: staging, activeConfigId: 'cfg-a' }));
     const again = exportOrk({ name: 'Two stage', tree: first.tree, configs: first.configs, activeConfigId: 'cfg-a' });
@@ -146,6 +158,16 @@ describe('per-configuration deployment through a .ork', () => {
   it('writes the overriding configuration"s own block', () => {
     expect(xml).toContain('<deploymentconfiguration configid="cfg-b">');
     expect(xml).toMatch(/<deploymentconfiguration configid="cfg-b">[\s\S]*?<deployaltitude>150<\/deployaltitude>/);
+  });
+
+  it('writes no block for a configuration that overrides nothing, as RecoveryDeviceSaver does', () => {
+    // A block repeating the defaults reads back in desktop as an override, so a
+    // later deploy change there would miss that configuration.
+    expect(xml).not.toContain('<deploymentconfiguration configid="cfg-a">');
+    const first = importOrk(xml);
+    const again = exportOrk({ name: 'Dual', tree: first.tree, configs: first.configs, activeConfigId: 'cfg-a' });
+    expect(again).not.toContain('<deploymentconfiguration configid="cfg-a">');
+    expect(again).toContain('<deploymentconfiguration configid="cfg-b">');
   });
 
   it('reads both back, each against its own configuration', () => {
@@ -178,5 +200,77 @@ describe('per-configuration deployment through a .ork', () => {
     expect(solo).toContain('<deploymentconfiguration configid="cfg-b">');
     const back = importOrk(solo);
     expect(back.configs[0]!.deployments[chuteId(back.tree)]).toMatchObject({ deployAltitude: 150 });
+  });
+});
+
+describe('the lower stage separation deploy event at the .ork boundary', () => {
+  // DocumentConfig.findEnum matches the enum name lower-cased with the
+  // underscores removed, and RecoveryDeviceSaver writes it that way.
+  const lss = (deployments: Record<string, { deployEvent: string; deployAltitude?: number }>) => [
+    { id: 'cfg-a', name: 'As designed', motors: {} },
+    { id: 'cfg-b', name: 'Staged', motors: {}, deployments },
+  ];
+  const staged = (event: string) =>
+    ({
+      ...tree,
+      components: [
+        node({
+          ...tree.components[0],
+          children: [
+            tree.components[0]!.children![0],
+            node({
+              ...tree.components[0]!.children![1],
+              children: [node({ ...tree.components[0]!.children![1]!.children![0], deployEvent: event })],
+            }),
+          ],
+        }),
+      ],
+    }) as unknown as RocketTree;
+
+  it('writes the desktop spelling for the design value and a configuration override', () => {
+    const xml = exportOrk({
+      name: 'Dual',
+      tree: staged('lower_stage_separation'),
+      // An altitude of its own, so the block overrides something and is written.
+      configs: lss({ main: { deployEvent: 'lower_stage_separation', deployAltitude: 321 } }),
+      activeConfigId: 'cfg-a',
+    });
+    expect(xml).toContain('<deployevent>lowerstageseparation</deployevent>');
+    expect(xml).toMatch(
+      /<deploymentconfiguration configid="cfg-b">\s*<deployevent>lowerstageseparation<\/deployevent>/,
+    );
+    expect(xml).not.toContain('lower_stage_separation');
+  });
+
+  /** The design written by this app, with every deploy event spelled `event`. */
+  const respelled = (event: string) =>
+    exportOrk({ name: 'Dual', tree: staged('apogee'), configs, activeConfigId: 'cfg-a' }).replaceAll(
+      '<deployevent>apogee</deployevent>',
+      `<deployevent>${event}</deployevent>`,
+    );
+  const chuteNode = (t: RocketTree): ComponentNode => {
+    const id = chuteId(t);
+    const stack = [...t.components];
+    while (stack.length) {
+      const n = stack.pop()!;
+      if (n.id === id) return n;
+      if (n.children) stack.push(...n.children);
+    }
+    throw new Error('no parachute');
+  };
+
+  it('reads the desktop spelling into the app event, on the design and per configuration', () => {
+    const res = importOrk(respelled('lowerstageseparation'));
+    const chute = chuteId(res.tree);
+    expect(chuteNode(res.tree)['deployEvent']).toBe('lower_stage_separation');
+    // cfg-a has no block of its own and takes the re-spelled bare tag.
+    expect(res.configs.find((c) => c.id === 'cfg-a')!.deployments[chute]).toMatchObject({
+      deployEvent: 'lower_stage_separation',
+    });
+  });
+
+  it('reads the underscored spelling too', () => {
+    const res = importOrk(respelled('lower_stage_separation'));
+    expect(chuteNode(res.tree)['deployEvent']).toBe('lower_stage_separation');
   });
 });

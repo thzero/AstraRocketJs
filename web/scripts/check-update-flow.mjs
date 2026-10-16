@@ -1,4 +1,4 @@
-// The service-worker update flow, end to end, against two real builds.
+// The service-worker update flow, end to end, against three real builds.
 //
 // The Playwright suite serves one build, so nothing in it can exercise what
 // happens on a deploy: a tab open on the old build must see the new one on a
@@ -9,14 +9,15 @@
 // This builds version A into its own output directory, serves it, loads it in
 // Chromium until the worker controls the page, then rebuilds version B into the
 // same directory and expects, in order: a plain reload shows B; an update check
-// raises the toast; the toast's Reload keeps B on screen. No hard reload
-// anywhere.
+// raises the toast; the toast's Reload keeps B on screen. Then it rebuilds
+// version C and expects an update nobody answers to be applied once the tab is
+// hidden. No hard reload anywhere.
 //
 //   npm run e2e:update
 //
 // Exit 0 on success, 1 with the failing step named and a diagnostic of what
-// each layer thought the page was. Two production builds plus a browser: about
-// two minutes.
+// each layer thought the page was. Three production builds plus a browser: a
+// few minutes.
 import { execFileSync, spawn } from 'node:child_process';
 import { cpSync, rmSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -83,8 +84,13 @@ async function main() {
     // the way e2e/base.ts does, so this drives a returning user's tab.
     const acknowledgeWip = (p) =>
       p.addInitScript((key) => {
+        let stored = {};
         try {
-          const stored = JSON.parse(localStorage.getItem(key) || '{}') ?? {};
+          stored = JSON.parse(localStorage.getItem(key) || '{}') ?? {};
+        } catch {
+          // a corrupt blob; the app discards it too, so start clean
+        }
+        try {
           localStorage.setItem(key, JSON.stringify({ ...stored, wipAcknowledged: true }));
         } catch {
           // about:blank has no storage; the real navigation runs this again

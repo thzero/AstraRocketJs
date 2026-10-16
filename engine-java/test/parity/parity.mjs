@@ -14,7 +14,7 @@
  * Self-contained: builds and vendors the engine (build-engine.mjs, the same step as `npm run
  * build`), then runs the vendored .mjs and .wasm (the exact files the app loads) through their
  * runParity() export, against the JVM running the same scenarios. Needs a JDK (JAVA_HOME, or
- * whatever the Gradle wrapper already resolves) and Node 22+.
+ * whatever the Gradle wrapper already resolves) and Node 24+.
  *
  *   node test/parity/parity.mjs           # both targets vs one JVM reference (default)
  *   node test/parity/parity.mjs --js      # TeaVM-JS only
@@ -196,9 +196,9 @@ const REL_TOL_DEFAULT = 1e-13;   // static/instantaneous calcs stay bit-identica
 // Flight (time-integrated) tolerances. The adaptive RK4 step-size picks min(dt[i]); a ~1e-15
 // cross-platform Math difference can flip which limit wins, drifting the timestep,
 // which the (deliberately under-damped) apogee turn amplifies. On the smooth
-// reference flight this reaches ~1.9e-3 relative by apogee (≈0.2 mm of 330 m, ~1 ms
-// of 7 s), which is physically negligible. It is not a defect: the JVM is byte-identical
-// run-to-run, and every static calc matches to 1e-13. The kernel's per-step damping
+// reference flight this reaches ~1.9e-3 relative by apogee (about 0.6 m of a 330 m
+// apogee, about 13 ms of a 7 s flight), which is physically negligible. It is not a
+// defect: the JVM is byte-identical run-to-run, and every static calc matches to 1e-13. The kernel's per-step damping
 // term makes the flight ULP-sensitive enough that a tighter bound such as 1e-9 fails.
 const REL_TOL_FLIGHT = 5e-3;     // smooth-flight cross-platform drift (worst observed 1.9e-3)
 const ABS_TOL_FLIGHT = 1e-4;     // near-zero flight quantities (small velocities/accels near apogee)

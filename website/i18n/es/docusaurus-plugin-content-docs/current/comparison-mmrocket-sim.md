@@ -8,19 +8,19 @@ import UpstreamPin from '@site/src/components/UpstreamPin';
 
 :::info Instantánea, y cómo leerla
 
-Escrito el **2026-09-22**, comparando **AstraRocketJs <AppVersion />** (motor compilado a partir de OpenRocket <UpstreamPin />) con **[mmrocket-sim](https://github.com/mtnmanak/mmrocket-sim)** en v0.137 (2026-09-21), la versión revisada aquí cuando se escribió esta página. `engine-java/extract/MMROCKET-SIM` registra esa revisión y las posteriores.
+Revisado el **2026-10-10**, comparando **AstraRocketJs <AppVersion />** (motor compilado a partir de OpenRocket <UpstreamPin />) con **[mmrocket-sim](https://github.com/mtnmanak/mmrocket-sim)** en v0.171 (2026-10-09), la última versión revisada aquí. `engine-java/extract/MMROCKET-SIM` registra cada revisión.
 
 Esta página es más corta que las otras dos a propósito: la documentación pública de mmrocket-sim cubre su compilación y su estructura, no su interfaz, y una tabla de funciones montada adivinando sobre la aplicación de otro es peor que no tener tabla.
 
 :::
 
-## Esta no es una comparación entre desconocidos
+## Esta no es una comparación entre desconocidos {#this-is-not-an-arms-length-comparison}
 
 mmrocket-sim, de Mountain Man Rockets, es el pariente más cercano que tiene AstraRocketJs. Ambos son aplicaciones de navegador que ejecutan el núcleo real de OpenRocket, compilado desde Java con TeaVM, sin instalación y con soporte sin conexión. Llegaron a esa forma de manera independiente, y se solapan mucho más de lo que cualquiera de los dos se solapa con un programa de escritorio.
 
 El tema de mmrocket-sim es la **aerodinámica supersónica al estilo RASAero**: las correcciones que necesita el modelo de Barrowman extendido de OpenRocket por encima de Mach 1,5 aproximadamente, calibradas con datos publicados de túnel de viento y de vuelo libre.
 
-## Lo que sí se puede comparar con pruebas
+## Lo que se puede comparar {#what-can-be-compared}
 
 | | AstraRocketJs | mmrocket-sim |
 | --- | --- | --- |

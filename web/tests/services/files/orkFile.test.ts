@@ -1,15 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect } from 'vitest';
 import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../testing/specTree';
-import {
-  PLUGGED_DELAY,
-  type RocketSpec,
-  type ComponentNode,
-  type RocketTree,
-} from '../../../src/engine/openRocketEngine';
+import { specToTree, type RocketSpec } from '../../testing/specTree';
+import { PLUGGED_DELAY, type ComponentNode, type RocketTree } from '../../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../../src/services/files/orkTypes';
-import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
+import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
 import { sourceStatus } from '../../../src/services/weather/weatherSource';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
 import { updateNode } from '../../../src/services/design/treeEdit';
@@ -120,14 +115,14 @@ describe('design metadata (Rocket configuration) round-trip', () => {
     name: 'Meta Rocket',
     designer: 'Ada Lovelace',
     comment: 'Best F motor.\nTwo 2-56 nylon screws → 42.8 lb shear.',
-    revision: 'v3 — moved the CP forward',
+    revision: 'v3: moved the CP forward',
     designType: 'upscale_kit',
   };
   const xml = exportOrk({ name: withMeta.name!, tree: withMeta, configs: loaded(mountId) });
 
   it('emits the metadata elements (only what is set)', () => {
     expect(xml).toContain('<designer>Ada Lovelace</designer>');
-    expect(xml).toContain('<revision>v3 — moved the CP forward</revision>');
+    expect(xml).toContain('<revision>v3: moved the CP forward</revision>');
     expect(xml).toContain('<designtype>upscale_kit</designtype>');
     expect(xml).toContain('Best F motor.'); // comment body present
   });
@@ -136,7 +131,7 @@ describe('design metadata (Rocket configuration) round-trip', () => {
     const res = importOrk(xml);
     expect(res.tree.designer).toBe('Ada Lovelace');
     expect(res.tree.comment).toContain('42.8 lb shear');
-    expect(res.tree.revision).toBe('v3 — moved the CP forward');
+    expect(res.tree.revision).toBe('v3: moved the CP forward');
     expect(res.tree.designType).toBe('upscale_kit');
   });
 
@@ -159,7 +154,7 @@ describe('design metadata (Rocket configuration) round-trip', () => {
 describe('optional <designinfo> block', () => {
   const { tree, mountId } = specToTree(spec);
 
-  it('is absent by default — a normal save is unchanged', () => {
+  it('is absent by default: a normal save is unchanged', () => {
     expect(exportOrk({ name: 'X', tree, configs: loaded(mountId) })).not.toContain('<designinfo>');
   });
 
@@ -259,7 +254,17 @@ describe('launch-lug / rail-button radial angle round-trips', () => {
     expect(pod2!.angleOffset).toBeCloseTo(Math.PI / 2, 6);
   });
 
-  it('loads a multi-stage (axial) design — both stages present', () => {
+  // Desktop builds the pod set with `new PodSet()`, which starts at two.
+  it('reads a pod set with no instance count at the kernel default', () => {
+    const noCount =
+      '<openrocket><rocket><name>P</name><subcomponents><stage><name>S</name><subcomponents>' +
+      '<bodytube><length>0.3</length><radius>0.013</radius><thickness>0.0005</thickness><subcomponents>' +
+      '<podset><name>Pod</name><subcomponents><bodytube><length>0.12</length></bodytube></subcomponents></podset>' +
+      '</subcomponents></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>';
+    expect(findByType(importOrk(noCount).tree, 'podset')!.instanceCount).toBe(2);
+  });
+
+  it('loads a multi-stage (axial) design: both stages present', () => {
     const tube = '<bodytube><length>0.2</length><radius>0.013</radius><thickness>0.0005</thickness></bodytube>';
     const twoStage =
       '<openrocket><rocket><name>Two</name><subcomponents>' +
@@ -783,7 +788,7 @@ describe('automatic ring radii round-trip', () => {
  * reach the kernel. Doing only one of the two is the state that looks supported
  * and is not.
  */
-describe('audit round trips (2026-09-27)', () => {
+describe('DocumentConfig fields round-trip and reach the kernel', () => {
   const tree = {
     name: 'Audit',
     components: [
@@ -858,11 +863,11 @@ describe('audit round trips (2026-09-27)', () => {
   const out = importOrk(exportOrk({ name: 'Audit', tree }));
   const get = (type: string) => findByType(out.tree, type) as Record<string, unknown>;
 
-  it('keeps a part color, which the writer never wrote at all', () => {
+  it('keeps a part color', () => {
     expect(get('nosecone').color).toBe('#ff8800');
   });
 
-  it('keeps a flipped nose cone, which was hardcoded false on the way out', () => {
+  it('keeps a flipped nose cone', () => {
     expect(get('nosecone').flipped).toBe(true);
   });
 
@@ -883,7 +888,7 @@ describe('audit round trips (2026-09-27)', () => {
     expect(get('masscomponent').radialDirection).toBeCloseTo(1.2, 6);
   });
 
-  it('keeps a shock cord, which had no editable field until now', () => {
+  it('keeps a shock cord length and radius', () => {
     expect(get('shockcord').cordLength).toBeCloseTo(2.5, 9);
     expect(get('shockcord').radius).toBeCloseTo(0.008, 9);
   });
@@ -901,7 +906,7 @@ describe('audit round trips (2026-09-27)', () => {
     expect(get('trapezoidfinset').crossSection).toBe('airfoil');
   });
 
-  it('keeps a part comment, which was dropped on every save', () => {
+  it('keeps a part comment', () => {
     expect(get('nosecone').comment).toBe('Sanded to 400 grit & filled');
   });
 
@@ -1041,11 +1046,11 @@ describe('a forecast atmosphere round-trips', () => {
   });
 
   it('never carries the Open-Meteo API key', () => {
-    writeWeatherKey('sk-test-123');
+    weatherKeyStore.write('sk-test-123');
     try {
       expect(exportOrk({ name: 'F', tree, launch: base })).not.toContain('sk-test-123');
     } finally {
-      writeWeatherKey('');
+      weatherKeyStore.write('');
     }
   });
 });

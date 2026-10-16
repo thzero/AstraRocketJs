@@ -14,6 +14,7 @@ import './kernelLogSink.js';
 import { declaredLength, readStreamWithProgress } from '../services/app/fetchProgress';
 import { nsKey } from '../services/storage/storageKeys';
 import { errorMessage } from '../services/app/errorMessage';
+import { KeyedError, type Keyed } from '../i18n/keyedError';
 
 // The WASM-GC engine + its loader live in web/public/engine/ (served verbatim by
 // Vite; a .js in src/ would be run through import-analysis, which warns on the
@@ -23,24 +24,22 @@ const WASM_RUNTIME_URL = `${import.meta.env.BASE_URL}engine/openrocket-engine.wa
 
 // --- Engine backend ---------------------------------------------------------
 // Both engines are dynamically loaded; neither is in the initial bundle.
-// initEngine() loads the TeaVM WASM-GC build when the browser supports it
-// (faster, smaller), otherwise the JS build as a fallback. Only one engine is
-// ever fetched. EngineApi is a type-only import (erased at build), so it pulls
+// initEngine() loads the TeaVM WASM-GC build when the browser supports it,
+// otherwise the JS build as a fallback. Only one engine is ever fetched. EngineApi is a type-only import (erased at build), so it pulls
 // nothing into the bundle.
 type EngineApi = typeof import('./vendor/openrocket-engine.mjs');
 let active: EngineApi | null = null;
 let initPromise: Promise<'wasm' | 'js'> | null = null;
 
-/** The active engine; throws if initEngine() has not resolved yet. The app mounts
- *  before it has, so callers on the main thread check `engineStore.phase` rather
- *  than treating this as unreachable. */
-
 /** An error envelope's message: the bridge sends a string, and anything else is shown as JSON. */
 const envelopeText = (err: unknown): string => (typeof err === 'string' ? err : JSON.stringify(err));
 
+/** The active engine; throws if initEngine() has not resolved yet. The app mounts
+ *  before it has, so callers on the main thread check `engineStore.phase` rather
+ *  than treating this as unreachable. */
 function eng(): EngineApi {
   if (!active) {
-    throw new Error('OpenRocket engine not initialized — await initEngine() before using it.');
+    throw new KeyedError('errors.engine.notReady');
   }
   return active;
 }
@@ -68,9 +67,9 @@ export function __setEngineForTests(stub: Partial<EngineApi> | null): void {
 let engineGeneration = 0;
 
 /** A design used after the engine that built it was reset. */
-export class StaleDesignError extends Error {
+export class StaleDesignError extends KeyedError {
   constructor() {
-    super('This design was built before the engine was reset — rebuild it before use.');
+    super('errors.engine.staleDesign');
     this.name = 'StaleDesignError';
   }
 }
@@ -114,8 +113,9 @@ function callEngine<T>(operation: string, fn: () => T): T {
   try {
     return fn();
   } catch (e) {
-    // A stale handle is already a typed, meaningful error; do not bury it.
-    if (e instanceof StaleDesignError) throw e;
+    // The app's own refusals (a stale handle, an engine not loaded yet) are
+    // already typed and keyed for the user; do not bury them.
+    if (e instanceof KeyedError) throw e;
     throw new EngineCallError(operation, e);
   }
 }
@@ -160,9 +160,9 @@ function parseEnvelope<T>(operation: string, raw: string, expectArray = false): 
  * This one is not retryable the way the WASM urls are (see `attemptUrl`): the
  * specifier has to stay static for the bundler to emit the chunk, so a retry
  * re-imports the same url and the module registry hands back the same pending
- * entry if the first fetch stalled. A retry therefore recovers a stalled WASM
- * load, which is the path a browser that has WASM-GC always takes, and not a
- * stalled fallback on a browser that does not.
+ * or failed entry. A retry therefore recovers a WASM load, which is the path a
+ * browser that has WASM-GC always takes, and not the fallback on a browser that
+ * does not; {@link engineRetryCanRecover} tells the UI which case it is in.
  */
 async function loadJsEngine(): Promise<EngineApi> {
   return await import('./vendor/openrocket-engine.mjs');
@@ -176,13 +176,50 @@ async function loadJsEngine(): Promise<EngineApi> {
  * request, so re-running a runtime load whose fetch has stalled attaches
  * straight back to the stall and issues no new request at all. The first attempt is left unadorned so
  * the ordinary path keeps a plain, cacheable url.
+ *
+ * The service worker's precache must ignore the `retry` parameter
+ * (`ignoreURLParametersMatching` in vite.config.ts). Offline, the precache is the
+ * only copy of the engine, and a key that carries the query would miss it, so a
+ * retry would fail where the first attempt worked. Answering from Cache Storage
+ * is not the coalesced network fetch the new url exists to avoid.
  */
+export function retryUrl(url: string, attempt: number): string {
+  return attempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${attempt}`;
+}
+
 function attemptUrl(url: string): string {
-  return initAttempt === 0 ? url : `${url}${url.includes('?') ? '&' : '?'}retry=${initAttempt}`;
+  return retryUrl(url, initAttempt);
+}
+
+/**
+ * How long the WASM download may go without receiving anything before it is
+ * abandoned for the JS build. A stalled fetch never settles, so without a
+ * ceiling a proxy that holds `.wasm` leaves the app with no engine although the
+ * JS chunk would load. Counted from the last byte rather than the start, so a
+ * slow link that is still moving is not cut off.
+ */
+export const WASM_STALL_MS = 20_000;
+
+/** An abort signal that fires once `ms` pass without a {@link StallWatch.poke}. */
+interface StallWatch {
+  signal: AbortSignal;
+  poke(): void;
+  stop(): void;
+}
+
+function stallWatch(ms: number): StallWatch {
+  const ctl = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const poke = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => ctl.abort(new Error(`WASM download stalled for ${ms} ms`)), ms);
+  };
+  poke();
+  return { signal: ctl.signal, poke, stop: () => clearTimeout(timer) };
 }
 
 /** Load the WASM-GC runtime once (it installs globalThis.TeaVM.wasmGC). */
-function loadWasmRuntime(): Promise<void> {
+function loadWasmRuntime(signal: AbortSignal): Promise<void> {
   const g = globalThis as unknown as { TeaVM?: { wasmGC?: unknown } };
   if (g.TeaVM?.wasmGC) return Promise.resolve();
   // In a Worker there's no `document`, so we can't inject a <script>, and Vite
@@ -192,7 +229,7 @@ function loadWasmRuntime(): Promise<void> {
   // no eval, and blob URLs aren't behind Vite's /public wall. Lets WASM also run
   // inside the sim worker; on any failure tryLoadWasm falls the worker back to JS.
   if (typeof document === 'undefined') {
-    return fetch(attemptUrl(WASM_RUNTIME_URL))
+    return fetch(attemptUrl(WASM_RUNTIME_URL), { signal })
       .then((r) => {
         if (!r.ok) throw new Error(`WASM-GC runtime fetch failed (${r.status})`);
         return r.text();
@@ -207,6 +244,9 @@ function loadWasmRuntime(): Promise<void> {
       });
   }
   return new Promise<void>((resolve, reject) => {
+    // A <script> cannot be aborted, so a stall rejects the wait instead.
+    if (signal.aborted) return reject(signal.reason as Error);
+    signal.addEventListener('abort', () => reject(signal.reason as Error), { once: true });
     const s = document.createElement('script');
     s.src = attemptUrl(WASM_RUNTIME_URL);
     s.onload = () => resolve();
@@ -252,14 +292,21 @@ function installKernelConsole(imports: Record<string, unknown>): void {
  *  no measurable progress but is a large part of the wait on a slow device. */
 export type EngineLoadStatus = { phase: 'downloading'; loaded: number; total: number | null } | { phase: 'starting' };
 
-async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | null> {
+/**
+ * The WASM backend, or why there is none. `unsupported` means this browser
+ * cannot run it, so a retry would end on the JS build again; `null` is a load
+ * that failed or stalled, which a retry with a new url can recover.
+ */
+async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<EngineApi | 'unsupported' | null> {
+  if (typeof WebAssembly !== 'object' || typeof WebAssembly.compileStreaming !== 'function') {
+    return 'unsupported';
+  }
+  const watch = stallWatch(WASM_STALL_MS);
   try {
-    if (typeof WebAssembly !== 'object' || typeof WebAssembly.compileStreaming !== 'function') {
-      return null;
-    }
     // Load the runtime IIFE (a <script> tag, or a Blob import in a worker); it
     // installs globalThis.TeaVM.wasmGC.
-    await loadWasmRuntime();
+    await loadWasmRuntime(watch.signal);
+    watch.poke();
     const wasmGC = (
       globalThis as unknown as {
         TeaVM?: { wasmGC?: { load(src: ArrayBuffer, options?: unknown): Promise<{ exports: unknown }> } };
@@ -270,28 +317,55 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
     // takes the WebAssembly.compile(bytes) path, sidestepping the runtime's
     // Node-vs-browser (fs vs fetch) detection entirely. installImports rewires
     // the kernel's console output into the shared log sink (see above).
-    const res = await fetch(attemptUrl(WASM_URL));
+    const res = await fetch(attemptUrl(WASM_URL), { signal: watch.signal });
     if (!res.ok) return null;
+    watch.poke();
     // Stream it so the boot splash can show real bytes: this is several
     // megabytes, the largest thing the app fetches, and on a slow link it is most of the wait.
     const streamed = res.body
-      ? await readStreamWithProgress(res.body, declaredLength(res), (p) => onStatus?.({ phase: 'downloading', ...p }))
+      ? await readStreamWithProgress(res.body, declaredLength(res), (p) => {
+          watch.poke();
+          onStatus?.({ phase: 'downloading', ...p });
+        })
       : null;
     // `.buffer` is typed ArrayBufferLike (it could be shared in general), but
     // readStreamWithProgress always allocates a plain ArrayBuffer.
     const bytes = streamed ? (streamed.buffer as ArrayBuffer) : await res.arrayBuffer();
+    // Compiling is not a network wait, so the stall ceiling ends here.
+    watch.stop();
     // Bytes are in; compiling and instantiating is the remaining (unmeasurable)
     // step, and it is slow enough on modest hardware to be worth naming.
     onStatus?.({ phase: 'starting' });
     const teavm = await wasmGC.load(bytes, { installImports: installKernelConsole });
     const exports = teavm.exports as EngineApi;
     // The @JSExport facade must be callable across the WASM↔JS boundary.
-    if (typeof exports.buildRocket !== 'function') return null;
+    if (typeof exports.buildRocket !== 'function') return 'unsupported';
     return exports;
   } catch (e) {
-    console.warn('[engine] WASM-GC unavailable — using the JS engine.', e);
-    return null;
+    console.warn('[engine] WASM-GC unavailable, using the JS engine.', e);
+    // A module this browser cannot compile or link (no WASM-GC) fails the same
+    // way on every attempt.
+    return e instanceof WebAssembly.CompileError || e instanceof WebAssembly.LinkError ? 'unsupported' : null;
+  } finally {
+    watch.stop();
   }
+}
+
+/**
+ * True once WASM is ruled out for this page (forced off, or the browser cannot
+ * run it), which leaves the JS chunk as the only backend. Stays set: neither
+ * reason changes without a reload.
+ */
+let jsOnly = false;
+
+/**
+ * Whether {@link resetEngineInit} followed by {@link initEngine} can recover a
+ * load that failed or stalled. False when the JS chunk is the only backend: its
+ * import url is fixed (see {@link loadJsEngine}), so only a page reload asks for
+ * it again.
+ */
+export function engineRetryCanRecover(): boolean {
+  return !jsOnly;
 }
 
 export type BackendPref = 'wasm' | 'js' | 'auto';
@@ -304,24 +378,24 @@ export type BackendPref = 'wasm' | 'js' | 'auto';
  */
 export const ENGINE_PREF_KEY = nsKey('engine');
 /**
- * Older keys for this override, still read so an override set by hand keeps
+ * Alternate keys for this override, still read so an override set by hand keeps
  * working: the un-namespaced `engine`, and the key under the misspelled
  * `astrarrocketjs:` prefix.
  *
  * This one key is worth a read chain where the stores are not, because it is a
  * debug switch quoted in the docs: someone following those instructions set it
- * by hand and should not have to do it twice. A design under the old prefix is
+ * by hand and should not have to do it twice. A design under the misspelled prefix is
  * preview scratch and is not read back; an engine override is a live instruction.
  *
- * cspell:ignore astrarrocketjs -- the OLD prefix, and the only place left in `src`
- * that has to name it.
+ * cspell:ignore astrarrocketjs -- the misspelled prefix (see storageKeys).
  */
 const LEGACY_ENGINE_PREF_KEYS = ['engine', 'astrarrocketjs:engine'] as const;
 
 /**
  * Backend preference. Default is 'auto' → try WASM-GC first, fall back to JS.
- * WASM-GC runs our OpenRocket 24.12 kernel bit-identically to JS with the
- * WASM-hostile cast in `info.openrocket.core.util.ArrayList.clone()` patched
+ * WASM-GC runs the vendored kernel (upstream OpenRocket at the commit in
+ * `engine-java/extract/UPSTREAM`, with this repo's patches) bit-identically to
+ * JS, with the WASM-hostile cast in `info.openrocket.core.util.ArrayList.clone()` patched
  * (upstream's `(ArrayList) super.clone()` throws ClassCastException under
  * WASM-GC's strict typing; see the patch in engine-java). Overrides for debugging /
  * unsupported browsers: `?engine=js` (or
@@ -369,8 +443,9 @@ export function initEngine(onStatus?: (s: EngineLoadStatus) => void, pref?: Back
   if (!initPromise) {
     const mine = initAttempt;
     initPromise = (async () => {
-      const wasm = (pref ?? backendPref()) === 'js' ? null : await tryLoadWasm(onStatus);
-      if (wasm) {
+      const wasm = (pref ?? backendPref()) === 'js' ? 'unsupported' : await tryLoadWasm(onStatus);
+      if (wasm === 'unsupported') jsOnly = true;
+      else if (wasm) {
         if (mine === initAttempt) {
           active = wasm;
           active.setLengthUnit(lengthUnit);
@@ -413,51 +488,6 @@ export function resetEngineInit(): void {
 }
 
 export type NoseShape = 'ogive' | 'conical' | 'ellipsoid' | 'power' | 'parabolic' | 'haack';
-
-export interface RocketSpec {
-  noseCone: {
-    length: number;
-    aftRadius: number;
-    thickness: number;
-    shape?: NoseShape;
-    /** Bulk density kg/m^3; omit for OpenRocket's default material. */
-    materialDensity?: number;
-    /** Selected material name (display / .ork round-trip only; density drives physics). */
-    material?: string;
-    /** The material's `.ork` group, as `MaterialGroup.getDatabaseString()` spells
-     *  it. Written to the file beside the name, so a design saved here files the
-     *  material under the same category the desktop would. */
-    materialGroup?: string;
-  };
-  bodyTube: {
-    length: number;
-    outerRadius: number;
-    thickness: number;
-    materialDensity?: number;
-    material?: string;
-    materialGroup?: string;
-  };
-  fins: {
-    count: number;
-    rootChord: number;
-    tipChord: number;
-    sweep: number;
-    height: number;
-    thickness: number;
-    materialDensity?: number;
-    material?: string;
-    materialGroup?: string;
-  };
-  motorMount: {
-    length: number;
-    outerRadius: number;
-    thickness: number;
-  };
-  parachute?: {
-    diameter: number;
-    dragCoefficient?: number;
-  };
-}
 
 export interface MotorSpec {
   /**
@@ -577,8 +607,8 @@ export interface SimulationOptions {
    * at all, and the lug search looks at one instance, which on a fore/aft pair
    * is the forward one.
    *
-   * Set true and the flight ends its guided phase when the aft-most guide, lug
-   * or button, leaves the rod. The rocket is released at that moment as well as
+   * Set true and the flight ends its guided phase when the aft-most lug, or a
+   * button line's second-to-last station, leaves the rod. The rocket is released at that moment as well as
    * reported there, since reporting a departure the rocket has not made would
    * leave it mechanically constrained past its own exit.
    *
@@ -647,8 +677,9 @@ export interface StaticInfo {
   warningTexts: string[];
   /**
    * Power-off (coast) total drag coefficient at Mach 0.3, not part of the
-   * engine's static JSON; the store fills it from a one-point {@link Rocket.aeroSweep}
-   * so the "all stats" strip can show it. Undefined if the sweep failed.
+   * engine's static JSON; `computeStaticInfo` (services/design/buildRocket.ts)
+   * fills it from a one-point {@link OpenRocketDesign.aeroSweep} so the "all
+   * stats" strip can show it. Undefined if the sweep failed.
    */
   cd?: number;
 }
@@ -711,26 +742,25 @@ export interface ComponentPosition {
    * of the previous sibling, with the offset forced to 0
    * (RocketComponent.setAfter), not the `outerLength + offset`
    * the enum's own getAsPosition suggests, which that path never reaches.
-   * Sibling-relative, so like `absolute` it is resolved into the parent frame
-   * on load; see resolveFilePositions.
+   * Sibling-relative, so it is resolved into the parent frame on load; see
+   * resolveFilePositions.
+   *
+   * `absolute` is measured from the rocket's origin, the nose tip, whatever the
+   * parent; every reader resolves it through the parent's rocket-frame start
+   * (`startFromPosition`).
    */
   method: 'top' | 'middle' | 'bottom' | 'absolute' | 'after';
   /** meters, per the method's convention */
   offset: number;
   /**
-   * What the imported `.ork` actually said, when it said `absolute`.
-   *
-   * `absolute` is a rocket-origin offset, but the editor (schematic, property
-   * panel, drag handles) works purely in the parent frame, so an imported
-   * absolute position is rewritten to the equivalent `top` offset on load;
-   * otherwise the app draws the part somewhere the engine does not fly it.
+   * What the imported `.ork` actually said, when a position was rewritten on
+   * load: an `after` resolved to the equivalent `top` offset, `resolved`.
    *
    * Rewriting it would also change what we write back out, and `.ork` round-trips
    * are meant to be byte-stable. So the original is kept here and `orkExport`
-   * restores it, as long as `resolved` still matches the current offset (i.e. the
-   * user has not moved the part since importing).
-   *
-   * `absolute` and `after` are the two file-only methods; both resolve to 'top'.
+   * restores it, as long as `resolved` still matches the current offset (the
+   * part has not been moved since). A stored design can carry an `absolute` one
+   * too, which is restored the same way.
    */
   ork?: { method: 'absolute' | 'after'; offset: number; resolved: number };
 }
@@ -912,6 +942,12 @@ export interface ComponentInfo {
   cgX: number;
   /** Absolute position of the component's front from the nose tip (m). */
   positionX: number;
+  /** A shock cord's cord length as the kernel resolves it, automatic or not (m). */
+  cordLength?: number;
+  /** A parachute's shroud line length as the kernel resolves it, automatic or not (m). */
+  lineLength?: number;
+  /** A recovery device's drag coefficient as the kernel resolves it, automatic or not. */
+  cd?: number;
 }
 
 /** One row of the per-component mass breakdown, in SI. */
@@ -1072,62 +1108,59 @@ function assertFiniteCurve(motor: MotorSpec): void {
   // cannot be converted to a BigInt" this guard exists to prevent. And
   // `toKernelDelay` passes NaN straight through, since `NaN >= PLUGGED_DELAY`
   // is false.
-  const scalars: [string, number][] = [
-    ['diameter', motor.diameter],
-    ['length', motor.length],
-    ['cgX', motor.cgX],
-    ['ejection delay', toKernelDelay(motor.ejectionDelay)],
+  const name = motor.designation;
+  const scalars: [Keyed, number][] = [
+    [{ key: 'errors.motorCurve.whatDiameter' }, motor.diameter],
+    [{ key: 'errors.motorCurve.whatLength' }, motor.length],
+    [{ key: 'errors.motorCurve.whatCg' }, motor.cgX],
+    [{ key: 'errors.motorCurve.whatDelay' }, toKernelDelay(motor.ejectionDelay)],
   ];
   for (const [what, v] of scalars) {
     // The delay may legitimately be Infinity (plugged); the dimensions may not.
-    if (Number.isNaN(v) || (what !== 'ejection delay' && !Number.isFinite(v))) {
-      throw new Error(`Motor ${motor.designation}: ${what} is not a finite number (incomplete catalog data).`);
+    if (Number.isNaN(v) || (what.key !== 'errors.motorCurve.whatDelay' && !Number.isFinite(v))) {
+      throw new KeyedError('errors.motorCurve.notFinite', { motor: name, what });
     }
   }
   if (motor.diameter <= 0 || motor.length <= 0) {
-    throw new Error(`Motor ${motor.designation}: diameter and length must be positive (incomplete catalog data).`);
+    throw new KeyedError('errors.motorCurve.size', { motor: name });
   }
 
   const bad = (xs: readonly number[]) => !xs.every((n) => Number.isFinite(n));
   if (bad(motor.times) || bad(motor.thrusts) || bad(motor.masses)) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve contains non-finite values ` +
-        '(a missing published weight or a malformed .rse/.eng file).',
-    );
+    throw new KeyedError('errors.motorCurve.nonFinite', { motor: name });
   }
   // The three arrays are read in lockstep by the kernel (times[i], thrusts[i],
   // masses[i]), so a short one would index undefined off the end. The Java
   // rejects this at the boundary too; this is the JS half of the same guard,
   // and it names the motor before the kernel is ever entered.
   if (motor.times.length !== motor.thrusts.length || motor.times.length !== motor.masses.length) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve arrays differ in length ` +
-        `(times ${motor.times.length}, thrusts ${motor.thrusts.length}, masses ${motor.masses.length}).`,
-    );
+    throw new KeyedError('errors.motorCurve.lengths', {
+      motor: name,
+      times: motor.times.length,
+      thrusts: motor.thrusts.length,
+      masses: motor.masses.length,
+    });
   }
   // Times must not run backwards: the kernel integrates between consecutive
   // samples, and a negative interval silently subtracts impulse.
   for (let i = 1; i < motor.times.length; i++) {
     if (motor.times[i]! < motor.times[i - 1]!) {
-      throw new Error(
-        `Motor ${motor.designation}: thrust curve times run backwards at sample ${i} ` +
-          `(${motor.times[i - 1]} then ${motor.times[i]}).`,
-      );
+      throw new KeyedError('errors.motorCurve.backwards', {
+        motor: name,
+        sample: i,
+        before: motor.times[i - 1]!,
+        after: motor.times[i]!,
+      });
     }
   }
   if (motor.masses.some((m) => m < 0)) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve ends at a negative mass ` + '(propellant mass exceeds loaded mass).',
-    );
+    throw new KeyedError('errors.motorCurve.negativeMass', { motor: name });
   }
   // A motor that weighs nothing for the whole burn is not a motor. The kernel
   // simulates it happily and returns an optimistic flight, so catch it here:
   // the real-world source is an .rse whose samples carry no mass attribute.
   if (motor.masses.length > 0 && motor.masses.every((m) => m === 0)) {
-    throw new Error(
-      `Motor ${motor.designation}: thrust curve carries no mass at any point ` +
-        '(the motor file is missing its per-sample masses).',
-    );
+    throw new KeyedError('errors.motorCurve.noMass', { motor: name });
   }
 }
 
@@ -1218,27 +1251,6 @@ export class OpenRocketDesign {
       throw new EngineCallError('setMotorIgnitionById', new Error(`delayS must be finite, got ${delayS}`));
     }
     callEngine('setMotorIgnitionById', () => eng().setMotorIgnitionById(this.handle, componentId, event, delayS));
-  }
-
-  /**
-   * Enable the opt-in "Rogers Modified Barrowman" body-in-presence-of-fins
-   * interference (Kbf). Affects both the reported static CP/stability and the
-   * flight sim. Call before {@link staticInfo}/{@link simulate}. Off by default;
-   * off ⇒ classic Barrowman (bit-identical to upstream).
-   */
-  setRogersModifiedBarrowman(enabled: boolean): void {
-    callEngine('setRogersModifiedBarrowman', () => eng().setRogersModifiedBarrowman(this.handle, enabled));
-  }
-
-  /**
-   * Enable the opt-in supersonic aerodynamics model: corrected supersonic fin
-   * normal force, exact NACA-1307 body-fin interference, and Mach-dependent nose
-   * CNα, so CP moves with Mach above M1 instead of collapsing forward. Affects staticInfo, simulate and aeroSweep.
-   * Off by default; off ⇒ classic Extended Barrowman (bit-identical).
-   * Validated against the wind-tunnel anchor suite in engine-java/validation/.
-   */
-  setSupersonicAero(enabled: boolean): void {
-    callEngine('setSupersonicAero', () => eng().setSupersonicAero(this.handle, enabled));
   }
 
   /** Length, mass, CG/CP, stability margin, computed at Mach 0.3, AoA 0. */
@@ -1438,6 +1450,42 @@ export function motorSimilarity(a: [number, number][], b: [number, number][]): n
       b.map((p) => p[1]),
     ),
   );
+}
+
+/** A thrust curve's statistics as the kernel states them (see {@link motorStatistics}). */
+export interface MotorStatistics {
+  /** Seconds between the crossings of 5% of peak thrust. */
+  burnTime: number;
+  /** Newtons, over that burn. */
+  averageThrust: number;
+  maxThrust: number;
+  /** Newton-seconds. */
+  totalImpulse: number;
+}
+
+/**
+ * A thrust curve's burn time, average and peak thrust and total impulse, as the
+ * kernel computes them for the motor built from it
+ * (`ThrustCurveMotor.computeStatistics`): the burn runs between the crossings
+ * of 5% of peak thrust, not to the last sample. Null while the engine is still
+ * loading, and for a curve the kernel cannot build a motor from (fewer than two
+ * samples, say): such a motor has no statistics to state, and a caller reading
+ * them for a table or a check must not fail the whole design over it. Curves
+ * are `[time s, thrust N]` samples.
+ */
+export function motorStatistics(curve: readonly (readonly [number, number])[]): MotorStatistics | null {
+  if (!active) return null;
+  try {
+    const raw = callEngine('motorStatistics', () =>
+      eng().getMotorStatistics(
+        curve.map((p) => p[0]),
+        curve.map((p) => p[1]),
+      ),
+    );
+    return parseEnvelope<MotorStatistics>('motorStatistics', raw);
+  } catch {
+    return null;
+  }
 }
 
 /** Frees all engine-side objects (all OpenRocketDesign handles become invalid). */

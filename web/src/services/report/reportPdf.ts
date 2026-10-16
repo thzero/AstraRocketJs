@@ -1,4 +1,5 @@
 import { saveBlob, exportFilename } from '../files/saveFile';
+import { useWorkspaceStore } from '../../state/store';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { walkNodes } from '../../tree/treeWalk';
 import { launcherKind, withLauncher } from '../design/launcher';
@@ -6,7 +7,8 @@ import type { ReportModel } from './reportModel';
 import type { UnitSelection } from '../../prefs/units';
 import { finSetsOf } from './layout';
 import type { ReportOptions } from './options';
-import { createPdfPage, heading, type T } from './pdfPage';
+import { createPdfPage, heading, type PdfPage, type T } from './pdfPage';
+import { loadReportFonts, registerReportFonts, type ReportFontFiles } from './reportFonts';
 import { writeDesignSection } from './designSection';
 import { writeMotorsSection } from './motorsSection';
 import { writePartsSection } from './partsSection';
@@ -27,7 +29,30 @@ export * from './layout';
  *
  * This module decides which sections appear and in what order; each section
  * draws itself under `report/` against the shared page cursor (`PdfPage`).
+ *
+ * The report is drawn in Helvetica first. When some of its text is outside
+ * what Helvetica can write, the Unicode font it needs is fetched and the report
+ * drawn again with it, so a report in Latin-1 fetches nothing. When the font
+ * cannot be fetched, the Helvetica copy is saved, with ASCII stand-ins where
+ * there are obvious ones, and `notice` says when some text could not be
+ * printed at all. A character neither Unicode font has a glyph for (Hangul,
+ * Arabic, an emoji) prints as `?`, and `notice` says that too.
  */
+
+export interface ReportPdfHooks {
+  /** Fetches a font file; the browser's `fetch` by default. */
+  fetch?: (url: string) => Promise<Response>;
+  /** Shown when some text could not be printed; the app's message bar by default. */
+  notice?: (message: string) => void;
+  /**
+   * Asked after the font fetch, the one wait in here: true means the export was
+   * abandoned meanwhile, and nothing is saved.
+   */
+  canceled?: () => boolean;
+}
+
+/** The app's message bar. */
+const appNotice = (message: string): void => useWorkspaceStore.getState().setErr(message);
 
 export async function downloadReportPdf(
   model: ReportModel,
@@ -35,12 +60,34 @@ export async function downloadReportPdf(
   t: T,
   opts: ReportOptions,
   units: UnitSelection,
+  hooks: ReportPdfHooks = {},
 ): Promise<void> {
   const { jsPDF } = await import('jspdf');
-  const doc = new jsPDF({ unit: 'mm', format: opts.paper, orientation: opts.orientation });
-  // Names the launcher the way this design's guides do (design/launcher).
-  const page = createPdfPage(doc, withLauncher(t, launcherKind(tree)), opts, units);
+  const draw = (fonts: ReportFontFiles): PdfPage => {
+    const doc = new jsPDF({ unit: 'mm', format: opts.paper, orientation: opts.orientation });
+    // Names the launcher the way this design's guides do (design/launcher).
+    const page = createPdfPage(doc, withLauncher(t, launcherKind(tree)), opts, units, registerReportFonts(doc, fonts));
+    writeReport(page, model, tree, t, opts);
+    return page;
+  };
 
+  let page = draw({});
+  if (page.needs.size) {
+    const fonts = await loadReportFonts(page.needs, hooks.fetch);
+    if (hooks.canceled?.()) return;
+    if (Object.keys(fonts).length) page = draw(fonts);
+  }
+  const notice = hooks.notice ?? appNotice;
+  if (page.lost) notice(t('report.fontFallback'));
+  else if (page.uncovered) notice(t('report.scriptUncovered'));
+  // saveBlob, not jsPDF's doc.save(): that uses its own `<a download>` click,
+  // which silently does nothing on iOS/iPadOS installed as a PWA (see the
+  // saveFile.ts header). Every export in the app routes through saveBlob.
+  await saveBlob(page.doc.output('blob'), exportFilename([model.name, 'report'], 'pdf'));
+}
+
+/** Every section the options ask for, in order, onto one page cursor. */
+function writeReport(page: PdfPage, model: ReportModel, tree: RocketTree, t: T, opts: ReportOptions): void {
   // --- Design report (summary + side view) ---
   if (opts.designReport) writeDesignSection(page, model, tree);
 
@@ -70,8 +117,4 @@ export async function downloadReportPdf(
   }
 
   if (!page.started) heading(page, t('report.title')); // nothing selected: an empty-ish page beats a corrupt file
-  // saveBlob, not jsPDF's doc.save(): that uses its own `<a download>` click,
-  // which silently does nothing on iOS/iPadOS installed as a PWA (see the
-  // saveFile.ts header). Every export in the app routes through saveBlob.
-  await saveBlob(doc.output('blob'), exportFilename([model.name, 'report'], 'pdf'));
 }

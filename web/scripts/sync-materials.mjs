@@ -13,8 +13,10 @@
 //
 // It has two inputs, and only one of them is a file a person edits:
 //
-//   upstream   every material desktop OpenRocket ships, read straight out of
-//              its `database/Databases.java`. Never typed by hand.
+//   upstream   every material in `database/Databases.java` at the kernel's
+//              pinned upstream ref, read straight out of the source. That ref is
+//              newer than the 24.12 release, so it can list a material the
+//              24.12 desktop lacks. Never typed by hand.
 //   app        scripts/data/materials.app.json, hand-maintained: the adhesives
 //              (upstream has none at all, and a fin fillet is made of nothing
 //              else) and corrections to upstream values that are wrong. Each
@@ -32,6 +34,7 @@ import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import process from 'node:process';
+import { arg } from './lib/args.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
@@ -45,8 +48,7 @@ const die = (msg) => {
   process.exit(1);
 };
 
-const argSrc = process.argv.indexOf('--src');
-const src = argSrc >= 0 ? process.argv[argSrc + 1] : join(ENGINE, '.openrocket-src');
+const src = arg('src') ?? join(ENGINE, '.openrocket-src');
 const javaPath = [join(src, REL_JAVA), join(src, 'info', 'openrocket', 'core', 'database', 'Databases.java')].find(
   existsSync,
 );
@@ -118,7 +120,8 @@ for (const r of app) {
 }
 
 const byType = (t) => rows.filter((r) => r.type === t).length;
-writeFileSync(OUT, `${JSON.stringify(rows, null, 2)}\n`, 'utf8');
+// Compact, like the other catalogs: browsers download it.
+writeFileSync(OUT, `${JSON.stringify(rows)}\n`, 'utf8');
 const manifest = writeDataManifest(DATA_DIR);
 console.log(
   `sync-materials: wrote ${rows.length} materials (${byType('bulk')} bulk, ${byType('surface')} surface, ` +

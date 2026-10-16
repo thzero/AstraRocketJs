@@ -6,12 +6,15 @@ import { unitScope } from '../../prefs/units';
 import type { FlightResult } from '../../engine/api';
 import { forwardFlightEnd, maxQ, maxQAlpha, maxRollRate, seriesAt } from '../../services/flight/flightEvents';
 import { distanceFromPad, landingPoint } from '../../services/flight/groundTrack';
-import { stabilityTone } from '../../services/flight/simReport';
+import { railVerdictKey, stabilityTone } from '../../services/flight/simReport';
 import { useSettings } from '../../state/SettingsProvider';
 import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
 import { Stat } from '../common/Stat';
 import { WARNING_TONE } from './warningTone';
+import { deploymentVerdict } from './speedWarnings';
+import { selectShownSim, useWorkspaceStore } from '../../state/store';
+import { effectivePrefs, type SimPrefs } from '../../services/flight/simulations';
 
 /**
  * What the numbers below are and are not, as a card of its own above them.
@@ -140,12 +143,13 @@ function SafetyCard() {
           of the card rather than a wall of legal text; the full version is on
           the Safety page the link below opens. */}
           <p className="mt-2 text-[11px] leading-snug">{t('sim.safetyDisclaimer')}</p>
-          {/* nowrap so the arrow cannot be orphaned onto a line of its own. */}
+          {/* nowrap so the arrow cannot be orphaned onto a line of its own. The
+          arrow is decoration, kept out of the button's name. */}
           <button
             onClick={() => openHelp('safety')}
             className="mt-2 inline-block whitespace-nowrap text-xs font-medium underline underline-offset-2 hover:no-underline"
           >
-            {t('sim.safetyLink')} →
+            {t('sim.safetyLink')} <span aria-hidden>→</span>
           </button>
         </>
       )}
@@ -180,9 +184,18 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
   // No fixed digits on these tiles: the ladder's precision follows the size of
   // the number in the reader's unit, and is what the simulations table shows.
   const { settings } = useSettings();
-  const { deploymentSpeedWarn, railExitVelocityMin } = settings.simulation;
+  const { railExitVelocityMin } = settings.simulation;
+  // The deployment threshold is per simulation: the shown flight's own
+  // override over the global, which is what the kernel judged it against.
+  const ownPrefs = useWorkspaceStore((st): Partial<SimPrefs> | undefined => {
+    const shown = selectShownSim(st);
+    return shown.result === sim ? shown.prefs : undefined;
+  });
+  const { deploymentSpeedWarn } = effectivePrefs(settings.simulation, ownPrefs);
   const s = sim?.summary;
-  // Safe-if-green thresholds (global settings): fast off the rail, gentle at deploy.
+  const deployVerdict =
+    s?.deploymentVelocity != null ? deploymentVerdict(s.deploymentVelocity, sim?.warnings, deploymentSpeedWarn) : null;
+  // Safe-if-green thresholds: fast off the rail (global setting), gentle at deploy.
   const goodTone = 'text-ok-400',
     warnTone = 'text-warn-400';
   // Static margin at the instant the rocket clears the rod/rail: the
@@ -246,9 +259,7 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
               )
             }
             tone={stabilityTone(railMargin)}
-            status={t(
-              railMargin >= 1 ? 'stability.stable' : railMargin >= 0 ? 'stability.marginal' : 'stability.unstable',
-            )}
+            status={t(railVerdictKey(railMargin))}
           />
         )}
         {s.optimumDelay != null && <Stat card label={t('sim.optDelay')} value={fmtNum(s.optimumDelay, 1)} sub="s" />}
@@ -272,8 +283,14 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
                 scope={unitScope('sim', 'deployVelocity')}
               />
             }
-            tone={s.deploymentVelocity < deploymentSpeedWarn ? goodTone : warnTone}
-            status={s.deploymentVelocity < deploymentSpeedWarn ? undefined : t('limits.tooFast')}
+            tone={deployVerdict ? warnTone : goodTone}
+            status={
+              deployVerdict === 'tooSlow'
+                ? t('limits.tooSlow')
+                : deployVerdict === 'tooFast'
+                  ? t('limits.tooFast')
+                  : undefined
+            }
           />
         )}
         {Number.isFinite(s.groundHitVelocity) && (

@@ -21,6 +21,10 @@ import { embeddedMotorFile } from '../files/ork/embeddedMotors';
  *
  * The digest is the other half of resolving it, and it is filled in separately,
  * by `fillMotorDigests`.
+ *
+ * A mount a loaded file left empty holds a placeholder with no designation
+ * (`emptyMountMotor` in loadOrk.ts). That is no motor, and it is left out:
+ * written as one, the desktop looks up a motor named '' and reports it missing.
  */
 export function buildExportMotorMap(
   tree: RocketTree,
@@ -29,6 +33,7 @@ export function buildExportMotorMap(
 ): Record<string, OrkExportMotor> {
   const motors: Record<string, OrkExportMotor> = {};
   for (const [id, m] of liveMotors(tree, config)) {
+    if (!m.spec.designation) continue;
     motors[id] = {
       ...base[id],
       designation: m.spec.designation,
@@ -79,7 +84,13 @@ export async function fillMotorDigests(
 ): Promise<Record<string, OrkExportMotor>> {
   let catalog;
   try {
-    catalog = await loadCatalog();
+    // The bundled rows only. `loadCatalog` puts the user's imported motors
+    // first, and an imported motor matches its own row there, which has no
+    // digest: it would go out with neither a digest nor its curve, and desktop
+    // could not find it. Off that list it has no match, so its curve is
+    // embedded; one that shares a catalog motor's name takes that motor's
+    // digest, as the same motor picked from the catalog would.
+    catalog = (await loadCatalog()).filter((row) => row.custom !== true);
   } catch {
     return motors;
   }

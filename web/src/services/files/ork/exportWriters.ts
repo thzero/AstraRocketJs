@@ -8,6 +8,7 @@ import { mountConfigs, motorMountXml } from './exportMotorConfigs';
 import {
   airfoilXml,
   autoRadius,
+  deployEventXml,
   deploymentConfigs,
   filletXml,
   finAngleXml,
@@ -23,6 +24,7 @@ import {
   thicknessXml,
 } from './exportParts';
 import { stageFileName } from '../../design/orkTree';
+import { defaultSeparation } from '../../../tree/kernelDefaults';
 
 /**
  * One writer per component type: the element body the desktop's saver for
@@ -32,7 +34,7 @@ import { stageFileName } from '../../design/orkTree';
  */
 
 /** Writes the body of a node's element at `d`, the depth just inside its tag. */
-export type NodeWriter = (w: OrkWriter, node: ComponentNode, d: number) => void;
+type NodeWriter = (w: OrkWriter, node: ComponentNode, d: number) => void;
 
 const finCountXml = (w: OrkWriter, d: number, node: ComponentNode, fb: number) => {
   w.emit(d, `<instancecount>${num(node, 'finCount', fb)}</instancecount>`);
@@ -41,7 +43,11 @@ const finCountXml = (w: OrkWriter, d: number, node: ComponentNode, fb: number) =
 
 const instancesXml = (w: OrkWriter, d: number, node: ComponentNode, fb: number) => {
   w.emit(d, `<instancecount>${num(node, 'instanceCount', fb)}</instancecount>`);
-  w.emit(d, `<instanceseparation>${num(node, 'instanceSeparation', 0)}</instanceseparation>`);
+  // The spacing that flies: a node with none flies the kernel's.
+  w.emit(
+    d,
+    `<instanceseparation>${num(node, 'instanceSeparation', defaultSeparation(node.type))}</instanceseparation>`,
+  );
 };
 
 /** The part of a planar fin set (trapezoid, freeform, elliptical) before its planform. */
@@ -85,7 +91,7 @@ const recoveryHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   // after the material and omits it for a main, so a round-tripped file stays
   // byte-comparable with one the desktop wrote.
   if (node['drogue'] === true) w.emit(d, '<isdrogue>true</isdrogue>');
-  w.emit(d, `<deployevent>${escapeXml(str(node, 'deployEvent', 'ejection'))}</deployevent>`);
+  w.emit(d, `<deployevent>${escapeXml(deployEventXml(str(node, 'deployEvent', 'ejection')))}</deployevent>`);
   w.emit(d, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
   w.emit(d, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
   deploymentConfigs(w, d, node);
@@ -156,6 +162,14 @@ const writeTransition: NodeWriter = (w, node, d) => {
   }
 };
 
+// A part writes `<motormount>` when it is flagged as a mount or when any
+// configuration loads a motor into it.
+const mountXml: NodeWriter = (w, node, d) => {
+  if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
+    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
+  }
+};
+
 const writeBodytube: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Body Tube');
   finishXml(w, d, node);
@@ -168,9 +182,7 @@ const writeBodytube: NodeWriter = (w, node, d) => {
     w.emit(d, '<caseairframe>true</caseairframe>');
   }
   // Min-diameter: the body tube itself is the motor mount.
-  if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
-    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
-  }
+  mountXml(w, node, d);
 };
 
 const writeTrapezoidFinset: NodeWriter = (w, node, d) => {
@@ -233,9 +245,7 @@ const writeInnertube: NodeWriter = (w, node, d) => {
     // motor-length limit travels with the design.
     w.emit(d, `<maxmotorlength>${node['maxMotorLength']}</maxmotorlength>`);
   }
-  if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
-    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
-  }
+  mountXml(w, node, d);
 };
 
 const writeTubecoupler: NodeWriter = (w, node, d) => {
@@ -321,6 +331,32 @@ const writeRailbutton: NodeWriter = (w, node, d) => {
   w.emit(d, `<screwheight>${num(node, 'screwHeight', rb.screwHeight)}</screwheight>`);
 };
 
+/**
+ * A line or cord length that may be automatic. Desktop 24.12 has no automatic
+ * line or cord length and reads `auto` in these tags as its default (a 0.3 m
+ * line, a 0.4 m cord), so the tag carries the length the kernel flies and an
+ * app-only `<…auto>true</…auto>` beside it (desktop warns and ignores it) keeps
+ * the setting for the app's own reader. With no kernel figures, the stored
+ * length.
+ */
+function autoLengthXml(
+  w: OrkWriter,
+  d: number,
+  node: ComponentNode,
+  key: 'lineLength' | 'cordLength',
+  flag: 'lineLengthAuto' | 'cordLengthAuto',
+  tag: string,
+  fallback: number,
+): void {
+  if (node[flag] !== true) {
+    w.emit(d, `<${tag}>${num(node, key, fallback)}</${tag}>`);
+    return;
+  }
+  const flown = typeof node.id === 'string' ? w.componentInfo?.(node.id)?.[key] : undefined;
+  w.emit(d, `<${tag}>${flown ?? num(node, key, fallback)}</${tag}>`);
+  w.emit(d, `<${tag}auto>true</${tag}auto>`);
+}
+
 const writeParachute: NodeWriter = (w, node, d) => {
   recoveryHead(w, node, d, 'Parachute');
   w.emit(d, `<diameter>${num(node, 'diameter', 0.3)}</diameter>`);
@@ -329,7 +365,7 @@ const writeParachute: NodeWriter = (w, node, d) => {
     w.emit(d, `<spillholediameter>${node['spillHoleDiameter']}</spillholediameter>`);
   }
   w.emit(d, `<linecount>${num(node, 'lineCount', 6)}</linecount>`);
-  w.emit(d, `<linelength>${node['lineLengthAuto'] === true ? 'auto' : num(node, 'lineLength', 0.3)}</linelength>`);
+  autoLengthXml(w, d, node, 'lineLength', 'lineLengthAuto', 'linelength', 0.3);
   if (typeof node['lineDensity'] === 'number') {
     const lname = typeof node['lineMaterialName'] === 'string' ? node['lineMaterialName'] : 'custom';
     w.emit(d, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
@@ -352,7 +388,7 @@ const writeShockcord: NodeWriter = (w, node, d) => {
   position(w, d, node, 'top');
   packedXml(w, d, node);
   radialXml(w, d, node);
-  w.emit(d, `<cordlength>${node['cordLengthAuto'] === true ? 'auto' : num(node, 'cordLength', 0.3)}</cordlength>`);
+  autoLengthXml(w, d, node, 'cordLength', 'cordLengthAuto', 'cordlength', 0.3);
   material(w, d, node, 'line');
 };
 

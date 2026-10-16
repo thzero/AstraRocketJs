@@ -1,3 +1,5 @@
+import { fmtList, partLabel } from '../../i18n/format';
+import i18n from '../../i18n';
 import type { OrkSimulation } from './ork/importSimulations';
 import {
   OpenRocketDesign,
@@ -20,30 +22,18 @@ import { findMounts } from '../design/treeEdit';
 import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
-import { type DeployOverride, type MountMotor, type SepOverride } from '../flight/flightConfigs';
-import { errorMessage } from '../app/errorMessage';
+import { type FlightConfig, type MountMotor } from '../flight/flightConfigs';
+import { errorReason } from '../../i18n/keyedError';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
 import { keyedNote, type ImportNote } from './importNote';
 
-/** One of the file's flight configurations, with its motors resolved. */
-export interface LoadedConfig {
-  /** The file's own `configid`, kept so a round trip is identity. */
-  id: string;
-  name: string | null;
-  motors: Record<string, MountMotor>;
-  /** What this configuration said about recovery deployment (carried, not edited). */
-  deployments?: Record<string, DeployOverride>;
-  /**
-   * ...and about staging, and about which stages stay on the pad. Carried for
-   * the same reason the deployments are: a configuration that says
-   * `<stage number="1" active="false"/>` or carries a
-   * `<separationconfiguration>` must keep it, or `saveOrk` writes the setting
-   * back as absent and the file loses it.
-   */
-  separations?: Record<string, SepOverride>;
-  grounded?: string[];
-}
+/**
+ * One of the file's flight configurations, with its motors resolved: the same
+ * shape the store keeps, so the deployments, separations and grounded stages a
+ * file carries reach `saveOrk` again and the file keeps them.
+ */
+type LoadedConfig = FlightConfig;
 
 export interface LoadedOrk {
   name: string;
@@ -212,7 +202,7 @@ export function buildForImport(tree: RocketTree): { design: OpenRocketDesign; un
   try {
     return { design: OpenRocketDesign.buildTree(tree) };
   } catch (e) {
-    const reason = errorMessage(e);
+    const reason = errorReason(e);
     let repaired;
     try {
       repaired = OpenRocketDesign.buildTree(withoutFreeformOutlines(tree));
@@ -239,18 +229,19 @@ function withoutFreeformOutlines(tree: RocketTree): RocketTree {
 }
 
 export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
-  resetEngine(); // free the previous design's handles
   // Either format, chosen from the bytes (designFile.ts). Everything below is
   // format-agnostic: it works off the import result, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
+  // Free the previous design's handles, only once the file has parsed: a reset
+  // voids the open design's live handle, and a file that will not parse leaves
+  // that design on screen. A failure from here on is rebuilt by the caller.
+  resetEngine();
   const built = buildForImport(res.tree);
   const design = built.design;
 
-  const notes: ImportNote[] = [
-    ...(res.notes ?? []),
-    ...(res.ignored ?? []).map((name) => keyedNote('importNote.skippedUnsupported', { name })),
-  ];
+  // The readers already name every tag they skipped (`res.ignored`) in `res.notes`.
+  const notes: ImportNote[] = [...(res.notes ?? [])];
   if (built.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
@@ -264,10 +255,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
 
   // One resolution per distinct motor, not per mount per configuration: three
   // configurations flying the same J350 are one catalog lookup and one fetch,
-  // and one note when it cannot be found rather than three identical ones.
+  // and one note when it cannot be found rather than three identical ones. The
+  // digest is part of the identity, since it picks the embedded curve: two
+  // custom curves sharing a designation are two motors.
   const resolved = new Map<string, MotorSpec>();
   const resolveMotor = async (ref: OrkMotorRef): Promise<MotorSpec> => {
-    const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}`;
+    const key = `${(ref.manufacturer ?? '').toLowerCase()}|${ref.designation.toLowerCase()}|${ref.delay}|${ref.digest ?? ''}`;
     const hit = resolved.get(key);
     if (hit) return hit;
     const spec = await resolveOnce(ref);
@@ -345,7 +338,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // transient thrustcurve.org failure while opening an L-motor design would
       // produce a runnable simulation flying a 10 N-s C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
-      notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorMessage(e) }));
+      notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorReason(e) }));
       return unresolvedMotor(ref);
     }
   };
@@ -440,7 +433,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   if (emptyMounts.length) {
     const named = emptyMounts.filter((m) => !chosen.motors[m.id as string]?.spec.designation);
     if (named.length) {
-      const names = named.map((m) => `"${m.name ?? m.type}"`).join(', ');
+      const names = fmtList(named.map((m) => `"${partLabel(i18n.t, m)}"`));
       notes.push(keyedNote('importNote.mountsWithoutMotor', { mounts: names }));
     }
   }

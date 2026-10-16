@@ -15,7 +15,7 @@ import { AlertDialog } from '../common/AlertDialog';
  * than as three separate things this component remembers not to do.
  *
  * It sits a layer below the confirmation, so a confirmation raised while it is up
- * would still be reachable. Nothing raises one there today; the ordering is free
+ * would still be reachable. Nothing raises one while it is up; the ordering is free
  * and the alternative is a notice that can be buried.
  */
 export function WorkInProgressDialog() {

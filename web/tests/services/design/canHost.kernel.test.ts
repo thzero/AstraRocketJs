@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { allowedChildren, canHost, defaultNode } from '../../../src/services/design/treeEdit';
 import type { ComponentNode, ComponentType } from '../../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
+import { loadEngine } from '../../testing/kernelGeometry';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -15,13 +16,6 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * `fairing` is left out: it has no default node to build from, and the bridge
  * builds it as a mass component, whose row this already checks.
  */
-
-/* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
-const loadEngine = async (): Promise<any> => {
-  (globalThis as any).$rt_putStdoutCustom ??= () => {};
-  (globalThis as any).$rt_putStderrCustom ??= () => {};
-  return import('../../../src/engine/vendor/openrocket-engine.mjs' as string);
-};
 
 const TYPES: ComponentType[] = [
   'nosecone',

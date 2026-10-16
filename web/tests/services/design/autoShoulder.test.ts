@@ -150,3 +150,51 @@ describe('a tail cone', () => {
     expect(chainOf(t)[1]!['shoulderRadius']).toBeCloseTo(0.019, 12);
   });
 });
+
+/**
+ * `Transition.setForeShoulderRadius(double)` and `setAftShoulderRadius(double)`
+ * clamp the radius to the end the shoulder sits on (`Transition.java`,
+ * `MathUtil.min(radius, getForeRadius())`), so an automatic shoulder plugged into
+ * a wider tube stops at the transition's own end.
+ */
+describe('an automatic transition shoulder', () => {
+  const tree = (foreRadius: number, aftRadius: number): RocketTree =>
+    ({
+      components: [
+        {
+          type: 'stage',
+          id: 's',
+          children: [
+            { type: 'bodytube', id: 'a', length: 0.2, outerRadius: 0.025, thickness: 0.001 },
+            {
+              type: 'transition',
+              id: 't',
+              length: 0.05,
+              foreRadius,
+              aftRadius,
+              thickness: 0.001,
+              foreShoulderAuto: true,
+              foreShoulderLength: 0.02,
+              aftShoulderAuto: true,
+              aftShoulderLength: 0.02,
+            },
+            { type: 'bodytube', id: 'b', length: 0.2, outerRadius: 0.025, thickness: 0.001 },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+  const shoulders = (t: RocketTree) => {
+    const n = t.components[0]!.children![1]!;
+    return [n['foreShoulderRadius'], n['aftShoulderRadius']];
+  };
+
+  it('stops at an end narrower than the bore', () => {
+    expect(shoulders(syncAutoShoulders(tree(0.01, 0.015)))).toEqual([0.01, 0.015]);
+  });
+
+  it('follows the bore when the end is wider', () => {
+    const [fore, aft] = shoulders(syncAutoShoulders(tree(0.03, 0.03))) as number[];
+    expect(fore).toBeCloseTo(0.024, 12);
+    expect(aft).toBeCloseTo(0.024, 12);
+  });
+});

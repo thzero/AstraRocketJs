@@ -2,18 +2,18 @@
 
 **▶ [Launch the app](https://thzero.github.io/AstraRocketJs/)** - runs in your browser, nothing to install. Works **offline** once loaded, and can be installed to your home screen or desktop if you want it there.
 
-A **lightweight, browser-based UI for the OpenRocket engine** - not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same trusted physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation - entirely in the browser, with nothing to install and nothing uploaded.
+A **lightweight, browser-based UI for the OpenRocket engine** - not a full re-creation of OpenRocket's desktop app, but a fast, mobile-friendly interface over the same physics, with **full OpenRocket (.ork) support** (open, edit, save round-trip). Design a rocket, watch its CG/CP/stability update live, and run a full flight simulation - entirely in the browser, with nothing to install and nothing uploaded.
 
 The UI is **responsive**: the workbench has five tabs (Design · Configurations · Simulations · Results · Tools, with **Results** shown once a run has produced one), each with its own column layout on desktop. On a phone the tabs move to a bottom bar and Design splits into **Rocket** and **Sketch**, with the rocket views turned a quarter turn so the airframe runs down the screen's long edge. The rocket view switches between a **2D schematic**, a **3D model**, an **aerodynamics** view, and, after a simulation, **flight charts** and a **3D flight path**.
 
 ## Highlights
 
 **Real OpenRocket physics, fast, in the browser**
-- The actual OpenRocket core (extended Barrowman aerodynamics, mass/CG, RK4/RK6 flight), compiled to **WebAssembly** (JavaScript fallback) via TeaVM - validated **bit-identical** to upstream OpenRocket.
+- The actual OpenRocket core (extended Barrowman aerodynamics, mass/CG, RK4/RK6 flight), compiled to **WebAssembly** (JavaScript fallback) via TeaVM. The kernel is upstream OpenRocket at a pinned commit with a small set of patches (`engine-java/patches`), and parity tests check that the browser builds return numbers identical to the same kernel run on the JVM.
 - Flight simulations run in a **Web Worker**, off the main thread, so the UI stays responsive during a run.
 
 **Design & analyze**
-- Component-tree editor with **live CG / CP / stability** as you edit - calibers, % of length, **on-pad *and* rail-exit** margins, and fineness ratio.
+- Component-tree editor with **live CG / CP / stability** as you edit - calibers, % of length, **on-pad *and* launcher-exit** margins, and fineness ratio.
 - **Undo / redo** across the whole workspace - component edits *and* simulation changes on one timeline (`Ctrl/⌘+Z`, `Ctrl+Shift+Z`).
 - **Multi-stage rockets** - add booster stages, pods, and parallel boosters, with configurable separation and upper-stage ignition (staged flights simulate as independent branches, checked against upstream OpenRocket).
 - **2D schematic** with drag-to-measure **calipers**, length + cross-section rulers, zoom/pan, spin (roll), and an aft (head-on) view.
@@ -28,21 +28,21 @@ The UI is **responsive**: the workbench has five tabs (Design · Configurations 
 - **The sixteen example rockets that ship with OpenRocket**, built in under **Import → Examples** - clusters, pods, tube fins, parallel and serial staging, dual deployment, a separating payload section. Pulled from the same OpenRocket commit the engine is built from, and opened as your own unsaved copy.
 - Keep **several rockets** in the browser and switch between them; everything autosaves (the top bar says when the last save landed), and `.ork` import/export moves designs to and from your disk. Importing a rocket whose name you have already saved asks whether to overwrite it or keep both, so the library does not fill up with copies.
 - Real motor **thrust curves** from thrustcurve.org (~1,150 motors), plus **`.eng` and `.rse` import** and custom motors.
-- OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~3,400 real Estes/Apogee/LOC/… parts), plus **your own saved parts**: save a component you built and it joins that picker on every design.
+- OpenRocket **materials** (built-in + your own) and a **component-preset** catalog (~5,200 real Estes/Apogee/LOC/… parts), plus **your own saved parts**: save a component you built and it joins that picker on every design.
 - **Exports**: a full **rocket design report** (summary, parts detail, motors, 1:1 fin/nose/transition templates and wrap-around fin marking guides) to **PDF**, or the design summary to **CSV**; the design to **RASAero II (`.CDX1`)**; the whole design's printable parts to **3MF** (one file, a named object per part) and individual components to **3D models (STL / OBJ / GLB / 3MF)** for printing/CAD, with flat parts to **DXF** cut sheets; flight data & aero tables to **CSV**; the **flight path** to **KML / GPX / waypoint CSV** (Google Earth / GPS, with a **Mission** name and per-stage track colors, and importable custom **templates**); and the 2D schematic to **SVG / PNG / JPG**.
-- Multiple named **simulations**, each with full launch setup (rod, site, atmosphere, multi-level wind, earth model).
+- Multiple named **simulations**, each with full launch setup (rail or rod, site, atmosphere, multi-level wind, earth model).
 
 **Yours, on your device**
-- No server, no accounts, nothing uploaded - the physics runs entirely on your device. Your `.ork` designs are **files on your disk** (open / save); the browser just keeps a working copy (so a refresh won't lose your rocket) plus your custom motors, materials, and settings.
+- No server, no accounts, nothing uploaded - the physics runs entirely on your device. Your designs, custom motors, materials and settings are kept in the browser (so a refresh won't lose your rocket), and `.ork` import / export moves designs to and from **files on your disk**.
 - **Units are yours to pick** - metric or imperial presets, or a unit per quantity (lengths, altitude, mass, velocity, wind, acceleration, angle, density, temperature, pressure, thrust, impulse), and the unit printed beside any value is a picker for that one field. Designs are always stored in SI, so switching units never edits a rocket or changes how a `.ork` is written - units live in your browser, not in the file, so a design opened in desktop OpenRocket shows in OpenRocket's units.
 - **Responsive** (the same tabs on desktop and phone, with Design split in two on a phone and the rocket views turned to the screen's long edge), in **ten languages**.
-- **Says what its numbers are worth** - launch conditions are held to the NAR / Tripoli flying limits (rod within 20° of vertical, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
+- **Says what its numbers are worth** - launch conditions are held to the NAR / Tripoli flying limits (rail or rod within 30° of vertical for a model rocket and 20° for a high power rocket, surface wind at or below 20 mph) and a run outside them is refused. Every set of results carries a **Before you fly** card naming what the model does not have (fin flutter, structural loads, parachute inflation and opening shock, your motor on the day), linking to a **[Safety](https://thzero.github.io/AstraRocketJs/docs/safety)** page.
 
 ## Getting started
 
 Just want to use it? Open **<https://thzero.github.io/AstraRocketJs/>** - that's the current `master` build, deployed to GitHub Pages.
 
-To run it locally you need only **Node 22+** - no JDK (it uses a committed engine build):
+To run it locally you need only **Node 24+** - no JDK (it uses a committed engine build):
 
 ```bash
 cd web && npm install && npm run dev
@@ -70,7 +70,7 @@ Contributions are very welcome - code, bug reports, translations, docs, and more
 
 ## Status
 
-Engine: working, validated bit-identical against upstream OpenRocket (JVM↔JS, and WASM↔JS). UI: actively developed - component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
+Engine: working. Parity tests check that the TeaVM JavaScript and WASM-GC builds return numbers identical to the same patched kernel on the JVM. UI: actively developed - component-tree editor, stability, 2D/3D views, motor picker, `.ork` import/export, and flight simulation with charts (run off the main thread in a Web Worker to keep the UI responsive).
 
 ## Safety and disclaimer
 
@@ -82,4 +82,4 @@ This software is provided "as is", without warranty of any kind, express or impl
 
 ## Attribution & license
 
-The engine derives from the OpenRocket core (GPL-3.0) at one pinned commit, named in [`engine-java/extract/UPSTREAM`](engine-java/extract/UPSTREAM) and shown, with its date, in the app's About dialog and on the docs' [Overview](https://thzero.github.io/AstraRocketJs/docs/) page; the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs).
+The engine derives from the OpenRocket core (GPL-3.0) at one pinned commit, named in [`engine-java/extract/UPSTREAM`](engine-java/extract/UPSTREAM) and shown, with its date, in the app's About dialog and on the docs' [Overview](https://thzero.github.io/AstraRocketJs/docs/) page; the opt-in supersonic-aero (RASAero) extensions are the original work of the mmrocket-sim project. Full credits and license lineage: **[`engine-java/ATTRIBUTION.md`](engine-java/ATTRIBUTION.md)** (and `docs/rasaero/` for the extensions' physics + diffs). The PDF report's Noto fonts in `web/public/fonts/` are under the SIL Open Font License 1.1 (`web/public/fonts/OFL.txt`).

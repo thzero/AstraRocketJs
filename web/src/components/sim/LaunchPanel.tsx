@@ -1,6 +1,7 @@
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions } from '../../services/design/orkTree';
+import type { LaunchConditions, LaunchPatch } from '../../services/design/orkTree';
+import { FieldLabel } from '../common/FieldMark';
 import { isFilled, missingRequired, type RequiredLaunchKey } from '../../services/flight/requiredLaunch';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits, type Units } from '../../prefs/useUnits';
@@ -9,6 +10,7 @@ import { onSi } from '../../prefs/entryValue';
 import { fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { LAUNCH_SI, type LaunchUnitKind } from '../../prefs/launchUnits';
 import { MAX_ROD_ANGLE_RAD, MAX_TURBULENCE_PERCENT, MAX_WIND_SPEED_MS } from '../../services/flight/safetyLimits';
+import type { PowerClass } from '../../services/flight/powerClass';
 import { G0 } from '../../services/motors/motorMath';
 import {
   hasIntensity,
@@ -26,7 +28,7 @@ import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { SiteMapDialog } from './SiteMapDialog';
 import { useLatest } from '../common/useLatest';
 import { DEFAULT_HEADING_DEG } from '../../services/flight/simulations';
-import { NumberRow } from '../common/NumberRow';
+import { NumberRow, type NumberRowMarks } from '../common/NumberRow';
 import { CardGroup } from '../common/CardGroup';
 import { LatLonRows } from './LatLonRows';
 import { withLauncher, type LauncherKind } from '../../services/design/launcher';
@@ -38,12 +40,13 @@ import { seaLevelExcessPa } from '../../services/flight/sitePressure';
  * Launch & atmosphere conditions for the flight simulation: wind (single average
  * or an altitude-layered multilevel profile), launch rod, launch site, base
  * atmosphere, and the Earth (geodetic) model. Emits a shallow patch on change;
- * App feeds these straight into simulate(). Populated from an imported .ork.
+ * the owner (the simulation editor or the launch defaults tab) merges it into
+ * the conditions it holds.
  */
 
 /**
  * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
- * the stored convention (see SI above); `stepSi`/`minSi` are given in SI, so a
+ * the stored convention (see `LAUNCH_SI` in `launchUnits.ts`); `stepSi`/`minSi` are given in SI, so a
  * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
  */
 export function QNum({
@@ -81,18 +84,7 @@ export function QNum({
   minSi?: number;
   /** Upper bound in SI, converted like `minSi` so it holds in any unit. */
   maxSi?: number;
-  placeholder?: string;
-  hint?: string;
-  /** See {@link NumberRow}. */
-  caution?: string;
-  /** See {@link NumberRow}. */
-  mixed?: boolean;
-  /** See {@link NumberRow}. */
-  required?: boolean;
-  /** See {@link NumberRow}. */
-  missing?: boolean;
-  onChange: (v: number | null) => void;
-}) {
+} & NumberRowMarks) {
   const c = LAUNCH_SI[kind];
   const scope = unitScope('launch', field);
   const fu = u.at(scope, c.q);
@@ -130,9 +122,15 @@ export function LaunchPanel({
   weather = false,
   weatherKey = false,
   launcher = null,
+  powerClass = null,
 }: {
   launch: LaunchConditions;
-  onChange: (patch: Partial<LaunchConditions>) => void;
+  /**
+   * Applied to every simulation being edited. A value worked out from the
+   * conditions (a deviation recomputed to the new speed, a profile seeded from the
+   * wind) goes as a function, so each simulation works it out from its own.
+   */
+  onChange: (patch: LaunchPatch) => void;
   /**
    * Launch keys the simulations being edited together disagree on, marked so a
    * bulk edit cannot flatten a value off screen. Empty/absent for the ordinary
@@ -155,10 +153,21 @@ export function LaunchPanel({
   weatherKey?: boolean;
   /** What the design is launched from, which names the launcher fields; null for the neutral word. */
   launcher?: LauncherKind | null;
+  /**
+   * The class of rocket these conditions fly, which sets the launcher angle the
+   * codes allow. Null when there is no one answer: the Settings copy edits the
+   * defaults for every configuration, and a bulk edit can span both classes.
+   * The field then stops at the model rocket limit and the hint states both.
+   */
+  powerClass?: PowerClass | null;
 }) {
   const { t: plainT } = useTranslation();
   const t = withLauncher(plainT as unknown as (key: string, options?: Record<string, unknown>) => string, launcher);
   const u = useUnits();
+  // The wind model radios' group name, one per panel. Settings opens its own
+  // panel over the simulation editor's, and radios that share a name are one
+  // group to the browser: an arrow key in one would check the other's.
+  const windGroup = useId();
   /**
    * A safety-code cap in the unit its own field is shown in, resolved the way
    * QNum resolves it, chip override included. A hint that quotes the rule in a
@@ -197,7 +206,7 @@ export function LaunchPanel({
   // this panel never has any: it fills blanks from the previous default,
   // because a blank default would hand every future simulation a hole.
   const blank = useMemo(() => new Set<RequiredLaunchKey>(missingRequired(launch)), [launch]);
-  /** The six are always required; `missing` is the ones currently empty. */
+  /** The fields shown are required; `missing` is the ones currently empty. */
   const req = (k: RequiredLaunchKey) => ({ required: true, missing: blank.has(k) });
   const levels = launch.windLevels ?? [];
   const multilevel = levels.length > 0;
@@ -212,6 +221,14 @@ export function LaunchPanel({
   const windAvg = isFilled(launch.windAverage) ? launch.windAverage : 0;
   const windSd = isFilled(launch.windStdDev) ? launch.windStdDev : 0;
   const intensity = turbulenceIntensity(windAvg, windSd);
+  // Each simulation's wind as it stood before the speed box was edited, by
+  // row. The box reports every keystroke, so retuning from the previous
+  // keystroke would pass through whatever the user typed on the way: "0" on the
+  // way to "0.5" sets the deviation to 0, and every later keystroke rescales
+  // that 0. Desktop's `PinkNoiseWindModel.setAverage` only ever sees the
+  // committed value, so the turbulence is carried from the value the edit
+  // started on. Cleared on blur, which ends the edit.
+  const speedEditBase = useRef<Map<string, { avg: number; sd: number }> | null>(null);
 
   /**
    * Switch wind models. Multilevel is represented by having levels, so turning
@@ -220,17 +237,21 @@ export function LaunchPanel({
    */
   const setWindModel = (model: 'average' | 'multilevel') => {
     if (model === 'average') return onChange({ windLevels: undefined });
-    if (multilevel) return;
-    onChange({
-      windLevels: [
-        {
-          altitudeM: 0,
-          speed: launch.windAverage || 0,
-          directionDeg: launch.windDirectionDeg ?? DEFAULT_HEADING_DEG,
-          stddev: launch.windStdDev || 0,
-        },
-      ],
-    });
+    // Each simulation from its own wind; one that already has a profile keeps it.
+    onChange((l) =>
+      l.windLevels?.length
+        ? {}
+        : {
+            windLevels: [
+              {
+                altitudeM: 0,
+                speed: l.windAverage || 0,
+                directionDeg: l.windDirectionDeg ?? DEFAULT_HEADING_DEG,
+                stddev: l.windStdDev || 0,
+              },
+            ],
+          },
+    );
   };
 
   return (
@@ -240,7 +261,13 @@ export function LaunchPanel({
     // sim editor, the Settings dialog body), and a second p-3 would inset this
     // panel's cards relative to their siblings. The gap matches the sim editor's, so one
     // column of cards reads as one rhythm.
-    <div className="space-y-4" onBlur={onCommit}>
+    <div
+      className="space-y-4"
+      onBlur={() => {
+        speedEditBase.current = null;
+        onCommit?.();
+      }}
+    >
       <CardGroup title={t('launch.launchRod')}>
         <QNum
           label={t('launch.length')}
@@ -262,8 +289,17 @@ export function LaunchPanel({
           u={u}
           stepSi={Math.PI / 180}
           minSi={0}
-          maxSi={MAX_ROD_ANGLE_RAD}
-          hint={t('launch.angleLimit', { limit: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD) })}
+          maxSi={MAX_ROD_ANGLE_RAD[powerClass ?? 'model']}
+          hint={
+            powerClass === null
+              ? t('launch.angleLimitEither', {
+                  model: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD.model),
+                  highPower: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD.highPower),
+                })
+              : t(powerClass === 'model' ? 'launch.angleLimitModel' : 'launch.angleLimitHighPower', {
+                  limit: capFor('deg', 'angle', MAX_ROD_ANGLE_RAD[powerClass]),
+                })
+          }
           mixed={mixed('launchRodAngleDeg')}
           {...req('launchRodAngleDeg')}
           value={launch.launchRodAngleDeg}
@@ -279,7 +315,7 @@ export function LaunchPanel({
             }}
             className="accent-accent-500"
           />
-          <span className="text-xs text-ink-muted">{t('launch.intoWind')}</span>
+          <FieldLabel text={t('launch.intoWind')} mixed={mixed('launchIntoWind')} />
         </label>
         {!launch.launchIntoWind && (
           <QNum
@@ -337,9 +373,14 @@ export function LaunchPanel({
                   if (!mine()) return;
                   setLocating(false);
                   setLocateErr(null);
+                  // The elevation is cleared, as LocationPicker clears it for a
+                  // place with none known: the browser's altitude is height
+                  // above the ellipsoid, not above sea level, and keeping the
+                  // previous site's would fly the wrong air unannounced.
                   onChange({
                     latitudeDeg: +pos.coords.latitude.toFixed(4),
                     longitudeDeg: +pos.coords.longitude.toFixed(4),
+                    launchAltitudeM: null,
                   });
                   onCommit?.();
                 },
@@ -357,14 +398,14 @@ export function LaunchPanel({
             disabled={locating}
             className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:opacity-60"
           >
-            📍 {locating ? t('launch.locating') : t('launch.useLocation')}
+            <span aria-hidden="true">📍</span> {locating ? t('launch.locating') : t('launch.useLocation')}
           </button>
         )}
         <button
           onClick={() => setMapOpen(true)}
           className="w-full rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
-          🗺 {t('map.show')}
+          <span aria-hidden="true">🗺</span> {t('map.show')}
         </button>
         {/* Always mounted, empty until there is something to say: a live
             region created together with its text is not announced by most
@@ -378,7 +419,8 @@ export function LaunchPanel({
             latitudeDeg={launch.latitudeDeg}
             longitudeDeg={launch.longitudeDeg}
             onPick={(la, lo) => {
-              onChange({ latitudeDeg: la, longitudeDeg: lo });
+              // A point on the map has no elevation of its own; see above.
+              onChange({ latitudeDeg: la, longitudeDeg: lo, launchAltitudeM: null });
               onCommit?.();
             }}
             onClose={() => setMapOpen(false)}
@@ -491,13 +533,13 @@ export function LaunchPanel({
         <fieldset className="pb-1">
           <legend className="sr-only">{t('launch.windModel')}</legend>
           <div className="flex items-center justify-between gap-3">
-            <span className="text-xs text-ink-muted">{t('launch.windModel')}</span>
+            <FieldLabel text={t('launch.windModel')} mixed={mixed('windLevels')} />
             <div className="flex gap-3">
               {(['average', 'multilevel'] as const).map((m) => (
                 <label key={m} className="flex items-center gap-1.5">
                   <input
                     type="radio"
-                    name="windModel"
+                    name={windGroup}
                     checked={multilevel === (m === 'multilevel')}
                     onChange={() => {
                       setWindModel(m);
@@ -530,15 +572,26 @@ export function LaunchPanel({
                 // Cleared means unset, not 0: 0 is a real wind speed, so
                 // landing there makes emptying the field assert still air.
                 if (v == null) return onChange({ windAverage: null });
-                // OpenRocket holds the turbulence intensity constant when the
-                // average moves (`PinkNoiseWindModel.setAverage`), so wind that
-                // was 15% gusty stays 15% gusty instead of quietly becoming 5%
-                // because the wind picked up. Skipped from a zero average,
-                // where the ratio is the 0-or-1 stand-in rather than a real
-                // fraction and rescaling would snap the scatter to the whole
-                // wind speed.
-                if (!hasIntensity(windAvg)) return onChange({ windAverage: v });
-                onChange({ windAverage: v, windStdDev: retuneStdDev(windAvg, windSd, v) });
+                const bases = (speedEditBase.current ??= new Map<string, { avg: number; sd: number }>());
+                onChange((l, row) => {
+                  let base = bases.get(row);
+                  if (!base) {
+                    base = {
+                      avg: isFilled(l.windAverage) ? l.windAverage : 0,
+                      sd: isFilled(l.windStdDev) ? l.windStdDev : 0,
+                    };
+                    bases.set(row, base);
+                  }
+                  // OpenRocket holds the turbulence intensity constant when the
+                  // average moves (`PinkNoiseWindModel.setAverage`), so wind that
+                  // was 15% gusty stays 15% gusty instead of quietly becoming 5%
+                  // because the wind picked up, each simulation at its own.
+                  // Skipped from a zero average, where the ratio is the 0-or-1
+                  // stand-in rather than a real fraction and rescaling would snap
+                  // the scatter to the whole wind speed.
+                  if (!hasIntensity(base.avg)) return { windAverage: v };
+                  return { windAverage: v, windStdDev: retuneStdDev(base.avg, base.sd, v) };
+                });
               }}
             />
             <QNum
@@ -568,7 +621,12 @@ export function LaunchPanel({
               max={MAX_TURBULENCE_PERCENT}
               mixed={mixed('windStdDev')}
               value={Math.round(intensity * 100)}
-              onChange={(v) => onChange({ windStdDev: stdDevForIntensity(windAvg, (v ?? 0) / 100) })}
+              // Each simulation's deviation from its own average.
+              onChange={(v) =>
+                onChange((l) => ({
+                  windStdDev: stdDevForIntensity(isFilled(l.windAverage) ? l.windAverage : 0, (v ?? 0) / 100),
+                }))
+              }
             />
             <p className="-mt-1 pr-24 text-right text-xs text-ink-muted">
               {t(`launch.turbulenceLevel.${turbulenceLevel(intensity)}`)}
@@ -605,7 +663,7 @@ export function LaunchPanel({
 
       <CardGroup title={t('launch.earthModel')}>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-ink-muted">{t('launch.geodetic')}</span>
+          <FieldLabel text={t('launch.geodetic')} mixed={mixed('geodetic')} />
           <select
             value={launch.geodetic ?? 'spherical'}
             onChange={(e) => {
@@ -620,7 +678,7 @@ export function LaunchPanel({
           </select>
         </label>
         <label className="flex items-center justify-between gap-3">
-          <span className="text-xs text-ink-muted">{t('launch.gravity')}</span>
+          <FieldLabel text={t('launch.gravity')} mixed={mixed('gravityModel')} />
           <select
             value={launch.gravityModel ?? 'wgs'}
             onChange={(e) => {
@@ -652,6 +710,7 @@ export function LaunchPanel({
       {weatherOpen && (
         <WeatherDialog
           launch={launch}
+          diff={diff}
           onChange={onChange}
           onCommit={onCommit}
           onClose={() => setWeatherOpen(false)}
@@ -662,6 +721,7 @@ export function LaunchPanel({
       {profileOpen && (
         <WindProfileDialog
           launch={launch}
+          diff={diff}
           onChange={onChange}
           onCommit={onCommit}
           onClose={() => setProfileOpen(false)}

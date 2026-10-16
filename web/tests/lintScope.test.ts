@@ -48,24 +48,36 @@ describe('the generated trees are outside the linter', () => {
   });
 });
 
+/**
+ * A rule's resolved severity: 0 off, 1 warn, 2 error. A resolved rule is an
+ * array whose first entry is the severity, so a rule turned off still comes back
+ * as a truthy `[0, ...]`, and only the severity says whether it runs.
+ */
+const severity = (rules: Record<string, unknown> | undefined, rule: string): number => {
+  const v = rules?.[rule];
+  const level = Array.isArray(v) ? (v[0] as unknown) : v;
+  return level === 'error' ? 2 : level === 'warn' ? 1 : typeof level === 'number' ? level : 0;
+};
+
 describe('the rules that are enabled are enabled on real files', () => {
   it('resolves the type-aware promise rules for a component', async () => {
-    // `recommended` does not include these, and they need `projectService` to
-    // run. Without them, a click handler that drops a rejected promise passes lint.
+    // `recommended` does not include these, and they need type information
+    // (`parserOptions.project`). Without them, a click handler that drops a
+    // rejected promise passes lint.
     const cfg = await eslint.calculateConfigForFile('src/components/layout/AppHeader.tsx');
-    expect(cfg.rules?.['@typescript-eslint/no-floating-promises']).toBeTruthy();
-    expect(cfg.rules?.['@typescript-eslint/no-misused-promises']).toBeTruthy();
+    expect(severity(cfg.rules, '@typescript-eslint/no-floating-promises')).toBe(2);
+    expect(severity(cfg.rules, '@typescript-eslint/no-misused-promises')).toBe(2);
   });
 
-  it('resolves the hook rules the project has always enforced', async () => {
+  it('resolves the hook rules as errors', async () => {
     const cfg = await eslint.calculateConfigForFile('src/components/layout/AppHeader.tsx');
-    expect(cfg.rules?.['react-hooks/rules-of-hooks']).toBeTruthy();
+    expect(severity(cfg.rules, 'react-hooks/rules-of-hooks')).toBe(2);
   });
 
   it('leaves the type-aware rules OFF for the plain .mjs scripts', async () => {
     // They have no TypeScript program, so a type-aware rule there is an error
     // about the tool rather than about the code.
     const cfg = await eslint.calculateConfigForFile('scripts/sync-motors.mjs');
-    expect(cfg.rules?.['@typescript-eslint/no-floating-promises']).toBeFalsy();
+    expect(severity(cfg.rules, '@typescript-eslint/no-floating-promises')).toBe(0);
   });
 });

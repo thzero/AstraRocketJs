@@ -12,7 +12,9 @@ import { UnitChip } from '../common/UnitChip';
 import { NumberInput } from '../common/NumberInput';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope, type Quantity } from '../../prefs/units';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
+import { withUnit } from '../../i18n/format';
+import { listWriteErrorText } from '../../services/storage/jsonListStore';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 import { useLatest } from '../common/useLatest';
 import { confirm } from '../../state/confirmStore';
@@ -29,6 +31,15 @@ const QUANTITY: Record<MaterialType, Quantity> = {
 };
 
 /**
+ * What the material is for, which decides whether the adhesives belong in the
+ * list. Nothing else is filtered: every other bulk material in the table is
+ * something a part can legitimately be made of, and guessing which ones suit
+ * which component would block real builds (an aluminum fin, a printed nose
+ * cone) to save a little scrolling.
+ */
+export type MaterialUse = 'structure' | 'fillet';
+
+/**
  * Assigns a material (name + density) to a component, from the built-in
  * catalog plus the user's custom materials (swappable MaterialStore). `type`
  * picks the catalog (bulk / surface / line); `label` names the row. Emits
@@ -40,15 +51,6 @@ const QUANTITY: Record<MaterialType, Quantity> = {
  * its own handler, and a custom material is not in the catalog at all. The
  * `.ork` writer wants it, to file the material under its own category.
  */
-/**
- * What the material is for, which decides whether the adhesives belong in the
- * list. Nothing else is filtered: every other bulk material in the table is
- * something a part can legitimately be made of, and guessing which ones suit
- * which component would block real builds (an aluminum fin, a printed nose
- * cone) to save a little scrolling.
- */
-export type MaterialUse = 'structure' | 'fillet';
-
 export function MaterialPicker({
   value,
   density: ownDensity,
@@ -99,8 +101,6 @@ export function MaterialPicker({
   // swallowing it. `addErr` renders only inside the add form, so a delete needs
   // its own line or the failure is invisible.
   const [delErr, setDelErr] = useState<string | null>(null);
-  // Set when the catalog could not be fetched. Distinct from "no materials":
-  // the list is empty either way, and only one of them is the app's fault.
   // Both store round-trips below finish after an await, and selecting a
   // different component unmounts this picker in between. Observed, not claimed:
   // an add and a delete are separate attempts and neither cancels the other.
@@ -119,6 +119,8 @@ export function MaterialPicker({
   // there but wrong. Say so instead of rendering an empty list, which is
   // indistinguishable from "this app has no materials".
   const loaded = useAsyncLoad(() => materialsForType(type), type, { onLoaded: setMats });
+  // Set when the catalog could not be fetched. Distinct from "no materials":
+  // the list is empty either way, and only one of them is the app's fault.
   const loadErr = loaded.error !== null ? t('material.loadFailed') : null;
 
   // Resolved against the whole list, never the filtered one: a design can
@@ -186,7 +188,7 @@ export function MaterialPicker({
       setGroup(DEFAULT_CUSTOM_GROUP);
       setAddErr(null);
     } catch (e) {
-      setAddErr(errorMessage(e));
+      setAddErr(listWriteErrorText(e, t));
     }
   };
 
@@ -206,7 +208,7 @@ export function MaterialPicker({
       // The store's own message: a refused write is not always "storage
       // full", and saying so for every failure would send people deleting
       // designs to make room that is not short.
-      setDelErr(errorMessage(e));
+      setDelErr(listWriteErrorText(e, t));
       return; // the material is still there; do not tell the user otherwise
     }
     setDelErr(null);
@@ -217,7 +219,7 @@ export function MaterialPicker({
     try {
       next = await materialsForType(type);
     } catch (e) {
-      if (live()) setDelErr(errorMessage(e));
+      if (live()) setDelErr(errorText(e, t));
     }
     if (!live()) return; // selecting another component unmounts this
     if (next) setMats(next);
@@ -262,12 +264,12 @@ export function MaterialPicker({
           <optgroup label={t('material.thisPart')}>
             <option value={own.name}>
               {own.name}
-              {own.density ? ` · ${density(own.density)} ${fu.sym}` : ''}
+              {own.density ? ` · ${withUnit(density(own.density), fu.sym)}` : ''}
             </option>
           </optgroup>
         )}
         {groups.map(([g, list]) => (
-          <optgroup key={g} label={g}>
+          <optgroup key={g} label={groupLabel(t, g)}>
             {list.map((m) => (
               <option key={`${g}:${m.name}`} value={m.name}>
                 {m.custom ? '★ ' : ''}
@@ -291,6 +293,7 @@ export function MaterialPicker({
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('material.namePlaceholder')}
+            aria-label={t('material.namePlaceholder')}
             className="w-full rounded bg-surface px-2 py-1.5 text-sm ring-1 ring-line/10 placeholder:text-ink-faint"
           />
           <label className="flex items-center justify-between gap-2 text-xs text-ink-muted">
@@ -302,7 +305,7 @@ export function MaterialPicker({
             >
               {groupsOf(mats).map((g) => (
                 <option key={g} value={g}>
-                  {g}
+                  {groupLabel(t, g)}
                 </option>
               ))}
             </select>
@@ -341,4 +344,13 @@ export function MaterialPicker({
       )}
     </div>
   );
+}
+
+/**
+ * A material group as the reader's language names it, as desktop translates
+ * `MaterialGroup`. The stored value stays the catalog's English name; a group
+ * the locale has no name for, such as one a user typed, shows as it is.
+ */
+function groupLabel(t: (key: string, opts?: Record<string, unknown>) => string, group: string): string {
+  return t(`material.groups.${group}`, { defaultValue: group });
 }

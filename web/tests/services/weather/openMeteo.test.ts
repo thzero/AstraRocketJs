@@ -241,7 +241,7 @@ describe('fetchWeather', () => {
 
 describe('sampleAt', () => {
   it('finds the hour on the site calendar', () => {
-    // 2026-10-04 18:00 UTC is 12:00 in Denver (MDT, UTC-6).
+    // 18:00 UTC on the forecast's first day is 12:00 in Denver (MDT, UTC-6).
     const start = Date.UTC(2026, 9, 4, 17) / 1000;
     const [v] = parseForecast(answer(1600, { start, hours: 3 }), [1600]);
     expect(sampleAt(v!, 'America/Denver', '2026-10-04', 12)!.unix).toBe(start + 3600);

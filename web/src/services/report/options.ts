@@ -4,7 +4,7 @@
  */
 
 /** Per-stage include flags, mirrored by the export dialog's tree. */
-export interface StageOption {
+interface StageOption {
   parts: boolean;
   finTemplates: boolean;
 }

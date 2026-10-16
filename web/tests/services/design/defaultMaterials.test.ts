@@ -53,12 +53,17 @@ describe('defaultMaterialPatch', () => {
   });
 
   it('maps a bulk default onto the keys a part carries its material in', () => {
-    // And it beats the kernel's, carrying no group with it: the group is the
-    // `.ork` database string, which is known for the kernel's own material and
-    // not for one chosen through the settings - the same as a material picked
-    // in the property panel, which carries none either.
+    // And it beats the kernel's. A choice stored without a group sets none,
+    // rather than the kernel material's.
     const patch = defaultMaterialPatch('trapezoidfinset', { 'trapezoidfinset:bulk': PLY });
     expect(patch).toEqual({ materialName: 'Plywood (birch)', density: 630 });
+  });
+
+  it('carries the catalog group stored with a bulk default', () => {
+    // As a material picked in the property panel carries one, so the `.ork`
+    // writer files it under its own category.
+    const patch = defaultMaterialPatch('trapezoidfinset', { 'trapezoidfinset:bulk': { ...PLY, group: 'Woods' } });
+    expect(patch).toEqual({ materialName: 'Plywood (birch)', density: 630, materialGroup: 'Woods' });
   });
 
   it('maps surface and line onto their own keys, on one part', () => {
@@ -137,6 +142,22 @@ describe('the stored preference', () => {
   it('survives a save and load', () => {
     saveSettings({ ...DEFAULT_SETTINGS, defaultMaterials: { 'trapezoidfinset:bulk': PLY } });
     expect(loadSettings().defaultMaterials).toEqual({ 'trapezoidfinset:bulk': PLY });
+  });
+
+  it('keeps a stored group, and drops one that is blank or not a string', () => {
+    saveSettings({
+      ...DEFAULT_SETTINGS,
+      defaultMaterials: {
+        'trapezoidfinset:bulk': { ...PLY, group: 'Woods' },
+        'bodytube:bulk': { ...PLY, group: 7 },
+        'nosecone:bulk': { ...PLY, group: ' ' },
+      } as unknown as Record<string, { name: string; density: number }>,
+    });
+    expect(loadSettings().defaultMaterials).toEqual({
+      'trapezoidfinset:bulk': { ...PLY, group: 'Woods' },
+      'bodytube:bulk': PLY,
+      'nosecone:bulk': PLY,
+    });
   });
 
   it('drops anything that would reach the kernel as a bad mass', () => {

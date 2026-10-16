@@ -2,26 +2,30 @@
 //
 //   npm run sync:database
 //
-// Clones dbcook/openrocket-database into web/openrocket-database, or updates
-// the clone already there, and checks out the commit the scheduled catalog
-// workflow pins (.github/workflows/sync-catalogs.yml), so a local refresh reads
-// the same parts the published catalog is built from. Bump REF and the
-// workflow's `ref:` together. The folder is gitignored: it is a repository of
-// its own, and this script is how it is made again.
+// Clones openrocket/openrocket-database into web/openrocket-database, or
+// updates the clone already there, and checks out the commit pinned with the
+// OpenRocket release in scripts/data/openrocket-release.json, which the
+// scheduled catalog workflow (.github/workflows/sync-catalogs.yml) reads too.
+// That commit's `.orc` files are the ones the release ships inside its jar, and
+// sync-components refuses a database that differs from them, so a bump of the
+// commit has to come with the release whose jar carries it. The folder is
+// gitignored: it is a repository of its own, and this script is how it is made
+// again.
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { DATABASE } from './lib/openrocketRelease.mjs';
 
-const URL_ = 'https://github.com/dbcook/openrocket-database';
-const REF = '772db251b5cb989ac1a0bca4921dcf91d3bc54de'; // master @ 2024-03-18
 const DIR = fileURLToPath(new URL('../openrocket-database', import.meta.url));
 
 const git = (...args) => execFileSync('git', args, { stdio: 'inherit' });
 
 if (existsSync(DIR)) {
+  // A clone made from another copy of the database fetches from here instead.
+  git('-C', DIR, 'remote', 'set-url', 'origin', DATABASE.url);
   git('-C', DIR, 'fetch', 'origin');
 } else {
-  git('clone', URL_, DIR);
+  git('clone', DATABASE.url, DIR);
 }
-git('-C', DIR, 'checkout', '--quiet', REF);
-console.log(`openrocket-database at ${REF.slice(0, 7)} in ${DIR}`);
+git('-C', DIR, 'checkout', '--quiet', DATABASE.ref);
+console.log(`openrocket-database at ${DATABASE.ref.slice(0, 7)} in ${DIR}`);

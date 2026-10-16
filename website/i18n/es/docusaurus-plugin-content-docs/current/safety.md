@@ -8,19 +8,19 @@ AstraRocketJs es una herramienta de diseño y simulación. No es una autoridad e
 
 Toda cifra que produce la aplicación es **educativa y especulativa**. Responde a la pregunta "qué haría este modelo bajo estas suposiciones". No es una predicción, ni una evaluación de seguridad, ni un certificado de aptitud para el vuelo.
 
-Trata el apogeo, el margen de estabilidad, la velocidad de apertura, la velocidad de descenso y la distancia de aterrizaje como estimaciones *contra las que* diseñar, y luego verifícalas con el cohete que realmente construiste y con el campo en el que realmente estás. Un margen calculado a partir de un plano es el margen de un plano.
+Trata el apogeo, el margen de estabilidad, la velocidad de apertura, la velocidad de descenso y la distancia de aterrizaje como estimaciones *contra las que* diseñar, y luego verifícalas con el cohete que realmente construiste y con el campo en el que realmente estás.
 
 ## Qué hace el modelo {#what-the-model-does}
 
-La física es el propio núcleo de OpenRocket, compilado para ejecutarse en tu navegador y validado bit a bit contra el programa de escritorio. Calcula:
+La física es el propio núcleo de OpenRocket, compilado para ejecutarse en tu navegador. Sus cifras estáticas se comprueban contra el mismo núcleo ejecutándose en una JVM y coinciden salvo por el redondeo de la última cifra; sus vuelos coinciden con esa ejecución en la JVM dentro de una pequeña tolerancia, y con OpenRocket original sin modificar en cada evento de vuelo. Calcula:
 
 - La **aerodinámica** por el método Barrowman extendido, que da el CP, la resistencia y la estabilidad.
-- La **masa y el CG** a partir de la geometría de cada pieza por la densidad de su material, más cualquier [invalidación](#before-you-fly) que introduzcas.
-- El **vuelo** como movimiento de cuerpo rígido integrado con RK4/RK6, gobernado por la curva de empuje real del motor que elegiste.
+- La **masa y el CG** a partir de la geometría de cada pieza por la densidad de su material, más cualquier [anulación](#before-you-fly) que introduzcas.
+- El **vuelo** como movimiento de cuerpo rígido integrado con RK4, gobernado por la curva de empuje real del motor que elegiste.
 - La **atmósfera** como el modelo estándar ISA, o con tu propia temperatura y presión, con un modelo de gravedad WGS o constante y una Tierra plana, esférica o WGS84.
 - El **viento** como una media única con una desviación estándar de ráfagas, o como un perfil multinivel que cambia con la altitud, ambos con turbulencia de ruido rosa.
 
-La aplicación también muestra los avisos de vuelo del propio núcleo: apertura a alta velocidad, un principal que se abre demasiado rápido o demasiado lento, un piloto sin principal, ausencia de sistema de recuperación, una apertura estando aún en la guía, un ángulo de ataque grande, y vuelo supersónico donde el método aerodinámico pasa a ser aproximado. Léelos: son el modelo diciéndote que no está cómodo.
+La aplicación también muestra los avisos de vuelo del propio núcleo: apertura a alta velocidad, un principal que se abre demasiado rápido o demasiado lento, un piloto sin principal, ausencia de sistema de recuperación, una apertura estando aún en la guía, un ángulo de ataque grande, y vuelo supersónico donde el método aerodinámico pasa a ser aproximado. Léelos.
 
 ## Qué no sabe el modelo {#what-the-model-does-not-know}
 
@@ -31,29 +31,31 @@ Ser explícito sobre las carencias es más útil que una advertencia genérica:
 - **El inflado del paracaídas.** La resistencia de un dispositivo de recuperación se activa en su evento de apertura, tras el retardo que hayas fijado. Ni el transitorio de inflado del velamen ni la carga de choque de apertura se calculan. La aplicación te avisa de una apertura rápida en lugar de decirte qué le hace al tubo.
 - **La variación del motor.** La curva de empuje es una curva de certificación, no tu motor el día del lanzamiento. La dispersión entre lotes, la temperatura del propelente, la edad y el almacenamiento mueven el número real.
 - **La diferencia entre el modelo y lo que construiste.** La pintura, un filete de cola que no introdujiste, una ojiva más pesada de lo que supone la tabla de materiales, un juego de aletas dos grados torcido, un paracaídas plegado más apretado de lo que admite la bahía. La simulación vuela el plano.
-- **El suelo.** Sin terreno, sin obstáculos, sin árboles, sin térmicas, sin efecto suelo, y sin la fricción del lanzador ni un cohete que se atasque en la guía.
+- **El suelo.** Sin terreno, sin obstáculos, sin árboles, sin térmicas, sin efecto suelo, y sin la fricción del lanzador ni un cohete que se atasque en el raíl o la varilla.
 
 ## Antes de volar {#before-you-fly}
 
 El panel de resultados encabeza sus números con una tarjeta **Antes de volar** que lleva la versión corta de esta página. Se pliega: pulsa su encabezado y la explicación se recoge, aunque antes te pide confirmar que has leído las notas, porque el pliegue se recuerda y ese clic es la última vez que se ofrecen en este navegador. El encabezado nunca se pliega, así que el aviso sigue sobre los números elijas lo que elijas.
 
-Lo más valioso que puedes hacer es dejar de simular un plano y empezar a simular el cohete que tienes sobre la mesa:
+El paso más útil es simular el cohete tal como está construido y no tal como está dibujado:
 
-1. **Pesa el cohete terminado**, listo para volar pero sin el motor. Selecciona su etapa en el editor de componentes (en un cohete de una sola etapa esa es la totalidad), activa la **invalidación de masa** e introduce la cifra medida con "aplicar a todos los subcomponentes" activado.
-2. **Encuentra el punto de equilibrio.** Equilibra el cohete sobre el canto de una regla, mide desde la punta de la ojiva e introdúcelo como **invalidación del CG**.
+1. **Pesa el cohete terminado**, listo para volar pero sin el motor. Selecciona su etapa en el editor de componentes (en un cohete de una sola etapa esa es la totalidad), activa la **anulación de masa** e introduce la cifra medida con "Aplicar a todos los subcomponentes" activado.
+2. **Encuentra el punto de equilibrio.** Equilibra el cohete sobre el canto de una regla, mide desde la punta de la ojiva e introdúcelo como **anulación del CG**.
 3. **Vuelve a leer el margen de estabilidad** con esos números puestos. Ese es el margen que importa. Si se movió, tu modelo estaba equivocado en algo, y vale la pena averiguar en qué.
-4. **Comprueba la velocidad de salida de la guía** en los resultados de vuelo. Un cohete que sale despacio se orienta hacia el viento, y ahí es donde la simulación es menos fiable.
+4. **Comprueba la velocidad de salida de la guía** en los resultados de vuelo (el dato **Salida del raíl** o **Salida de la varilla**, según las guías del diseño). Un cohete que sale despacio se orienta hacia el viento, y ahí es donde la simulación es menos fiable.
 5. **Comprueba la velocidad de descenso y la de aterrizaje**, y la traza sobre el suelo para ver cuánto te aleja a sotavento. Luego mira el tamaño real del campo.
 6. **Vuelve a ejecutar tras cualquier cambio**, incluido un cambio de motor. Los resultados solo valen para el diseño y las condiciones con los que se ejecutaron.
 
-La sección de invalidaciones ofrece masa, CG y coeficiente de resistencia, cada una con un interruptor de "aplicar a todos los subcomponentes", igual que en OpenRocket. Una pieza dentro de una de ellas lo indica en rojo ("Masa anulada por Sustainer") y su propia invalidación de ese valor queda bloqueada, como en el programa de escritorio: el valor exterior ya lo decide. Consulta [Diseñar un cohete](./designing-a-rocket.md).
+La sección **Anulaciones** ofrece masa, CG y coeficiente de resistencia, cada una con un interruptor de "Aplicar a todos los subcomponentes", igual que en OpenRocket. Una pieza dentro de una de ellas lo indica en rojo ("Masa anulada por Sustainer") y su propia anulación de ese valor queda bloqueada, como en el programa de escritorio: el valor exterior ya lo decide. Consulta [Diseñar un cohete](./designing-a-rocket.md).
 
 ## Los límites que impone la aplicación {#the-limits-the-app-enforces}
 
 Dos condiciones de lanzamiento se contrastan con los códigos de seguridad de la **NAR** y **Tripoli**, y la aplicación se niega a volar una simulación fuera de ellos en lugar de darte un número que no está dispuesta a respaldar:
 
-- **Ángulo de la guía de lanzamiento** dentro de **20 grados** de la vertical.
+- **Ángulo de la guía** (raíl o varilla) dentro de **30 grados** de la vertical para un cohete modelo (el código de seguridad de cohetes modelo de la NAR), y dentro de **20 grados** para un cohete de alta potencia (el código de seguridad de alta potencia de la NAR y el de Tripoli).
 - **Viento en superficie** igual o inferior a **20 mph** (32 km/h).
+
+La aplicación considera de alta potencia la configuración de vuelo de una simulación cuando algún motor tiene más de 160 N·s de impulso total (H en adelante) o más de 80 N de empuje medio, cuando todos sus motores juntos suman más de 320 N·s o más de 125 g de propulsante, o cuando el cohete pesa más de 1500 g al despegar. Todo lo demás es un cohete modelo.
 
 Solo se juzga el viento en la rampa, y las ráfagas deliberadamente no se comprueban. El razonamiento, y qué ocurre con un archivo `.ork` que llega fuera de los límites, está en [Ejecutar una simulación](./running-a-simulation.md#safety-limits).
 

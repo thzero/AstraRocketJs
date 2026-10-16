@@ -11,12 +11,15 @@ import { getMotorStore, type CustomMotor } from './motorStore';
 import { MIN_CURVE_SAMPLES } from './motorCurve';
 import { parseEng, totalImpulse } from './engParser';
 import { parseRse } from './rseParser';
-import { motorFitsMount, offersPlugged, type MountFit } from './motorPicker';
+import { finalizeCurve } from './curveFinalize';
+import { motorStatistics } from '../../engine/openRocketEngine';
+import { impulseClass } from './motorCombine';
+import { motorFitsMount, offersPlugged, parseDelays, type MountFit } from './motorPicker';
 import { fetchCatalog } from '../app/remoteData';
 import { PLUGGED_DELAY } from '../../engine/openRocketEngine';
 import { keyOf } from './motorKey';
 import { errorMessage } from '../app/errorMessage';
-import { assertImportSize } from '../files/decodeText';
+import { assertImportSize, readFileText } from '../files/decodeText';
 
 /** One catalog row: the sync utility's schema, plus optional custom-motor tags. */
 export interface CatalogMotor {
@@ -103,14 +106,25 @@ export function hasCurve(m: CatalogMotor): boolean {
 
 /** Project a stored custom motor down to a catalog row for the picker. */
 function customToRow(cm: CustomMotor): CatalogMotor {
-  const last = cm.samples[cm.samples.length - 1];
+  // The figures come off the finalized curve, which is what the kernel flies:
+  // a motor stored from its file's raw samples may lack the t = 0 point or
+  // list its times out of order.
+  const samples = finalizeCurve(cm.samples);
+  const last = samples[samples.length - 1];
+  const impulse = totalImpulse(samples);
+  // The burn and average the kernel states for the motor
+  // (ThrustCurveMotor.computeStatistics: between the crossings of 5% of peak),
+  // as the spec dialog and the report do. The catalog is read again on each
+  // picker open, so a row read before the engine loaded takes them next time.
+  const kernel = motorStatistics(samples.map((p) => [p.time, p.thrust] as const));
   return {
     designation: cm.designation,
     manufacturer: cm.manufacturer,
-    class: cm.class,
+    class: impulseClass(impulse),
     diameter: cm.diameter,
-    impulse: totalImpulse(cm.samples),
-    burn: last ? last.time : 0,
+    impulse,
+    burn: kernel?.burnTime ?? (last ? last.time : 0),
+    ...(kernel ? { avgThrust: kernel.averageThrust } : {}),
     mass: cm.totalWeightG,
     custom: true,
     id: cm.id,
@@ -132,6 +146,11 @@ function customToRow(cm: CustomMotor): CatalogMotor {
  * inside `allClasses`' `localeCompare`, and one missing `designation` throws in
  * `filterMotors`' `toLowerCase`, taking down the entire motor picker rather than
  * that one entry. `motorStore` guards custom motors the same way.
+ *
+ * The optional fields are checked when present, since consumers trust them as
+ * typed: `code` is lower-cased, curve and CG pairs go to the kernel as numbers,
+ * and digest delays are searched with `includes`. A row with any of them
+ * malformed is dropped rather than throwing inside an `.ork` import or save.
  */
 const isCatalogMotor = (v: unknown): v is CatalogMotor => {
   const m = v as CatalogMotor | null;
@@ -142,7 +161,32 @@ const isCatalogMotor = (v: unknown): v is CatalogMotor => {
     typeof m.manufacturer === 'string' &&
     typeof m.class === 'string' &&
     Number.isFinite(m.diameter) &&
-    Number.isFinite(m.impulse)
+    Number.isFinite(m.impulse) &&
+    optionalString(m.code) &&
+    optionalString(m.type) &&
+    optionalString(m.delays) &&
+    (m.curves === undefined ||
+      (Array.isArray(m.curves) && m.curves.every((c) => !!c && typeof c === 'object' && isPairList(c.samples)))) &&
+    (m.cg === undefined || isPairList(m.cg)) &&
+    (m.digests === undefined || (Array.isArray(m.digests) && m.digests.every(isDigestEntry)))
+  );
+};
+
+const optionalString = (v: unknown): boolean => v === undefined || typeof v === 'string';
+
+/** An array of `[finite, finite]` pairs. */
+const isPairList = (v: unknown): boolean =>
+  Array.isArray(v) &&
+  v.every((p) => Array.isArray(p) && p.length === 2 && Number.isFinite(p[0]) && Number.isFinite(p[1]));
+
+const isDigestEntry = (v: unknown): boolean => {
+  const e = v as { digest?: unknown; delays?: unknown } | null;
+  return (
+    !!e &&
+    typeof e === 'object' &&
+    typeof e.digest === 'string' &&
+    Array.isArray(e.delays) &&
+    e.delays.every((d) => d === 'P' || Number.isFinite(d))
   );
 };
 
@@ -150,7 +194,7 @@ const isCatalogMotor = (v: unknown): v is CatalogMotor => {
  * A usable catalog: an array with at least one usable row.
  *
  * `some`, not `every`: with `every`, one malformed row would reject the whole
- * catalog (and fall through to the in-build copy, or to an empty picker), which
+ * catalog and leave an empty picker, which
  * is the outcome row-by-row validation exists to avoid. The gate only decides
  * whether this host's copy is worth anything at all; the bad rows are dropped in
  * `loadCatalog` and the rest are kept.
@@ -158,7 +202,7 @@ const isCatalogMotor = (v: unknown): v is CatalogMotor => {
 const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
 
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  // The 700 kB+ catalog is a runtime file under public/data (see remoteData.ts),
+  // The ~1.4 MB catalog is a runtime file under public/data (see remoteData.ts),
   // fetched only when something first needs it (e.g. the motor picker opens)
   // rather than weighing down the initial app bundle, and refreshable without
   // rebuilding the app.
@@ -173,6 +217,9 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
   return [...custom, ...bundled];
 }
 
+/** One motor file to import: already-read text, or a picked file still to read. */
+export type MotorFileInput = { name: string; text: string } | { name: string; blob: Blob };
+
 /**
  * Parse a motor file, store what it holds, and return the refreshed catalog.
  *
@@ -186,18 +233,21 @@ export async function loadCatalog(): Promise<CatalogMotor[]> {
  * be indistinguishable from importing one.
  */
 export async function importCustomMotors(
-  files: { name: string; text: string }[],
+  files: readonly MotorFileInput[],
 ): Promise<{ catalog: CatalogMotor[]; imported: number; failed: string[] }> {
   // Several files at once, the way desktop loads a whole folder of thrust
   // curves. A file that cannot be read is named and skipped rather than
-  // stopping the rest.
-  const motors: ReturnType<typeof parseEng>[] = [];
+  // stopping the rest, so a picked file is read here, inside the per-file
+  // `try`: one oversized or unreadable file then costs only itself.
+  const motors: CustomMotor[] = [];
   const failed: string[] = [];
   let firstError: Error | null = null;
-  for (const { name, text } of files) {
+  for (const f of files) {
+    const { name } = f;
     try {
+      const text = 'blob' in f ? await readFileText(f.blob) : f.text;
       assertImportSize(text.length);
-      motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : [parseEng(text)]));
+      motors.push(...(text.trimStart().startsWith('<') ? parseRse(text) : parseEng(text)));
     } catch (err) {
       failed.push(name);
       firstError ??= err instanceof Error ? err : new Error(errorMessage(err));
@@ -205,11 +255,38 @@ export async function importCustomMotors(
   }
   // Nothing read at all: the parser's own message says what is wrong with it.
   if (motors.length === 0 && firstError) throw firstError;
+  const merged = mergeByDelay(motors);
   // One write for every file. A `.rse` engine database is a manufacturer's
   // entire range, and a write per motor would re-parse the stored array every
   // time and could stop half way with no way to say where.
-  await getMotorStore().addCustomMotors(motors);
-  return { catalog: await loadCatalog(), imported: motors.length, failed };
+  await getMotorStore().addCustomMotors(merged);
+  return { catalog: await loadCatalog(), imported: merged.length, failed };
+}
+
+/**
+ * One motor per id, its delays the union of every block that shares it.
+ *
+ * The id drops the delay, so a file with C6-3, C6-5 and C6-7 blocks is one
+ * motor, as desktop's `ThrustCurveMotorSet` groups it, and that motor offers
+ * every delay the blocks list. The last block supplies everything else, as a
+ * repeated id does in the store. Order follows each id's first block.
+ */
+function mergeByDelay(motors: readonly CustomMotor[]): CustomMotor[] {
+  const byId = new Map<string, CustomMotor>();
+  for (const m of motors) {
+    const prev = byId.get(m.id);
+    byId.set(m.id, prev ? { ...m, delayList: unionDelays(prev.delayList, m.delayList) } : m);
+  }
+  return [...byId.values()];
+}
+
+/** Two stored delay lists as one: numbers ascending, then `P` when either is plugged. */
+function unionDelays(a: string | undefined, b: string | undefined): string | undefined {
+  const pa = parseDelays(a);
+  const pb = parseDelays(b);
+  const parts = [...new Set([...pa.delays, ...pb.delays])].sort((x, y) => x - y).map(String);
+  if (pa.plugged || pb.plugged) parts.push('P');
+  return parts.length ? parts.join(',') : undefined;
 }
 
 /** Remove an imported motor and return the refreshed catalog. */

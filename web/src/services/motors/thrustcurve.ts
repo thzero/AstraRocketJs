@@ -4,14 +4,17 @@ import { hasUsableCurve } from './motorCurve';
 import { cumulativeImpulse } from './motorMath';
 import { getMotorStore, isThrustSampleArray, type CustomMotor } from './motorStore';
 import { declaredLength, readStreamWithProgress } from '../app/fetchProgress';
+import { fetchFailure } from '../app/remoteData';
 import { nsKey } from '../storage/storageKeys';
 import { finalizeCurve } from './curveFinalize';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * thrustcurve.org API v1 client (CORS-enabled; verified reflective
- * Access-Control-Allow-Origin). A catalog row without a bundled curve may also
- * lack motorId, length or propellant weight, so at pick time we resolve the full
- * motor via search.json, then pull its thrust curve via download.json. API
+ * Access-Control-Allow-Origin). A catalog row carries no thrustcurve motorId,
+ * and one without a bundled curve may also lack length or propellant weight, so
+ * at pick time we resolve the full motor via search.json, then pull its thrust
+ * curve via download.json. API
  * units are mm / grams; converted to the engine's SI at the boundary here.
  *
  * The resolved MotorSpec (metadata + curve) is cached through the MotorStore,
@@ -69,9 +72,9 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     });
     clearTimeout(timer);
     timer = setTimeout(expire, BODY_TIMEOUT_MS);
-    if (!res.ok) throw new Error(`thrustcurve.org ${path} → HTTP ${res.status}`);
+    if (!res.ok) throw new KeyedError('errors.thrustcurve.http', { path, status: res.status });
     const len = Number(res.headers.get('content-length'));
-    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new Error(`thrustcurve.org ${path} response too large`);
+    if (Number.isFinite(len) && len > MAX_RESPONSE_BYTES) throw new KeyedError('errors.thrustcurve.tooLarge', { path });
     // Awaited, not returned: `finally` runs at the `return` statement, so
     // returning the unawaited promise would clear the abort timer before the
     // body is read, and a host that sent headers and then stalled would hang the
@@ -89,7 +92,7 @@ async function post<T>(path: string, body: unknown): Promise<T> {
       // gone and a bug report shows only the friendly text. Assigned after
       // construction because the ErrorOptions form is ES2022 and the tsconfig
       // lib is ES2020.
-      const err = new Error('thrustcurve.org timed out - check your connection and try again.');
+      const err = new KeyedError('errors.thrustcurve.timeout');
       (err as { cause?: unknown }).cause = e;
       throw err;
     }
@@ -97,7 +100,12 @@ async function post<T>(path: string, body: unknown): Promise<T> {
     // page or an oversized response would otherwise keep streaming until the
     // body timer fired.
     ctl.abort();
-    throw e;
+    // Keyed, as the catalog fetch reports it: the browser's own text for a
+    // refused connection or a body that is not JSON is English whatever the
+    // app shows. The original stays as the cause.
+    const err = fetchFailure(e, false);
+    if (err !== e) (err as { cause?: unknown }).cause = e;
+    throw err;
   } finally {
     clearTimeout(timer);
   }
@@ -126,13 +134,13 @@ export function samplesToMotorSpec(
   massSamples?: number[],
 ): MotorSpec {
   // Normalize, as desktop's motor loader does. A supplied mass column rides
-  // along through every step rather than being indexed separately afterwards,
+  // along through every step rather than being indexed separately afterward,
   // so a file whose samples are not in time order cannot end up with its masses
   // against the wrong times, and an added t=0 point takes the first mass (the
   // loaded mass) rather than shifting the whole column by one.
   const measured = massSamples?.length === samples.length ? massSamples : undefined;
   if (samples.length === 0) {
-    throw new Error(`No thrust samples for ${motor.designation}`);
+    throw new KeyedError('errors.thrustcurve.noSamples', { motor: motor.designation });
   }
   // Into the shape the kernel takes: from t = 0, one thrust per time (curveFinalize).
   const pts = finalizeCurve(samples.map((s, i) => ({ ...s, mass: measured?.[i] })));
@@ -143,26 +151,35 @@ export function samplesToMotorSpec(
   // kernel, where TeaVM throws a raw "cannot be converted to a BigInt" and the
   // whole design blanks. Refuse with something a rocketeer can act on.
   if (!Number.isFinite(motor.totalWeightG) || !Number.isFinite(motor.propWeightG)) {
-    throw new Error(
-      `thrustcurve.org publishes no loaded/propellant weight for ${motor.designation}, ` +
-        'so it cannot be simulated. Pick another motor.',
-    );
+    throw new KeyedError('errors.thrustcurve.noWeight', { motor: motor.designation });
   }
   if (motor.propWeightG > motor.totalWeightG) {
-    throw new Error(
-      `${motor.designation} is cataloged with more propellant (${motor.propWeightG} g) than ` +
-        `loaded mass (${motor.totalWeightG} g), so its burn would end at a negative mass. ` +
-        'Pick another motor.',
-    );
+    throw new KeyedError('errors.thrustcurve.propOverTotal', {
+      motor: motor.designation,
+      prop: motor.propWeightG,
+      total: motor.totalWeightG,
+    });
   }
   // diameter/length feed kernel geometry (÷1000 → m); a malformed/compromised
   // catalog entry with a non-finite or non-positive size would NaN/blank the design.
   const badSize = (v: number) => !Number.isFinite(v) || v <= 0;
   if (badSize(motor.diameter) || badSize(motor.length)) {
-    throw new Error(
-      `thrustcurve.org gives ${motor.designation} a bad size ` +
-        `(diameter ${motor.diameter} mm, length ${motor.length} mm), so it can't be simulated. Pick another motor.`,
-    );
+    throw new KeyedError('errors.thrustcurve.badSize', {
+      motor: motor.designation,
+      diameter: motor.diameter,
+      length: motor.length,
+    });
+  }
+
+  // ThrustCurveMotor.Builder.build() refuses a negative thrust and a CG
+  // outside the motor, and the bridge builds every seated motor through it.
+  // Refused here with the motor named rather than as a raw kernel message.
+  if (pts.some((p) => p.thrust < 0)) {
+    throw new KeyedError('errors.thrustcurve.negativeThrust', { motor: motor.designation });
+  }
+  const cgX = cgSamples?.[0]?.[1] ?? motor.length / 2000;
+  if (!Number.isFinite(cgX) || cgX < 0 || cgX > motor.length / 1000) {
+    throw new KeyedError('errors.thrustcurve.badCg', { motor: motor.designation, length: motor.length });
   }
 
   const totalMass = motor.totalWeightG / 1000;
@@ -192,10 +209,13 @@ export function samplesToMotorSpec(
     // Real launch CG from the file (m from nose) when the sync bundled it, else
     // mid-length, matching OpenRocket, which reads CG from the RockSim file and
     // falls back to half-length for RASP-only motors.
-    cgX: cgSamples?.[0]?.[1] ?? motor.length / 2000,
+    cgX,
     ejectionDelay,
   };
 }
+
+/** A JSON value that is an object, so reading a property off it cannot throw. */
+const isObject = (v: unknown): v is object => !!v && typeof v === 'object';
 
 /**
  * A search.json hit this module can act on: a string `motorId` (the key the
@@ -234,15 +254,17 @@ async function resolveTcMotor(cat: CatalogMotor): Promise<TcMotor> {
   };
 
   for (const query of [{ commonName: cat.designation }, { designation: cat.designation }]) {
-    const { results } = await post<{ results?: unknown }>('search.json', {
+    const body = await post<unknown>('search.json', {
       manufacturer: cat.manufacturer,
       ...query,
       maxResults: 25,
     });
+    if (!isObject(body)) throw new KeyedError('errors.thrustcurve.badData', { motor: cat.designation });
+    const { results } = body as { results?: unknown };
     const hit = pick(Array.isArray(results) ? results.filter(isTcMotor) : []);
     if (hit) return hit;
   }
-  throw new Error(`Could not find ${cat.manufacturer} ${cat.designation} on thrustcurve.org`);
+  throw new KeyedError('errors.thrustcurve.notFound', { maker: cat.manufacturer, motor: cat.designation });
 }
 
 // Per-motor entries (curve, metadata, resolved spec) revalidate on the
@@ -274,14 +296,24 @@ function metaKey(cat: CatalogMotor): string {
 const isSampleArray = isThrustSampleArray;
 
 /**
- * Exported for test: the cache-read validator for a stored MotorSpec. It is the
- * flight gate's own predicate, so a spec the cache serves is one the builder
- * accepts: every sample of all three arrays finite (a spec serialized with
- * nulls would reach the kernel as the BigInt crash the sample guard stops), the
- * arrays in lockstep, and at least MIN_CURVE_SAMPLES of them.
+ * Exported for test: the cache-read validator for a stored MotorSpec. A spec
+ * the cache serves must be one {@link samplesToMotorSpec} could have built, so a
+ * corrupted entry is refetched rather than failing the build with a raw kernel
+ * message: the flight gate's own curve check (every sample of all three arrays
+ * finite, in lockstep, at least MIN_CURVE_SAMPLES of them), no negative thrust,
+ * a positive diameter and length, a CG inside the motor, and a delay that is a
+ * number of seconds (PLUGGED_DELAY included).
  */
-export const isCachedMotorSpec = (v: unknown): boolean =>
-  !!v && typeof v === 'object' && hasUsableCurve(v as MotorSpec);
+export const isCachedMotorSpec = (v: unknown): boolean => {
+  if (!v || typeof v !== 'object') return false;
+  const m = v as MotorSpec;
+  if (!hasUsableCurve(m)) return false;
+  const positive = (n: unknown) => typeof n === 'number' && Number.isFinite(n) && n > 0;
+  if (!positive(m.diameter) || !positive(m.length)) return false;
+  if (typeof m.cgX !== 'number' || !Number.isFinite(m.cgX) || m.cgX < 0 || m.cgX > m.length) return false;
+  if (typeof m.ejectionDelay !== 'number' || !Number.isFinite(m.ejectionDelay) || m.ejectionDelay < 0) return false;
+  return m.thrusts.every((t) => t >= 0);
+};
 const isSpec = isCachedMotorSpec;
 
 /**
@@ -313,16 +345,24 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
   const cached = await getMotorStore().readEntry<TcSample[]>(key, isSampleArray);
   if (cached && !cached.stale) return cached.value;
   try {
-    const body = await post<{ results?: { format: string; samples?: TcSample[] }[] }>('download.json', {
+    const body = await post<unknown>('download.json', {
       motorIds: [motor.motorId],
       data: 'samples',
     });
-    const files = body.results ?? [];
+    if (!isObject(body)) throw new KeyedError('errors.thrustcurve.badData', { motor: cat.designation });
+    // An answer whose `results` is not an array is treated as no data, the same
+    // as an empty one, rather than throwing on `find`. An element that is not
+    // an object is skipped.
+    const results = (body as { results?: unknown }).results;
+    const files = (Array.isArray(results) ? results : []).filter(isObject) as {
+      format?: unknown;
+      samples?: TcSample[];
+    }[];
     // Prefer RASP data, fall back to any file with samples.
     const file = files.find((f) => f.format === 'RASP' && f.samples?.length) ?? files.find((f) => f.samples?.length);
     if (!file?.samples) {
       if (cached) return cached.value;
-      throw new Error(`No thrust-curve data available for ${cat.designation}`);
+      throw new KeyedError('errors.thrustcurve.noData', { motor: cat.designation });
     }
     // Validate the network path with the same guard the cache read uses
     // (`isSampleArray`). Otherwise a garbled or hostile download.json carrying
@@ -332,7 +372,7 @@ async function fetchSamplesCached(motor: TcMotor, cat: CatalogMotor): Promise<Tc
     // "cannot be converted to a BigInt" blank design.
     if (!isSampleArray(file.samples)) {
       if (cached) return cached.value;
-      throw new Error(`Thrust-curve data for ${cat.designation} is malformed`);
+      throw new KeyedError('errors.thrustcurve.badData', { motor: cat.designation });
     }
     await getMotorStore().writeEntry(key, file.samples);
     return file.samples;
@@ -361,7 +401,7 @@ async function buildMotorSpec(cat: CatalogMotor, ejectionDelay: number, curveInd
     const id = cat.id;
     const cm = (await getMotorStore().listCustomMotors()).find((m) => m.id === id);
     if (!cm) {
-      throw new Error(`Imported motor ${cat.designation} is no longer stored — re-import its motor file.`);
+      throw new KeyedError('errors.thrustcurve.importGone', { motor: cat.designation });
     }
     return customMotorToSpec(cm, ejectionDelay);
   }

@@ -1,7 +1,7 @@
-# genuinely ours, never to silence a real misspelling.
-# names, library and vendor names, and code abbreviations. Generated from the
 # Project vocabulary: rocketry and aerodynamics terms, .ork XML element
-# tree once it was clean, then maintained by hand — add a word only when it is
+# names, library and vendor names, and code abbreviations. Add a word only
+# when it is genuinely ours, never to silence a real misspelling. Keep these
+# comment lines first and sort only the words below them.
 AABB
 aabbggrr
 absarc
@@ -9,6 +9,7 @@ ACADVER
 ADOPTIUM
 Aero's
 aeroelastic
+Aeroscience
 AEROTECH
 aftradius
 aftshouldercapped
@@ -34,15 +35,19 @@ angleoffset
 angus
 aopalliance
 apikey
+APPNOTE
 ARCAS
+arcgis
 arcgisonline
 astrarocketjs
+astrarrocketjs
 atmo
 authorable
 axialoffset
 barrowman
 Barrowman's
 baseheight
+basemaps
 basematerials
 basepressure
 baserelativehumidity
@@ -50,6 +55,7 @@ basetemperature
 bbody
 bfins
 blindnesses
+blobless
 boattail
 boattails
 bodytube
@@ -63,6 +69,7 @@ caffeine
 cands
 caseairframe
 catchable
+ccna
 centeringring
 Cesaroni
 checkcast
@@ -84,6 +91,7 @@ configid
 constantgravity
 constructability
 cordlength
+cordlengthauto
 cosθ
 Crêpe
 Croll
@@ -91,10 +99,13 @@ crossflow
 crosshairs
 crossrange
 crosssection
+Cside
+csize
 currentconditions
 curveless
 customexpression
 customreference
+Cyaw
 daddr
 databind
 databranch
@@ -119,6 +130,7 @@ designtype
 desync
 desynced
 Deutsch
+devirtualizer
 dflt
 directiondeg
 displaycolor
@@ -128,7 +140,9 @@ docblocks
 docmaterials
 docprefs
 domcontentloaded
+Dorg
 doublewedge
+dpath
 drei
 drei's
 DREV
@@ -143,6 +157,7 @@ ENDSEC
 ENDTAB
 engineblock
 ents
+EOCD
 ERESOLVE
 Español
 evts
@@ -168,6 +183,7 @@ finleradius
 Finner
 finpoints
 finset
+FINSETCALC
 finsets
 flabel
 flangeheight
@@ -181,9 +197,11 @@ foreshouldercapped
 foreshoulderlength
 foreshoulderradius
 foreshoulderthickness
+forgeable
 frameloop
 Français
 freeformfinset
+Fric
 fshape
 gainmap
 generationtime
@@ -205,6 +223,7 @@ Guice
 haack
 haack's
 halfround
+halfwidth
 halvings
 haskids
 headingdeg
@@ -242,10 +261,12 @@ jakarta
 Jambol
 jank
 javac
+javap
 JAXB
 jdkstub
 jdkstubs
 Jorgensen
+JPMS
 Kalman
 Karman
 Kármán
@@ -269,14 +290,17 @@ launchroddirection
 launchrodlength
 launchrodvelocity
 lerp
+letterlike
 Lexan
 linecount
 linelength
+linelengthauto
 linematerial
 linestyle
 Lngs
 loadouts
 logback
+lowerstageseparation
 luma
 Maccoll
 macrotask
@@ -302,7 +326,9 @@ Meteo
 Metrum
 microballoons
 MicroMaxx
+mindia
 MINFEATURE
+mirrorxy
 miscompiles
 misordered
 misrender
@@ -332,10 +358,13 @@ noninteractive
 nosetorootbottom
 nosetoroottop
 nosuchfinish
+Noto
 notsimulated
 nozzleexitdiameter
 NSEW
 nudgeable
+offaxis
+onmember
 opacityaffectstexture
 opencsv
 openmeteo
@@ -413,6 +442,8 @@ relativeto
 reloadable
 reloadables
 rels
+repointed
+reprojection
 requestfailed
 reselecting
 rocketcomponent
@@ -429,6 +460,7 @@ screwheight
 sealevel
 Segoe
 Semispan
+SEMROC
 separationaltitude
 separationconfiguration
 separationdelay
@@ -442,6 +474,7 @@ shouldercapped
 shoulderlength
 shoulderradius
 shoulderthickness
+simfile
 simulación
 simulatable
 simulationsteppermethod
@@ -508,9 +541,11 @@ unawaited
 unbuildable
 unbuilt
 uncanted
+uncatchable
 unclickable
 unclipped
 unconfigured
+undercounted
 underpredicts
 undoable
 unfloored
@@ -535,6 +570,7 @@ unvalidated
 unwired
 uppercased
 upperignition
+Upstreamable
 upstreaming
 uptodate
 USGS
@@ -573,3 +609,4 @@ uncomputable
 octo
 Spherachutes
 Rocketman
+fullwidth

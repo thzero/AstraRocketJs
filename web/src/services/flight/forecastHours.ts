@@ -9,6 +9,7 @@ import type { CompleteLaunch } from './requiredLaunch';
 import { freshSeed, simConditions, type SimPrefs } from './simulations';
 import { flightBranches } from './flightColumns';
 import { launchLimitViolations, type LimitViolation } from './safetyLimits';
+import type { PowerClass } from './powerClass';
 
 /**
  * How a designed rocket's landing moves over the hours around the forecast its
@@ -42,7 +43,8 @@ export const refusalKeys = (h: HourLanding): string[] =>
  * Fly each hour. Hours the held forecast does not cover are left out, and an
  * hour outside the safety codes is listed without flying it. The
  * same random seed for every hour, so turbulence does not pass for the wind
- * changing. Throws `WeatherError` if the forecast cannot be had; rejects if
+ * changing. `powerClass` is the class of the rocket `config` flies, which sets
+ * the launcher angle the codes allow. Throws `WeatherError` if the forecast cannot be had; rejects if
  * `signal` aborts.
  */
 export async function flyForecastHours(
@@ -52,6 +54,7 @@ export async function flyForecastHours(
     launch: CompleteLaunch;
     source: WeatherSource;
     prefs: SimPrefs;
+    powerClass: PowerClass;
     apiKey?: string;
     onProgress?: (done: number, total: number) => void;
   },
@@ -80,32 +83,52 @@ export async function flyForecastHours(
   });
   let done = 0;
   q.onProgress?.(0, hours.length);
-  const out = await Promise.all(
-    hours.map(async ({ offset, sample }): Promise<HourLanding> => {
-      const patch = proposalPatch(
-        proposalFor(sample, variant.elevationM),
-        groups,
-        source.elevationApplied ? { launchAltitudeM: variant.elevationM } : undefined,
-      );
-      const { weatherSource: _source, ...launch } = { ...q.launch, ...patch } as CompleteLaunch;
-      const validMs = sample.unix * 1000;
-      const outsideLimits = launchLimitViolations(launch);
-      if (outsideLimits.length) {
-        q.onProgress?.(++done, hours.length);
-        return { offset, validMs, landings: [], outsideLimits };
-      }
-      const result = await simulateInWorker(
-        {
-          tree: q.tree,
-          config: q.config,
-          options: { ...simConditions(launch, { ...q.prefs, randomSeed: seed }), series: 'summary' },
-        },
-        { signal: o.signal },
-      );
-      const branches = flightBranches(result);
+  // One failed hour fails the whole answer, so the flights still in the worker
+  // pool are canceled with it rather than flown for results nobody reads. The
+  // caller's signal cancels them too.
+  const ctl = new AbortController();
+  const cancel = () => ctl.abort(o.signal?.reason);
+  if (o.signal?.aborted) cancel();
+  else o.signal?.addEventListener('abort', cancel, { once: true });
+  const flyHour = async ({ offset, sample }: (typeof hours)[number]): Promise<HourLanding> => {
+    const patch = proposalPatch(
+      proposalFor(sample, variant.elevationM),
+      groups,
+      source.elevationApplied ? { launchAltitudeM: variant.elevationM } : undefined,
+    );
+    const { weatherSource: _source, ...launch } = { ...q.launch, ...patch } as CompleteLaunch;
+    const validMs = sample.unix * 1000;
+    const outsideLimits = launchLimitViolations(launch, q.powerClass);
+    if (outsideLimits.length) {
       q.onProgress?.(++done, hours.length);
-      return { offset, validMs, landings: branches.map((b) => landingPoint(b.series)) };
-    }),
-  );
-  return out.sort((a, b) => a.offset - b.offset);
+      return { offset, validMs, landings: [], outsideLimits };
+    }
+    const result = await simulateInWorker(
+      {
+        tree: q.tree,
+        config: q.config,
+        options: { ...simConditions(launch, { ...q.prefs, randomSeed: seed }), series: 'summary' },
+        // Sent with each flight, as a run sends it: the worker's unit must not
+        // depend on whether the main-thread build has caught up.
+        lengthUnit: q.prefs.lengthUnit,
+      },
+      { signal: ctl.signal },
+    );
+    const branches = flightBranches(result);
+    q.onProgress?.(++done, hours.length);
+    return { offset, validMs, landings: branches.map((b) => landingPoint(b.series)) };
+  };
+  try {
+    const out = await Promise.all(
+      hours.map((h) =>
+        flyHour(h).catch((e: unknown) => {
+          ctl.abort();
+          throw e;
+        }),
+      ),
+    );
+    return out.sort((a, b) => a.offset - b.offset);
+  } finally {
+    o.signal?.removeEventListener('abort', cancel);
+  }
 }

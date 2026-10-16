@@ -114,4 +114,10 @@ describe('isWeatherSource', () => {
     expect(isWeatherSource({ ...source(), fetchedAt: 'yesterday' })).toBe(false);
     expect(isWeatherSource({ ...source(), hour: 1.5 })).toBe(false);
   });
+
+  it('refuses a group named after an Object.prototype member', () => {
+    for (const g of ['toString', 'constructor', '__proto__', 'hasOwnProperty']) {
+      expect(isWeatherSource({ ...source(), groups: [g] })).toBe(false);
+    }
+  });
 });

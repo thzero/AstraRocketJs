@@ -32,7 +32,7 @@ async function rects(page: Page) {
 /**
  * The drift readout, checked by its shape and a band rather than by its digits.
  *
- * The same design in the same wind lands on 431 m or 432 m from one run to the
+ * The same design in the same wind lands within a meter of 508 m from one run to the
  * next, so an exact string fails about one run in four. Both tests here are
  * about the readout being on screen (not clipped at the pane's ends), and
  * neither is the place that owns the number: `driftEllipse.test.ts` and
@@ -45,8 +45,8 @@ async function expectDrift(page: Page): Promise<void> {
   const figures = /^(\d+) m · (\d+)°$/.exec((await readout.innerText()).trim());
   expect(figures).not.toBeNull();
   const [, meters, bearing] = figures!;
-  expect(Number(meters)).toBeGreaterThanOrEqual(419);
-  expect(Number(meters)).toBeLessThanOrEqual(444);
+  expect(Number(meters)).toBeGreaterThanOrEqual(495);
+  expect(Number(meters)).toBeLessThanOrEqual(521);
   expect(Number(bearing)).toBeGreaterThanOrEqual(265);
   expect(Number(bearing)).toBeLessThanOrEqual(275);
 }
@@ -92,7 +92,7 @@ test('draws no imagery until the ground is asked for', async ({ page }) => {
   await flyDownwind(page);
   expect((await rects(page)).tiles).toBe(0);
   expect(asked).toHaveLength(0);
-  await expect(page.getByText(/Imagery: Esri/)).toHaveCount(0);
+  await expect(page.getByText(/Source: Esri, Vantor/)).toHaveCount(0);
 
   await showGround(page);
   // Polled, both: the tile elements are drawn when the layer turns on and the
@@ -136,7 +136,7 @@ test('the layer buttons and the drift readout are not clipped by the square', as
   await expectDrift(page);
   await expect(page.getByRole('button', { name: 'Satellite', exact: true })).toBeInViewport();
   // The provider's attribution is a condition of using the tiles at all.
-  await expect(page.getByText(/Imagery: Esri/)).toBeInViewport();
+  await expect(page.getByText(/Source: Esri, Vantor/)).toBeInViewport();
 });
 
 test('turns the imagery off and keeps the measurement', async ({ page }) => {

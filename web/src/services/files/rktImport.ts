@@ -1,3 +1,4 @@
+import i18n from '../../i18n';
 import { decodeFileText } from './decodeText';
 import type { ComponentNode, ComponentType } from '../../engine/openRocketEngine';
 import { syncAutoRadii } from '../design/autoRadius';
@@ -8,10 +9,13 @@ import { clampCount, finiteNum } from './ork/numbers';
 import { MAX_FIN_COUNT, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './ork/importLimits';
 import { ignoredNotes } from './ork/importNotes';
 import { keyedNote, type ImportNote } from './importNote';
+import { KeyedError } from '../../i18n/keyedError';
 import type { OrkImportResult } from './orkTypes';
 import { numOpt } from '../../tree/nodeProps';
-import { trapezoidPoints } from '../../tree/finPlanform';
+import { bodyRadiusAt, trapezoidPoints } from '../../tree/finPlanform';
 import { isAssembly } from '../../tree/assembly';
+import { rollAngleKey, rollAngleOf } from '../../tree/componentKinds';
+import { canHost } from '../design/treeEdit';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { degToRad } from '../../prefs/units';
 
@@ -27,7 +31,8 @@ import { degToRad } from '../../prefs/units';
  *
  * The element vocabulary, the unit factors and every enum below are taken from
  * `RockSimCommonConstants.java` and its four enums, so a future OpenRocket bump
- * can be diffed against those files.
+ * can be diffed against those files. The ring usage codes are the exception:
+ * they are `RingHandler.endHandler`'s, and are diffed against that.
  *
  * Units: everything is millimeters and grams, and every circular dimension is
  * a diameter where OpenRocket wants a radius, hence the three divisors below.
@@ -48,7 +53,7 @@ const MASS = 1000;
  * Divided, like LENGTH, RADIUS and MASS above: the kernel's whole rocksim
  * package converts inbound by dividing by its constant
  * (`BaseHandler.computeDensity` is `raw / type.asOpenRocket()`) and outbound by
- * multiplying (`BasePartDTO` line 181). The direction matters by a factor of a
+ * multiplying (the `BasePartDTO(RocketComponent)` constructor). The direction matters by a factor of a
  * hundred, and the physics agrees with the kernel: RockSim's unit is g/cm², and
  * 1 g/cm² is 10 kg/m², so a nylon canopy at 0.067 kg/m² sits in the file as
  * 0.0067.
@@ -75,6 +80,8 @@ interface RktContext {
   ignored: Set<string>;
   /** Things we understand but deliberately do not carry, named once each by their `importNote.*` key. */
   dropped: Set<string>;
+  /** Part and parent type pairs already named in a note, so each is said once. */
+  incompatible: Set<string>;
   /** Components read so far, against MAX_COMPONENTS. Mutable on purpose:
    *  the readers recurse, so the ceiling has to be one running total
    *  rather than a per-level one. */
@@ -204,8 +211,15 @@ const readTubeWall = (el: Element, n: ComponentNode): void => {
   put(n, 'thickness', wallFrom(od, dia(el, 'ID')));
 };
 
-/** `RadialAngle` (degrees) into `key` (radians); a zero angle leaves the default. */
-const readRadialAngle = (el: Element, n: ComponentNode, key: 'angleOffset' | 'radialDirection'): void => {
+/**
+ * `RadialAngle` (degrees) into `key` (radians); a zero angle leaves the default.
+ *
+ * A deliberate departure from desktop, whose handlers pass the degree value
+ * straight to the radian setters. RockSim writes degrees, so converting here
+ * (and for `CantAngle`, and back in `rktExport`) is what puts a part where
+ * RockSim drew it.
+ */
+const readRadialAngle = (el: Element, n: ComponentNode, key: 'angleOffset' | 'rotation' | 'radialDirection'): void => {
   const angle = num(el, 'RadialAngle');
   if (angle) n[key] = degToRad(angle);
 };
@@ -278,9 +292,14 @@ const readWall = (el: Element, n: ComponentNode): void => {
 /** The shapes a shape parameter means anything on (`NoseConeHandler`). */
 const PARAMETERIZED_SHAPES = new Set(['power', 'parabolic', 'haack']);
 
-const readShape = (el: Element, n: ComponentNode): void => {
+/**
+ * `ShapeCode`, or the part's own default when the file has none: a new
+ * `NoseCone` is an ogive (code 1) and a new `Transition` is conical (code 0),
+ * and neither handler sets a shape the file does not state.
+ */
+const readShape = (el: Element, n: ComponentNode, fallbackCode: number): void => {
   const code = num(el, 'ShapeCode');
-  const shape = SHAPES[clampCount(code ?? 1, 0, SHAPES.length - 1)]!;
+  const shape = SHAPES[clampCount(code ?? fallbackCode, 0, SHAPES.length - 1)]!;
   n['shape'] = shape;
   // RockSim writes ShapeParameter for every nose cone and transition, and
   // `NoseConeHandler` applies it only on these three shapes. The key is not
@@ -310,6 +329,15 @@ const shoulderWall = (el: Element, n: ComponentNode, shoulderRadius: number | un
   n['filled'] === true ? shoulderRadius : mmPos(el, 'WallThickness');
 
 /**
+ * A shoulder's radius as desktop holds it after a `.rkt` load: at most its end's.
+ * `NoseConeHandler` and `TransitionHandler` set it through the clamping
+ * `setAftShoulderRadius` / `setForeShoulderRadius`, after the end's diameter,
+ * so a wider `ShoulderOD` opens cut to the end.
+ */
+const shoulderAtMost = (radius: number | undefined, end: unknown): number | undefined =>
+  radius !== undefined && typeof end === 'number' ? Math.min(radius, end) : radius;
+
+/**
  * A shoulder RockSim gives a length to is capped.
  *
  * Neither RockSim nor its handlers have a cap flag: the kernel's
@@ -327,8 +355,8 @@ const readNoseCone = (el: Element): ComponentNode => {
   put(n, 'length', mmPos(el, 'Len'));
   put(n, 'aftRadius', dia(el, 'BaseDia'));
   readWall(el, n);
-  readShape(el, n);
-  const shR = dia(el, 'ShoulderOD');
+  readShape(el, n, 1);
+  const shR = shoulderAtMost(dia(el, 'ShoulderOD'), n['aftRadius']);
   const shL = mmPos(el, 'ShoulderLen');
   put(n, 'shoulderRadius', shR);
   put(n, 'shoulderLength', shL);
@@ -338,15 +366,18 @@ const readNoseCone = (el: Element): ComponentNode => {
   return n;
 };
 
+// No placement: `TransitionHandler` extends `BaseHandler`, not
+// `PositionDependentHandler`, so desktop never reads a transition's `Xb` or
+// `LocationMode`, and the transition sits where the body chain puts it.
 const readTransition = (el: Element): ComponentNode => {
-  const n = base(el, 'transition', true);
+  const n = base(el, 'transition', false);
   put(n, 'length', mmPos(el, 'Len'));
   put(n, 'foreRadius', dia(el, 'FrontDia'));
   put(n, 'aftRadius', dia(el, 'RearDia'));
   readWall(el, n);
-  readShape(el, n);
-  const fShR = dia(el, 'FrontShoulderDia');
-  const aShR = dia(el, 'RearShoulderDia');
+  readShape(el, n, 0);
+  const fShR = shoulderAtMost(dia(el, 'FrontShoulderDia'), n['foreRadius']);
+  const aShR = shoulderAtMost(dia(el, 'RearShoulderDia'), n['aftRadius']);
   const fShL = mmPos(el, 'FrontShoulderLen');
   const aShL = mmPos(el, 'RearShoulderLen');
   put(n, 'foreShoulderRadius', fShR);
@@ -363,12 +394,14 @@ const readTransition = (el: Element): ComponentNode => {
 };
 
 /**
- * A `BodyTube` is an airframe tube or an inner tube depending on `IsInsideTube`:
- * RockSim uses one element for both, and `AttachedPartsHandler` picks the
- * OpenRocket type from that flag.
+ * A `BodyTube` is an airframe tube or an inner tube depending on where it sits,
+ * not on `IsInsideTube`: RockSim uses one element for both, and the desktop
+ * handler that opens it decides. A stage's parts (`StageHandler`) and a pod's
+ * (`PodHandler`, and `AttachedPartsHandler` under a pod) build a BodyTube; a
+ * tube in any other part's attached parts builds an InnerTube.
  */
-const readBodyTube = (el: Element): ComponentNode => {
-  const inner = tag(el, 'IsInsideTube') === '1';
+const readBodyTube = (el: Element, parent: ComponentNode | undefined): ComponentNode => {
+  const inner = parent !== undefined && !isAssembly(parent.type);
   const n = base(el, inner ? 'innertube' : 'bodytube', inner);
   put(n, 'length', mmPos(el, 'Len'));
   readTubeWall(el, n);
@@ -380,21 +413,30 @@ const readBodyTube = (el: Element): ComponentNode => {
   return n;
 };
 
-/** `RingHandler.endHandler`'s `UsageCode` → the four OpenRocket ring types. */
+/**
+ * `RingHandler.endHandler`'s `UsageCode` → the four OpenRocket ring types. Any
+ * other code, a sleeve or one RockSim does not define, falls to the handler's
+ * `else` and stays the centering ring it started as.
+ */
 const RING_TYPES: Record<number, ComponentType> = {
   0: 'centeringring',
   1: 'bulkhead',
   2: 'engineblock',
-  3: 'tubecoupler', // "Sleeve", a coupler on the outside; nearest we have
+  3: 'centeringring', // "Sleeve": `RingHandler` keeps it the centering ring it started as
   4: 'tubecoupler',
 };
 
 const readRing = (el: Element): ComponentNode => {
-  const usage = clampCount(num(el, 'UsageCode') ?? 0, 0, 4);
-  const n = base(el, RING_TYPES[usage] ?? 'centeringring', true);
+  const n = base(el, RING_TYPES[num(el, 'UsageCode') ?? 0] ?? 'centeringring', true);
   put(n, 'length', mmPos(el, 'Len'));
-  const od = dia(el, 'OD');
   const id = dia(el, 'ID');
+  // `RingHandler` builds every ring as a detached CenteringRing, so with no
+  // `OD` its `setInnerRadius` finds a stored outer radius of 0 below the bore,
+  // raises it to the bore and turns Automatic off. Desktop opens such a
+  // centering ring with no wall and a bulkhead at the bore's size. The kernel
+  // builds a ring node with only `innerRadius` the same way while the app
+  // draws it automatic, so the outer radius is stated.
+  const od = dia(el, 'OD') ?? ((n.type === 'centeringring' || n.type === 'bulkhead') && id ? id : undefined);
   put(n, 'outerRadius', od);
   // A bulkhead is solid and carries no inner radius in our tree (the kernel's
   // `Bulkhead.getInnerRadius` answers 0 whatever is set); the others do.
@@ -464,9 +506,10 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
     if (pts.length >= 3) n['points'] = pts;
   }
 
+  // Degrees, converted: the same deliberate departure as `readRadialAngle`.
   const cant = num(el, 'CantAngle');
   if (cant) n['cant'] = degToRad(cant);
-  readRadialAngle(el, n, 'angleOffset');
+  readRadialAngle(el, n, 'rotation');
 
   // The fin's cross section, which is what RockSim calls a tip shape. Without
   // it every imported fin would be square, with the wrong drag and mass.
@@ -494,16 +537,22 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
   const tabLength = mmPos(el, 'TabLength');
   if (tabLength !== undefined && tabLength > 0) {
     n['tabLength'] = tabLength;
+    const tabOffset = mm(el, 'TabOffset') ?? 0;
     const tabDepth = mmPos(el, 'TabDepth');
     if (tabDepth !== undefined) {
       // A tab is measured from the front of the fin root, so on a body that
-      // tapers the depth already contains the drop from the fore radius to the
-      // aft one and has to give it back. Zero on a tube, where the two are equal.
-      const foreR = typeof parent?.['foreRadius'] === 'number' ? parent['foreRadius'] : 0;
-      const aftR = typeof parent?.['aftRadius'] === 'number' ? parent['aftRadius'] : 0;
-      n['tabHeight'] = Math.max(0, tabDepth - Math.max(foreR - aftR, 0));
+      // tapers the depth already contains the radius drop from the tab's front
+      // to its back and has to give it back. Zero on a tube.
+      //
+      // `FinSetHandler.asOpenRocket` reads the parent's radius before the fin
+      // is attached, when `getFinFront()` is 0, so the two stations are the
+      // tab's own offset and end measured from the parent's fore end, not from
+      // where the fin stands. Matched as desktop opens the file.
+      const front = parent ? (bodyRadiusAt(parent, tabOffset) ?? 0) : 0;
+      const back = parent ? (bodyRadiusAt(parent, tabOffset + tabLength) ?? 0) : 0;
+      n['tabHeight'] = Math.max(0, tabDepth - Math.max(front - back, 0));
     }
-    n['tabOffset'] = mm(el, 'TabOffset') ?? 0;
+    n['tabOffset'] = tabOffset;
     n['tabOffsetMethod'] = 'top';
   }
   return n;
@@ -511,8 +560,12 @@ function readFinSet(ctx: RktContext, el: Element, parent?: ComponentNode): Compo
 
 /**
  * `<PointList>` is a `x,y|x,y|…` string in mm, measured from the fin's leading
- * root point. Capped like the `.ork` reader's `<finpoints>`: every renderer
- * walks the outline per fin, so an absurd list is a frozen tab.
+ * root point. RockSim writes it from the trailing root point back to `0,0`,
+ * sometimes with `0,0` repeated, and desktop's `FinSetHandler.toCoordinates`
+ * drops a `0,0` that follows another and reverses a list ending at `0,0`, so
+ * the outline runs leading edge first either way. Capped like the `.ork`
+ * reader's `<finpoints>`: every renderer walks the outline per fin, so an
+ * absurd list is a frozen tab.
  *
  * Scanned with `indexOf` rather than `raw.split('|')`, so the cap bounds the
  * work as well as the result, as the `.ork` reader's sibling walk does. `split`
@@ -535,11 +588,15 @@ function readPointList(ctx: RktContext, el: Element): [number, number][] {
     if (comma !== -1) {
       const x = finiteNum(pair.slice(0, comma));
       const y = finiteNum(pair.slice(comma + 1));
-      if (x !== undefined && y !== undefined) out.push([x / LENGTH, y / LENGTH]);
+      const last = out[out.length - 1];
+      const repeatedOrigin = x === 0 && y === 0 && last?.[0] === 0 && last[1] === 0;
+      if (x !== undefined && y !== undefined && !repeatedOrigin) out.push([x / LENGTH, y / LENGTH]);
     }
     if (bar === -1) break;
     at = bar + 1;
   }
+  const last = out[out.length - 1];
+  if (last?.[0] === 0 && last[1] === 0) out.reverse();
   return out;
 }
 
@@ -548,7 +605,7 @@ const readTubeFinSet = (el: Element): ComponentNode => {
   n['finCount'] = clampCount(num(el, 'TubeCount') ?? 6, 1, MAX_FIN_COUNT);
   put(n, 'length', mmPos(el, 'Len'));
   readTubeWall(el, n);
-  readRadialAngle(el, n, 'angleOffset');
+  readRadialAngle(el, n, 'rotation');
   return n;
 };
 
@@ -626,7 +683,8 @@ const readParachute = (el: Element, parent?: ComponentNode): ComponentNode => {
   put(n, 'diameter', diameter);
   put(n, 'cd', num(el, 'DragCoefficient'));
   const lines = num(el, 'ShroudLineCount');
-  if (lines !== undefined) n['lineCount'] = clampCount(lines, 1, MAX_LINE_COUNT);
+  // From 0: `ParachuteHandler` keeps a chute with no lines (`Math.max(0, n)`).
+  if (lines !== undefined) n['lineCount'] = clampCount(lines, 0, MAX_LINE_COUNT);
   put(n, 'lineLength', mmPos(el, 'ShroudLineLen'));
   put(n, 'spillHoleDiameter', mmPos(el, 'SpillHoleDia'));
   const lineMaterial = tag(el, 'ShroudLineMaterial');
@@ -758,13 +816,36 @@ const readPod = (ctx: RktContext, el: Element): ComponentNode => {
  */
 function subtractAngleOffset(children: ComponentNode[], angle: number): void {
   for (const child of children) {
-    if (typeof child['angleOffset'] === 'number') {
-      child['angleOffset'] = child['angleOffset'] - angle;
-    }
-    if (child.type !== 'podset' && child.type !== 'parallelstage' && child.children) {
+    // Only the parts `PodHandler` turns, each under its own key: a fin set's
+    // roll is its `rotation`, a lug's or a nested pod's its `angleOffset`.
+    // A missing angle is the one the part would fly at, which the pod's
+    // angle still comes off.
+    const key = rollAngleKey(child.type);
+    if (key) child[key] = rollAngleOf(child)! - angle;
+    if (!isAssembly(child.type) && child.children) {
       subtractAngleOffset(child.children, angle);
     }
   }
+}
+
+/**
+ * A lug's or rail button's angle brought into [-180°, 180°], which is all
+ * LaunchLug.setAngleOffset and RailButton.setAngleOffset keep: past it they
+ * clamp, so a lug read at 270° (or turned past 180° by its pod's angle) would
+ * show and save as 270 and fly at 180. Wrapped rather than clamped, because the
+ * angle is converted from RockSim's degrees to put the part where RockSim drew
+ * it (see readRadialAngle), and -90° is that same place.
+ */
+function wrapMountAngles(nodes: ComponentNode[]): ComponentNode[] {
+  for (const n of nodes) {
+    const a = n['angleOffset'];
+    const mount = n.type === 'launchlug' || n.type === 'railbutton';
+    if (mount && typeof a === 'number' && Number.isFinite(a) && Math.abs(a) > Math.PI) {
+      n['angleOffset'] = a - 2 * Math.PI * Math.round(a / (2 * Math.PI));
+    }
+    if (n.children) wrapMountAngles(n.children);
+  }
+  return nodes;
 }
 
 // ------------------------------------------------------------------ walk ---
@@ -779,7 +860,7 @@ type Reader = (ctx: RktContext, el: Element, parent?: ComponentNode) => Componen
 
 const READERS: Record<string, Reader> = {
   NoseCone: (_c, el) => readNoseCone(el),
-  BodyTube: (_c, el) => readBodyTube(el),
+  BodyTube: (_c, el, parent) => readBodyTube(el, parent),
   Transition: (_c, el) => readTransition(el),
   Ring: (_c, el) => readRing(el),
   LaunchLug: (_c, el) => readLaunchLug(el),
@@ -845,6 +926,23 @@ function readParts(ctx: RktContext, container: Element, depth = 0, parent?: Comp
         continue;
       }
     }
+    // `BaseHandler.isCompatible`: a part its parent cannot hold is left out
+    // with a warning, and the rest of the file still opens. Kept, it would make
+    // the kernel's `addChild` throw and the whole design fail to build.
+    const parentType = parent?.type ?? 'stage';
+    if (!canHost(parentType, node.type)) {
+      const pair = `${node.type}|${parentType}`;
+      if (!ctx.incompatible.has(pair)) {
+        ctx.incompatible.add(pair);
+        ctx.notes.push(
+          keyedNote('importNote.rktIncompatible', {
+            part: { key: `part.${node.type}` },
+            parent: { key: `part.${parentType}` },
+          }),
+        );
+      }
+      continue;
+    }
     const kids = readParts(ctx, el, depth + 1, node);
     if (kids.length > 0) node.children = kids;
     // An assembly's children carry absolute roll angles in the file.
@@ -881,10 +979,10 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   const xml = typeof data === 'string' ? data : decodeFileText(new Uint8Array(data));
   const doc = parseOrkXml(xml, '.rkt');
   const design = doc.querySelector('RockSimDocument > DesignInformation > RocketDesign');
-  if (!design) throw new Error('Not a .rkt file (missing <RocketDesign>)');
+  if (!design) throw new KeyedError('errors.file.notRkt');
 
-  const name = tag(design, 'Name') ?? 'Imported rocket';
-  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), nodeCount: 0 };
+  const name = tag(design, 'Name') ?? i18n.t('library.untitled');
+  const ctx: RktContext = { notes: [], ignored: new Set(), dropped: new Set(), incompatible: new Set(), nodeCount: 0 };
 
   // `StageCount` decides how many of the three blocks are real: RockSim leaves
   // the unused ones in the file, empty, and reading them anyway would add empty
@@ -929,7 +1027,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
   });
 
   if (components.every((s) => (s.children ?? []).length === 0)) {
-    throw new Error('No supported components found in this design.');
+    throw new KeyedError('errors.file.noComponents');
   }
 
   const notes = [...ctx.notes];
@@ -944,7 +1042,7 @@ export function importRkt(data: ArrayBuffer | string): OrkImportResult {
     name,
     // Automatic radii resolved on load, as importOrk does, so every reader
     // sees a number and the kernel and the drawing agree on it.
-    tree: syncAutoRadii({ name, components }),
+    tree: syncAutoRadii({ name, components: wrapMountAngles(components) }),
     motors: {},
     // A `.rkt` declares no flight configurations; RockSim's equivalent lives
     // with its simulations. Stated as an empty table rather than omitted so

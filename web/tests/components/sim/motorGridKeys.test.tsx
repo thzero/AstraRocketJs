@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { useState } from 'react';
 import { fireEvent, screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import { MotorGrid } from '../../../src/components/sim/MotorGrid';
@@ -126,5 +127,61 @@ describe('MotorGrid sort header', () => {
     renderWithProviders(<Sorted />);
     const sorts = screen.getAllByRole('columnheader').map((h) => h.getAttribute('aria-sort'));
     expect(sorts).toContain('descending');
+  });
+});
+
+/**
+ * Each row has a focusable handle that says which row is selected, focus
+ * follows the arrow keys while it is in the grid (so the step is announced),
+ * and an imported motor says so in words rather than with a star alone.
+ */
+describe('MotorGrid for a screen reader', () => {
+  beforeAll(() => {
+    Element.prototype.scrollIntoView = () => {};
+  });
+
+  function Stateful({ shown }: { shown: CatalogMotor[] }) {
+    const { cols } = useVisibleColumns();
+    const [selected, setSelected] = useState<CatalogMotor | null>(shown[0]!);
+    return (
+      <MotorGrid
+        active
+        shown={shown}
+        cols={cols}
+        sort={null}
+        onSort={() => {}}
+        selected={selected}
+        onSelect={setSelected}
+        checked={new Map()}
+        onToggleCheck={() => {}}
+        catalogLoading={false}
+        catalogError={null}
+        onRetry={() => {}}
+      />
+    );
+  }
+
+  it('marks the selected row and moves focus with the arrow keys', async () => {
+    renderWithProviders(<Stateful shown={rows} />);
+    const a = await screen.findByRole('button', { name: 'A' });
+    expect(a.getAttribute('aria-current')).toBe('true');
+    a.focus();
+    fireEvent.keyDown(window, { key: 'ArrowDown' });
+    const b = screen.getByRole('button', { name: 'B' });
+    expect(b.getAttribute('aria-current')).toBe('true');
+    expect(a.getAttribute('aria-current')).toBeNull();
+    expect(document.activeElement).toBe(b);
+  });
+
+  it('selects a row from its handle with the keyboard', async () => {
+    renderWithProviders(<Stateful shown={rows} />);
+    fireEvent.click(await screen.findByRole('button', { name: 'C' }));
+    expect(screen.getByRole('button', { name: 'C' }).getAttribute('aria-current')).toBe('true');
+  });
+
+  it('names an imported motor as imported', async () => {
+    const custom = { ...motor('D'), custom: true } as CatalogMotor;
+    renderWithProviders(<Stateful shown={[custom]} />);
+    expect(await screen.findByRole('button', { name: 'Imported motor D' })).toBeTruthy();
   });
 });

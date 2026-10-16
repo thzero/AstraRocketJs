@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useLauncherT } from '../common/useLauncher';
 import { fmtNum, stageLabel } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import type { FlightResult } from '../../engine/api';
 import { CSV_MIME, flightEventsCsv } from '../../services/exports/csvExport';
 import { EVENT_EXTRAS, EVENT_NAME, eventRows, type EventRow, type ExtraKey } from '../../services/flight/flightEvents';
@@ -24,9 +25,9 @@ import { UnitChip } from '../common/UnitChip';
  * Every branch, interleaved on the one launch clock, because the charts beside
  * it already draw every branch: a booster's landing missing from a table next
  * to a chart that plots it would read as a bug. The stage rides on the row as a
- * chip rather than as a column of its own: this pane is 380px wide, and a
- * fifth column costs more than the single-stage case (where there is no stage
- * to name) can spare.
+ * chip rather than as a column of its own: this pane is a narrow side column
+ * (300 to 640 px), and a fifth column costs more than the single-stage case
+ * (where there is no stage to name) can spare.
  */
 
 /** Which columns a value belongs to. The numbers are right-aligned and
@@ -93,22 +94,25 @@ export function FlightEventsTable({
         <span className="text-[10px] uppercase tracking-wide text-ink-muted">{t('flight.events')}</span>
         {/* The file carries every extra as its own column, where the table puts
             them on a sub-line - a spreadsheet wants a rectangle it can sort,
-            and it has no 380px to respect. It writes the settings-level units
-            rather than this table's own chips, the way every other export in
+            and it has no narrow column to respect. It writes the settings-level
+            units rather than this table's own chips, the way every other export in
             the app does: a file outlives the session and often goes to
             somebody else. */}
         <button
           onClick={() =>
             download(
               exportFilename([designName, simName, 'flight-events'], 'csv'),
-              flightEventsCsv(rows, u.all, (r) => t(EVENT_NAME[r.type]!), stageName, simName),
+              flightEventsCsv(rows, u.all, t, (r) => t(EVENT_NAME[r.type]!), stageName, simName),
               CSV_MIME,
             )
           }
           title={t('flight.eventsCsv')}
           className="shrink-0 rounded-md bg-raised px-2 py-1 text-[11px] font-medium text-ink ring-1 ring-line/10 hover:bg-elevated"
         >
-          ⬇ CSV
+          {/* The visible short label stays out of the name, which is the full
+              one: the Results tab has another CSV button. */}
+          <span aria-hidden>⬇</span> <span aria-hidden>CSV</span>
+          <span className="sr-only">{t('flight.eventsCsv')}</span>
         </button>
       </div>
       <div className="overflow-x-auto">
@@ -166,8 +170,8 @@ export function FlightEventsTable({
                   )}
                 </th>
                 <td className={NUM}>{fmtNum(r.time, 2)}</td>
-                <td className={NUM}>{r.altitude != null ? alt.fmt(r.altitude) : '—'}</td>
-                <td className={NUM}>{r.velocity != null ? spd.fmt(r.velocity, 1) : '—'}</td>
+                <td className={NUM}>{r.altitude != null ? alt.fmt(r.altitude) : NO_VALUE}</td>
+                <td className={NUM}>{r.velocity != null ? spd.fmt(r.velocity, 1) : NO_VALUE}</td>
               </tr>
               <tr>
                 <td colSpan={4} className="p-0">

@@ -44,7 +44,7 @@ body:
     attributes:
       label: Design file and screenshots
       description: >
-        If it's tied to a specific design, **attach the `.ork` file** — that's usually
+        If it's tied to a specific design, **attach the `.ork` file**. That is usually
         the fastest path to a fix. A screenshot or screen recording helps a lot too.
     validations:
       required: false

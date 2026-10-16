@@ -1,19 +1,20 @@
+import { fmtList, partLabel } from '../../../i18n/format';
+import i18n from '../../../i18n';
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import type { OrkFlightConfig } from '../orkTypes';
 import { walkNodes } from '../../../tree/treeWalk';
 import { keyedNote, type ImportNote } from '../importNote';
 
 /**
- * The honesty notes an import surfaces: what the reader preserved but the
- * simulation does not act on, and what the file's flight configurations mean
- * for the one that was opened.
+ * The honesty notes an import surfaces: what the app shows differently from the
+ * file, and what the file's flight configurations mean for the one that was
+ * opened.
  */
 
 /**
- * Honesty note for what this reader preserves but the simulation does not act
- * on: repeated instances (other than pod sets and boosters). Saying so beats a
- * silent discrepancy: instances change mass, and mass changes the stability the
- * user is designing to.
+ * Honesty note for repeated instances (other than pod sets and boosters). The
+ * simulation counts every instance, but the drawing shows one, so a design whose
+ * mass and stability come out right still looks short of parts.
  */
 export function modelingNotes(components: ComponentNode[]): ImportNote[] {
   const notes: ImportNote[] = [];
@@ -28,16 +29,19 @@ export function modelingNotes(components: ComponentNode[]): ImportNote[] {
   if (instanced.length > 0) {
     notes.push(
       keyedNote('importNote.instanced', {
-        names: [...new Set(instanced.map((nd) => nd.name ?? nd.type))].join(', '),
+        names: fmtList([...new Set(instanced.map((nd) => partLabel(i18n.t, nd)))]),
       }),
     );
   }
   return notes;
 }
 
-/** The one note naming the component tags a reader skipped, if it skipped any. */
+/**
+ * One note per component tag a reader skipped. The readers are the only source
+ * of these notes; the loader passes them through without adding its own.
+ */
 export function ignoredNotes(ignored: Set<string>): ImportNote[] {
-  return ignored.size ? [keyedNote('importNote.ignored', { names: [...ignored].join(', ') })] : [];
+  return [...ignored].map((name) => keyedNote('importNote.skippedUnsupported', { name }));
 }
 
 /**

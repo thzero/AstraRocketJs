@@ -3,9 +3,11 @@ import { beforeAll, describe, it, expect, vi } from 'vitest';
 import { cleanup, fireEvent, screen, within } from '@testing-library/react';
 import { PropertyPanel } from '../../../src/components/design/PropertyPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
+import { SettingsProvider } from '../../../src/state/SettingsProvider';
 import { serveData } from '../../testing/serveData';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { FIELDS } from '../../../src/services/design/componentFields';
+import { useWorkspaceStore, type WorkspaceState } from '../../../src/state/store';
 
 const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
   const onChange = vi.fn();
@@ -456,5 +458,152 @@ describe('dropdown options', () => {
     const titled = [...document.querySelectorAll('select')].filter((s) => s.title);
     expect(titled.length).toBeGreaterThan(0);
     for (const s of titled) expect(isUnitChip(s), `titled select: ${s.title}`).toBe(true);
+  });
+});
+
+/**
+ * A length only the kernel resolves. A shock cord on Auto is three times the
+ * rocket's length, and the node keeps whatever number it last stored, so the
+ * box shows the kernel's figure from the live build, and turning Auto off keeps
+ * that figure rather than jumping back to the stored one.
+ */
+describe('a kernel-resolved automatic length', () => {
+  const RESOLVED = 1.8;
+  const cordBox = () => screen.getByRole('spinbutton', { name: 'Cord length' }) as HTMLInputElement;
+
+  it('shows the kernel figure while on Auto, and keeps it when Auto is turned off', () => {
+    useWorkspaceStore.setState({
+      rocket: { componentInfo: () => ({ cordLength: RESOLVED }) } as unknown as WorkspaceState['rocket'],
+    });
+    try {
+      // What the box reads for the resolved length typed in by hand, in whatever unit is on.
+      show({ id: 'sc', type: 'shockcord', cordLength: RESOLVED } as unknown as ComponentNode);
+      const typed = cordBox().value;
+      cleanup();
+
+      const onChange = show({
+        id: 'sc',
+        type: 'shockcord',
+        cordLength: 0.3,
+        cordLengthAuto: true,
+      } as unknown as ComponentNode);
+      expect(cordBox().value).toBe(typed);
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Cord length: Auto' }));
+      expect(onChange).toHaveBeenCalledWith({ cordLengthAuto: false, cordLength: RESOLVED });
+    } finally {
+      useWorkspaceStore.setState({ rocket: null });
+    }
+  });
+
+  /**
+   * A streamer on Auto flies the drag coefficient `Streamer.getComponentCD`
+   * works out, not the number the node stores, so the box shows the kernel's,
+   * and turning Auto off keeps it, as desktop does.
+   */
+  it("shows a streamer's computed drag coefficient while on Auto, and keeps it when Auto is turned off", () => {
+    useWorkspaceStore.setState({
+      rocket: { componentInfo: () => ({ cd: 0.104 }) } as unknown as WorkspaceState['rocket'],
+    });
+    try {
+      const onChange = show({ id: 'st', type: 'streamer', cdAuto: true } as unknown as ComponentNode);
+      expect(Number((screen.getByRole('spinbutton', { name: 'Drag coeff' }) as HTMLInputElement).value)).toBeCloseTo(
+        0.104,
+        9,
+      );
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Drag coeff: Auto' }));
+      expect(onChange).toHaveBeenCalledWith({ cdAuto: false, cd: 0.104 });
+    } finally {
+      useWorkspaceStore.setState({ rocket: null });
+    }
+  });
+
+  it('reads the kernel once per build, not once per render', () => {
+    const componentInfo = vi.fn(() => ({ cordLength: RESOLVED }));
+    useWorkspaceStore.setState({ rocket: { componentInfo } as unknown as WorkspaceState['rocket'] });
+    try {
+      const node = { id: 'sc', type: 'shockcord', cordLength: 0.3, cordLengthAuto: true } as unknown as ComponentNode;
+      const { rerender } = renderWithProviders(
+        <PropertyPanel node={node} onChange={() => {}} onCommit={() => {}} onRemove={() => {}} />,
+      );
+      const calls = componentInfo.mock.calls.length;
+      expect(calls).toBeGreaterThan(0);
+      // An edit to another field re-renders the panel with a new node object.
+      for (const name of ['A', 'B', 'C']) {
+        rerender(
+          <SettingsProvider>
+            <PropertyPanel node={{ ...node, name }} onChange={() => {}} onCommit={() => {}} onRemove={() => {}} />
+          </SettingsProvider>,
+        );
+      }
+      expect(componentInfo.mock.calls.length).toBe(calls);
+    } finally {
+      useWorkspaceStore.setState({ rocket: null });
+    }
+  });
+});
+
+/**
+ * The kernel clamps a rail button's heights and bore, and a centering ring's
+ * radii, against each other. The panel holds each value inside the same range,
+ * so what it shows and stores is what flies (linkedDimensions.kernel.test.ts
+ * checks the ranges against the kernel itself).
+ */
+describe('linked dimensions', () => {
+  const box = (name: string) => screen.getByRole('spinbutton', { name }) as HTMLInputElement;
+  const type = (input: HTMLInputElement, v: number) => {
+    fireEvent.focus(input);
+    fireEvent.change(input, { target: { value: String(v) } });
+  };
+
+  it('stops a rail button base at the height left by the flange', () => {
+    const onChange = show({
+      id: 'rb',
+      type: 'railbutton',
+      outerDiameter: 0.01,
+      innerDiameter: 0.006,
+      height: 0.01,
+      baseHeight: 0.002,
+      flangeHeight: 0.002,
+    } as unknown as ComponentNode);
+    const base = box('Base height');
+    expect(Number(base.max)).toBeCloseTo(Number(box('Height').value) * 0.8, 9);
+    type(base, Number(box('Height').value) * 10);
+    expect(onChange).toHaveBeenLastCalledWith({ baseHeight: 0.008 });
+  });
+
+  it('keeps a rail button height at least its base and flange', () => {
+    const onChange = show({
+      id: 'rb',
+      type: 'railbutton',
+      height: 0.01,
+      baseHeight: 0.003,
+      flangeHeight: 0.002,
+    } as unknown as ComponentNode);
+    type(box('Height'), 0);
+    expect(onChange).toHaveBeenLastCalledWith({ height: 0.005 });
+  });
+
+  it('keeps a rail button bore inside its outer diameter', () => {
+    const onChange = show({ id: 'rb', type: 'railbutton', outerDiameter: 0.01 } as unknown as ComponentNode);
+    type(box('Inner diameter'), Number(box('Outer diameter').value) * 2);
+    expect(onChange).toHaveBeenLastCalledWith({ innerDiameter: 0.01 });
+  });
+
+  it('shows the dimensions a rail button flies at when the node leaves them out', () => {
+    show({ id: 'rb', type: 'railbutton' } as unknown as ComponentNode);
+    // RailButton(): outer diameter and total height are both 9.7 mm.
+    expect(Number(box('Height').value)).toBeGreaterThan(0);
+    expect(box('Height').value).toBe(box('Outer diameter').value);
+  });
+
+  it('keeps a centering ring bore inside its outer diameter', () => {
+    const onChange = show({
+      id: 'cr',
+      type: 'centeringring',
+      outerRadius: 0.02,
+      innerRadius: 0.01,
+    } as unknown as ComponentNode);
+    type(box('Inner diameter'), Number(box('Outer diameter').value) * 3);
+    expect(onChange).toHaveBeenLastCalledWith({ innerRadius: 0.02 });
   });
 });

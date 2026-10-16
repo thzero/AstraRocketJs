@@ -24,9 +24,10 @@
 // on a first offline load like everything else. exampleLibrary.test.ts builds
 // every stripped file through the real kernel and checks mass/CG/CP.
 //
-// Why public/examples and not public/data. The catalogs under public/data are
-// refreshed on a schedule by .github/workflows/sync-catalogs.yml and served
-// from the `data` branch so they can change without an app build. Examples are
+// Why public/examples and not public/data. The motor and component catalogs
+// under public/data are refreshed on a schedule by
+// .github/workflows/sync-catalogs.yml and served from the `data` branch so they
+// can change without an app build. Examples are
 // the opposite: they are pinned to the engine's upstream ref, so they change
 // exactly when the app is rebuilt against a new OpenRocket. Routing them
 // through the data branch would buy nothing and would cost the offline-first
@@ -35,15 +36,11 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
+import { arg } from './lib/args.mjs';
 
 const OUT_DIR = fileURLToPath(new URL('../public/examples', import.meta.url));
 const UPSTREAM = fileURLToPath(new URL('../../engine-java/extract/UPSTREAM', import.meta.url));
 const EXAMPLES_PATH = 'core/src/main/resources/datafiles/examples';
-
-const arg = (name) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : undefined;
-};
 
 /** repo + ref from engine-java/extract/UPSTREAM: the commit the engine is built from. */
 function pinnedUpstream() {
@@ -62,7 +59,7 @@ async function fetchExamples() {
   const src = arg('src') ?? process.env.OPENROCKET_SRC;
   if (src) {
     const dir = resolve(src, EXAMPLES_PATH);
-    if (!existsSync(dir)) throw new Error(`No examples under ${dir} — is --src a full OpenRocket checkout?`);
+    if (!existsSync(dir)) throw new Error(`No examples under ${dir}. Is --src a full OpenRocket checkout?`);
     return readdirSync(dir)
       .filter((n) => n.toLowerCase().endsWith('.ork'))
       .map((name) => ({ name, bytes: new Uint8Array(readFileSync(join(dir, name))) }));

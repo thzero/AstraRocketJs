@@ -62,6 +62,16 @@ describe('PlaceSearchDialog', () => {
     expect(urls.every((u) => u.includes('/v1/elevation'))).toBe(true);
   });
 
+  it('writes a blank elevation when the lookup finds none, rather than keeping the old one', async () => {
+    // The elevation service fails, as it does offline: coordinates still parse.
+    setWeatherTransport((() => Promise.reject(new TypeError('Failed to fetch'))) as typeof fetch);
+    const onPick = vi.fn();
+    renderWithProviders(<PlaceSearchDialog onPick={onPick} onClose={() => {}} />);
+    searchFor('38.2544° N, 104.6091° W');
+    fireEvent.click(await screen.findByRole('button', { name: /Coordinates.*elevation not found/ }));
+    expect(onPick).toHaveBeenCalledWith({ latitudeDeg: 38.2544, longitudeDeg: -104.6091, launchAltitudeM: null });
+  });
+
   it('says a shortened link cannot be read, and asks nothing of anyone', async () => {
     serve(PUEBLO);
     renderWithProviders(<PlaceSearchDialog onPick={() => {}} onClose={() => {}} />);
@@ -98,6 +108,25 @@ describe('PlaceSearchDialog offline', () => {
       expect(search().disabled).toBe(false);
     } finally {
       back();
+    }
+  });
+});
+
+describe('PlaceSearchDialog place detail', () => {
+  /** One key, so a language that names the country first can say it that way. */
+  it('orders region and country as the language does', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('ja');
+    try {
+      serve(PUEBLO);
+      renderWithProviders(<PlaceSearchDialog onPick={() => {}} onClose={() => {}} />);
+      fireEvent.change(screen.getByLabelText(new RegExp(i18n.t('placeSearch.label').slice(0, 4))), {
+        target: { value: 'Pueblo' },
+      });
+      fireEvent.click(screen.getByRole('button', { name: i18n.t('placeSearch.search') }));
+      expect(await screen.findByRole('button', { name: /Pueblo.*United States Colorado/ })).toBeTruthy();
+    } finally {
+      await i18n.changeLanguage('en');
     }
   });
 });

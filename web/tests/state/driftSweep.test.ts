@@ -8,7 +8,7 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
   simulateInWorker: simulateMock,
 }));
 
-import { useWorkspaceStore } from '../../src/state/store';
+import { useWorkspaceStore, isDriftSweepStale } from '../../src/state/store';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import { C6 } from '../../src/engine/api';
 import type { SimPrefs } from '../../src/services/flight/simulations';
@@ -225,6 +225,29 @@ describe('a drift sweep', () => {
     await second;
     expect(st().driftSweep!.asked).toBe(4);
     expect(st().driftSweep!.flown).toBe(4);
+  });
+
+  /**
+   * A result ages on its `resultKey`, which holds the global run preferences
+   * (Settings > Simulation) as well as the row's own. A held region ages the
+   * same way, since a different time step or seed lands the rocket elsewhere.
+   */
+  it('ages when a global run preference changes', async () => {
+    const done = start();
+    calls.forEach((c) => c.settle(landed(1, 1)));
+    await done;
+    const sweep = st().driftSweep!;
+    expect(isDriftSweepStale(st(), sweep)).toBe(false);
+    st().setSimPrefs({ ...PREFS, timeStep: 0.01 });
+    expect(isDriftSweepStale(st(), sweep)).toBe(true);
+  });
+
+  it('keeps nothing when a global run preference changes mid-sweep', async () => {
+    const done = start();
+    st().setSimPrefs({ ...PREFS, randomSeed: 7 });
+    calls.forEach((c) => c.settle(landed(1, 1)));
+    await done;
+    expect(st().driftSweep).toBeNull();
   });
 
   it('records the design it flew, so a later edit can age it', async () => {

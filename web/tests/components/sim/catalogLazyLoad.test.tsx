@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
 /**
@@ -53,5 +54,13 @@ describe('the 1.6 MB motor catalog is only fetched when a dialog opens', () => {
     // whose tube cannot be measured arrives in.
     renderWithProviders(<MotorDialog onClose={() => {}} onSelect={() => {}} onError={() => {}} mount={{ bore: 18 }} />);
     expect(loadCatalog).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('the motor search box', () => {
+  it('is named in both motor dialogs, not only by its placeholder', () => {
+    const { unmount } = renderWithProviders(<MotorDashboard onClose={() => {}} />);
+    expect(screen.getByRole('textbox', { name: /Search by code/ })).toBeTruthy();
+    unmount();
   });
 });

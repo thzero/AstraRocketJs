@@ -60,6 +60,7 @@ describe('changedPrefKeys', () => {
         'deploymentSpeedWarn',
         'drogueLowSpeedWarn',
         'guideAwareRodClearance',
+        'lengthUnit',
         'mainHighSpeedWarn',
         'mainLowSpeedWarn',
         'maxAngleStep',

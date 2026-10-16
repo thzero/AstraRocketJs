@@ -3,11 +3,13 @@
   // playwright.config.ts and eslint.config.js decide what ships (PWA workbox
   // globs, __APP_VERSION__, worker format, base path, shard and worker counts).
   //
-  // `npm run typecheck` runs three projects: `tsconfig.json` (src and tests),
-  // `tsconfig.e2e.json` (the Playwright specs) and this one. A file in none of
-  // them is typechecked by nothing. `allowJs` and `checkJs` are what bring
+  // `npm run typecheck` runs four projects: `tsconfig.json` (src and tests),
+  // `tsconfig.app.json` (src again, without node's types), `tsconfig.e2e.json`
+  // (the Playwright specs) and this one. A file in none of them is typechecked
+  // by nothing. `allowJs` and `checkJs` are what bring
   // eslint.config.js in; without them tsc drops a .js include without a warning.
-  // ESLint lints these files too, but with no type-aware rules.
+  // ESLint runs the type-aware set on the three .ts configs; eslint.config.js
+  // gets only js.configs.recommended.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "composite": false,

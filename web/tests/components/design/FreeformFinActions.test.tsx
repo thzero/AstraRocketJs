@@ -45,6 +45,18 @@ describe('FreeformFinActions', () => {
     expect((scaled['points'] as number[][])[2]![0]).toBeCloseTo(6, 9);
   });
 
+  it('floors the scale factor at desktop SCALE_MIN', () => {
+    // A mistyped factor must not shrink the fin to microns.
+    const applyTreeAction = vi.fn();
+    useWorkspaceStore.setState({ applyTreeAction });
+    renderWithProviders(<FreeformFinActions node={fin} />);
+    fireEvent.change(screen.getByLabelText('Scale factor'), { target: { value: '0.0001' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    const action = applyTreeAction.mock.calls[0]![0] as (t: unknown) => { components: ComponentNode[] };
+    const scaled = action({ name: 'T', components: [fin] }).components[0]!;
+    expect((scaled['points'] as number[][])[2]![0]).toBeCloseTo(0.0006, 9);
+  });
+
   it('decodes a large photo straight to the tracing size, closes every bitmap, and keeps one pixel one millimeter', async () => {
     const closes: string[] = [];
     const createImageBitmap = vi.fn(async (_src: unknown, opts?: { resizeWidth: number; resizeHeight: number }) =>

@@ -215,11 +215,13 @@ test('a flight survives a reload', async ({ page }) => {
 test('launch conditions stop at the NAR/Tripoli limits', async ({ page }) => {
   await openTab(page, 'Simulations');
 
-  // Launcher within 20 degrees of vertical.
+  // Launcher within 30 degrees of vertical: the default design flies a C6,
+  // which makes it a model rocket under the NAR Model Rocket Safety Code.
   const angle = page.getByLabel('Angle', { exact: true });
+  await expect(page.getByText(/As a model rocket, this flies under the NAR Model Rocket Safety Code/)).toBeVisible();
   await angle.fill('45');
   await angle.blur();
-  expect(Number(await angle.inputValue())).toBeCloseTo(20, 6);
+  expect(Number(await angle.inputValue())).toBeCloseTo(30, 6);
 
   // No flying in winds above 20 mph. Metric by default, so 8.94 m/s.
   const wind = page.getByLabel('Speed', { exact: true });
@@ -324,6 +326,44 @@ test('the results picker chooses which flight every results view shows', async (
   const track = page.getByRole('group', { name: /Where each stage landed/ });
   await expect(track.getByText('Stage 1', { exact: true })).toBeVisible();
   await expect(page.getByRole('button', { name: /Choose which flight/ })).toHaveText(/^Simulation 1/);
+});
+
+test('the numbers beside the charts follow the picked flight', async ({ page }) => {
+  await openTab(page, 'Simulations');
+  await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+  await page.getByRole('textbox', { name: 'Rename simulation' }).fill('Tilted');
+  // A tilted rod flies lower, so the two flights have different apogees.
+  await page.getByRole('spinbutton', { name: 'Angle', exact: true }).fill('15');
+  await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+  await runButton(page).click();
+  const picker = page.getByRole('button', { name: /Choose which flight/ });
+  await expect(picker).toBeVisible({ timeout: 30_000 });
+
+  // Each row's apogee as the simulations table reports it.
+  await openTab(page, 'Simulations');
+  const apogeeOf = async (name: string) =>
+    (await page
+      .getByRole('row', { name: new RegExp(`^Select ${name} `) })
+      .getByRole('cell')
+      .nth(4)
+      .textContent())!.trim();
+  const tilted = await apogeeOf('Tilted');
+  const upright = await apogeeOf('Simulation 1');
+  expect(tilted).not.toBe(upright);
+
+  // The tile in the Results column reads the flight the picker shows, which is
+  // not the active row once another flight is picked.
+  await openTab(page, 'Results');
+  const tile = page
+    .getByRole('region', { name: 'Results' })
+    .getByText('Apogee', { exact: true })
+    .locator('xpath=following-sibling::div[1]');
+  await expect(picker).toHaveText(/^Tilted/);
+  await expect(tile).toHaveText(tilted);
+  await picker.click();
+  await page.getByRole('menuitemradio', { name: 'Simulation 1' }).click();
+  await expect(picker).toHaveText(/^Simulation 1/);
+  await expect(tile).toHaveText(upright);
 });
 
 test('one flown simulation gets a plain heading, not a picker', async ({ page }) => {

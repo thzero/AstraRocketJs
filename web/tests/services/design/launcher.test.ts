@@ -36,8 +36,8 @@ describe("withLauncher, through the app's own i18next", () => {
   });
 
   it('keeps interpolation, and leaves keys without variants alone', () => {
-    expect(withLauncher(t, 'rail')('limits.rodAngle', { value: '25°', limit: '20°' })).toBe(
-      'Launch rail angle is 25° from vertical, above the 20° the NAR and Tripoli safety codes allow.',
+    expect(withLauncher(t, 'rail')('limits.rodAngleHighPower', { value: '25°', limit: '20°' })).toBe(
+      'Launch rail angle is 25° from vertical, above the 20° the NAR and Tripoli safety codes allow a high power rocket.',
     );
     expect(withLauncher(t, 'rail')('sim.apogee')).toBe(t('sim.apogee'));
   });

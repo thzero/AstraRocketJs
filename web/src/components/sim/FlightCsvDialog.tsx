@@ -17,9 +17,9 @@ import { NumberInput } from '../common/NumberInput';
  * What goes in the flight CSV, before it is written: OpenRocket's Export data
  * tab: the variables, the format, the comments and which stage.
  *
- * All of it is the user's choice rather than an immediate download of twelve fixed
- * columns, commas, six significant digits and event comments: that is one opinion
- * about a file somebody else has to read.
+ * All of it is the user's choice, as in desktop: the file is read by somebody
+ * else's tools, so the columns, the separator, the precision and the comments
+ * are theirs to set rather than fixed here.
  *
  * The variable list comes from the result rather than a fixed table, so it shows
  * what this run actually recorded. Series the app has no name for are listed
@@ -38,10 +38,17 @@ export function FlightCsvDialog({
   const u = useUnits();
   const designName = useWorkspaceStore(selectDesignName);
   const { settings, update } = useSettings();
-  const saved = settings.flightCsv;
+  // A stored two-character backslash-t names the tab character; written
+  // verbatim it would put every value in one spreadsheet column.
+  const saved =
+    settings.flightCsv.separator === '\\t' ? { ...settings.flightCsv, separator: '\t' } : settings.flightCsv;
 
   const branches = result.branches ?? [];
   const [branchIndex, setBranchIndex] = useState(0);
+  // The comment box while it is being typed in. An empty box is a step on the
+  // way to another character, not a choice, so the "#" fallback waits for the
+  // field to be left; written at once, Backspace then "%" would read "#%".
+  const [commentDraft, setCommentDraft] = useState<string | null>(null);
   const columns = useMemo(() => flightColumns(result, branchIndex), [result, branchIndex]);
 
   // Only keys this run can fill: a saved list may name a series an older or
@@ -88,7 +95,7 @@ export function FlightCsvDialog({
           <button
             onClick={onExport}
             disabled={!chosen.length}
-            className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-500 disabled:cursor-not-allowed disabled:opacity-50"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-xs font-semibold text-on-accent hover:bg-accent-700 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {t('csv.export')}
           </button>
@@ -148,7 +155,7 @@ export function FlightCsvDialog({
                 >
                   <option value=",">,</option>
                   <option value=";">;</option>
-                  <option value="\t">{t('csv.tab')}</option>
+                  <option value={'\t'}>{t('csv.tab')}</option>
                   <option value=" ">{t('csv.space')}</option>
                 </select>
               </div>
@@ -197,8 +204,15 @@ export function FlightCsvDialog({
                 <input
                   className={`${field} w-16`}
                   aria-label={t('csv.commentChar')}
-                  value={saved.commentChar}
-                  onChange={(e) => patch({ commentChar: e.target.value || '#' })}
+                  value={commentDraft ?? saved.commentChar}
+                  onChange={(e) => {
+                    setCommentDraft(e.target.value);
+                    if (e.target.value) patch({ commentChar: e.target.value });
+                  }}
+                  onBlur={() => {
+                    if (commentDraft === '') patch({ commentChar: '#' });
+                    setCommentDraft(null);
+                  }}
                 />
               </div>
             </div>

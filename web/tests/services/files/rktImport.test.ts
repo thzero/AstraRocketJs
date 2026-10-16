@@ -224,7 +224,7 @@ describe('importRkt', () => {
     expect(fins['sweep']).toBeCloseTo(0.025, 9);
     expect(fins['thickness']).toBeCloseTo(0.0032, 9);
     expect(fins['cant']).toBeCloseTo((1.5 * Math.PI) / 180, 12);
-    expect(fins['angleOffset']).toBeCloseTo(Math.PI / 6, 12);
+    expect(fins['rotation']).toBeCloseTo(Math.PI / 6, 12);
     expect(fins['tabLength']).toBeCloseTo(0.04, 9);
     expect(fins['tabHeight']).toBeCloseTo(0.005, 9);
     expect(fins['tabOffset']).toBeCloseTo(0.01, 9);
@@ -238,7 +238,7 @@ describe('importRkt', () => {
     expect(byName(stage.children, 'Lug').position).toEqual({ method: 'top', offset: 0.1 });
   });
 
-  it('tells an inner tube from an airframe tube by IsInsideTube', () => {
+  it('reads a tube in the attached parts of another tube as an inner tube', () => {
     const mount = byName(stage.children, 'Motor mount');
     expect(mount.type).toBe('innertube');
     expect(mount['motorMount']).toBe(true);
@@ -346,5 +346,71 @@ describe('importRkt, hostile input', () => {
   it('still accepts a component count a real design could plausibly use', () => {
     const res = importRkt(rkt(tube.repeat(200)));
     expect(res.tree.components[0]?.children?.length).toBe(200);
+  });
+});
+
+/**
+ * Desktop's RockSim handlers set a shoulder through the clamping
+ * `setAftShoulderRadius` / `setForeShoulderRadius`, after the end's diameter
+ * (NoseConeHandler, TransitionHandler), so a shoulder wider than its end opens
+ * at the end's radius. The node has to hold what desktop holds.
+ */
+describe('a .rkt shoulder wider than its end', () => {
+  const doc = (part: string): string =>
+    `<RockSimDocument><DesignInformation><RocketDesign><Name>Wide</Name><StageCount>1</StageCount>` +
+    `<Stage3Parts>${part}</Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+
+  it('opens a nose cone shoulder at the base radius', () => {
+    const res = importRkt(
+      doc(
+        '<NoseCone><Name>n</Name><Len>100</Len><BaseDia>25</BaseDia><WallThickness>1</WallThickness>' +
+          '<ShapeCode>1</ShapeCode><ShoulderOD>30</ShoulderOD><ShoulderLen>20</ShoulderLen></NoseCone>',
+      ),
+    );
+    const nose = res.tree.components[0]!.children![0]!;
+    expect(nose['aftRadius']).toBeCloseTo(0.0125, 9);
+    expect(nose['shoulderRadius']).toBeCloseTo(0.0125, 9);
+  });
+
+  it('opens each transition shoulder at its own end', () => {
+    const res = importRkt(
+      doc(
+        '<Transition><Name>t</Name><Len>50</Len><FrontDia>30</FrontDia><RearDia>20</RearDia>' +
+          '<WallThickness>1</WallThickness><ShapeCode>0</ShapeCode>' +
+          '<FrontShoulderDia>34</FrontShoulderDia><FrontShoulderLen>10</FrontShoulderLen>' +
+          '<RearShoulderDia>18</RearShoulderDia><RearShoulderLen>10</RearShoulderLen></Transition>',
+      ),
+    );
+    const t = res.tree.components[0]!.children![0]!;
+    expect(t['foreShoulderRadius']).toBeCloseTo(0.015, 9);
+    expect(t['aftShoulderRadius']).toBeCloseTo(0.009, 9);
+  });
+});
+
+/**
+ * LaunchLug.setAngleOffset and RailButton.setAngleOffset keep [-180°, 180°] and
+ * clamp past it. The RockSim reader converts degrees so a part lands where
+ * RockSim drew it, so a lug at 270° comes in at -90°, the same place, rather
+ * than showing 270 and flying at 180.
+ */
+describe('a .rkt lug or rail button past 180 degrees', () => {
+  const doc = (part: string): string =>
+    `<RockSimDocument><DesignInformation><RocketDesign><Name>Lug</Name><StageCount>1</StageCount>` +
+    `<Stage3Parts><BodyTube><Name>b</Name><Len>300</Len><OD>40</OD><ID>39</ID><AttachedParts>${part}` +
+    `</AttachedParts></BodyTube></Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+
+  it('comes in at the same place, inside the range the kernel keeps', () => {
+    const res = importRkt(
+      doc('<LaunchLug><Name>Lug</Name><Len>35</Len><OD>4.8</OD><RadialAngle>270</RadialAngle></LaunchLug>'),
+    );
+    const lug = res.tree.components[0]!.children![0]!.children![0]!;
+    expect(lug['angleOffset']).toBeCloseTo(-Math.PI / 2, 9);
+  });
+
+  it('keeps 180 as 180', () => {
+    const res = importRkt(
+      doc('<LaunchLug><Name>Lug</Name><Len>35</Len><OD>4.8</OD><RadialAngle>180</RadialAngle></LaunchLug>'),
+    );
+    expect(res.tree.components[0]!.children![0]!.children![0]!['angleOffset']).toBeCloseTo(Math.PI, 9);
   });
 });

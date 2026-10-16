@@ -1,4 +1,4 @@
-import { useEffect, useId, useLayoutEffect, useMemo, useState } from 'react';
+import { useEffect, useId, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useWorkspaceStore } from '../../state/store';
@@ -12,7 +12,7 @@ import { isPlanarFinSet } from '../../tree/tubefins';
 import { markingGuides } from '../../services/report/markingGuide';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { stageLabel } from '../../i18n/format';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { Check } from '../common/Check';
 import { ColorInput } from '../common/ColorInput';
 import { DialogButton } from '../common/DialogButton';
@@ -48,12 +48,12 @@ const hasType = (nodes: ComponentNode[], pred: (t: string) => boolean): boolean 
  *
  * Mounted only while open (`{open && <ExportDialog />}`). The report model is
  * assembled once and the include/exclude selection is derived from it in the
- * same pass; both then hold still for the dialog's life. Rebuilding either from
- * a value that changes throws the selection away whenever `open` goes false,
- * which dismissing the print-settings popover does.
+ * same pass; both then hold still for the dialog's life, so a re-render (the
+ * print-settings popover opening or closing) never resets what was picked.
  *
- * Assembling a multi-stage report builds each stage alone, which resets the
- * shared engine, so the whole rocket is rebuilt afterwards. Installing that
+ * Assembling a report builds rockets of its own (each stage of a multi-stage
+ * design, each motor configuration other than the one flown), which resets the
+ * shared engine, so the whole rocket is rebuilt afterward. Installing that
  * rebuild is a store write, and this dialog cannot make it from the initializer
  * without updating every other store subscriber mid-render, so it takes the
  * build back from `assembleReport` and installs it in a layout effect instead.
@@ -62,8 +62,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const units = useUnits();
-  // Declared up here because the focus traps below branch on it: the popover
-  // is a separate keyboard surface, not decoration.
+  // The print-settings popover: a second Dialog on its own layer, with its own focus trap.
   const [showSettings, setShowSettings] = useState(false);
   const [busy, setBusy] = useState(false);
   // One resolution for both outputs: the PDF and the CSV must never disagree
@@ -72,6 +71,23 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   const tree = useWorkspaceStore((s) => s.tree);
   const runSim = useWorkspaceStore((s) => s.runSim);
 
+  // Set once the dialog is dismissed. A save in flight checks it after every
+  // await and writes nothing once it is set; closing also stops the run it is
+  // waiting on, so the dialog going away is the end of the export.
+  const canceled = useRef(false);
+  const running = useRef(false);
+  useEffect(() => {
+    canceled.current = false;
+    return () => {
+      canceled.current = true;
+    };
+  }, []);
+  const close = () => {
+    canceled.current = true;
+    if (running.current) useWorkspaceStore.getState().cancelRun();
+    onClose();
+  };
+
   const hasNoses = useMemo(() => hasType(tree.components, (ty) => ty === 'nosecone'), [tree]);
   const hasTransitions = useMemo(() => hasType(tree.components, (ty) => ty === 'transition'), [tree]);
   // The real rule, not a re-derived one: a marking guide needs a body tube
@@ -79,17 +95,18 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // Asking it means the checkbox cannot offer a guide the report would not draw.
   const hasMarkingGuides = useMemo(() => markingGuides(tree).guides.length > 0, [tree]);
 
-  // Per-stage builds run the real engine; a design it chokes on must leave the
+  // The report's own builds run the real engine; a design it chokes on must leave the
   // dialog standing with its "no design" message, not take the app down. The
   // failure is remembered here and reported below, so the initializer stays a
   // pure computation.
   //
-  // `rebuilt` is the whole-rocket build a multi-stage report leaves behind, for
-  // the effect below to install. Assembling per-stage summaries resets the
-  // shared engine, and `assembleReport` would otherwise re-seat the live handle
-  // through the store from inside this initializer: a store write during render,
-  // which updates every other subscriber mid-render (React: "Cannot update a
-  // component (`DesignWarnings`) while rendering a different component").
+  // `rebuilt` is the whole-rocket build the report's own builds (per stage, per
+  // configuration) leave behind, for the effect below to install. Those builds
+  // reset the shared engine, and `assembleReport` would otherwise re-seat the
+  // live handle through the store from inside this initializer: a store write
+  // during render, which updates every other subscriber mid-render (React:
+  // "Cannot update a component (`DesignWarnings`) while rendering a different
+  // component").
   const [initial] = useState<{ model: ReportModel | null; error: string | null; rebuilt: ReportBuild | null }>(() => {
     const { info, rocket } = useWorkspaceStore.getState();
     if (!info || !rocket) return { model: null, error: null, rebuilt: null };
@@ -97,7 +114,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
     try {
       return { model: assembleReport((built) => (rebuilt = built)), error: null, rebuilt };
     } catch (e) {
-      return { model: null, error: errorMessage(e), rebuilt };
+      return { model: null, error: errorText(e, t), rebuilt };
     }
   });
   const model = initial.model;
@@ -179,20 +196,31 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           // The run resolves rather than rejects on a failure, a refusal, a
           // timeout or a cancel, and leaves the previous numbers in place. Only a
           // landed run means the report has fresh data; anything else writes
-          // nothing, and the run has already said why in the error banner.
-          if ((await runSim()) !== 'landed') return;
+          // nothing. A failure, a refusal and a busy pool say why in the error
+          // banner and a cancel is the user's own doing, but a flight dropped
+          // because the design changed under it says nothing, so it is said here.
+          running.current = true;
+          const outcome = await runSim();
+          if (outcome === 'dropped') useWorkspaceStore.getState().setErr(t('export.simDropped'));
+          if (outcome !== 'landed') return;
         } catch (e) {
           // Reported, not swallowed: swallowing writes the PDF with the
           // previous run's numbers, unmarked. The user asked for fresh data, so
           // say why there is none and write nothing.
-          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorMessage(e) }));
+          useWorkspaceStore.getState().setErr(t('export.simFailed', { message: errorText(e, t) }));
           return;
         } finally {
+          running.current = false;
           useWorkspaceStore.setState({ view: prevView, tab: prevTab, designPane: prevPane });
         }
       }
+      if (canceled.current) return;
       const fresh = assembleReport() ?? model;
-      const { downloadReportPdf } = await import('../../services/report/reportPdf');
+      // jsPDF is loaded here rather than first inside the writer, so the last
+      // check below comes after every wait: from there to the download is
+      // synchronous work that a close cannot interleave with.
+      const [{ downloadReportPdf }] = await Promise.all([import('../../services/report/reportPdf'), import('jspdf')]);
+      if (canceled.current) return;
       await downloadReportPdf(
         fresh,
         tree,
@@ -211,10 +239,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
           templateStroke: settings.report.templateStroke,
         },
         exportUnits,
+        // The font fetch is a wait of its own; a close during it saves nothing.
+        { canceled: () => canceled.current },
       );
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorMessage(e) }));
+      if (canceled.current) return;
+      useWorkspaceStore.getState().setErr(t('export.pdfFailed', { message: errorText(e, t) }));
     } finally {
       setBusy(false);
     }
@@ -228,7 +259,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       downloadComponentCsv(assembleReport() ?? model, exportUnits, (type) => t(`part.${type}`));
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorText(e, t) }));
     }
   };
 
@@ -239,7 +270,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       downloadDesignCsv(assembleReport() ?? model, exportUnits);
       onClose();
     } catch (e) {
-      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorMessage(e) }));
+      useWorkspaceStore.getState().setErr(t('export.csvFailed', { message: errorText(e, t) }));
     }
   };
 
@@ -255,7 +286,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       </button>
       <div className="flex gap-2">
         <button
-          onClick={onClose}
+          onClick={close}
           className="rounded-md bg-raised px-3 py-2 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
         >
           {t('common.cancel')}
@@ -290,12 +321,12 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
       <Dialog
         id="reportExport"
         title={t('export.title')}
-        onClose={onClose}
+        onClose={close}
         size="md"
-        // Nothing dismisses this while the PDF is being written: unmounting
-        // mid-export drops the run's result and the "Loading" state with it. The
-        // ✕ still works, because a close button that stops responding is worse
-        // than an interrupted export.
+        // The overlay and Escape do not dismiss this while the PDF is being
+        // written, so a stray click cannot end the export. Cancel and the ✕
+        // still work, and they stop it: the run is canceled and nothing is
+        // downloaded.
         dismissible={!busy}
         footer={sel && model ? actionRow : undefined}
       >
@@ -484,14 +515,17 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
             </div>
             <div className="mt-4 flex justify-end gap-2">
               <button
-                onClick={() => update({ report: DEFAULT_REPORT })}
+                // Only what this popover shows. The report units are chosen in
+                // the dialog behind it, and a reset of the colors must not move
+                // them.
+                onClick={() => update({ report: { ...DEFAULT_REPORT, units: settings.report.units } })}
                 className="rounded-md bg-raised px-3 py-1.5 text-sm text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
               >
                 {t('export.reset')}
               </button>
               <button
                 onClick={() => setShowSettings(false)}
-                className="rounded-md bg-accent-500 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-400"
+                className="rounded-md bg-accent-600 px-4 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700"
               >
                 {t('common.close')}
               </button>

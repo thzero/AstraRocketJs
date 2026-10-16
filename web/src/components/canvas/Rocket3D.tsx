@@ -16,20 +16,16 @@ import { AxisCallout, markerTexture } from './rocketCallouts';
 import { StabilityCallout } from './StabilityCallout';
 import { RocketModel } from './RocketModel';
 import { useRocketExport, type R3fHandles } from './useRocketExport';
-import { CG_INK, CP_INK } from './stabilityGadget';
+import { CG_INK, CP_INK } from './stabilityInks';
 import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
-import { errorMessage } from '../../services/app/errorMessage';
-
-// The geometry build and the export framing live in their own modules; the
-// flight path view and Rocket3D.test.ts import them through this one.
-export { buildPieces, piecesBounds, type Piece } from './rocketPieces';
-export { exportCamera, fitCameraToBox, isFittableBox } from './rocketExportCamera';
+import { errorText } from '../../i18n/keyedError';
 
 /**
  * 3D rocket view (react-three-fiber). Geometry is generated from the
  * component tree: lathe profiles for nose cones and transitions (kernel-exact
- * shape math), cylinders for tubes, extruded shapes for fins placed at their
+ * shape math), annulus lathes for tubes (wall and bore, solid when filled),
+ * extruded shapes for fins placed at their
  * instance angles. The external shell is slightly translucent so motor mounts
  * and loaded motors read inside, and a floating CG/CP callout hangs
  * beside the hull.
@@ -41,7 +37,7 @@ export { exportCamera, fitCameraToBox, isFittableBox } from './rocketExportCamer
  * (rocketCallouts.tsx, StabilityCallout.tsx) each live in their own module.
  */
 
-/** Highlight the active view preset (sky-600) to match the 2D preset buttons. */
+/** Highlight the active view preset in the accent token, to match the 2D preset buttons. */
 const presetStyle = (active: boolean): import('react').CSSProperties =>
   active ? { background: token('accent-600'), borderColor: token('accent-600'), color: token('on-accent') } : {};
 
@@ -80,7 +76,7 @@ export function Rocket3D({
   // Hi-res snapshot: the same scene rendered offscreen at
   // the export width, with the on-screen path as the fallback.
   const snapshot = useRocketExport(r3f, pieces, maxR, exportData, (e) =>
-    onError?.(t('export.imageFailed', { message: errorMessage(e) })),
+    onError?.(t('export.imageFailed', { message: errorText(e, t) })),
   );
   const center = totalLen / 2;
   const camDist = Math.max(totalLen * 1.1, maxR * 6, 0.25);
@@ -140,16 +136,18 @@ export function Rocket3D({
       {exportData && (
         <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
           <ImageExportMenu
-            label={`📷 ${t('export.image')}`}
+            icon="📷"
+            label={t('export.image')}
             fitOption
             title={t('export.imageTitle3d')}
             onPick={snapshot}
           />
         </div>
       )}
-      {/* Default to top-right so the quick-glance info card can sit top-left in
-          the same spot as the 2D view. In image-export contexts the 📷 menu owns
-          the top-right, so fall back to top-left there (no info card is shown). */}
+      {/* Top-right, clear of the info card the caller pins top-left. When the
+          📷 menu is shown (`exportData` given) it takes the top-right and this
+          row moves top-left; the caller hangs the info card below the row
+          there, so the two do not overlap. */}
       <div
         style={{
           position: 'absolute',
@@ -231,9 +229,8 @@ export function Rocket3D({
               exactly like the 2D markers. `transparent` puts them in the
               transparent queue after the see-through shell, or the shell
               would wash over them. */}
-            {/* The axis balls are drawn at a fraction of the shared size rule
-              (see AxisCallout), since full-size balls overwhelm small rockets;
-              the gadget keeps the full size rule. */}
+            {/* The axis balls are drawn at half of markerRadius (see
+              AxisCallout), since full-size balls overwhelm small rockets. */}
             {showMarkers && info && Number.isFinite(info.cg) && (
               <AxisCallout
                 x={info.cg}
@@ -268,8 +265,14 @@ export function Rocket3D({
         {showMarkers && (
           <>
             {' · '}
-            <span style={{ color: token(CG_INK) }}>●</span> {t('schematic.cg')} ·{' '}
-            <span style={{ color: token(CP_INK) }}>●</span> {t('schematic.cp')}
+            <span aria-hidden="true" style={{ color: token(CG_INK) }}>
+              ●
+            </span>{' '}
+            {t('schematic.cg')} ·{' '}
+            <span aria-hidden="true" style={{ color: token(CP_INK) }}>
+              ●
+            </span>{' '}
+            {t('schematic.cp')}
           </>
         )}
       </p>

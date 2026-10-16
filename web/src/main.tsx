@@ -7,6 +7,7 @@ import './index.css';
 import './i18n';
 import { applyTheme } from './services/app/theme';
 import { loadSettings } from './services/storage/settings';
+import { warmCatalogs } from './services/app/warmCatalogs';
 
 // The engine loads behind the app, not in front of it.
 //
@@ -35,3 +36,5 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
     </SettingsProvider>
   </React.StrictMode>,
 );
+
+warmCatalogs();

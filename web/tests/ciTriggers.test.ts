@@ -5,9 +5,10 @@ import { fileURLToPath } from 'node:url';
 /**
  * Which pushes are checked at all.
  *
- * The three workflows divide the work by trigger, and between them they have to
- * leave no commit unchecked: `ci.yml` is `pull_request`-only, `deploy.yml` is
- * master-push-only, so `dev.yml` has to cover a push to every other branch. With
+ * The two gate workflows divide the work by trigger, and between them they have
+ * to leave no branch push unchecked: `ci.yml` is `pull_request`-only and master
+ * is reached through a pull request, so `dev.yml` has to cover a push to every
+ * other branch. With
  * a branch allowlist there, a push to an unlisted branch runs no format, spell,
  * typecheck, lint, knip or unit-test gate at all.
  *
@@ -29,23 +30,38 @@ describe('CI trigger coverage', () => {
     expect(dev).not.toMatch(/push:\s*\n\s*branches:/);
   });
 
-  it('leaves master to the deploy workflow, which runs the full gates', () => {
-    // master is the one branch dev.yml may skip, and only because deploy.yml
-    // covers it with more than dev.yml would.
-    expect(wf('deploy.yml')).toMatch(/push:\s*\n\s*branches:\s*\[master\]/);
-    expect(wf('deploy.yml')).toContain('uses: ./.github/workflows/gates.yml');
-  });
-
   it('keeps the full gate set on every pull request', () => {
     expect(wf('ci.yml')).toMatch(/on:\s*\n\s*pull_request:/);
     expect(wf('ci.yml')).toContain('uses: ./.github/workflows/gates.yml');
   });
 
-  it('runs the same verify list a developer runs locally', () => {
-    // The point of dev.yml being `npm run verify` and not its own list: the two
-    // cannot drift. If this ever needs its own steps, the drift is the finding.
-    expect(wf('dev.yml')).toContain('npm run verify');
+  it('runs the same gate set on a branch push as on a pull request', () => {
+    // dev.yml calls gates.yml rather than listing its own steps, so a push and a
+    // PR cannot drift. If this ever needs its own steps, the drift is the finding.
+    expect(wf('dev.yml')).toContain('uses: ./.github/workflows/gates.yml');
   });
+});
+
+/**
+ * The one check for every gate: `Dev / verify` on a branch push, which branch
+ * protection requires, and `CI / verify` on a pull request. Each has to run
+ * when a gate fails and fail with it: a job skipped because a job it needs
+ * failed reports as skipped, and a skipped required check counts as passing.
+ */
+describe('the verify checks', () => {
+  for (const [file, name] of [
+    ['dev.yml', 'Dev'],
+    ['ci.yml', 'CI'],
+  ] as const) {
+    it(`${name} / verify runs after every gate and fails when one does`, () => {
+      const text = wf(file);
+      expect(text).toMatch(new RegExp(`^name: ${name}$`, 'm'));
+      const job = text.split(/^ {2}verify:\s*$/m)[1]?.split(/^ {2}\S/m)[0] ?? '';
+      expect(job).toMatch(/needs: gates/);
+      expect(job).toMatch(/if: always\(\)/);
+      expect(job).toMatch(/if: needs\.gates\.result != 'success'[\s\S]*exit 1/);
+    });
+  }
 });
 
 /**

@@ -1,7 +1,7 @@
 import type { jsPDF } from 'jspdf';
-import { fmtNum, partLabel } from '../../i18n/format';
+import { fmtList, fmtNum, partLabel } from '../../i18n/format';
 import { hexToRgbTuple } from './layout';
-import { ensure, heading, paragraph, sectionBreak, writeRuler, type PdfPage } from './pdfPage';
+import { drawText, ensure, heading, paragraph, sectionBreak, setStyle, writeRuler, type PdfPage } from './pdfPage';
 import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } from './markingGuide';
 
 /**
@@ -123,7 +123,7 @@ function writeOmitted(p: PdfPage, set: MarkingGuideSet): void {
   for (const reason of ['noWrap', 'noFins'] as const) {
     const parts = set.omitted.filter((o) => o.reason === reason);
     if (!parts.length) continue;
-    const names = parts.map((o) => partLabel(t, o)).join(', ');
+    const names = fmtList(parts.map((o) => partLabel(t, o)));
     ensure(p, 10);
     paragraph(p, t(OMIT_KEY[reason], { names }), 'italic', 120);
   }
@@ -138,11 +138,11 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
   const name = guide.name || t('report.bodyTube');
 
   // --- header: what this strip is, and which way is forward ---
-  doc.setFont('helvetica', 'bold').setFontSize(8).setTextColor(20);
-  doc.text(t('report.markingStrip', { name, c: fmtNum(guide.circumferenceMm, 1) }), x, top + 3);
+  setStyle(p, 'bold').setFontSize(8).setTextColor(20);
+  drawText(p, t('report.markingStrip', { name, c: fmtNum(guide.circumferenceMm, 1) }), x, top + 3);
   if (panel.parts > 1) {
-    doc.setFont('helvetica', 'normal').setFontSize(7).setTextColor(90);
-    doc.text(t('report.markingPart', { k: panel.part, n: panel.parts }), x, top + 6.8);
+    setStyle(p, 'normal').setFontSize(7).setTextColor(90);
+    drawText(p, t('report.markingPart', { k: panel.part, n: panel.parts }), x, top + 6.8);
   }
   drawForeArrow(p, x, top + HEADER_MM - 2, W, stroke);
 
@@ -167,11 +167,10 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
     if (mark.cant === 0) {
       doc.setDrawColor(...stroke).setLineWidth(0.3);
       arrowLine(doc, x, yc, x + W, yc, 0, stroke);
-      doc
-        .setFont('helvetica', 'normal')
+      setStyle(p, 'normal')
         .setFontSize(6.5)
         .setTextColor(...stroke);
-      doc.text(label, x + W / 3, yc - 1.2);
+      drawText(p, label, x + W / 3, yc - 1.2);
       continue;
     }
 
@@ -210,11 +209,10 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
     doc.line(cx - cs, yc - cs, cx + cs, yc + cs);
     doc.line(cx - cs, yc + cs, cx + cs, yc - cs);
 
-    doc
-      .setFont('helvetica', 'normal')
+    setStyle(p, 'normal')
       .setFontSize(6.5)
       .setTextColor(...stroke);
-    doc.text(label, x + W / 3, yStart + (W / 3) * Math.tan(mark.cant) - 1.2, {
+    drawText(p, label, x + W / 3, yStart + (W / 3) * Math.tan(mark.cant) - 1.2, {
       angle: (-mark.cant * 180) / Math.PI,
     });
   }
@@ -233,11 +231,10 @@ function drawForeArrow(p: PdfPage, x: number, y: number, w: number, stroke: [num
   doc.setDrawColor(...stroke).setLineWidth(0.3);
   doc.line(tip - 20, y, tip - ARROW_MM, y);
   arrowHead(doc, tip, y, 1, 0, stroke);
-  doc
-    .setFont('helvetica', 'bold')
+  setStyle(p, 'bold')
     .setFontSize(6.5)
     .setTextColor(...stroke);
-  doc.text(t('report.markingFore'), tip - 22, y + 1, { align: 'right' });
+  drawText(p, t('report.markingFore'), tip - 22, y + 1, { align: 'right' });
 }
 
 /** A closed rectangle via `lines`, the primitive the rest of the report draws with. */

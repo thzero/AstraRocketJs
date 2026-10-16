@@ -31,7 +31,7 @@ async function flyDownwind(page: Page): Promise<void> {
 
 /** Open the sweep controls and set a small grid: 4 speeds x 4 headings. */
 async function openSweep(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Drift', exact: true }).click();
+  await page.getByRole('button', { name: /^Drift( \(sweep flown\))?$/ }).click();
   await page.getByLabel('Speeds', { exact: true }).fill('4');
   await page.getByLabel('Headings', { exact: true }).fill('4');
   await expect(page.getByText('16 flights')).toBeVisible();

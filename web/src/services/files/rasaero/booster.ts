@@ -1,8 +1,11 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
 import { IN, fmt, type Cdx1Writer } from './units';
-import { finXml } from './sustainer';
+import { finXml, partName } from './sustainer';
+import { KeyedError } from '../../../i18n/keyedError';
 import { num } from '../../../tree/nodeProps';
 import { isFinSet } from '../../../tree/tubefins';
+import { isChainType } from '../../../tree/componentKinds';
+import { partLength } from '../../../tree/position';
 
 /**
  * Boosters (each lower stage) as <Booster> elements. A leading widening
@@ -16,9 +19,9 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     const kids = st.children ?? [];
     const tubes = kids.filter((c) => c.type === 'bodytube');
     if (tubes.length === 0) {
-      throw new Error(`Stage "${st.name}" has no body tube — RASAero boosters need one.`);
+      throw new KeyedError('errors.rasaero.boosterNoTube', { stage: partName(st) });
     }
-    const bodyLen = tubes.reduce((s, t) => s + num(t, 'length', 0.1), 0);
+    const bodyLen = tubes.reduce((s, t) => s + partLength(t), 0);
     const externals = kids.filter((c) => c.type === 'bodytube' || c.type === 'transition');
     const first = externals[0];
     const shoulder =
@@ -30,15 +33,13 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
         : null;
     const extraTrans = kids.filter((c) => c.type === 'transition' && c !== shoulder && c !== boattail);
     if (extraTrans.length > 0) {
-      throw new Error(
-        `RASAero boosters support only a shoulder and a boat tail — stage "${st.name}" has other transitions; export as .ork.`,
-      );
+      throw new KeyedError('errors.rasaero.boosterTransitions', { stage: partName(st) });
     }
     const shoulderLen = shoulder ? num(shoulder, 'length', 0) : 0;
     const btLen = boattail ? num(boattail, 'length', 0) : 0;
     const finParents = kids.filter((c) => (c.children ?? []).some((k) => isFinSet(k.type)));
     if (finParents.length > 1) {
-      throw new Error(`RASAero allows ONE fin set per booster — stage "${st.name}" has several; export as .ork.`);
+      throw new KeyedError('errors.rasaero.boosterFins', { stage: partName(st) });
     }
     emit('<Booster>');
     emit('<PartType>Booster</PartType>');
@@ -52,14 +53,25 @@ export function writeBoosters(w: Cdx1Writer, stagesIn: ComponentNode[]): void {
     emit('<RailGuideDiameter>0</RailGuideDiameter>');
     emit('<RailGuideHeight>0</RailGuideHeight>');
     emit('<LaunchShoeArea>0</LaunchShoeArea>');
-    // The booster body starts after the shoulder (which slides into the stage above).
-    emit(`<Location>${fmt((w.locM + shoulderLen) * IN)}</Location>`);
+    // Where the booster's first part starts, its shoulder when it has one, as
+    // desktop's `BoosterDTO` writes `firstChild.getAxialOffset(ABSOLUTE)`.
+    emit(`<Location>${fmt(w.locM * IN)}</Location>`);
     emit('<Color>Black</Color>');
     emit(`<ShoulderLength>${fmt(shoulderLen * IN)}</ShoulderLength>`);
     emit('<NozzleExitDiameter>0</NozzleExitDiameter>');
     emit(`<BoattailLength>${fmt(btLen * IN)}</BoattailLength>`);
     emit(`<BoattailRearDiameter>${fmt(boattail ? num(boattail, 'aftRadius', 0) * 2 * IN : 0)}</BoattailRearDiameter>`);
-    finXml(w, finParents[0] ?? tubes[0]!);
+    const finParent = finParents[0] ?? tubes[0]!;
+    // Where the fin set's part starts from the nose tip: the stage's start plus
+    // the parts ahead of it in the stage.
+    const ahead = kids.slice(0, kids.indexOf(finParent)).filter((c) => isChainType(c.type));
+    // The booster is one body as long as all its tubes, and RASAero measures
+    // the fin's Location from that body's bottom, so the tubes after the one
+    // the fins are on lie between them, as desktop's `BoosterDTO` adds them
+    // (`finLocationOffset`).
+    const at = tubes.indexOf(finParent);
+    const behind = at < 0 ? 0 : tubes.slice(at + 1).reduce((s, t) => s + partLength(t), 0);
+    finXml(w, finParent, w.locM + ahead.reduce((s, c) => s + partLength(c), 0), behind);
     emit('</Booster>');
     w.locM += shoulderLen + bodyLen + btLen;
   }

@@ -2,6 +2,8 @@ import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18nGlobal from '../i18n';
 import { useWorkspaceStore, selectConfig, saveFailure, workspaceSnapshot } from './store';
+import { simPrefsOf } from './workspaceSelectors';
+import { markWritten, unchangedSinceWrite } from './writtenWorkspace';
 import { setKernelLengthUnit, type RocketTree } from '../engine/openRocketEngine';
 
 import { useEngineStore } from './engineStore';
@@ -10,6 +12,7 @@ import { onStorageDegraded } from '../services/storage/idbKeyValueStore';
 import { requestPersistentStorage } from '../services/storage/persistStorage';
 import { computeStaticInfo, buildKey } from '../services/design/buildRocket';
 import { designBlockerText } from '../services/flight/runnability';
+import { keyedText } from '../i18n/keyedError';
 import { useSettings } from './SettingsProvider';
 import { warmSimWorker } from '../engine/simClient';
 import { appName } from '../services/app/appInfo';
@@ -78,6 +81,9 @@ export function useWorkspaceEffects() {
         // exists to prevent.
         if (!live) return;
         if (w) useWorkspaceStore.getState().hydrate(w);
+        // Nothing stored: the default rocket is not worth storing until it is
+        // edited, as after New (see `writtenWorkspace`).
+        else markWritten(useWorkspaceStore.getState());
         hydrated.current = true;
         setReady(true);
       })
@@ -90,8 +96,13 @@ export function useWorkspaceEffects() {
       // The storage warning slot, not `setErr`: an action error is cleared by
       // the first edit, and this message stays true until a save succeeds,
       // which is when the warning banner retires.
+      // Detached first: the store can still hold the design that failed to
+      // open (the read succeeded and `hydrate` threw), and the first edit would
+      // autosave the default rocket over it. Detached, that edit creates a new
+      // design and the unreadable one stays in the library.
       .catch(() => {
         if (!live) return;
+        getWorkspaceStore().setActiveId?.(null);
         hydrated.current = true;
         setReady(true);
         useWorkspaceStore.getState().setStorageWarning(i18nGlobal.t('storage.loadFailed'), 'loadFailed');
@@ -107,8 +118,9 @@ export function useWorkspaceEffects() {
   const configs = useWorkspaceStore((s) => s.configs);
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
   const quietReplace = useWorkspaceStore((s) => s.quietReplace);
-  // Every configuration input the engine build reads: the seated motors with
-  // their ignition, and the grounded stages (see buildRocket.buildKey). A
+  // The configuration inputs that owe a rebuild: the seated motors and the
+  // grounded stages (see buildRocket.buildKey). Ignition is left out; only the
+  // worker's build reads it. A
   // string, because zustand v5 compares a selector's result by identity and
   // this is derived per call.
   //
@@ -121,6 +133,9 @@ export function useWorkspaceEffects() {
   // The kernel decides and words its airframe-step warnings in this unit
   // (setKernelLengthUnit), so a change of unit rebuilds the design.
   const lengthUnit = useSettings().settings.units.length;
+  // An abandoned or failed import can reset the engine under the open design
+  // (fileSlice `rebuildSeq`); its handle is void until this builds it again.
+  const rebuildSeq = useWorkspaceStore((s) => s.rebuildSeq);
 
   useEffect(() => {
     if (seenQuiet.current !== quietReplace) {
@@ -132,14 +147,16 @@ export function useWorkspaceEffects() {
     }
     if (!hydrated.current) return;
     const id = setTimeout(() => {
+      const fields = { tree, sims, configs, activeId, loadedMeta };
       getWorkspaceStore()
-        .save(workspaceSnapshot({ tree, sims, configs, activeId, loadedMeta }))
+        .save(workspaceSnapshot(fields))
         // There is now a design worth keeping, so ask the browser not to evict
         // this origin under disk pressure. Once per session, best-effort.
         // A successful save retires a "storage full" warning and nothing else:
         // the IndexedDB-degraded and load-failed messages are facts about this
         // session that a later write does not undo (see clearSaveWarning).
         .then(() => {
+          markWritten(fields);
           useWorkspaceStore.getState().clearSaveWarning();
           // The header's save status reads this. It is the only thing that
           // reports a save, since the File menu has no Save item, so it is
@@ -175,18 +192,23 @@ export function useWorkspaceEffects() {
   // journal the next load folds back in). `visibilitychange` gets the ordinary
   // async save too: on mobile, hidden is often the last event before the tab is
   // discarded outright, and there it still has time to complete.
+  //
+  // Neither writes a workspace storage already holds (`unchangedSinceWrite`).
   useEffect(() => {
     const snapshot = () => workspaceSnapshot(useWorkspaceStore.getState());
     const flush = () => {
-      if (!hydrated.current) return;
+      if (!hydrated.current || unchangedSinceWrite(useWorkspaceStore.getState())) return;
       const store = getWorkspaceStore();
       if (store.saveSync) store.saveSync(snapshot());
       else store.save(snapshot()).catch(() => {}); // unloading; nothing to surface
     };
     const onHidden = () => {
       if (!hydrated.current || document.visibilityState !== 'hidden') return;
+      const fields = useWorkspaceStore.getState();
+      if (unchangedSinceWrite(fields)) return;
       getWorkspaceStore()
-        .save(snapshot())
+        .save(workspaceSnapshot(fields))
+        .then(() => markWritten(fields))
         .catch(() => {});
       flush();
     };
@@ -242,9 +264,9 @@ export function useWorkspaceEffects() {
       const store = useWorkspaceStore.getState();
       // Tree and configuration read from the store rather than closed over, so the
       // effect need not depend on either object to use them: `components` and
-      // `buildInputs` are the narrow keys that say when a rebuild is owed. The handle
-      // still carries the current ignition overrides, because the configuration is
-      // read here at build time.
+      // `buildInputs` are the narrow keys that say when a rebuild is owed. Ignition is
+      // not in those keys, so an ignition edit alone does not rebuild and this
+      // handle keeps the ignition of its last build; the worker reads it per flight.
       const res = computeStaticInfo(store.tree, selectConfig(store));
       if ('error' in res) {
         store.applyBuild(null, null);
@@ -255,7 +277,9 @@ export function useWorkspaceEffects() {
         store.setBuildErr(
           res.bad?.length
             ? designBlockerText({ kind: 'badGeometry', bad: res.bad }, i18nGlobal.t.bind(i18nGlobal))
-            : res.error,
+            : typeof res.error === 'string'
+              ? res.error
+              : keyedText(res.error, i18nGlobal.t.bind(i18nGlobal)),
         );
       } else {
         store.applyBuild(res.info, res.rocket);
@@ -274,7 +298,7 @@ export function useWorkspaceEffects() {
     // lands, `info` and `rocket` describe the design as it was before the burst.
     const id = setTimeout(build, REBUILD_DEBOUNCE_MS);
     return () => clearTimeout(id);
-  }, [ready, enginePhase, components, buildInputs, lengthUnit]);
+  }, [ready, enginePhase, components, buildInputs, lengthUnit, rebuildSeq]);
 
   /**
    * Mirror the global run preferences into the store, which compares each result
@@ -283,8 +307,7 @@ export function useWorkspaceEffects() {
    * `simulation` object on every unrelated change in it, such as a unit switch.
    */
   const { settings } = useSettings();
-  const simPrefs = settings.simulation;
   useEffect(() => {
-    useWorkspaceStore.getState().setSimPrefs(simPrefs);
-  }, [simPrefs]);
+    useWorkspaceStore.getState().setSimPrefs(simPrefsOf(settings));
+  }, [settings]);
 }

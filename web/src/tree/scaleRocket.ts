@@ -5,6 +5,7 @@ import { chainOuterRadius, numOpt, positionOf } from './nodeProps';
 import { walkNodes } from './treeWalk';
 import { partLength } from './position';
 import { roundTo } from '../services/app/numbers';
+import { KERNEL_DEFAULTS } from './kernelDefaults';
 
 /**
  * Scale a whole rocket by one factor: the "upscale/downscale a plan" workflow.
@@ -21,14 +22,24 @@ import { roundTo } from '../services/app/numbers';
  * design).
  *
  * What doesn't scale: a part sized by something outside the rocket keeps its
- * size and only moves: a camera shroud (fairing), a rail button (preset
- * sizes). Angles, counts,
+ * size and only moves: a camera shroud (fairing). A rail button scales in
+ * every dimension but its screw height, as desktop's RailButtonScaler does. Angles, counts,
  * densities, drag coefficients, finish, motor choice, deployment/separation and
  * the pad conditions are all untouched.
  *
- * Mass: densities are left alone, so a solid part's mass follows its volume and
- * goes as k³, a canopy/streamer as k² (surface), a shock cord as k (line). A
- * design carrying recovery gear is therefore not exactly similar after scaling.
+ * Mass: densities are left alone, so a solid part's computed mass follows its
+ * volume and goes as k³, a canopy/streamer as k² (surface), a shock cord as k
+ * (line). A mass typed outright (a mass component's mass, any mass override)
+ * goes as k³ whatever the part, as desktop's MassComponentScaler and
+ * OverrideScaler do it. A design carrying recovery gear is therefore not
+ * exactly similar after scaling.
+ *
+ * Deliberately not desktop's ScaleDialog: a fin fillet's radius, a tube fin
+ * set's sizes and an inner tube's maximum motor length scale here, because each
+ * is a size of the part and a scaled rocket keeps them in proportion; desktop
+ * leaves them. A fin tab's offset keeps its own reference method, and an
+ * automatic aft radius follows its own automatic flag, where desktop converts
+ * the method and reads the fore radius's flag.
  */
 
 /**
@@ -52,7 +63,7 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
     'aftShoulderLength',
     'aftShoulderThickness',
   ],
-  bodytube: ['length', 'outerRadius', 'thickness'],
+  bodytube: ['length', 'outerRadius', 'thickness', 'motorOverhang'],
   trapezoidfinset: [
     'rootChord',
     'tipChord',
@@ -91,23 +102,30 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
     'filletRadius',
   ],
   tubefinset: ['length', 'outerRadius', 'thickness'],
-  innertube: ['length', 'outerRadius', 'thickness', 'radialPosition', 'maxMotorLength'],
-  tubecoupler: ['length', 'thickness', 'outerRadius', 'innerRadius'],
-  centeringring: ['length', 'outerRadius', 'innerRadius', 'instanceSeparation'],
-  bulkhead: ['length', 'outerRadius', 'instanceSeparation'],
-  engineblock: ['length', 'thickness', 'outerRadius'],
+  innertube: ['length', 'outerRadius', 'thickness', 'radialPosition', 'maxMotorLength', 'motorOverhang'],
+  // Every ring part is a desktop RingComponent, whose RadialPosition is an offset.
+  // Desktop has no InstanceSeparation scaler for a ring or a lug (only the rail
+  // button's), so their instance spacing keeps its value.
+  tubecoupler: ['length', 'thickness', 'outerRadius', 'innerRadius', 'radialPosition'],
+  centeringring: ['length', 'outerRadius', 'innerRadius', 'radialPosition'],
+  bulkhead: ['length', 'outerRadius', 'radialPosition'],
+  engineblock: ['length', 'thickness', 'outerRadius', 'radialPosition'],
   // Desktop's LaunchLug scalers: outer radius, wall and length together.
-  launchlug: ['length', 'outerRadius', 'thickness', 'instanceSeparation'],
-  // A rail button is a catalog part; the spacing between a pair is an airframe span.
-  railbutton: ['instanceSeparation'],
+  launchlug: ['length', 'outerRadius', 'thickness'],
+  // Desktop's RailButtonScaler: diameters and the three heights. The screw is
+  // not among them, so it keeps its length.
+  railbutton: ['outerDiameter', 'innerDiameter', 'height', 'baseHeight', 'flangeHeight', 'instanceSeparation'],
   // `length` is the packed length (orkImport reads <packedlength> into it) and
   // position.axialLength uses it for layout. Left unscaled, a 25 mm packed chute
   // would occupy 25 mm in a doubled airframe, and anything positioned `middle`
   // or `bottom` against it, plus the caliper snap targets built from
   // axialLength, would land at the wrong stations.
-  parachute: ['length', 'diameter', 'spillHoleDiameter', 'lineLength'],
-  streamer: ['length', 'stripLength', 'stripWidth'],
-  shockcord: ['length', 'cordLength'],
+  // `radius` is the packed radius and `radialPosition` the offset off the axis,
+  // desktop's MassObject Radius and RadialPosition scalers. A parachute's
+  // scalers are Diameter and LineLength only, so its spill hole keeps its size.
+  parachute: ['length', 'radius', 'radialPosition', 'diameter', 'lineLength'],
+  streamer: ['length', 'radius', 'radialPosition', 'stripLength', 'stripWidth'],
+  shockcord: ['length', 'radius', 'radialPosition', 'cordLength'],
   masscomponent: ['length', 'radius', 'radialPosition'],
   fairing: [],
   podset: ['radiusOffset'],
@@ -116,7 +134,20 @@ const LENGTH_KEYS: Record<ComponentType, readonly string[]> = {
 };
 
 /** Types whose own geometry is fixed hardware: they move, they do not grow. */
-const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing', 'railbutton']);
+const FIXED_SIZE: ReadonlySet<ComponentType> = new Set<ComponentType>(['fairing']);
+
+/**
+ * A size the kernel works out for itself when its flag is set, which desktop's
+ * scaler skips (`isRadiusAutomatic` on a mass object): the next resolve sets it.
+ */
+const AUTO_FLAG: Readonly<Record<string, string>> = { radius: 'radiusAuto' };
+
+/**
+ * A wall desktop leaves alone on a solid part: its SymmetricComponent Thickness
+ * scaler is skipped while `isFilled`, so the stored wall is the same when the
+ * part is made hollow again.
+ */
+const FILLED_WALL: ReadonlySet<ComponentType> = new Set<ComponentType>(['nosecone', 'transition', 'bodytube']);
 
 /**
  * The keys that place a part rather than size it: how far off the axis it sits,
@@ -151,48 +182,10 @@ export interface ScaleOptions {
   masses?: boolean;
 }
 
-/**
- * The exponent a pinned mass scales by, per type, matching how the same part's
- * computed mass scales (densities are untouched): a solid is a volume (k³), a
- * canopy/streamer a surface (k²), a cord a line (k).
- *
- * Every type is listed, rather than only the exceptions over an open
- * `Record<string, number>` with `?? 3` at the read: that leaves the k³ cases
- * implicit and drops a newly added type into them unreviewed.
- */
-const MASS_EXPONENT: Record<ComponentType, number> = {
-  // A stage or assembly has no mass of its own, but an `overrideMass` pinned on
-  // one covers its whole subtree, which is a volume.
-  stage: 3,
-  podset: 3,
-  parallelstage: 3,
-  // Solid bodies: every dimension scales, so a volume.
-  nosecone: 3,
-  transition: 3,
-  bodytube: 3,
-  // Fins: a planform area (k²) times a thickness (k).
-  trapezoidfinset: 3,
-  ellipticalfinset: 3,
-  freeformfinset: 3,
-  // A tube: length, radius and wall all scale.
-  tubefinset: 3,
-  innertube: 3,
-  tubecoupler: 3,
-  centeringring: 3,
-  bulkhead: 3,
-  engineblock: 3,
-  // A mass component's length and radius scale (LENGTH_KEYS.masscomponent), so
-  // its pinned mass follows the volume it now occupies.
-  masscomponent: 3,
-  parachute: 2,
-  streamer: 2,
-  shockcord: 1,
-  // A lug's length, outer radius and wall all scale, so a volume.
-  launchlug: 3,
-  // Fixed-size hardware (FIXED_SIZE): the same physical part after scaling,
-  // so its mass is never touched. k^0 = 1 says so even if the guard is lost.
-  railbutton: 0,
-  fairing: 0,
+/** The kernel's value for a key a node of `type` leaves out, where it has one. */
+const kernelDefault = (type: string, key: string): number | undefined => {
+  const row = (KERNEL_DEFAULTS as Record<string, Record<string, number> | undefined>)[type];
+  return typeof row?.[key] === 'number' ? row[key] : undefined;
 };
 
 /** Twelve places: past any real dimension, short of float noise. */
@@ -222,7 +215,13 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
   // know: the table is complete for the union, not for arbitrary input.
   for (const key of LENGTH_KEYS[type] ?? []) {
     if (!offsets && OFFSET_KEYS.has(key)) continue;
-    const v = numOpt(n, key);
+    const flag = AUTO_FLAG[key];
+    if (flag !== undefined && n[flag] === true) continue;
+    if (key === 'thickness' && n['filled'] === true && FILLED_WALL.has(type)) continue;
+    // A key the node leaves to the kernel flies the kernel's default, and that
+    // is the value desktop's scalers scale: a new rail button's spacing, a new
+    // chute's packed radius and length.
+    const v = numOpt(n, key) ?? kernelDefault(type, key);
     if (v !== undefined) out[key] = round(v * k);
   }
 
@@ -243,16 +242,17 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
     );
   }
 
-  // Pinned masses go as k^exp, but only where the geometry moved (a fixed-size
-  // part is the same physical part after scaling and weighs the same).
+  // Pinned masses go as k³, but only where the geometry moved (a fixed-size
+  // part is the same physical part after scaling and weighs the same). Desktop
+  // cubes a mass component's mass and every override mass, a parachute's or a
+  // shock cord's included, rather than following how the part's computed mass
+  // grows.
   if (!fixed) {
-    // Same reasoning as the `?? []` on LENGTH_KEYS above: complete for the union, and
-    // a solid is the safe reading of a type it has never seen.
-    const exp = MASS_EXPONENT[type] ?? 3;
-    const mass = numOpt(n, 'mass');
-    if (masses && mass !== undefined) out['mass'] = round(mass * k ** exp, 15);
+    // Only a mass component's own mass is a typed mass desktop scales.
+    const mass = type === 'masscomponent' ? numOpt(n, 'mass') : undefined;
+    if (masses && mass !== undefined) out['mass'] = round(mass * k ** 3, 15);
     const override = numOpt(n, 'overrideMass');
-    if (masses && offsets && override !== undefined) out['overrideMass'] = round(override * k ** exp, 15);
+    if (masses && offsets && override !== undefined) out['overrideMass'] = round(override * k ** 3, 15);
     // An override CG is a station from the component's own front: a length.
     const cg = numOpt(n, 'overrideCGX');
     if (offsets && cg !== undefined) out['overrideCGX'] = round(cg * k);
@@ -262,6 +262,10 @@ export function scaleNode(n: ComponentNode, k: number, options: ScaleOptions = {
   // (parentLength, childLength, offset), so scaling the offset alongside the
   // lengths keeps every part at the same relative station, fixed-size parts
   // included (they move to their new station, same as desktop's rule).
+  // Desktop's AxialOffset scaler multiplies the stored offset whatever the
+  // method, so an absolute offset, measured from the nose tip, scales from the
+  // nose tip too: in a whole-rocket scale that is the same relative station,
+  // and in a part scale it is k times the old station from the tip.
   // `positionOf` validates the method and the offset the way position.ts
   // reads them, so a string offset scales to the kernel's 0 rather than being
   // carried through untouched to disagree with the layout.

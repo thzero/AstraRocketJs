@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 
 export interface CheckMenuItem {
   key: string;
@@ -10,6 +10,10 @@ export interface CheckMenuItem {
  * A dropdown of checkboxes on a native `<details>`: the summary is the button,
  * and the panel lists one labeled checkbox per item. `children` render above
  * the items, for an action such as "select all".
+ *
+ * While open, a pointer press outside it closes it, and Escape closes it and
+ * returns focus to the summary. Escape is taken in the capture phase and marked
+ * handled (`defaultPrevented`), so the dialog the menu sits in stays open.
  */
 export function CheckMenu({
   summary,
@@ -30,9 +34,40 @@ export function CheckMenu({
   className?: string;
   children?: ReactNode;
 }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDetailsElement>(null);
+  const summaryRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const onDown = (e: PointerEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      setOpen(false);
+      summaryRef.current?.focus();
+    };
+    window.addEventListener('pointerdown', onDown);
+    window.addEventListener('keydown', onKey, true);
+    return () => {
+      window.removeEventListener('pointerdown', onDown);
+      window.removeEventListener('keydown', onKey, true);
+    };
+  }, [open]);
+
   return (
-    <details className={className ? `relative ${className}` : 'relative'}>
-      <summary className="cursor-pointer list-none rounded-lg bg-canvas px-3 py-1.5 text-sm text-ink-strong ring-1 ring-line/10">
+    <details
+      ref={ref}
+      open={open}
+      onToggle={(e) => setOpen(e.currentTarget.open)}
+      className={className ? `relative ${className}` : 'relative'}
+    >
+      <summary
+        ref={summaryRef}
+        className="cursor-pointer list-none rounded-lg bg-canvas px-3 py-1.5 text-sm text-ink-strong ring-1 ring-line/10"
+      >
         {summary}
       </summary>
       <div

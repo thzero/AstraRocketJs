@@ -4,18 +4,21 @@ import { useWorkspaceStore, selectConfig, selectDesignName } from '../../state/s
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
+import { degToRad, radToDeg } from '../../prefs/units';
+import { onSi } from '../../prefs/entryValue';
 import { aeroTableCsv, CSV_MIME } from '../../services/exports/csvExport';
 import { exportFilename } from '../../services/files/saveFile';
 import { download } from '../../services/files/saveFile';
 import type { ComponentMass } from '../../engine/openRocketEngine';
 import type { ChartSeries, CpMode } from './aeroTables';
-import { altitudeField, cpDivisor, cpModesFor } from './aeroTables';
+import { altitudeField, cpDivisor, cpModesFor, nearestSampleIndex } from './aeroTables';
 import { useAeroSweep } from './useAeroSweep';
 import { ChartCard } from './AeroCharts';
 import { ComponentTable, RollTable, StabilityTable } from './AeroComponentTables';
 import { Num, WorstButton } from './AeroInputs';
 import { Segmented } from '../common/Segmented';
 import { CATEGORICAL } from '../common/chartPalette';
+import type { AeroPane } from '../../state/tabs';
 
 /**
  * Aerodynamic analysis (RASAero-style "Aero Plots"). Two panes
@@ -33,7 +36,7 @@ import { CATEGORICAL } from '../common/chartPalette';
  * This file is the pane: the header controls, the shared Mach state and the
  * series the charts draw. The sweep itself is `useAeroSweep`, the chart cards
  * are `AeroCharts`, the tables are `AeroComponentTables`, and the number
- * boxes and segmented toggles are `AeroInputs`.
+ * boxes and the Worst button are `AeroInputs`.
  *
  * Colors use the dataviz skill's validated dark categorical order; every chart
  * ≥ 2 series carries a legend (identity is never color-alone).
@@ -73,7 +76,7 @@ export function AeroAnalysis() {
   // being chosen for the user.
   const [cpModeSel, setCpMode] = useState<CpMode>('len');
   const [hoverM, setHoverM] = useState<number | null>(null);
-  const [pane, setPane] = useState<'charts' | 'components'>('charts');
+  const [pane, setPane] = useState<AeroPane>('charts');
   // The Mach the tables report at. Hovering a chart parks it there too, so
   // switching to the tables lands on the point you were just looking at rather
   // than resetting -- the crosshair and the slider drive the same value.
@@ -89,13 +92,6 @@ export function AeroAnalysis() {
   // while the next one runs, and `pending` says so in the header.
   const { sweep, pending } = useAeroSweep(rocket, { machMax, aoaDeg, thetaDeg, rollRate, altitudeM });
 
-  // The picked Mach, clamped to the sweep at read time. Shrinking the sweep has
-  // to bring the picked Mach back with it, or the strip header prints the raw
-  // pick while the tables snap to the nearest sample that exists: set Max Mach
-  // to 5, scrub to 3.0, switch back to M1, and the header reads "at Mach 3.00"
-  // above three tables reading Mach 1.00. Derived rather than clamped in an
-  // effect, which costs a render at the wrong value before the correction.
-  const pick = Math.min(machPick, machMax);
   // The slider sticks at the last hovered Mach once the pointer leaves. The
   // commit happens in the setter, on the transition to null, not in an effect
   // watching `hoverM`, which would run after every hover render and need a
@@ -109,8 +105,6 @@ export function AeroAnalysis() {
     lastHover.current = next;
     setHoverM(next);
   }, []);
-  // The crosshair wins while it exists; the slider is the resting value.
-  const tableMach = hoverM ?? pick;
 
   // Mass does not vary with Mach, so this is keyed on the rocket alone rather
   // than recomputed with every sweep.
@@ -179,7 +173,18 @@ export function AeroAnalysis() {
 
   const machs = sweep.machs;
   const machMin = machs[0] ?? 0.05;
+  // The picked Mach, resolved at read time to the computed sample nearest it.
+  // The tables quote that sample, so the strip header has to as well: the
+  // 0.3 default sits between the 0.29 and 0.31 samples, and a shrunk sweep
+  // (Max Mach 5 back to M1 with the pick at 3.0) leaves the raw pick past
+  // the last sample. Derived rather than corrected in an effect, which costs
+  // a render at the wrong value first.
+  const pick = machs[nearestSampleIndex(machs, Math.min(machPick, machMax))] ?? machPick;
+  // The crosshair wins while it exists; the slider is the resting value.
+  const tableMach = hoverM ?? pick;
   const altField = altitudeField(u.factor('distance'));
+  const angle = u.plain('angle');
+  const roll = u.plain('rollRate');
 
   return (
     <div className="flex h-full flex-col rounded-xl bg-surface ring-1 ring-line/10" aria-busy={pending}>
@@ -216,16 +221,26 @@ export function AeroAnalysis() {
       {/* The conditions the sweep is flown at. Changing one re-runs it, the
           same way Max Mach does. */}
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 px-3 pb-2">
-        <Num label={t('aero.aoa')} value={aoaDeg} onChange={setAoaDeg} min={0} max={20} step={0.5} unit="°" />
+        {/* State stays in degrees and rad/s, what the sweep takes; the boxes
+            read in the user's angle and roll rate units. */}
+        <Num
+          label={t('aero.aoa')}
+          value={angle.toUi(degToRad(aoaDeg))}
+          onChange={onSi(angle, (si) => si !== null && setAoaDeg(radToDeg(si)))}
+          min={0}
+          max={angle.toUi(degToRad(20))}
+          step={angle.step(degToRad(0.5))}
+          unit={angle.sym}
+        />
         <div className="flex items-center gap-1.5">
           <Num
             label={t('aero.windDirection')}
-            value={thetaDeg}
-            onChange={setThetaDeg}
+            value={angle.toUi(degToRad(thetaDeg))}
+            onChange={onSi(angle, (si) => si !== null && setThetaDeg(radToDeg(si)))}
             min={0}
-            max={360}
-            step={5}
-            unit="°"
+            max={angle.toUi(2 * Math.PI)}
+            step={angle.step(degToRad(5))}
+            unit={angle.sym}
           />
           <WorstButton
             worst={rocket ? () => Math.round(rocket.worstThetaDeg(pick, aoaDeg) * 10) / 10 : null}
@@ -234,12 +249,12 @@ export function AeroAnalysis() {
         </div>
         <Num
           label={t('aero.rollRate')}
-          value={rollRate}
-          onChange={setRollRate}
+          value={roll.toUi(rollRate)}
+          onChange={onSi(roll, (si) => si !== null && setRollRate(si))}
           min={0}
-          max={50}
-          step={1}
-          unit="rad/s"
+          max={roll.toUi(50)}
+          step={roll.step(1)}
+          unit={roll.sym}
         />
         {/* Shown in the altitude unit; the sweep takes meters. Up to 30 km,
             where the standard atmosphere still has air worth sweeping. */}

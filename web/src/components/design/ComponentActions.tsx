@@ -21,7 +21,7 @@ import { partLabel } from '../../i18n/format';
  * field: Convert to freeform, Split fins, Split pods, Split boosters, Split
  * cluster and the cluster's Reset settings.
  *
- * One row at the foot of the panel rather than scattered through the sections
+ * One row above Overrides rather than scattered through the sections
  * the desktop puts them in, because every one of them replaces the part being
  * edited - so they belong together and away from the rows that describe it.
  *

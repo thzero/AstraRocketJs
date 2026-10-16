@@ -1,9 +1,8 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtGroundDistance, useUnits } from '../../prefs/useUnits';
+import { fmtDegrees, fmtGroundDistance, useUnits } from '../../prefs/useUnits';
 import { configOf, selectOutdated, useWorkspaceStore } from '../../state/store';
-import { useSettings } from '../../state/SettingsProvider';
-import type { ResultFlight } from '../../services/flight/simulations';
+import { effectivePrefs, type ResultFlight } from '../../services/flight/simulations';
 import {
   type GroundPoint,
   bearingFromPad,
@@ -15,6 +14,7 @@ import {
 import { driftEllipse } from '../../services/flight/driftEllipse';
 import { isComplete } from '../../services/flight/requiredLaunch';
 import { flyForecastHours, refusalKeys, type HourLanding } from '../../services/flight/forecastHours';
+import { configPowerClass } from '../../services/flight/powerClass';
 import { offsetToLatLon } from '../../services/map/geodesy';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import { LandingMap } from '../tools/LandingMap';
@@ -22,6 +22,7 @@ import { formatCoord } from '../../services/map/slippyMap';
 import { unitScope } from '../../prefs/units';
 import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { fmtSiteTime } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { type FlightSeries } from '../../engine/openRocketEngine';
 import { useLatest } from '../common/useLatest';
 import { TermRow } from '../common/TermRow';
@@ -48,11 +49,12 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   const { t } = useTranslation();
   const online = useOnline();
   const u = useUnits();
-  // The flight's distance unit, as Ground Track reads this same landing.
-  const dist = u.at(unitScope('sim', 'apogee'), 'distance');
-  const { settings } = useSettings();
+  // The Downrange tile's unit scope, as Ground Track reads this same landing.
+  const dist = u.at(unitScope('sim', 'downrange'), 'distance');
+  const simPrefs = useWorkspaceStore((s) => s.simPrefs);
   const tree = useWorkspaceStore((s) => s.tree);
   const configs = useWorkspaceStore((s) => s.configs);
+  const dryMass = useWorkspaceStore((s) => s.info?.massEmpty);
   const sim = useWorkspaceStore((s) => s.sims.find((x) => x.id === flight.id));
   // The hours are flown with the design and the row's conditions as they are
   // now. Against an outdated result that is a different rocket or site than
@@ -77,9 +79,9 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
   if (!landing || lat == null || lon == null) return null;
 
   const fmtM = (m: number) => fmtGroundDistance(dist, m);
-  const bearing = (p: GroundPoint) => `${Math.round(bearingFromPad(p))}°`;
+  const bearing = (p: GroundPoint) => fmtDegrees(u, bearingFromPad(p));
   // The kernel's own landing coordinate when the result carries it; a result
-  // without one (an older saved result) falls back to projecting the offset.
+  // without one falls back to projecting the offset.
   const where = (series: FlightSeries | undefined, p: GroundPoint) => {
     const ll = landingLatLon(series) ?? offsetToLatLon(lat, lon, p);
     return formatCoord(ll.lat, ll.lon, 5);
@@ -91,13 +93,17 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
     const forResult = flight.result;
     setRun({ kind: 'running', done: 0, total: 0 }, forResult);
     try {
+      const config = configOf(configs, sim);
       const hours = await flyForecastHours(
         {
           tree,
-          config: configOf(configs, sim),
+          config,
+          powerClass: configPowerClass(tree, config, dryMass),
           launch: sim.launch,
           source,
-          prefs: { ...settings.simulation, ...sim.prefs },
+          // What a run reads, the length unit included, and what `outdated`
+          // above compares the result against.
+          prefs: effectivePrefs(simPrefs, sim.prefs),
           apiKey: readWeatherKey(),
           onProgress: (done, total) => {
             if (!signal.aborted) setRun({ kind: 'running', done, total }, forResult);
@@ -189,15 +195,26 @@ export function EnvironmentLanding({ flight }: { flight: ResultFlight }) {
                     const refused = refusalKeys(h).map((k) => t(k));
                     return (
                       <tr key={h.offset} className={h.offset === 0 ? 'text-accent-300' : ''}>
-                        <td>{hourLabel(h.validMs)}</td>
+                        <td>
+                          {hourLabel(h.validMs)}
+                          {/* The flown hour is marked in words as well as in color. */}
+                          {h.offset === 0 && <span className="ml-1 text-ink-muted">{t('env.landing.flownHour')}</span>}
+                        </td>
                         {refused.length ? (
+                          // One line per code broken: each reason is a whole
+                          // phrase of its own, so no locale's list separator
+                          // is spliced between them.
                           <td colSpan={2} className="text-ink-muted">
-                            {refused.join('; ')}
+                            {refused.map((r) => (
+                              <span key={r} className="block">
+                                {r}
+                              </span>
+                            ))}
                           </td>
                         ) : (
                           <>
-                            <td>{p ? fmtM(distanceFromPad(p)) : '—'}</td>
-                            <td>{p ? bearing(p) : '—'}</td>
+                            <td>{p ? fmtM(distanceFromPad(p)) : NO_VALUE}</td>
+                            <td>{p ? bearing(p) : NO_VALUE}</td>
                           </>
                         )}
                       </tr>

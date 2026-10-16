@@ -16,7 +16,7 @@
  * in control, and that worker still has to be replaced.
  */
 
-/** How long a worker has to answer. A build from before the question existed never does. */
+/** How long a worker has to answer. A worker that does not know the question never does. */
 const ASK_TIMEOUT_MS = 3_000;
 
 /** Ask a worker for its build id; null when it does not answer, or answers with something else. */
@@ -36,7 +36,7 @@ export function askBuild(sw: ServiceWorker, timeoutMs: number = ASK_TIMEOUT_MS):
 /**
  * Whether a waiting worker of build `waiting` replaces an active one of build
  * `active`. A waiting build that does not answer is never newer. An active one
- * that does not answer is a build from before the question existed, so any
+ * that does not answer does not know the question, so any
  * waiting build that answers is newer than it.
  */
 export function isNewerBuild(waiting: number | null, active: number | null): boolean {
@@ -48,8 +48,8 @@ export function isNewerBuild(waiting: number | null, active: number | null): boo
  * Whether the registration has a waiting worker that is a newer build than its active one.
  *
  * An active worker that misses the first question is asked once more before it
- * is taken for a build from before the question existed. A current worker slow
- * to wake would otherwise count as pre-feature, and with a stale previous build
+ * is taken for one that does not know the question. A current worker slow to
+ * wake would otherwise count as not knowing it, and with a stale previous build
  * in the waiting slot (the CDN case above) the page would take the older one up.
  */
 export async function waitingIsNewer(reg: ServiceWorkerRegistration | null | undefined): Promise<boolean> {

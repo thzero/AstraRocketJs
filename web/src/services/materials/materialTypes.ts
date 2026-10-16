@@ -13,7 +13,7 @@
 
 /** Every material type, in one list: the type, the catalog check and the saved
  *  default-material keys all read it. */
-export const MATERIAL_TYPES = ['bulk', 'surface', 'line'] as const;
+const MATERIAL_TYPES = ['bulk', 'surface', 'line'] as const;
 
 export type MaterialType = (typeof MATERIAL_TYPES)[number];
 
@@ -47,7 +47,7 @@ export interface Material {
  * OpenRocket's own `Databases.java` and leave ours alone. The app itself does
  * not read it: a material is a name and a density whoever wrote it down.
  */
-export type MaterialKind = 'upstream' | 'adhesive' | 'corrected';
+type MaterialKind = 'upstream' | 'adhesive' | 'corrected';
 
 /** A row of the runtime catalog, as sync-materials.mjs writes it. */
 export interface MaterialRow {
@@ -75,12 +75,11 @@ const isRow = (v: unknown): v is MaterialRow => {
 /**
  * Shape guard for the fetched catalog.
  *
- * `fetchCatalog` needs this for the same reason the motor catalog does: a data
- * host that is up but wrong can serve `{"error":"rebuilding"}` with HTTP 200,
- * which parses fine and would reach the picker as a material list. A failed
- * check makes that host's answer a failure of that host, so the in-build copy
- * is still tried. The density test matters most here, since a row that got
- * through would be stamped onto a part and flown.
+ * Materials are read from the build's own copy only (`BUILD_ONLY` in
+ * `remoteData.ts`), so this guards against a truncated or malformed file in the
+ * build: anything that parses as JSON but is not a list of material rows fails
+ * the load instead of reaching the picker. The density test matters most here,
+ * since a row that got through would be stamped onto a part and flown.
  */
 export function isMaterialCatalog(v: unknown): v is MaterialRow[] {
   return Array.isArray(v) && v.length > 0 && v.every(isRow);

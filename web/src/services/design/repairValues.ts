@@ -18,7 +18,7 @@ export interface RepairedValue {
 /**
  * Node keys holding a quantity with a physical ceiling, by that quantity.
  *
- * Only bulk density today, because `SI_LIMITS` is deliberately short. A surface
+ * Only bulk density, because `SI_LIMITS` is deliberately short. A surface
  * or line density is a different quantity with no real ceiling, so neither is
  * here; adding one is a row in this table and a row in that one.
  */
@@ -34,11 +34,11 @@ export function repairedText(r: RepairedValue, t: (key: string, opts?: Record<st
  * enforces, and say which ones moved.
  *
  * The number boxes clamp as you type (`prefs/entryValue`), but a value arriving
- * from outside does not pass through them. A `.ork`, a share link, or a session
- * autosaved before a limit existed can carry a bulk density of 1e9 kg/m³, and
+ * from outside does not pass through them. A `.ork`, a share link, or an
+ * autosaved session can carry a bulk density of 1e9 kg/m³, and
  * without this the app would fly it: a 200 mm tube of that weighs about 180
- * tonnes, every mass, CG and stability figure on screen is nonsense, and nothing
- * says why.
+ * metric tons, every mass, CG and stability figure on screen is nonsense, and
+ * nothing says why.
  *
  * Only quantities with a physical ceiling are touched. A per-field limit is a
  * different thing (it belongs to the field, not to a design arriving from

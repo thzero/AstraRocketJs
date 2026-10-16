@@ -1,4 +1,5 @@
 import { test, expect, type Page } from './base';
+import { THEMES } from './axe';
 
 /**
  * 2D schematic interaction coverage in a real browser: the select / hover /
@@ -92,4 +93,46 @@ test.describe('2D schematic interaction', () => {
     // The caliper distance is the accent-colored "<n> <unit>" label, cm by default.
     await expect(svg.locator('text[fill="var(--accent)"]', { hasText: /cm/ }).first()).toBeVisible();
   });
+
+  /**
+   * The caliper readouts are SVG text, which axe does not judge, and the
+   * calipers are off in every state the axe scans see. So their contrast is
+   * measured here: the accent text against the box drawn under it, in every
+   * theme.
+   */
+  for (const theme of THEMES) {
+    test(`the caliper readouts hold 4.5:1 in the ${theme} theme`, async ({ page }) => {
+      await ready(page);
+      await page.evaluate((t) => document.documentElement.setAttribute('data-theme', t), theme);
+      await page.getByTitle(/Length calipers/i).click();
+      await page.getByTitle(/Diameter calipers/i).click();
+      const tags = schematic(page).locator('text[fill="var(--accent)"]');
+      await expect(tags).toHaveCount(2);
+
+      const ratios = await tags.evaluateAll((texts) => {
+        // Through a canvas, so any color the browser resolves (oklch included)
+        // comes back as sRGB.
+        const ctx = document.createElement('canvas').getContext('2d')!;
+        const rgb = (css: string) => {
+          ctx.clearRect(0, 0, 1, 1);
+          ctx.fillStyle = css;
+          ctx.fillRect(0, 0, 1, 1);
+          return [...ctx.getImageData(0, 0, 1, 1).data.slice(0, 3)];
+        };
+        const lum = (c: number[]) => {
+          const [r, g, b] = c.map((v) => {
+            const s = v / 255;
+            return s <= 0.03928 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+          });
+          return 0.2126 * r! + 0.7152 * g! + 0.0722 * b!;
+        };
+        return texts.map((text) => {
+          const fg = lum(rgb(getComputedStyle(text).fill));
+          const bg = lum(rgb(getComputedStyle(text.previousElementSibling!).fill));
+          return (Math.max(fg, bg) + 0.05) / (Math.min(fg, bg) + 0.05);
+        });
+      });
+      for (const ratio of ratios) expect(ratio).toBeGreaterThanOrEqual(4.5);
+    });
+  }
 });

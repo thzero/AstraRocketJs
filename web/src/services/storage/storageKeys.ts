@@ -4,7 +4,8 @@
  * database name are built from this and nowhere else.
  *
  * Nothing is migrated from the misspelled `astrarrocketjs` prefix (doubled `r`):
- * anything still stored under it is not read.
+ * anything still stored under it is not read, except the engine override
+ * (`LEGACY_ENGINE_PREF_KEYS` in `engine/openRocketEngine.ts`).
  *
  * `storageKeys.test.ts` holds the one-home property: no file but this one spells
  * a key, which is this prefix followed by a colon. The bare project name is free

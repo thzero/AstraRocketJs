@@ -8,7 +8,7 @@
  * overwriting the JSON on the host, no rebuild/redeploy of the app.
  *
  * Every dataset the app ships goes through here, whatever its size, not only the
- * 1.6 MB motor file: a table of materials under `src/` reads as source rather
+ * 1.4 MB motor file: a table of materials under `src/` reads as source rather
  * than as a copy of the database it comes from, and drifts from it.
  *
  * `VITE_DATA_BASE` takes that a step further. Point it at a separately deployed
@@ -16,11 +16,15 @@
  * .github/workflows/sync-catalogs.yml) and refreshing a catalog needs no app
  * build and no Pages deploy at all, just a push to that branch. Left unset it
  * resolves to the in-build copy, which is what dev, preview and an unconfigured
- * build use.
+ * build use. It serves the motors and components only: that branch is
+ * refreshed by the catalog sync, which does not regenerate the materials or the
+ * contributors, so those two are always read from the build.
  *
- * The in-build copy is always kept as a fallback and tried second, so an
- * unreachable or not-yet-created data host degrades to a catalog frozen at the
- * last app deploy rather than an empty picker.
+ * With a data host configured, the motors and components come from it and
+ * nowhere else: such a build does not carry its own copy of them (vite.config.ts
+ * leaves them out), so a catalog is never older than the published one. Offline,
+ * the service worker answers from its cached copy of the download
+ * (`astra-catalogs`), which warmCatalogs.ts fills on the first online visit.
  *
  * `manifest.json` (written by the sync scripts) carries a content hash per file;
  * we read it first (revalidated, tiny) and append it as `?v=<hash>` so a browser
@@ -31,7 +35,7 @@
  */
 
 import { declaredLength, readStreamWithProgress, type TransferProgress } from './fetchProgress';
-import { errorMessage } from './errorMessage';
+import { errorReason, KeyedError } from '../../i18n/keyedError';
 
 /** The copy that ships inside the build, under the deploy subpath. */
 const LOCAL_BASE = `${import.meta.env.BASE_URL}data/`;
@@ -42,14 +46,13 @@ const LOCAL_BASE = `${import.meta.env.BASE_URL}data/`;
 const configured = import.meta.env.VITE_DATA_BASE?.trim();
 const REMOTE_BASE = configured ? configured.replace(/\/*$/, '/') : undefined;
 
-/** Bases to try, in order. Collapses to a single entry when no separate host is
- *  configured (or it resolves to the local one), so we never fetch twice. */
-const BASES = REMOTE_BASE && REMOTE_BASE !== LOCAL_BASE ? [REMOTE_BASE, LOCAL_BASE] : [LOCAL_BASE];
+/** Whether this build reads its motors and components from a data host. */
+export const hasDataHost = (): boolean => REMOTE_BASE !== undefined && REMOTE_BASE !== LOCAL_BASE;
 
 /**
  * Budgets are split into "is the host alive?" and "is the transfer moving?",
  * because one combined timeout cannot serve both. motors.generated.json is
- * ~1.6 MB (roughly 3 s on typical 4G but ~18 s on 3G and ~34 s throttled), so
+ * ~1.4 MB (roughly 3 s on typical 4G but ~15 s on 3G and ~30 s throttled), so
  * any single budget generous enough to let a slow link finish is also a long
  * wait before a dead host gives up, and any budget short enough to fail fast
  * also severs downloads that were progressing perfectly well.
@@ -60,19 +63,10 @@ const BASES = REMOTE_BASE && REMOTE_BASE !== LOCAL_BASE ? [REMOTE_BASE, LOCAL_BA
  * responds and then stalls forever from hanging the picker.
  */
 const TTFB_TIMEOUT_MS = 8_000;
-/** Shorter first-byte budget for a base that still has a fallback behind it: a
- *  host that refuses fails in milliseconds, but one that hangs would otherwise
- *  burn the budget on the manifest and again on the catalog before we drop to
- *  the copy already sitting in the build. Only reachable when a separate data
- *  host is configured. */
-const PROBE_TTFB_MS = 4_000;
 /** Ceiling on the body once it has started arriving, comfortably past the
  *  ~34 s a throttled link needs for the largest catalog. */
 const BODY_TIMEOUT_MS = 60_000;
 const MAX_CATALOG_BYTES = 32 * 1024 * 1024; // 32 MiB; the biggest bundled catalog is ~2 MiB
-
-/** First-byte budget for `base`: shorter while a fallback is still available. */
-const ttfbFor = (base: string) => (base === BASES[BASES.length - 1] ? TTFB_TIMEOUT_MS : PROBE_TTFB_MS);
 
 /** Bytes transferred so far, and the total when the host declared one. */
 export type CatalogProgress = TransferProgress;
@@ -101,11 +95,24 @@ export function progressPercent(p: CatalogProgress | null | undefined): number |
 
 /** A non-2xx reply, with its status, so a caller can tell "not there" (404,
  *  a fact about the host) from a transient failure worth retrying. */
-class HttpError extends Error {
+export class HttpError extends KeyedError {
   constructor(readonly status: number) {
-    super(`HTTP ${status}`);
+    super('errors.remote.http', { status });
     this.name = 'HttpError';
   }
+}
+
+/**
+ * A failed `fetch` as a keyed reason. The browser's own text for a timeout
+ * ("signal is aborted without reason") or a refused connection ("Failed to
+ * fetch") is English whatever language the app shows, and it would land inside
+ * a translated sentence.
+ */
+export function fetchFailure(e: unknown, timedOut: boolean): KeyedError {
+  if (e instanceof KeyedError) return e;
+  if (timedOut) return new KeyedError('errors.remote.timeout');
+  if (e instanceof SyntaxError) return new KeyedError('errors.remote.badShape');
+  return new KeyedError('errors.remote.network');
 }
 
 /** fetch + JSON with staged abort timeouts and a size cap, so a hung or
@@ -117,24 +124,29 @@ async function fetchJson<T>(
   onProgress?: (p: CatalogProgress) => void,
 ): Promise<T> {
   const ctrl = new AbortController();
-  let timer = setTimeout(() => ctrl.abort(), ttfbMs);
+  let timedOut = false;
+  const expire = () => {
+    timedOut = true;
+    ctrl.abort();
+  };
+  let timer = setTimeout(expire, ttfbMs);
   try {
     const res = await fetch(url, { ...opts, signal: ctrl.signal });
     // Headers are in, so the host is alive: swap the first-byte budget for the
     // body one. Without this the first-byte budget would also have to cover the
     // whole download, and a slow link would be cut off mid-transfer.
     clearTimeout(timer);
-    timer = setTimeout(() => ctrl.abort(), BODY_TIMEOUT_MS);
+    timer = setTimeout(expire, BODY_TIMEOUT_MS);
     if (!res.ok) throw new HttpError(res.status);
     const len = Number(res.headers.get('content-length'));
-    if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new Error('response too large');
+    if (Number.isFinite(len) && len > MAX_CATALOG_BYTES) throw new KeyedError('errors.remote.tooLarge');
     return await readJson<T>(res, onProgress);
   } catch (e) {
     // Any refusal aborts the body: a 5xx error page, a CDN's HTML or a reply
-    // over the size cap would otherwise keep downloading while the fallback
-    // base is tried.
+    // over the size cap would otherwise keep downloading after the failure is
+    // reported.
     ctrl.abort();
-    throw e;
+    throw fetchFailure(e, timedOut);
   } finally {
     clearTimeout(timer);
   }
@@ -164,8 +176,22 @@ function reportProgress(name: string, p: CatalogProgress): void {
   for (const cb of progressListeners.get(name) ?? []) cb(p);
 }
 
-// One in-flight/settled manifest promise per base; the fallback base is only
-// ever fetched if the primary one actually fails.
+/**
+ * A manifest body as the map it must be: an object whose values are hashes.
+ *
+ * Anything else is read as no manifest at all, so the catalog is still fetched
+ * from this host without a cache-buster, rather than a `null` body making
+ * `manifest(base)[name]` throw and every catalog on the host fail without a
+ * word. A non-string value is dropped, so it never reaches `?v=`.
+ */
+export function manifestEntries(body: unknown): Record<string, string> {
+  if (typeof body !== 'object' || body === null || Array.isArray(body)) return {};
+  const out: Record<string, string> = {};
+  for (const [name, hash] of Object.entries(body)) if (typeof hash === 'string' && hash) out[name] = hash;
+  return out;
+}
+
+// One in-flight/settled manifest promise per base.
 const manifestP = new Map<string, Promise<Record<string, string>>>();
 function manifest(base: string): Promise<Record<string, string>> {
   let p = manifestP.get(base);
@@ -177,7 +203,8 @@ function manifest(base: string): Promise<Record<string, string>> {
     // failure (network down, timeout, 5xx) is not: caching `{}` from one of
     // those would pin every later catalog fetch this session to "no buster", so a
     // catalog replaced on the host would keep being served from the browser cache.
-    p = fetchJson<Record<string, string>>(`${base}manifest.json`, ttfbFor(base), { cache: 'no-cache' }).catch(
+    p = fetchJson<unknown>(`${base}manifest.json`, TTFB_TIMEOUT_MS, { cache: 'no-cache' }).then(
+      manifestEntries,
       (e: unknown) => {
         if (!(e instanceof HttpError && e.status === 404)) manifestP.delete(base);
         return {};
@@ -193,40 +220,55 @@ function manifest(base: string): Promise<Record<string, string>> {
 // next page load, when the manifest hash and this cache both start fresh.
 const catalogP = new Map<string, Promise<unknown>>();
 
+/** Each runtime catalog, and the message that says it could not be loaded. */
+const CATALOG_FAILED_KEY = {
+  motors: 'errors.remote.motors',
+  components: 'errors.remote.components',
+  materials: 'errors.remote.materials',
+  contributors: 'errors.remote.contributors',
+} as const;
+
+type CatalogName = keyof typeof CATALOG_FAILED_KEY;
+
+/**
+ * Catalogs read from the build's own copy only, never from the data host. The
+ * scheduled sync regenerates motors and components and nothing else: the
+ * materials change with the code, and the contributors are refreshed by each
+ * deploy. A copy on the data host is only as new as the last sync run, so
+ * reading it first would serve an older file than the build carries.
+ */
+const BUILD_ONLY: ReadonlySet<CatalogName> = new Set(['materials', 'contributors']);
+
+/** Where one catalog is read from. */
+const baseFor = (name: CatalogName): string => (BUILD_ONLY.has(name) || !REMOTE_BASE ? LOCAL_BASE : REMOTE_BASE);
+
 /**
  * Fetch and parse one runtime catalog by name (`'motors'` → `motors.generated.json`),
- * cache-busted by its manifest hash and memoized for the session. Tries each
- * configured base in order and rejects with the last failure only when every
- * base is unreachable, so the caller can surface it.
+ * cache-busted by its manifest hash and memoized for the session. Rejects when
+ * the catalog cannot be read, so the caller can surface it.
  */
-export function fetchCatalog<T>(name: string, valid?: (v: unknown) => boolean): Promise<T> {
+export function fetchCatalog<T>(name: CatalogName, valid?: (v: unknown) => boolean): Promise<T> {
   let p = catalogP.get(name) as Promise<T> | undefined;
   if (!p) {
     p = (async () => {
-      let lastErr: unknown;
-      for (const base of BASES) {
-        try {
-          const hash = (await manifest(base))[name];
-          const body = await fetchJson<T>(
-            `${base}${name}.generated.json` + (hash ? `?v=${hash}` : ''),
-            ttfbFor(base),
-            undefined,
-            (p) => reportProgress(name, p),
-          );
-          // A host that is up but wrong would otherwise defeat the fallback
-          // chain: `{"error":"rebuilding"}` served with HTTP 200 parses fine, so
-          // the loop would return it, never try the in-build copy, and leave the
-          // caller spreading a non-array. A shape mismatch is a failure of this
-          // base, so treat it as one and move on.
-          if (valid && !valid(body)) throw new Error('unexpected catalog shape');
-          return body;
-        } catch (e) {
-          lastErr = e; // try the next base (the in-build fallback copy)
-        }
+      const base = baseFor(name);
+      try {
+        const hash = (await manifest(base))[name];
+        const body = await fetchJson<T>(
+          `${base}${name}.generated.json` + (hash ? `?v=${encodeURIComponent(hash)}` : ''),
+          TTFB_TIMEOUT_MS,
+          undefined,
+          (p) => reportProgress(name, p),
+        );
+        // A host that is up but wrong: `{"error":"rebuilding"}` served with
+        // HTTP 200 parses fine, and would leave the caller spreading a non-array.
+        if (valid && !valid(body)) throw new KeyedError('errors.remote.badShape');
+        return body;
+      } catch (e) {
+        // Drop the stale byte count so a retry starts clean.
+        lastProgress.delete(name);
+        throw new KeyedError(CATALOG_FAILED_KEY[name], { reason: errorReason(e) });
       }
-      // Every base failed: drop the stale byte count so a retry starts clean.
-      lastProgress.delete(name);
-      throw new Error(`Could not load the ${name} catalog (${errorMessage(lastErr)})`);
     })();
     // Don't cache a failure; let the next caller retry.
     p.catch(() => catalogP.delete(name));

@@ -1,4 +1,9 @@
-import { MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT, MAX_INSTANCE_COUNT } from '../../../tree/nodeProps';
+import { KeyedError } from '../../../i18n/keyedError';
+import {
+  MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT,
+  MAX_INSTANCE_COUNT,
+  MAX_LINE_COUNT as NODE_MAX_LINE_COUNT,
+} from '../../../tree/nodeProps';
 
 /**
  * Ceilings the .ork reader holds an untrusted file to. A real design is a few
@@ -9,6 +14,13 @@ import { MAX_FIN_COUNT as KERNEL_MAX_FIN_COUNT, MAX_INSTANCE_COUNT } from '../..
 // Decompression caps for the untrusted `.ork` zip (a real design is a few
 // hundred KB of XML; these are generous ceilings, not tuning knobs).
 export const MAX_ARCHIVE_ENTRIES = 256;
+/**
+ * Gzip members in a gzipped `.ork`. OpenRocket writes one; the format allows
+ * any number back to back, and each costs a fresh inflater whatever it holds,
+ * so a 64 MiB file of one-byte members (millions of them) takes minutes while
+ * every byte cap stays far off.
+ */
+export const MAX_GZIP_MEMBERS = 4;
 export const MAX_ARCHIVE_ENTRY_BYTES = 64 * 1024 * 1024; // 64 MiB uncompressed per member
 export const MAX_ARCHIVE_TOTAL_BYTES = 128 * 1024 * 1024; // 128 MiB uncompressed total
 // A real design nests ~4-5 levels; this bounds a crafted deeply-nested
@@ -46,7 +58,20 @@ export const MAX_FIN_POINTS = 10_000;
 // thread -- a hung tab rather than the clear error these limits promise.
 // The largest real designs are a few hundred parts.
 const MAX_COMPONENTS = 10_000;
-export const MAX_LINE_COUNT = 100;
+// Shroud lines take the bridge's ceiling (nodeProps.MAX_LINE_COUNT), the same
+// one the editor holds the field to.
+export const MAX_LINE_COUNT = NODE_MAX_LINE_COUNT;
+// Simulations in one .ork. The byte caps do not bound this either: a
+// `<simulation/>` is 13 bytes, and each one is read (its launch conditions and
+// passthrough XML) and becomes a row in the workspace, the table and storage.
+// Desktop designs carry a handful; a few hundred is already unusual.
+export const MAX_SIMULATIONS = 1000;
+// Unrecognized elements carried as raw XML on one element (a component,
+// `<rocket>`, a simulation). The byte caps do not bound this: `<x/>` is 4
+// bytes, and each one is cloned, serialized, stored on the node, persisted and
+// written back on every save. Desktop writes a handful (appearance, a newer
+// version's tags).
+export const MAX_PASSTHROUGH = 1000;
 
 /** The file extension an over-limit error names. */
 type ImportFormat = '.ork' | '.rkt';
@@ -58,13 +83,13 @@ type ImportFormat = '.ork' | '.rkt';
  */
 export function countComponent(ctx: { nodeCount: number }, format: ImportFormat): void {
   if (++ctx.nodeCount > MAX_COMPONENTS) {
-    throw new Error(`This ${format} declares too many components to open (possibly malformed).`);
+    throw new KeyedError('errors.file.tooManyComponents', { format });
   }
 }
 
 /** Refuse a walk deeper than MAX_NESTING_DEPTH before it recurses again. */
 export function checkDepth(depth: number, format: ImportFormat): void {
   if (depth > MAX_NESTING_DEPTH) {
-    throw new Error(`This ${format} is nested too deeply to open (possibly malformed).`);
+    throw new KeyedError('errors.file.tooDeep', { format });
   }
 }

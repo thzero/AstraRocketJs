@@ -8,7 +8,7 @@ This is OpenRocket's own model, and it is what makes "the same rocket on a C6 an
 
 ## The table
 
-One row per configuration, one column per part it configures. Reading across a row tells you what that setup does everywhere; reading down a column tells you what the same mount or chute does under each setup, which is the comparison a staged or clustered rocket is designed around.
+One row per configuration, one column per part it configures. The **Motors**, **Recovery** and **Staging** tabs above the table choose which parts the columns show; each has its own section below. Reading across a row tells you what that setup does everywhere; reading down a column tells you what the same mount or chute does under each setup, which is the comparison a staged or clustered rocket is designed around.
 
 - **New** adds a configuration with the default motors, even when an identical setup is already there: two configurations that seat the same motors are a choice, not an accident.
 - **Copy** duplicates the selected one, motors and all, and puts the copy next to it. A named configuration's copy says so; an unnamed one stays unnamed, because its label is its motor list.
@@ -24,7 +24,7 @@ Below the desktop breakpoint the part columns drop away and the editor moves und
 One card per motor mount, aft to nose. **Change…** opens the [motor picker](./motors.md), 📈 shows the seated motor's thrust curve, and **Ignition** sets when that motor lights:
 
 - **Automatic** is the low and mid-power pattern: the launch stage lights at launch, an upper stage on the ejection charge of the stage below.
-- **Launch**, **Upper-stage ejection**, **Upper-stage burnout** and **Never**, each with a delay in seconds, are what an electronically-timed sustainer or an air-start needs. The sustainer triggers only appear on a mount that has a stage below it, since nothing else can fire them.
+- **Launch**, **Ejection of stage below**, **Burnout of stage below** and **Never**, each with a delay in seconds (except **Never**), are what an electronically-timed sustainer or an air-start needs. **Launch** is offered on every mount. **Ejection of stage below**, **Burnout of stage below** and **Never** only appear on a mount that has a stage below it, since nothing else can fire them.
 
 Editing a motor here changes it for **every** simulation flying this configuration. That is what sharing a setup means, and it is why motors are edited here and nowhere else: two surfaces writing the same loadout under different rules is how they come to disagree.
 
@@ -41,7 +41,7 @@ A part that some configuration opens differently says so in the design [property
 One card per stage, whether or not it separates.
 
 - **Flies on this configuration** decides whether the stage is in the flight at all. A grounded stage contributes no mass, no drag and no motor: the rest of the rocket flies without it, which is how a two-stage design is flown as its own sustainer without deleting the booster. Something has to fly, so the last stage still in the air cannot be grounded.
-- **Stage separation**, **Separation delay** and **Separation altitude** say when a booster lets go, with the same fall-through to the design the recovery fields have. The top stage has nothing above it to let go of, so it shows the flies checkbox alone.
+- **Stage separation**, **Separation delay** and **Separation altitude (AGL)** say when a booster lets go, with the same fall-through to the design the recovery fields have. The top stage has nothing above it to let go of, so it shows the flies checkbox alone.
 
 ## Choosing one for a simulation
 

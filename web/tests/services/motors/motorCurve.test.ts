@@ -73,6 +73,13 @@ describe('a one-sample motor is rejected everywhere', () => {
         { time: 1, thrust: 0 },
       ]),
     ).toBe(true);
+    // ThrustCurveMotor refuses a curve that runs back before t = 0.
+    expect(
+      isThrustSampleArray([
+        { time: -0.1, thrust: 0 },
+        { time: 1, thrust: 0 },
+      ]),
+    ).toBe(false);
   });
 
   it('by the builder (buildConfiguredRocket leaves the mount empty)', () => {

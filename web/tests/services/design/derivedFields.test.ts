@@ -109,7 +109,7 @@ describe('a mass component, by density', () => {
     expect(DERIVED.massDensity.write(lump(0.02, 0, 0.02), 1200)).toEqual({ mass: 0 });
   });
 
-  it('clamps an absurd density rather than carrying a tonne into the sim', () => {
+  it('clamps an absurd density rather than carrying a metric ton into the sim', () => {
     expect(DERIVED.massDensity.write(lump(0, 0.05, 0.5), 1e12)['mass']).toBe(1_000_000);
     expect(DERIVED.massDensity.write(lump(0, 0.05, 0.5), -5)['mass']).toBe(0);
   });

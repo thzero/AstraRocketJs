@@ -1,3 +1,4 @@
+import { NO_VALUE } from '../../../src/i18n/noValue';
 import { describe, it, expect } from 'vitest';
 import { thrustAt, impulse, combineCurves, impulseClass, type Sample } from '../../../src/services/motors/motorCombine';
 
@@ -73,11 +74,11 @@ describe('impulseClass', () => {
     expect(impulseClass(2.5)).toBe('A');
   });
 
-  it('is "—" only where there is no class left', () => {
-    expect(impulseClass(0.1)).toBe('—'); // below 1/8A
-    expect(impulseClass(0)).toBe('—');
-    expect(impulseClass(-5)).toBe('—');
-    expect(impulseClass(NaN)).toBe('—');
+  it('is the no-value glyph only where there is no class left', () => {
+    expect(impulseClass(0.1)).toBe(NO_VALUE); // below 1/8A
+    expect(impulseClass(0)).toBe(NO_VALUE);
+    expect(impulseClass(-5)).toBe(NO_VALUE);
+    expect(impulseClass(NaN)).toBe(NO_VALUE);
   });
 });
 
@@ -114,7 +115,7 @@ describe('thrustAt at the end of a curve', () => {
     expect(combineCurves([abrupt]).totalImpulse).toBeCloseTo(13.25, 4);
   });
 
-  it('agrees with the raw integral for a curve that ends at zero, as before', () => {
+  it('agrees with the raw integral for a curve that ends at zero', () => {
     const clean: Sample[] = [
       [0, 0],
       [0.1, 10],

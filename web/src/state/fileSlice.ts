@@ -5,23 +5,30 @@ import { prompt } from './promptStore';
 import { defaultRocketTree } from '../services/design/defaultRocket';
 import { launcherKind, withLauncher } from '../services/design/launcher';
 import type { DesignInfo } from '../services/files/orkTypes';
+import type { ComponentFigures } from '../services/files/rktExport';
+import type { buildRocketTree } from '../engine/api';
+import { buildDesignInfo } from '../services/report/designInfo';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
 import { repairValues } from '../services/design/repairValues';
 import { computeStaticInfo } from '../services/design/buildRocket';
 import { wireLoadedOrk } from '../services/files/wireLoadedOrk';
+import { assertImportSize } from '../services/files/decodeText';
 // Static, not the lazy import the neighboring .ork paths use: this is a fetch
 // wrapper with no heavy dependencies, and the library dialog imports it
 // statically anyway, so a dynamic import here only produces rolldown's
 // ineffective-dynamic-import warning without moving a byte.
 import { fetchExample } from '../services/storage/exampleLibrary';
-import { isOutdated, newSimulation } from '../services/flight/simulations';
+import { effectivePrefs, isOutdated, newSimulation } from '../services/flight/simulations';
 import { loadSettings } from '../services/storage/settings';
 import { importNotes } from '../services/files/importBanner';
+import { configPowerClass } from '../services/flight/powerClass';
+import { configFor, configuredTree } from '../services/flight/flightConfigs';
 import { defaultDesignName, designNameOf } from '../services/app/appInfo';
 import { getDesignLibrary, type DesignMeta } from '../services/storage/designLibrary';
 import { getWorkspaceStore, lean, resultsOf } from '../services/storage/workspaceStore';
 import { migrateWorkspace } from '../services/storage/workspaceMigrate';
-import { errorMessage } from '../services/app/errorMessage';
+import { errorText, keyedText, type Keyed } from '../i18n/keyedError';
+import { fmtList } from '../i18n/format';
 import {
   configOf,
   defaultConfig,
@@ -35,6 +42,7 @@ import {
 } from './workspaceSelectors';
 import type { WorkspaceState } from './store';
 import { showing } from './viewSlice';
+import { markWritten, unchangedSinceWrite } from './writtenWorkspace';
 
 /**
  * Opening, saving and exporting designs, and the design library.
@@ -62,6 +70,12 @@ export interface FileSlice {
    * notes open for each new import that has some (LoadedBanner).
    */
   importSeq: number;
+  /**
+   * Bumped when an import that reset the engine did not replace the design (it
+   * failed, or the user abandoned it). The reset voided the open design's live
+   * handle, so the rebuild effect (useWorkspaceEffects) builds it again.
+   */
+  rebuildSeq: number;
   refreshDesigns: () => Promise<void>;
   openDesign: (id: string) => Promise<void>;
   saveDesignAs: (name: string) => Promise<void>;
@@ -126,6 +140,22 @@ const observeWorkspace = (): (() => boolean) => {
   return () => mine !== workspaceGen;
 };
 
+/**
+ * The current build's figures for a part, for the writers' values the kernel
+ * works out itself; a part the build does not hold (one added since the last
+ * rebuild) has none, and the writers say what that leaves out.
+ */
+function figuresOf(rocket: ReturnType<typeof buildRocketTree> | null | undefined): ComponentFigures | undefined {
+  if (!rocket) return undefined;
+  return (id: string) => {
+    try {
+      return rocket.componentInfo(id);
+    } catch {
+      return undefined;
+    }
+  };
+}
+
 export const createFileSlice =
   ({ replaceWorkspace, clearHistory }: FileSliceShared): StateCreator<WorkspaceState, [], [], FileSlice> =>
   (set, get) => {
@@ -140,14 +170,31 @@ export const createFileSlice =
      * means for them (a switch still proceeds; a Save must say it failed).
      */
     const flushActive = async (): Promise<boolean> => {
+      // Storage already holds it: a write would only re-stamp the design, or
+      // after New create an entry for one nobody touched.
+      const fields = get();
+      if (unchangedSinceWrite(fields)) return true;
       try {
-        await getWorkspaceStore().save(workspaceSnapshot(get()));
+        await getWorkspaceStore().save(workspaceSnapshot(fields));
+        markWritten(fields);
         return true;
       } catch (e) {
         // Recorded rather than returned, so a caller that only cares whether the
         // write landed still reports the right reason it did not.
         lastFlushFailure = e;
         return false;
+      }
+    };
+
+    /**
+     * Write the open design before something replaces it. A refused write does
+     * not block the replace (the user asked for the other design), but it is
+     * not silent either.
+     */
+    const flushOutgoing = async (stale: () => boolean): Promise<void> => {
+      if (!(await flushActive()) && !stale()) {
+        const { msg, kind } = saveFailure(lastFlushFailure);
+        get().setStorageWarning(msg, kind);
       }
     };
     /** Why the last `flushActive` returned false, for the caller that reports it. */
@@ -231,17 +278,24 @@ export const createFileSlice =
       designs: [],
       activeDesignId: null,
       importSeq: 0,
+      rebuildSeq: 0,
 
       openOrkFile: async (file) => {
         // Three awaits before anything is written, and the file input has no busy
         // gate, so a second import (or a library open) can land in between.
         const stale = claimWorkspace();
+        // Whether `loadOrk` has run (which can reset the engine) without the
+        // workspace being replaced by its result.
+        let engineTouched = false;
         try {
           // The .ork parser (fflate + XML importer) is a lazily-imported chunk:
-          // it isn't part of first paint, only of opening a file.
+          // it isn't part of first paint, only of opening a file. The size is
+          // checked first: arrayBuffer() holds every byte of the file in memory.
+          assertImportSize(file.size);
           const bytes = await file.arrayBuffer();
           if (stale()) return;
           const { loadOrk } = await import('../services/files/loadOrk');
+          engineTouched = true;
           const res = await loadOrk(bytes);
           if (stale()) return;
           const { tree, configs, sims, activeId, loadedMeta } = wireLoadedOrk(
@@ -253,6 +307,11 @@ export const createFileSlice =
           // is still the open one (see homeForImport).
           const home = await homeForImport(loadedMeta.name, stale);
           if (!home || stale()) return;
+          // Persist whatever is open before the import replaces it, as
+          // openDesign does: the replace cancels the pending debounced
+          // autosave, so an edit inside its window would be lost.
+          await flushOutgoing(stale);
+          if (stale()) return;
           clearHistory(); // a loaded design is a fresh document; nothing to undo across the load
           // An imported rocket becomes its own library entry rather than
           // replacing whatever was open, unless the user chose to overwrite a
@@ -268,7 +327,14 @@ export const createFileSlice =
             i18n.t as unknown as (key: string, options?: Record<string, unknown>) => string,
             launcherKind(fixed.tree),
           );
-          const notes = importNotes(loadedMeta.notes, sims[0]!.launch, t, displayUnits());
+          // Before the engine has built the imported rocket, so the motors
+          // alone decide each configuration's class here; the run gate judges
+          // again with the rocket's mass.
+          const flights = sims.map((sim) => ({
+            launch: sim.launch,
+            powerClass: configPowerClass(fixed.tree, configFor(configs, sim.configId), null),
+          }));
+          const notes = importNotes(loadedMeta.notes, flights, t, displayUnits());
           replaceWorkspace({
             repairNotes: repairNotes(fixed.repaired),
             tree: fixed.tree,
@@ -287,21 +353,26 @@ export const createFileSlice =
             activeDesignId: home.id,
             importSeq: get().importSeq + 1,
           });
+          engineTouched = false;
         } catch (e) {
           if (stale()) return; // a superseded import must not post its error either
-          set({ err: i18n.t('errors.openOrk', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.openOrk', { reason: errorText(e, i18n.t) }) });
+        } finally {
+          // Failed or abandoned after the engine may have been reset: the design
+          // still on screen holds a voided handle until it is built again.
+          if (engineTouched) set({ rebuildSeq: get().rebuildSeq + 1 });
         }
       },
       openExample: async (file) => {
         // Fetched, then handed to the ordinary import path: an example is an
         // import that happens to ship with the app, so it gets the same notes
-        // banner, the same safety-limit check and the same unsaved-copy
+        // banner, the same safety-limit check and the same library
         // semantics, with no second code path to keep in step.
         try {
           const bytes = await fetchExample(file);
           await get().openOrkFile(new Blob([bytes]));
         } catch (e) {
-          set({ err: i18n.t('errors.openExample', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.openExample', { reason: errorText(e, i18n.t) }) });
         }
       },
       refreshDesigns: async () => {
@@ -338,13 +409,8 @@ export const createFileSlice =
           return;
         }
         // Persist whatever is open before switching, or the edits since the last
-        // debounced autosave would be lost to the swap. A refused write does not
-        // block the switch (the user asked to open something else), but it is
-        // not silent either.
-        if (!(await flushActive()) && !stale()) {
-          const { msg, kind } = saveFailure(lastFlushFailure);
-          get().setStorageWarning(msg, kind);
-        }
+        // debounced autosave would be lost to the swap.
+        await flushOutgoing(stale);
         if (stale()) return;
         // A refused pointer write means this session would edit B while the
         // library still names A, and the next launch reopens A. Stop before the
@@ -354,18 +420,35 @@ export const createFileSlice =
           return;
         }
         if (stale()) return;
-        getWorkspaceStore().setActiveId?.(id);
+        // Through the store's own read, as boot opens the active design: the
+        // flights stored beside the design come back with it, and the store
+        // holds the claim the next autosave is checked against.
+        const store = getWorkspaceStore();
+        let opened: typeof w | null = w;
+        if (store.openActive) {
+          try {
+            opened = await store.openActive(id);
+          } catch {
+            opened = null;
+          }
+        } else store.setActiveId?.(id);
+        if (stale()) return;
+        if (!opened) {
+          set({ err: i18n.t('library.missing') });
+          await get().refreshDesigns();
+          return;
+        }
         clearHistory(); // a different design is a different document
-        get().hydrate(w);
+        get().hydrate(opened);
         set((s) => ({ selectedId: null, ...showing(s, '2d') }));
         await get().refreshDesigns();
       },
 
       saveDesignAs: async (name) => {
         const s = get();
-        // `create` throws when storage refuses the write. AppHeader fires this
-        // with `void`, so surface it here or it becomes an unhandled rejection
-        // and the user sees a Save As that appeared to work.
+        // `create` throws when storage refuses the write. Caught here so the
+        // refusal reads as storage being full rather than as a generic error,
+        // and so a Save As that failed does not look as though it worked.
         // `s` is snapshotted now; if the workspace is replaced while create() is
         // in flight, pointing the library at the new entry would leave the user
         // looking at one design with another one active.
@@ -426,7 +509,7 @@ export const createFileSlice =
         claimWorkspace(); // New: any import or library open still in flight is void
         const tree = defaultRocketTree();
         const config = defaultConfig(tree);
-        const s0 = newSimulation('Simulation 1', config.id, loadSettings().launchDefaults);
+        const s0 = newSimulation(i18n.t('sims.untitled', { n: 1 }), config.id, loadSettings().launchDefaults);
         clearHistory(); // starting a new design drops the previous design's undo stack
         // Detach from the open library entry, or the first autosave would write
         // this blank design straight over the rocket the user just had open.
@@ -442,6 +525,8 @@ export const createFileSlice =
           selectedId: null,
           ...showing(s, '2d'),
         }));
+        // Not worth storing until it is edited (see `writtenWorkspace`).
+        markWritten(get());
       },
       newWorkspace: async () => {
         const ok = await confirm({
@@ -459,14 +544,12 @@ export const createFileSlice =
           const replaced = observeWorkspace();
           // The derived-statistics block, only when the user opted in (off by
           // default, so a normal save stays byte-identical). Built from the same
-          // report model the PDF export uses; both are lazily imported (also
-          // avoids a static store → reportModel → store import cycle). Loaded
+          // report model the PDF export uses, which is imported lazily: a static
+          // edge would close a store → reportModel → store import cycle. Loaded
           // ahead of the snapshot below, so the report is assembled in the same
           // synchronous stretch as the snapshot: it reads the live store, and
           // read after an await it could describe a design edited since.
-          const reportMods = loadSettings().saveDesignInfo
-            ? await Promise.all([import('../services/report/reportModel'), import('../services/report/designInfo')])
-            : null;
+          const reportMods = loadSettings().saveDesignInfo ? await import('../services/report/reportModel') : null;
           // One vintage of the design, captured before the next await.
           //
           // Reading any part of it after the catalog fetch would mix vintages:
@@ -487,7 +570,7 @@ export const createFileSlice =
           const { sims: simSnapshot, simPrefs: prefsSnapshot } = get();
           let designInfo: DesignInfo | undefined;
           if (reportMods) {
-            const [{ assembleReport }, { buildDesignInfo }] = reportMods;
+            const { assembleReport } = reportMods;
             // Not built yet (a design just loaded, or the engine still arriving):
             // build it now rather than leave out a block the user asked for.
             if (!get().info) {
@@ -497,6 +580,10 @@ export const createFileSlice =
             const report = assembleReport();
             if (report) designInfo = buildDesignInfo(report);
           }
+          // Asked for and still not there: the design does not build (or the
+          // engine has not arrived), so there are no statistics to write. The
+          // file is still worth having, but it lacks what the user asked for.
+          const infoLeftOut = reportMods !== null && !designInfo;
           const simulations = simSnapshot.map((sim) => {
             const summary = sim.result?.summary ?? sim.fileSummary?.summary;
             const stale = isOutdated(sim, tree, configOf(configSnapshot, sim), prefsSnapshot);
@@ -507,6 +594,9 @@ export const createFileSlice =
               ...(summary ? { summary } : {}),
               status: !summary ? ('notsimulated' as const) : stale ? ('outdated' as const) : ('uptodate' as const),
               ...(sim.xmlExtra?.length ? { xmlExtra: sim.xmlExtra } : {}),
+              // What it flies with: its own overrides over the globals, the
+              // same settings the run and its outdated check read.
+              ...(prefsSnapshot ? { prefs: effectivePrefs(prefsSnapshot, sim.prefs) } : {}),
             };
           });
           // Every configuration, each with its own motors: the file carries the
@@ -533,31 +623,36 @@ export const createFileSlice =
           downloadOrk({
             name: designNameOf(tree, loadedMeta),
             tree,
+            componentInfo: figuresOf(get().rocket),
             configs,
             activeConfigId,
             launch,
             simulations,
             designInfo,
           });
+          if (infoLeftOut) set({ err: i18n.t('errors.saveOrkNoDesignInfo') });
         } catch (e) {
-          set({ err: i18n.t('errors.saveOrk', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.saveOrk', { reason: errorText(e, i18n.t) }) });
         }
       },
       saveRkt: async () => {
         try {
-          const { tree, loadedMeta } = get();
+          const { tree, loadedMeta, rocket } = get();
           const { downloadRkt } = await import('../services/files/saveOrk');
           const name = designNameOf(tree, loadedMeta);
-          const skipped = await downloadRkt(name, tree);
+          const figures = figuresOf(rocket);
+          const skipped = await downloadRkt(name, tree, figures);
           // RockSim has no element for some of what this app can build (rail
-          // buttons, parallel stages, the fairing extension). The file is still
+          // buttons, the fairing extension). The file is still
           // worth having, but the user is about to hand it to somebody who will
           // not see those parts, so say so rather than let them find out.
           if (skipped.length) {
-            set({ err: i18n.t('errors.exportRktPartial', { parts: skipped.join(', ') }) });
+            set({
+              err: i18n.t('errors.exportRktPartial', { parts: fmtList(skipped.map((k) => keyedText(k, i18n.t))) }),
+            });
           }
         } catch (e) {
-          set({ err: i18n.t('errors.exportRkt', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.exportRkt', { reason: errorText(e, i18n.t) }) });
         }
       },
       exportPrint: async (opts) => {
@@ -569,9 +664,9 @@ export const createFileSlice =
           // A part whose geometry fails the manifold check is left out rather
           // than written as a file no slicer would accept, but silently leaving
           // it out is how somebody discovers a missing fin at the printer.
-          if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: skipped.join(', ') }) });
+          if (skipped.length) set({ err: i18n.t('errors.exportPrintPartial', { parts: fmtList(skipped) }) });
         } catch (e) {
-          set({ err: i18n.t('errors.exportPrint', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.exportPrint', { reason: errorText(e, i18n.t) }) });
         }
       },
       saveRasaero: async () => {
@@ -583,29 +678,36 @@ export const createFileSlice =
           const motors = buildExportMotorMap(tree, selectConfig(get()), loadedMeta?.exportMotors ?? {});
           // The RASAero writer is a lazily-imported chunk, only needed on export.
           const { downloadCdx1 } = await import('../services/files/rasaeroExport');
+          // A finish RASAero has no surface for is written as smooth, as on
+          // desktop, which warns about it; the user is told the same here.
+          const warnings: Keyed[] = [];
           downloadCdx1({
             name: designNameOf(tree, loadedMeta),
-            tree,
+            // The selected configuration's deployments, as desktop's exporter
+            // reads them.
+            tree: configuredTree(tree, selectConfig(get())),
             motors,
             launch: active.launch,
             // Whole-rocket loaded mass/CG feed RASAero's mandatory simulation block.
             launchMassKg: info?.mass,
             launchCgM: info?.cg,
+            warnings,
           });
+          if (warnings.length) set({ err: warnings.map((k) => keyedText(k, i18n.t)).join(' ') });
         } catch (e) {
-          set({ err: i18n.t('errors.exportRasaero', { reason: errorMessage(e) }) });
+          set({ err: i18n.t('errors.exportRasaero', { reason: errorText(e, i18n.t) }) });
         }
       },
       exportComponent: async (nodeId, format) => {
         try {
           const { exportComponent } = await import('../services/files/componentExport');
-          const ok = await exportComponent(get().tree, nodeId, format, selectDesignName(get()));
+          const ok = await exportComponent(get().tree, nodeId, format, selectDesignName(get()), i18n.t);
           if (!ok) set({ err: i18n.t('errors.exportUnsupported', { format: format.toUpperCase() }) });
         } catch (e) {
           set({
             err: i18n.t('errors.exportFailed', {
               format: format.toUpperCase(),
-              reason: errorMessage(e),
+              reason: errorText(e, i18n.t),
             }),
           });
         }

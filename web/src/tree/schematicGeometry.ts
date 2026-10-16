@@ -7,7 +7,7 @@ import { nodeShape, outerProfile } from './shapeProfile.js';
 import { isFinSet, tubeFinRadius } from './tubefins.js';
 import { isChainType } from './componentKinds.js';
 import { KERNEL_DEFAULTS, KERNEL_MASSCOMPONENT_RADIUS } from './kernelDefaults.js';
-import { assemblyBoundingRadius, isAssembly, resolveAssemblyRadius } from './assembly.js';
+import { assemblyBoundingRadius, assemblyParentRadius, isAssembly, resolveAssemblyRadius } from './assembly.js';
 import { stabilityState, type StabilityState } from '../services/flight/simReport.js';
 import { fmtNum } from '../i18n/format';
 
@@ -192,7 +192,7 @@ export function computeSchematicLayout(
 } {
   const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
-  // after: the desktop's stacking order); legacy flat trees pass through.
+  // after: the desktop's stacking order); a flat tree (no explicit stages) passes through.
   const chain = axialChain(tree);
   let totalLen = 0;
   let maxR = 0.001;
@@ -246,20 +246,22 @@ export function computeSchematicLayout(
 
   // Vertical half-extent (m): the core body + fins, plus any off-axis pod's
   // reach (its centerline radius + its own body + its fins) so pods don't clip.
+  // A pod's centerline radius counts its parent's radius only when that parent
+  // is a body tube (`assemblyParentRadius`), as the kernel places it.
   let vHalf = maxR + finH;
-  const scanRadial = (nodes: ComponentNode[], parentR: number) => {
+  const scanRadial = (nodes: ComponentNode[], parent: ComponentNode | null) => {
     for (const n of nodes) {
       if (isAssembly(n.type)) {
         const podFin = Math.max(0, ...collectFinSpans(n.children ?? [], assemblyBoundingRadius(n)));
-        vHalf = Math.max(vHalf, resolveAssemblyRadius(n, parentR) + assemblyBoundingRadius(n) + podFin);
-        scanRadial(n.children ?? [], assemblyBoundingRadius(n));
-      } else {
-        const r = anyOuterRadius(n) || parentR;
-        scanRadial(n.children ?? [], r);
+        vHalf = Math.max(
+          vHalf,
+          resolveAssemblyRadius(n, assemblyParentRadius(parent)) + assemblyBoundingRadius(n) + podFin,
+        );
       }
+      scanRadial(n.children ?? [], n);
     }
   };
-  scanRadial(chain, maxR);
+  scanRadial(chain, null);
 
   // Caliper snap targets: axial component + child edges (horizontal), and radial
   // magnitudes: each component's radius, the body, the full span (vertical).
@@ -338,19 +340,24 @@ export function computeSchematicLayout(
  *
  * For a mass component the last-resort radius is the kernel's default
  * (ComponentFactory masscomponent radius = 0.005), not a fraction of the
- * parent. A `pRadius * 0.7` fraction draws a mass component with no `radius` key
- * - which is every one the editor creates - at ~9 mm on a 13 mm tube while the
- * kernel flies it at 5 mm, and the drawing must agree with the simulation.
+ * parent. A `pRadius * 0.7` fraction would draw a mass component with no
+ * `radius` key (a hand-edited or imported one) at ~9 mm on a 13 mm tube while
+ * the kernel flies it at 5 mm, and the drawing must agree with the simulation.
  *
- * Every other internal type keeps the fraction: the kernel does not read `radius`
- * for a parachute, streamer or shock cord (packed sizes are not wired through),
- * so there is no simulated size to agree with, and the 5 mm mass
- * default shrinks the default design's chute box until its glyph does not fit.
+ * A parachute, streamer or shock cord with no `radius` keeps the parent
+ * fraction. The bridge does pass a packed radius to the kernel when one is on
+ * record; without one the kernel keeps MassObject's own default, a size nobody
+ * chose that moves only the part's rotational inertia, and the 5 mm mass
+ * default would shrink the default design's chute box until its glyph does not
+ * fit.
+ *
+ * A part with no `length` is drawn at the length the bridge builds its type at
+ * (`partLength`): 20 mm for a mass component, 25 mm for recovery gear.
  */
 export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
   const dflt = node.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : parentRadius * 0.7;
   return {
-    length: num(node, 'length', 0.025),
+    length: partLength(node),
     radius: Math.min(parentRadius * 0.85, num(node, 'outerRadius', num(node, 'radius', dflt))),
   };
 }
@@ -405,7 +412,7 @@ export function marginText(
   if (!state || pct == null || !Number.isFinite(pct)) return null;
   return {
     state,
-    text: `${STABILITY_GLYPH[state]} ${fmtNum(cal, 2)} ${t('stability.caliber')} · ${fmtNum(pct, 1)}% — ${t(STABILITY_WORD[state])}`,
+    text: `${STABILITY_GLYPH[state]} ${fmtNum(cal, 2)} ${t('stability.caliber')} · ${fmtNum(pct, 1)}% (${t(STABILITY_WORD[state])})`,
   };
 }
 

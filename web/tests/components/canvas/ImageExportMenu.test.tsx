@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+// cspell:ignore ширина
 import { describe, it, expect, vi } from 'vitest';
 import { screen, fireEvent } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
@@ -50,6 +51,18 @@ describe('the popover is a real menu', () => {
     expect(names[0]).toContain(`${IMAGE_WIDTHS[0]} px`);
   });
 
+  it('builds each item name from one key, so the words follow the UI language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('ru');
+    try {
+      open();
+      const first = screen.getAllByRole('menuitem')[0]!.getAttribute('aria-label');
+      expect(first).toContain(`ширина ${IMAGE_WIDTHS[0]}`);
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
   it('offers the fit setting as a checked menu item, a valid child of the menu', () => {
     open(vi.fn(), true);
     expect(screen.getByRole('menuitemcheckbox').getAttribute('aria-checked')).toBe('true');
@@ -90,5 +103,38 @@ describe('a keyboard user can get back out', () => {
     // A key other than Escape leaves the menu alone.
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'a' });
     expect(screen.queryByRole('menu')).not.toBeNull();
+  });
+});
+
+/**
+ * Choosing a width closes the menu and unmounts the focused item. Focus goes
+ * back to the trigger, or a keyboard export ends on `<body>`.
+ */
+describe('focus after a choice', () => {
+  it('returns to the trigger', () => {
+    const { trigger, onPick } = open();
+    const item = screen.getAllByRole('menuitem')[0]!;
+    item.focus();
+    fireEvent.click(item);
+    expect(onPick).toHaveBeenCalled();
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+});
+
+describe('the menu keyboard model', () => {
+  it('opens onto the first width and walks the rest with the arrows', () => {
+    open(vi.fn(), true);
+    const items = [...screen.getAllByRole('menuitem'), screen.getByRole('menuitemcheckbox')];
+    expect(document.activeElement).toBe(items[0]);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+    expect(document.activeElement).toBe(items[1]);
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'End' });
+    expect(document.activeElement).toBe(items[items.length - 1]);
+  });
+
+  it('keeps a decorative icon out of the trigger’s name', () => {
+    renderWithProviders(<ImageExportMenu icon="📷" label="Image" title="Export image" onPick={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Image' }).textContent).toBe('📷 Image');
   });
 });

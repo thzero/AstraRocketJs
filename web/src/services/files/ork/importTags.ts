@@ -9,6 +9,7 @@ import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import { hexOf } from '../../design/colorHex';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
+import { DEPLOY_EVENTS } from '../../design/componentFields';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -79,6 +80,21 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
 }
 
 /**
+ * `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
+ * automatic packed radius for any mass object: the marker and the value it
+ * worked out. Sets the flag, and the value when it is a usable one; false when
+ * the radius is not automatic.
+ */
+export function readAutoPackedRadius(el: Element, node: ComponentNode): boolean {
+  const raw = text(el, ':scope > packedradius')?.trim() ?? '';
+  if (!raw.toLowerCase().startsWith('auto')) return false;
+  node['radiusAuto'] = true;
+  const v = Number(raw.slice(4).trim());
+  if (Number.isFinite(v) && v > 0) node['radius'] = v;
+  return true;
+}
+
+/**
  * A recovery device's packed size: <packedlength> as `length` and
  * <packedradius> as `radius`. Both are MassObject's own length and radius
  * upstream, which is why those are the names, and `radius` is the key the
@@ -89,23 +105,20 @@ export function finCountTag(el: Element, fallback: number = COMPONENT_DEFAULTS.f
  */
 export function readPackedSize(el: Element, node: ComponentNode): void {
   node['length'] = nonNegTag(el, 'packedlength', COMPONENT_DEFAULTS.recovery.packedLength);
-  // `<packedradius>auto 0.0125</packedradius>` is how MassObjectSaver writes an
-  // automatic packed radius: the marker and the value it worked out.
-  const raw = text(el, ':scope > packedradius')?.trim() ?? '';
-  if (raw.toLowerCase().startsWith('auto')) {
-    node['radiusAuto'] = true;
-    const v = Number(raw.slice(4).trim());
-    if (Number.isFinite(v) && v > 0) node['radius'] = v;
-    return;
-  }
+  if (readAutoPackedRadius(el, node)) return;
   const r = numTag(el, 'packedradius', NaN);
   if (r >= 0 && r !== COMPONENT_DEFAULTS.recovery.packedRadius) node['radius'] = r;
 }
 
 /** `<cd>auto</cd>`, `<linelength>auto</linelength>`, `<cordlength>auto</cordlength>`:
- *  a value the kernel works out, which the desktop shows as a checkbox. */
+ *  a value the kernel works out, which the desktop shows as a checkbox. A line
+ *  or cord length is written as its number with `<linelengthauto>true` or
+ *  `<cordlengthauto>true` beside it, since desktop cannot read `auto` there. */
 export function readAutoValue(el: Element, node: ComponentNode, tag: string, flag: string): boolean {
-  if ((text(el, `:scope > ${tag}`)?.trim().toLowerCase() ?? '') === 'auto') {
+  if (
+    (text(el, `:scope > ${tag}`)?.trim().toLowerCase() ?? '') === 'auto' ||
+    (text(el, `:scope > ${tag}auto`)?.trim().toLowerCase() ?? '') === 'true'
+  ) {
     node[flag] = true;
     return true;
   }
@@ -155,28 +168,33 @@ export function readSoftMaterial(
 }
 
 /**
- * <instancecount>/<instanceseparation>, pass-through only.
+ * <instancecount>/<instanceseparation>.
  *
  * CenteringRing and Bulkhead are LineInstanceable and LaunchLug/RailButton are
  * Instanceable, so OpenRocket writes these for all four. Carrying them keeps a
  * motor mount declared as one CenteringRing with instancecount 3 from coming
- * back from a save as a single ring. The app simulates and draws one; the file
- * keeps all N, and the import note says so.
+ * back from a save as a single ring. The simulation counts all N; the drawing
+ * shows one, and the import note says so.
  */
 export function readInstances(el: Element, node: ComponentNode): void {
   const count = clampCount(numTag(el, 'instancecount', 1), 1, MAX_ASSEMBLY_INSTANCES);
   if (count > 1) node['instanceCount'] = count;
-  const sep = numTag(el, 'instanceseparation', 0);
-  if (sep !== 0) node['instanceSeparation'] = sep;
+  // A stated spacing is kept, 0 included: an absent one is the kernel's
+  // constructor spacing (60 mm for a lug), not 0, so dropping a stated 0 would
+  // pull a desktop file's stacked lugs apart.
+  const sep = numTag(el, 'instanceseparation', NaN);
+  if (Number.isFinite(sep)) node['instanceSeparation'] = sep;
 }
 
 /** Radial mounting angle (LaunchLug / RailButton) in radians. OpenRocket writes
  *  it as <angleoffset> (degrees), older files as <radialdirection>; the kernel
- *  default is 180°. Stored in radians to match the tree/renderers. */
+ *  default is 180°. Stored in radians to match the tree/renderers, and clamped
+ *  to [-180°, 180°] as LaunchLug.setAngleOffset and RailButton.setAngleOffset
+ *  clamp it when desktop loads the file: 270 flies as 180 there. */
 export function readAngleAroundBody(el: Element): number {
   const a = numTag(el, 'angleoffset', NaN);
   const deg = Number.isFinite(a) ? a : numTag(el, 'radialdirection', 180);
-  return degToRad(deg);
+  return Math.min(Math.PI, Math.max(-Math.PI, degToRad(deg)));
 }
 
 /**
@@ -197,14 +215,14 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
 }
 
 /**
- * Fin fillets, pass-through only.
+ * Fin fillets.
  *
  * OpenRocket's FinSetSaver writes <filletradius>/<filletmaterial> for every fin
- * set and counts the fillet volume toward fin mass. This app's kernel bridge does
- * not model fillets, so the values are carried rather than recomputed: hard-writing
- * `<filletradius>0.0</filletradius>` and a Cardboard material would delete a
- * desktop design's 6 mm epoxy fillets from the user's own file on save. The mass is
- * still not counted, which the import note says.
+ * set and counts the fillet volume toward fin mass. The values are read onto the
+ * node so the kernel bridge flies them (radius and material density) and a save
+ * writes them back: hard-writing `<filletradius>0.0</filletradius>` and a
+ * Cardboard material would delete a desktop design's 6 mm epoxy fillets from the
+ * user's own file.
  */
 function readFillet(el: Element, node: ComponentNode): void {
   const r = numTag(el, 'filletradius', 0);
@@ -259,6 +277,17 @@ export function readDeployment(el: Element, node: ComponentNode, configEl: Eleme
 }
 
 /**
+ * A file's deploy event in the app's vocabulary. The desktop writes the enum
+ * name lower-cased with the underscores removed and matches it the same way on
+ * read (DocumentConfig.findEnum), so `lowerstageseparation` and the underscored
+ * spelling name the one event. A token no event matches stays as written.
+ */
+function deployEventOfXml(token: string): string {
+  const key = token.trim().toLowerCase().replace(/_/g, '');
+  return DEPLOY_EVENTS.find((ev) => ev.replace(/_/g, '') === key) ?? token;
+}
+
+/**
  * The deployment tags one element states, and only those, the same way for the
  * design and for each configuration's override. Altitude and delay are floored:
  * a negative deploy altitude never fires the kernel's altitude trigger, and the
@@ -267,7 +296,7 @@ export function readDeployment(el: Element, node: ComponentNode, configEl: Eleme
 export function readDeploymentTags(src: Element): OrkDeployOverride {
   const o: OrkDeployOverride = {};
   const event = text(src, ':scope > deployevent');
-  if (event) o.deployEvent = event;
+  if (event) o.deployEvent = deployEventOfXml(event);
   if (text(src, ':scope > deployaltitude') !== null)
     o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
   if (text(src, ':scope > deploydelay') !== null)
@@ -292,13 +321,15 @@ export function readSeparationTags(src: Element): OrkSepOverride {
 }
 
 /**
- * Stage separation (a lower <stage> or a strap-on <parallelstage>), read off
- * `sepEl`: the chosen config's <separationconfiguration> when there is one,
- * else the element itself carrying the bare defaults. Only values that differ
- * from the desktop defaults are kept, so an untouched stage stays clean.
+ * Stage separation (a lower <stage> or a strap-on <parallelstage>): the bare
+ * tags on `el` are the defaults, and the chosen config's
+ * <separationconfiguration> overrides them per field, as the desktop handler
+ * clones the default and applies only the fields the block carries. Only values
+ * that differ from the desktop defaults are kept, so an untouched stage stays
+ * clean.
  */
-export function readSeparation(sepEl: Element, node: ComponentNode): void {
-  const o = readSeparationTags(sepEl);
+export function readSeparation(el: Element, node: ComponentNode, configEl: Element | null = null): void {
+  const o = { ...readSeparationTags(el), ...(configEl ? readSeparationTags(configEl) : {}) };
   if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
     node['separationEvent'] = o.separationEvent;
   if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
@@ -366,15 +397,20 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   const fin = text(el, ':scope > finish');
   if (fin && fin !== 'normal') node['finish'] = fin;
   // The part's own color: three 0-255 channels on one element in the file, a
-  // hex string in the tree, which is what the pickers and both views use.
+  // hex string in the tree, which is what the pickers and both views use. The
+  // desktop's ORColor.fromXMLAttributes reads no color at all unless all three
+  // channels (and the alpha, when present) are integers in 0-255.
   const col = el.querySelector(':scope > color');
   if (col) {
-    const ch = (name: string) => {
-      const v = Number(col.getAttribute(name));
-      return Number.isFinite(v) ? Math.min(255, Math.max(0, Math.round(v))) : null;
+    const ch = (name: string): number | null => {
+      const raw = col.getAttribute(name);
+      if (raw == null || !/^[+-]?\d+$/.test(raw)) return null;
+      const v = Number(raw);
+      return v >= 0 && v <= 255 ? v : null;
     };
     const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
-    if (r !== null && g !== null && b !== null) {
+    const alphaOk = !col.hasAttribute('alpha') || ch('alpha') !== null;
+    if (r !== null && g !== null && b !== null && alphaOk) {
       node['color'] = hexOf((r << 16) | (g << 8) | b);
     }
   }
@@ -387,17 +423,19 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
 
 /** Mass / CG / Cd overrides, and the flags that spread them over the subtree. */
 function readOverrides(el: Element, node: ComponentNode): void {
-  // Floored, like the .rkt reader's `Math.max(0, knownMass / MASS)` and
-  // `Math.max(0, knownCg)`. A negative override is not a lighter part: it
-  // subtracts from the rocket's total mass, pulls the CG off the airframe and
-  // takes the stability margin with it, and the override is by definition the
-  // figure that wins over everything computed.
+  // Mass and CG are floored, like the .rkt reader's
+  // `Math.max(0, knownMass / MASS)` and `Math.max(0, knownCg)`. A negative mass
+  // override is not a lighter part: it subtracts from the rocket's total mass,
+  // pulls the CG off the airframe and takes the stability margin with it, and
+  // the override is by definition the figure that wins over everything computed.
   const om = numTag(el, 'overridemass', NaN);
   if (om >= 0) node['overrideMass'] = om;
   const ocg = numTag(el, 'overridecg', NaN);
   if (ocg >= 0) node['overrideCGX'] = ocg;
+  // The Cd override takes any finite value, as `setOverrideCD` and the desktop
+  // dialog do: a negative figure offsets drag the rest of the design adds.
   const ocd = numTag(el, 'overridecd', NaN);
-  if (ocd >= 0) node['overrideCD'] = ocd;
+  if (Number.isFinite(ocd)) node['overrideCD'] = ocd;
   // "Override for all subcomponents": per-quantity flags (24.x format);
   // legacy files carry a single <overridesubcomponents> covering all.
   const legacyAll = text(el, ':scope > overridesubcomponents') === 'true';

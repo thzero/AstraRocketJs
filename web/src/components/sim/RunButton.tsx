@@ -4,6 +4,7 @@ import { useWorkspaceStore, selectActive, configOf } from '../../state/store';
 import { primaryMotor } from '../../services/flight/flightConfigs';
 import { useUnits } from '../../prefs/useUnits';
 import { designBlocker, designBlockerText, unflyableSims, unflyableText } from '../../services/flight/runnability';
+import { configPowerClass } from '../../services/flight/powerClass';
 
 /**
  * Runs whatever the table has selected: the ticked rows, or the active
@@ -35,9 +36,15 @@ export function RunButton({ className = '' }: { className?: string }) {
     () => runIds.map((id) => sims.find((x) => x.id === id)).filter((x): x is NonNullable<typeof x> => !!x),
     [runIds, sims],
   );
+  const dryMass = info?.massEmpty;
   const refused = useMemo(
-    () => unflyableSims(about, (sim) => primaryMotor(tree, configOf(configs, sim))),
-    [about, tree, configs],
+    () =>
+      unflyableSims(
+        about,
+        (sim) => primaryMotor(tree, configOf(configs, sim)),
+        (sim) => configPowerClass(tree, configOf(configs, sim), dryMass),
+      ),
+    [about, tree, configs, dryMass],
   );
   const flyable = about.length - refused.length;
 
@@ -68,14 +75,14 @@ export function RunButton({ className = '' }: { className?: string }) {
         onClick={() => (busy ? cancelRun() : runSims(runIds))}
         disabled={!busy && (!info || blocked)}
         className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold text-on-accent disabled:cursor-not-allowed disabled:opacity-50 ${
-          busy ? 'bg-prominent hover:bg-prominent-hover' : 'bg-accent-600 hover:bg-accent-500'
+          busy ? 'bg-prominent hover:bg-prominent-hover' : 'bg-accent-600 hover:bg-accent-700'
         }`}
       >
         {label}
       </button>
       {notice && !busy && (
         <p className="rounded-lg bg-warn-500/10 px-3 py-1.5 text-xs leading-snug text-warn-300 ring-1 ring-warn-400/30">
-          ⚠{' '}
+          <span aria-hidden="true">⚠</span>{' '}
           {/* Says what the click will actually do. Blocked, this is the whole
               story; with some rows still flyable it names what gets left out,
               so a batch is never quietly shorter than the tick count. */}

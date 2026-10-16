@@ -114,6 +114,12 @@ export interface DriftSweep {
    * same test a run uses (`sameSimInputs`).
    */
   inputs: SimInputs;
+  /**
+   * The row's `resultKey` when it flew, global run preferences included. A
+   * time step, seed or other Settings > Simulation change moves where it
+   * comes down without touching the row, and this is what ages it then.
+   */
+  key: string;
   spec: WindSweepSpec;
   /** How many flights the grid asked for. */
   asked: number;

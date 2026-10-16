@@ -3,7 +3,7 @@ import type { TileSourceId } from '../../../services/map/slippyMap';
 import { groundImagery, rememberGroundImagery, rememberTileLayer, tileLayer } from '../../../services/map/tileLayer';
 import { TILE_FAILURES_OFFLINE, type Layer } from './mapStyle';
 
-export type TileImagery = 'unknown' | 'ok' | 'unavailable';
+type TileImagery = 'unknown' | 'ok' | 'unavailable';
 
 /**
  * Whether tiles are getting through, and for which source.

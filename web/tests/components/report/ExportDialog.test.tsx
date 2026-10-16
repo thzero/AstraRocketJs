@@ -15,7 +15,7 @@ const downloadReportPdf = vi.hoisted(() => vi.fn());
 vi.mock('../../../src/services/report/reportPdf', () => ({ downloadReportPdf }));
 
 import { ExportDialog } from '../../../src/components/report/ExportDialog';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { readSettings, renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
 import type { ReportModel } from '../../../src/services/report/reportModel';
 
@@ -83,6 +83,7 @@ describe('ExportDialog', () => {
     const pop = settingsPopover();
     expect(pop).toBeTruthy();
 
+    fireEvent.pointerDown(settingsBackdrop());
     fireEvent.click(settingsBackdrop());
     expect(settingsPopover()).toBeNull(); // the popover went away
     expect(onClose).not.toHaveBeenCalled(); // the dialog did not
@@ -156,7 +157,9 @@ describe('ExportDialog', () => {
 
   it('closes on the overlay itself, and on Escape', () => {
     const onClose = open();
-    fireEvent.click(document.querySelector('.dialog-overlay')!);
+    const overlay = document.querySelector('.dialog-overlay')!;
+    fireEvent.pointerDown(overlay);
+    fireEvent.click(overlay);
     expect(onClose).toHaveBeenCalledTimes(1);
 
     fireEvent.keyDown(window, { key: 'Escape' });
@@ -205,9 +208,62 @@ describe('ExportDialog', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
     await screen.findByRole('button', { name: 'Loading…' });
 
-    fireEvent.click(document.querySelector('.dialog-overlay')!);
+    const overlay = document.querySelector('.dialog-overlay')!;
+    fireEvent.pointerDown(overlay);
+    fireEvent.click(overlay);
     fireEvent.keyDown(window, { key: 'Escape' });
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+/**
+ * Cancel and the close button end the export: the run the save is waiting on is
+ * stopped, and nothing downloads once it settles.
+ */
+describe('ExportDialog cancel', () => {
+  it.each(['Cancel', 'Close'])('%s stops the run and writes no PDF', async (name) => {
+    let finish: (outcome: string) => void = () => {};
+    const cancelRun = vi.fn();
+    useWorkspaceStore.setState({
+      runSim: () => new Promise<string>((resolve) => (finish = resolve)),
+      cancelRun,
+    } as never);
+    const onClose = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await screen.findByRole('button', { name: 'Loading…' });
+
+    fireEvent.click(screen.getAllByRole('button', { name })[0]!);
+    expect(onClose).toHaveBeenCalled();
+    expect(cancelRun).toHaveBeenCalledTimes(1);
+
+    // A run that lands anyway, after the close, still writes nothing.
+    finish('landed');
+    await screen.findByRole('button', { name: 'Save as PDF' });
+    expect(downloadReportPdf).not.toHaveBeenCalled();
+  });
+
+  /**
+   * The writer waits once more of its own, on the font fetch, after the dialog
+   * has handed over. It asks `canceled` after that wait, so the hook has to read
+   * the dialog's live state rather than be left out.
+   */
+  it('a close during the font fetch reaches the writer', async () => {
+    let hooks: { canceled?: () => boolean } = {};
+    let fontsLoaded: () => void = () => {};
+    downloadReportPdf.mockImplementation(async (...args: unknown[]) => {
+      hooks = (args[5] ?? {}) as typeof hooks;
+      await new Promise<void>((resolve) => (fontsLoaded = resolve));
+    });
+    useWorkspaceStore.setState({ runSim: async () => 'landed' } as never);
+    const onClose = open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(downloadReportPdf).toHaveBeenCalledTimes(1));
+    expect(hooks.canceled?.()).toBe(false);
+
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0]!);
+    expect(onClose).toHaveBeenCalledTimes(1);
+    expect(hooks.canceled?.()).toBe(true);
+    fontsLoaded();
   });
 });
 
@@ -240,5 +296,41 @@ describe('ExportDialog print settings labels', () => {
     const fill = screen.getByRole('checkbox', { name: 'Template fill color' });
     expect(fill.closest('label')).toBeNull();
     expect(screen.getByLabelText('Choose the fill color').getAttribute('type')).toBe('color');
+  });
+});
+
+/**
+ * A flight dropped because the design changed under it writes nothing, and the
+ * run itself says nothing about it, so the dialog does.
+ */
+describe('ExportDialog dropped run', () => {
+  it('says why no PDF was written', async () => {
+    useWorkspaceStore.setState({ runSim: async () => 'dropped', err: null } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Save as PDF' }));
+    await waitFor(() => expect(useWorkspaceStore.getState().err).toMatch(/design changed/));
+    expect(downloadReportPdf).not.toHaveBeenCalled();
+  });
+});
+
+/** The popover's Reset covers what the popover shows, and not the report units. */
+describe('ExportDialog print settings reset', () => {
+  it('leaves the report units alone', () => {
+    seedSettings({
+      report: {
+        units: 'metric',
+        templateFill: '#ff0000',
+        templateStroke: '#00ff00',
+        paper: 'a4',
+        orientation: 'landscape',
+      },
+    } as never);
+    open();
+    fireEvent.click(screen.getByRole('button', { name: 'Settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    const report = readSettings()['report'] as Record<string, string>;
+    expect(report['units']).toBe('metric');
+    expect(report['paper']).toBe('letter');
+    expect(report['templateFill']).toBe('');
   });
 });

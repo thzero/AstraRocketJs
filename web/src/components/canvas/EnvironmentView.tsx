@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useUnits, type FieldUnit } from '../../prefs/useUnits';
+import { fmtDegrees, useUnits, type FieldUnit } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 import type { ResultFlight } from '../../services/flight/simulations';
 import { WeatherSourceLine } from '../sim/WeatherSourceLine';
@@ -14,7 +14,8 @@ import {
 } from '../../services/flight/environmentProfile';
 import { formatLat, formatLon } from '../../services/map/slippyMap';
 import { fmtSiteTime } from '../../i18n/format';
-import { radToDeg } from '../../prefs/units';
+import { NO_VALUE } from '../../i18n/noValue';
+import { degToRad, radToDeg } from '../../prefs/units';
 import { norm360 } from '../../services/flight/groundTrack';
 import { polylinePath } from '../common/svgPath';
 
@@ -43,7 +44,7 @@ const PAD: EnvironmentQuantity[] = ['temperature', 'pressure', 'density', 'speed
 /** Four significant figures in the field's unit: air density reads 1.225 kg/m³ and 0.001225 g/cm³ alike. */
 function sig4(fu: FieldUnit, si: number): string {
   const ui = fu.toUi(si);
-  if (!Number.isFinite(ui)) return '—';
+  if (!Number.isFinite(ui)) return NO_VALUE;
   if (ui === 0) return `${fu.fmtSym(si, 0)}`;
   const mag = Math.floor(Math.log10(Math.abs(ui)));
   return `${fu.fmtSym(si, Math.max(0, 3 - mag))}`;
@@ -63,7 +64,7 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
   const show = (q: EnvironmentQuantity, si: number) => {
     if (q !== 'windDirection') return sig4(unit(q), si);
     // Still air has no direction; the recorded angle of a zero vector is not one.
-    return env.pad.windSpeed < CALM_MS ? '—' : `${Math.round(compass(si))}°`;
+    return env.pad.windSpeed < CALM_MS ? NO_VALUE : fmtDegrees(u, compass(si));
   };
 
   return (
@@ -102,8 +103,8 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
             title={t(`env.q.${q}`)}
             legs={env.profiles[q]}
             apogee={env.apogee}
-            x={q === 'windDirection' ? DIRECTION_AXIS : unitAxis(unit(q))}
-            xSym={q === 'windDirection' ? '°' : unit(q).sym}
+            x={q === 'windDirection' ? directionAxis(unit(q)) : unitAxis(unit(q))}
+            xSym={unit(q).sym}
             y={dist}
             ascentLabel={t('env.ascent')}
             descentLabel={t('env.descent')}
@@ -115,8 +116,8 @@ export function EnvironmentView({ flight }: { flight: ResultFlight }) {
 }
 
 /** A latitude or longitude as the launch panel holds it, to the 4 decimals (about 10 m) it is entered to. */
-const latText = (v: number | null) => (v == null ? '—' : formatLat(v));
-const lonText = (v: number | null) => (v == null ? '—' : formatLon(v));
+const latText = (v: number | null) => (v == null ? NO_VALUE : formatLat(v));
+const lonText = (v: number | null) => (v == null ? NO_VALUE : formatLon(v));
 
 /** Radians as compass degrees, 0 to 360. */
 const compass = (rad: number) => norm360(radToDeg(rad));
@@ -132,12 +133,16 @@ interface XAxis {
   wrap?: number;
 }
 
-const DIRECTION_AXIS: XAxis = {
+/**
+ * Laid out as a compass, 0 to 360 degrees whatever the unit, so north sits at
+ * the same place on every chart; the ends are printed in the reader's angle unit.
+ */
+const directionAxis = (fu: FieldUnit): XAxis => ({
   coord: compass,
-  label: (c) => String(Math.round(c)),
+  label: (c) => fu.fmt(degToRad(c), fu.sym === '°' ? 0 : 2),
   range: [0, 360],
   wrap: 180,
-};
+});
 
 /**
  * Laid out in SI: every unit here is a scale or an offset of SI, so the line

@@ -86,8 +86,13 @@ async function main() {
     // A fresh profile gets the pre-release "work in progress" modal, whose
     // backdrop would swallow the click on the menu.
     await page.addInitScript((key) => {
+      let stored = {};
       try {
-        const stored = JSON.parse(localStorage.getItem(key) || '{}') ?? {};
+        stored = JSON.parse(localStorage.getItem(key) || '{}') ?? {};
+      } catch {
+        // a corrupt blob; the app discards it too, so start clean
+      }
+      try {
         localStorage.setItem(key, JSON.stringify({ ...stored, wipAcknowledged: true }));
       } catch {
         // about:blank has no storage; the real navigation runs this again

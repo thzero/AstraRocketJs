@@ -118,7 +118,7 @@ check for more.
 
 ### 2. `src/api/` - the `@JSExport` facade
 
-`OpenRocketEngine.java` (2,064 lines), `ComponentFactory.java` (1,064),
+`OpenRocketEngine.java` (2,085 lines), `ComponentFactory.java` (1,064),
 `JsonLite.java` (352), `AtmosphereProfile.java` (130) and
 `GuideClearanceListener.java` (284). This is the entire trust boundary between
 the browser and the kernel, and the only code here that the app calls directly.
@@ -178,7 +178,7 @@ shim and the real class is invisible at compile time and wrong at runtime.
   Barrowman calculators through the `effectiveBaseCD` / `turbulentCompressibility`
   seams those patches widened. The kernel RASAero aero model is not maintained
   work (the app keeps only the RASAero `.CDX1` export, on the `web/` side), and
-  `docs/AUDIT_ENGINE.md` closed its physics findings (P2, P3, P7, P8, G13) as out
+  the 2026-10-01 engine audit closed its physics findings (P2, P3, P7, P8, G13) as out
   of scope. Do not report findings against them.
 - `Geo2D`: as in slice 1, its two methods stand in for `java.awt.geom` and are
   consumed by fin geometry.
@@ -284,8 +284,10 @@ Do not relay agent claims unchecked.
 - Kernel behavior that is upstream's, not ours, and not a finding: two
   automatic ends that follow each other resolve to -1 (desktop does the same);
   an automatic end following a flipped nose cone's tip, and a ring placed where
-  its parent has no bore, resolve to 0; fin sets mount only on body tubes.
-  `geometryParity.kernel.test.ts` counts the first three as unresolved parts.
+  its parent has no bore, resolve to 0. `geometryParity.kernel.test.ts` counts
+  these as unresolved parts. Freeform fin sets also mount on transitions and
+  nose cones (`Transition.isCompatible`), where the tab clamp uses the body
+  radius at the tab's own stations.
 
 **Output:** write `docs/AUDIT_ENGINE.md`. Severity emojis (🔴 correctness in
 shipped physics / 🟠 gates and build integrity / 🟡 API boundary and untrusted

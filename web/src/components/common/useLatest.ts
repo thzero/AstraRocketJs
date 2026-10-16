@@ -10,7 +10,7 @@ import { useCallback, useEffect, useRef } from 'react';
  * asks this hook whether it is still current rather than keeping its own counter.
  *
  * Unmounting bumps the generation, so a token taken before unmount is stale
- * afterwards: a result landing on a closed dialog is discarded along with one
+ * afterward: a result landing on a closed dialog is discarded along with one
  * superseded by a newer start.
  *
  * ```ts

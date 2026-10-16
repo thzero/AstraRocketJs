@@ -13,6 +13,7 @@ import { exportCamera, isFittableBox } from './rocketExportCamera';
 import { captureSceneOffscreen } from './offscreenCapture';
 import { clampExportSize } from '../../services/exports/offscreenRaster';
 import { useLatest } from '../common/useLatest';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * Owns the 3D image export handler: the export camera choice, the offscreen
@@ -87,6 +88,9 @@ export function useRocketExport(
     try {
       offscreen = captureSceneOffscreen(st.gl, st.scene, cam, width, height);
     } catch (err) {
+      // A frame past the browser's canvas area limit fails the same way on the
+      // live path, which composes an even larger canvas: report it now.
+      if (err instanceof KeyedError) throw err;
       // The GPU refused a target of this size or format (renderbuffer limit,
       // float attachment unsupported, context lost). Say why, then take the
       // slower on-screen path rather than fail the export.

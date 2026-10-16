@@ -3,11 +3,20 @@ import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { anyOuterRadius, countOf, num } from '../../tree/nodeProps';
-import { FIN_DEFAULTS, KERNEL_DEFAULTS, KERNEL_RAILBUTTON_OUTER_DIAMETER } from '../../tree/kernelDefaults.js';
-import { finSpan } from '../../tree/finPlanform.js';
-import { clusterOffsets } from '../../tree/cluster.js';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
+import { railButtonSize } from './railButton';
+import { bodyRadiusAt, finMount, finSpan, mountRadius } from '../../tree/finPlanform.js';
+import { placementOffsets } from '../../tree/placement';
 import { isPlanarFinSet, tubeFinRadius } from '../../tree/tubefins.js';
-import { isAssembly, resolveAssemblyRadius, ringInstanceOffsets } from '../../tree/assembly.js';
+import {
+  assemblyChainLength,
+  assemblyParentRadius,
+  isAssembly,
+  resolveAssemblyRadius,
+  ringInstanceOffsets,
+} from '../../tree/assembly.js';
+import { isChainType } from '../../tree/componentKinds.js';
+import { axialStart, partLength } from '../../tree/position.js';
 import {
   colorOf,
   innerTubeExtent,
@@ -16,9 +25,12 @@ import {
   zoomStep,
   type MotorDims,
 } from '../../tree/schematicGeometry';
+import { ZoomButtons } from './ZoomButtons';
 import { useWheelZoom } from './useWheelZoom';
+import { keyPan } from './keyPan';
 import { discDims, tubeRadii } from '../../services/design/discGeometry';
 import { DISC_TYPES } from '../../services/files/componentFormats';
+import { withKernelEnds } from '../../services/design/autoRadius';
 import { partLabel } from '../../i18n/format';
 import { radToDeg } from '../../prefs/units';
 import { token } from '../common/colorTokens';
@@ -26,9 +38,10 @@ import { token } from '../common/colorTokens';
 /**
  * Aft end view: the rocket seen from behind (down the +X axis). This is the
  * only place cluster layouts, pod rings and fin counts are visible as they
- * really are: the side views project everything onto one plane. Pure display,
- * no interaction (edit cluster layout/rotation/spacing in the motor dialog and
- * watch this update).
+ * really are: the side views project everything onto one plane. It edits
+ * nothing in the design: the wheel zooms, a drag at the fitted view rolls it,
+ * and zoomed in a drag or the arrow keys pan it (edit cluster layout/rotation/spacing in the motor
+ * dialog and watch this update).
  *
  * Convention: +y right, +z up, matching the kernel's cross-section frame
  * (cluster offsets and pod ring offsets are already {y,z} in that frame).
@@ -73,7 +86,7 @@ type Shape =
  * calls itself as a missing memo dependency. Given the same tree, motors
  * and translator it returns the same drawing, which is what the memo keys on.
  */
-function buildAftScene(
+export function buildAftScene(
   components: ComponentNode[],
   motors: MotorDims | undefined,
   t: TFunction,
@@ -103,13 +116,20 @@ function buildAftScene(
   });
 
   // The entry point first, the per-child walk after it: function
-  // declarations, so the mutual recursion reads top-down.
-  function walkChain(nodes: ComponentNode[], cy: number, cz: number) {
+  // declarations, so the mutual recursion reads top-down. The walk carries
+  // each part's rocket-frame station from `x0`, because a part on a nose cone
+  // or transition stands on the body radius at its own station, and returns
+  // the station the chain ends at.
+  function walkChain(nodes: ComponentNode[], cy: number, cz: number, x0: number): number {
+    let x = x0;
     for (const n of nodes) {
       if (n.type === 'stage') {
-        walkChain(n.children ?? [], cy, cz);
+        x = walkChain(n.children ?? [], cy, cz, x);
         continue;
       }
+      const len = isChainType(n.type) ? partLength(n) : 0;
+      const start = x;
+      x += len;
       const r = anyOuterRadius(n);
       if (r <= 0) continue;
       hulls.push({
@@ -129,24 +149,60 @@ function buildAftScene(
         const motor = n.id ? motors?.[n.id] : undefined;
         if (motor) inner.push(motorShape(n, 0, cy, cz, motor.diameter));
       }
-      walkChildren(n, r, cy, cz);
+      walkChildren(n, r, cy, cz, start, len);
     }
+    return x;
   }
 
-  function walkChildren(parent: ComponentNode, pRadius: number, cy: number, cz: number) {
+  /**
+   * A place across the parent (`placementOffsets`, the kernel's frame) turned
+   * +π/2 into this view's "up = 0°" frame, the fins' reference, so a cluster or
+   * an off-center part clocks like the fins and the 3D view.
+   */
+  const toAftFrame = (raw: { y: number; z: number }) => ({ y: -raw.z, z: raw.y });
+
+  /** An internal part's outline in section: a dashed circle. */
+  const dashedCircle = (child: ComponentNode, i: number, y: number, z: number, r: number, dash: string) =>
+    inner.push({
+      kind: 'circle',
+      key: keyOf(child, i),
+      y,
+      z,
+      r,
+      fill: 'none',
+      stroke: colorOf(child, token('sch-ink')),
+      dash,
+      title: nameOf(child),
+    });
+
+  /**
+   * `parent`'s children. `pRadius` is the parent's largest radius, which sizes
+   * the internal parts inside it; a part on the outside stands on the body
+   * radius at its own station (`bodyRadiusAt`), which on a nose cone or
+   * transition is not that radius. `pStart` and `pLen` place the parent in the
+   * rocket frame.
+   */
+  function walkChildren(parent: ComponentNode, pRadius: number, cy: number, cz: number, pStart: number, pLen: number) {
+    /** The body radius under a child of length `len` at its own station. */
+    const surfaceUnder = (child: ComponentNode, len: number): number =>
+      bodyRadiusAt(parent, axialStart(child, len, pStart, pLen) - pStart) ?? pRadius;
     for (const child of parent.children ?? []) {
       const type = child.type;
       if (isAssembly(type)) {
-        const podRadius = resolveAssemblyRadius(child, pRadius);
+        const podRadius = resolveAssemblyRadius(child, assemblyParentRadius(parent));
+        const podStart = axialStart(child, assemblyChainLength(child), pStart, pLen);
         const count = countOf(child, 'instanceCount', 2);
         // +π/2 so the ring's 0° reference is "straight up" (the same reference
         // the fin sets use here), matching the 3D view (see the lug note below).
         for (const off of ringInstanceOffsets(count, podRadius, Math.PI / 2 + num(child, 'angleOffset', 0))) {
-          walkChain(child.children ?? [], cy + off.y, cz + off.z);
+          walkChain(child.children ?? [], cy + off.y, cz + off.z, podStart);
         }
       } else if (isPlanarFinSet(type)) {
         const count = countOf(child, 'finCount', 3);
         const span = finSpan(child);
+        // The fin stands on the body radius under its own front
+        // (`FinSet.getBodyRadius`), not on the parent's widest radius.
+        const R = mountRadius(finMount(child, parent, pStart)) ?? pRadius;
         const thick = num(child, 'thickness', FIN_DEFAULTS.thickness);
         // First fin straight up (desktop rear-view convention) plus the set's
         // own rotation about the body axis.
@@ -158,19 +214,22 @@ function buildAftScene(
             y: cy,
             z: cz,
             angle,
-            from: pRadius,
-            to: pRadius + span,
+            from: R,
+            to: R + span,
             thick,
             fill: colorOf(child, token('sch-part')),
             stroke: token('sch-line'),
             title: `${nameOf(child)} ×${count}`,
           });
         }
-        reach(cy, cz, pRadius + span);
+        reach(cy, cz, R + span);
       } else if (type === 'tubefinset') {
+        // The ring stands on the body radius at its own front
+        // (`TubeFinSet.getBodyRadius`), which sizes an automatic tube too.
         const count = countOf(child, 'finCount', 6);
-        const rt = tubeFinRadius(child, pRadius);
-        const ring = ringInstanceOffsets(count, pRadius + rt, Math.PI / 2 + num(child, 'rotation', 0));
+        const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.tubefinset.length));
+        const rt = tubeFinRadius(child, R);
+        const ring = ringInstanceOffsets(count, R + rt, Math.PI / 2 + num(child, 'rotation', 0));
         for (const [i, off] of ring.entries()) {
           outer.push({
             kind: 'circle',
@@ -183,37 +242,56 @@ function buildAftScene(
             title: `${nameOf(child)} ×${count}`,
           });
         }
-        reach(cy, cz, pRadius + 2 * rt);
+        reach(cy, cz, R + 2 * rt);
       } else if (type === 'fairing') {
         // Shroud cross-section at the top (radial angle not modeled).
         const wid = num(child, 'width', KERNEL_DEFAULTS.fairing.width);
         const hgt = num(child, 'height', KERNEL_DEFAULTS.fairing.height);
+        const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.fairing.length));
         outer.push({
           kind: 'fin',
           key: keyOf(child, 0),
           y: cy,
           z: cz,
           angle: Math.PI / 2,
-          from: pRadius,
-          to: pRadius + hgt,
+          from: R,
+          to: R + hgt,
           thick: wid,
           fill: colorOf(child, token('sch-part-light')),
           stroke: token('sch-line'),
           title: nameOf(child),
         });
-        reach(cy, cz, pRadius + hgt);
-      } else if (type === 'launchlug' || type === 'railbutton') {
-        // Kernel default (the RailButton constructor), so the aft view shows
-        // the button that is actually simulated.
-        const r =
-          type === 'railbutton'
-            ? num(child, 'outerDiameter', KERNEL_RAILBUTTON_OUTER_DIAMETER) / 2
-            : num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
+        reach(cy, cz, R + hgt);
+      } else if (type === 'railbutton') {
+        // Seen from behind, a button is its outer diameter across and its
+        // height out from the body, the kernel's own when absent, standing at
+        // its radial mount angle (kernel default 180°) on the body radius at
+        // its own station. The +π/2 is the aft view's "up = 0°" convention.
+        const { diameter, reach: out } = railButtonSize(child);
+        const R = surfaceUnder(child, diameter);
+        outer.push({
+          kind: 'fin',
+          key: keyOf(child, 0),
+          y: cy,
+          z: cz,
+          angle: Math.PI / 2 + num(child, 'angleOffset', Math.PI),
+          from: R,
+          to: R + out,
+          thick: diameter,
+          fill: colorOf(child, token('sch-part-light')),
+          stroke: token('sch-line'),
+          title: nameOf(child),
+        });
+        reach(cy, cz, R + out);
+      } else if (type === 'launchlug') {
+        const r = num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
         // Radial mount angle (kernel default 180°). The +π/2 is the aft view's
         // "up = 0°" convention (the same offset the fin sets carry here), so a
         // lug clocks consistently with the fins and with the 3D view.
         const ang = Math.PI / 2 + num(child, 'angleOffset', Math.PI);
-        const rad = pRadius + r;
+        // It stands on the body radius at its own station.
+        const R = surfaceUnder(child, num(child, 'length', KERNEL_DEFAULTS.launchlug.length));
+        const rad = R + r;
         outer.push({
           kind: 'circle',
           key: keyOf(child, 0),
@@ -224,35 +302,19 @@ function buildAftScene(
           stroke: token('sch-line'),
           title: nameOf(child),
         });
-        reach(cy, cz, pRadius + 2 * r);
+        reach(cy, cz, R + 2 * r);
       } else if (type === 'innertube') {
-        const r = innerTubeExtent(child).radius;
-        const offs = clusterOffsets(
-          child['cluster'] as string | undefined,
-          r,
-          num(child, 'clusterScale', 1),
-          num(child, 'clusterRotation', 0),
-        );
+        const { length: tubeLen, radius: r } = innerTubeExtent(child);
+        // Each cluster place, as the kernel puts it (placementOffsets).
+        const offs = placementOffsets(child, r);
         const motor = child.id ? motors?.[child.id] : undefined;
         offs.forEach((raw, i) => {
-          // Rotate the cluster +π/2 into the aft view's "up = 0°" frame (the fins'
-          // reference), so a split cluster clocks like the fins and the 3D view.
-          const off = { y: -raw.z, z: raw.y };
-          inner.push({
-            kind: 'circle',
-            key: keyOf(child, i),
-            y: cy + off.y,
-            z: cz + off.z,
-            r,
-            fill: 'none',
-            stroke: colorOf(child, token('sch-ink')),
-            dash: '3 2',
-            title: nameOf(child),
-          });
+          const off = toAftFrame(raw);
+          dashedCircle(child, i, cy + off.y, cz + off.z, r, '3 2');
           if (motor) inner.push(motorShape(child, i, cy + off.y, cz + off.z, motor.diameter));
           reach(cy + off.y, cz + off.z, r);
         });
-        walkChildren(child, r, cy, cz);
+        walkChildren(child, r, cy, cz, axialStart(child, tubeLen, pStart, pLen), tubeLen);
       } else if (DISC_TYPES.has(type)) {
         // Sized as the side view, the 3D model and the cut sheet size it: its own
         // radii, else the bore of the tube it sits in, with a ring's bore taken
@@ -260,25 +322,17 @@ function buildAftScene(
         const disc = discDims(child, tubeRadii(parent), parent.children ?? []);
         if (!disc) continue;
         const rings = disc.innerR > 0 ? [disc.outerR, disc.innerR] : [disc.outerR];
-        rings.forEach((r, i) =>
-          inner.push({
-            kind: 'circle',
-            key: keyOf(child, i),
-            y: cy,
-            z: cz,
-            r,
-            fill: 'none',
-            stroke: colorOf(child, token('sch-ink')),
-            dash: '2 3',
-            title: nameOf(child),
-          }),
-        );
+        // Off the axis by its own radial position.
+        const off = toAftFrame(placementOffsets(child, disc.outerR)[0]!);
+        rings.forEach((r, i) => dashedCircle(child, i, cy + off.y, cz + off.z, r, '2 3'));
       }
       // parachute/streamer/shockcord/mass: no meaningful cross-section here.
     }
   }
 
-  walkChain(components, 0, 0);
+  // A transition end with no radius on record is drawn as the kernel resolves
+  // it, as the side and 3D views draw it.
+  walkChain(withKernelEnds({ name: '', components }).components, 0, 0, 0);
 
   // Big circles first so nested ones stay visible.
   hulls.sort((a, b) => (b.kind === 'circle' ? b.r : 0) - (a.kind === 'circle' ? a.r : 0));
@@ -416,7 +470,17 @@ export function AftView({
         // would hear only the one aria-label and none of the parts. "group"
         // keeps the overall name yet still exposes the named parts within.
         role="group"
-        aria-label={t('schematic.aftAria')}
+        aria-label={zoom.k > 1 ? `${t('schematic.aftAria')}. ${t('schematic.panHint')}` : t('schematic.aftAria')}
+        // Zoomed in, the view takes focus so the arrows can pan it, as the
+        // side view does.
+        tabIndex={zoom.k > 1 ? 0 : undefined}
+        className="focus-visible:outline focus-visible:outline-2 focus-visible:outline-accent-500"
+        onKeyDown={(e) => {
+          const next = keyPan(zoom, e.key, e.shiftKey, 2 * E);
+          if (!next) return;
+          e.preventDefault();
+          setZoom(next);
+        }}
         onPointerDown={(e) => {
           // At the fitted view a drag rotates the roll. Zoomed in, it pans: the
           // roll slider still turns the rocket, and a wheel zoom about the
@@ -435,7 +499,9 @@ export function AftView({
         onPointerMove={(e) => {
           if (rollDrag.current !== null && onRoll) {
             const width = svgRef.current?.getBoundingClientRect().width || 300;
-            onRoll(((e.clientX - rollDrag.current) / width) * 2 * Math.PI);
+            // Negated with the drawing's rotation below, so the cross-section
+            // still follows the pointer: a drag right turns it clockwise.
+            onRoll((-(e.clientX - rollDrag.current) / width) * 2 * Math.PI);
             rollDrag.current = e.clientX;
             return;
           }
@@ -462,7 +528,12 @@ export function AftView({
           rollDrag.current = null;
         }}
       >
-        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${radToDeg(roll)})`}>
+        {/* The kernel turns the rocket by the roll the same way in every view
+            (desktop RocketFigure applies one rotate_x to the side and back
+            views), so a part's height off the axis matches the side view's
+            cos(angle + roll). With this view's angles running counterclockwise
+            on screen, that is a counterclockwise turn: SVG rotate() is clockwise. */}
+        <g transform={`translate(${zoom.x} ${zoom.y}) scale(${zoom.k}) rotate(${-radToDeg(roll)})`}>
           {hulls.map(drawShape)}
           {inner.map(drawShape)}
           {outer.map(drawShape)}
@@ -471,36 +542,8 @@ export function AftView({
           <line x1={0} y1={-E * 0.05} x2={0} y2={E * 0.05} stroke={token('sch-ink')} strokeWidth={E / 300} />
         </g>
       </svg>
-      {/* Gated the way `SchematicControls` gates the same three. At the default
-          view both zoom-out and fit are no-ops (`zoomBy` clamps the scale at 1
-          and the view already is `ZOOM_IDENTITY`), so they are disabled rather
-          than clickable and inert. Zoom-in disables at the shared ceiling for
-          the same reason. */}
       <div className="schematic-controls">
-        <button
-          title={t('schematic.zoomIn')}
-          aria-label={t('schematic.zoomIn')}
-          onClick={() => zoomBy(1.5)}
-          disabled={zoom.k >= WHEEL_ZOOM.max}
-        >
-          +
-        </button>
-        <button
-          title={t('schematic.zoomOut')}
-          aria-label={t('schematic.zoomOut')}
-          onClick={() => zoomBy(1 / 1.5)}
-          disabled={zoom.k <= 1}
-        >
-          −
-        </button>
-        <button
-          title={t('schematic.fit')}
-          aria-label={t('schematic.fit')}
-          onClick={() => setZoom(ZOOM_IDENTITY)}
-          disabled={zoom.k === 1 && zoom.x === 0 && zoom.y === 0}
-        >
-          ⤢
-        </button>
+        <ZoomButtons zoom={zoom} setZoom={setZoom} zoomBy={zoomBy} />
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 import type { StateCreator } from 'zustand';
-import { isResultView, type Tab, type DesignPane, type ViewMode } from './tabs';
+import { isResultView, type Tab, type DesignPane, type TwoDView, type ViewMode } from './tabs';
 import type { WorkspaceState } from './store';
 
 /**
@@ -12,7 +12,7 @@ export interface ViewSlice {
   /** Which half of the Design tab a phone shows; ignored at lg+, where both do. */
   designPane: DesignPane;
   view: ViewMode;
-  twoD: 'side' | 'aft';
+  twoD: TwoDView;
   roll: number; // 2D fin-spin, radians, kept in [0, 2π)
   resetKey: number; // bump to remount the 2D schematic
 
@@ -20,7 +20,7 @@ export interface ViewSlice {
   /** Open the Design tab on one of its two phone panes (see {@link DesignPane}). */
   setDesignPane: (pane: DesignPane) => void;
   setView: (view: ViewMode) => void;
-  setTwoD: (v: 'side' | 'aft') => void;
+  setTwoD: (v: TwoDView) => void;
   setRoll: (roll: number) => void;
   rollBy: (d: number) => void;
   resetView: () => void;
@@ -33,7 +33,8 @@ export interface ViewSlice {
  * design views, Results the flight ones. Rocket and Simulate show no view at
  * all, so a caller sitting on either is left where it is.
  *
- * Every write of `view` goes through this. Writing the two apart lands you on a
+ * Every write of `view` that can change the tab goes through this, or sets
+ * both together. Writing the two apart lands you on a
  * Results tab with no result and an empty view switch.
  */
 export function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Partial<WorkspaceState> {
@@ -55,9 +56,9 @@ export const createViewSlice: StateCreator<WorkspaceState, [], [], ViewSlice> = 
   roll: 0,
   resetKey: 0,
 
-  // The three below keep the mobile tab and the center-pane view in step (see
-  // {@link showing}). Harmless at desktop widths, where the tab bar is hidden
-  // and `tab` only decides what a later resize lands on.
+  // The three below keep the tab and the center-pane view in step (see
+  // {@link showing}). `tab` is the page at every width: the header's tab strip
+  // on desktop, the bottom tab bar on a phone.
   setTab: (tab) =>
     set((s) => {
       if (tab === 'results') return { tab, view: isResultView(s.view) ? s.view : 'flight' };

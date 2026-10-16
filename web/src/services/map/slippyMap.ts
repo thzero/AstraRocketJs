@@ -10,6 +10,7 @@
  * Everything here is pure, so the projection is tested against published tile
  * numbers rather than by looking at whether the picture came out right.
  */
+import i18n from '../../i18n';
 import { fmtNum } from '../../i18n/format';
 import { degToRad } from '../../prefs/units';
 
@@ -30,7 +31,8 @@ export interface TileSource {
   id: TileSourceId;
   /** Beyond this the server has no imagery and returns blank or 404 tiles. */
   maxZoom: number;
-  url(z: number, x: number, y: number): string;
+  /** A tile's address, carrying the user's own key when they have entered one. */
+  url(z: number, x: number, y: number, key?: string): string;
   /** Shown on the map, because both sources require it. */
   attribution: string;
 }
@@ -48,12 +50,19 @@ export interface TileSource {
  * the mapping still reaches the people who made it, over a commercial CDN that is
  * provisioned for being used.
  *
+ * A user who has entered their own Esri API key (services/map/esriKey) sends it
+ * on every tile as `?token=`, the way Esri's own Leaflet library requests these
+ * same services with a key; without one the request carries none.
+ *
  * Both paths are {z}/{y}/{x}, not the {z}/{x}/{y} most tile servers use.
  * Attribution strings are the `copyrightText` each service publishes in its own
- * `?f=json` metadata rather than something paraphrased.
+ * `?f=json` metadata, word for word, `(c)` included: the provider's terms ask
+ * for that credit, not a shortened one.
  */
-const ESRI = (service: string) => (z: number, x: number, y: number) =>
-  `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/${z}/${y}/${x}`;
+// cspell:ignore Intermap METI NGCC
+const ESRI = (service: string) => (z: number, x: number, y: number, key?: string) =>
+  `https://server.arcgisonline.com/ArcGIS/rest/services/${service}/MapServer/tile/${z}/${y}/${x}` +
+  (key ? `?token=${encodeURIComponent(key)}` : '');
 
 export const TILE_SOURCES: Record<TileSourceId, TileSource> = {
   /**
@@ -64,14 +73,16 @@ export const TILE_SOURCES: Record<TileSourceId, TileSource> = {
     id: 'satellite',
     maxZoom: 19,
     url: ESRI('World_Imagery'),
-    attribution: 'Imagery: Esri, Vantor, Earthstar Geographics',
+    attribution: 'Source: Esri, Vantor, Earthstar Geographics, and the GIS User Community',
   },
   /** For reading the roads in and the town you are near, which imagery does not tell you. */
   street: {
     id: 'street',
     maxZoom: 19,
     url: ESRI('World_Street_Map'),
-    attribution: 'Esri, HERE, Garmin, USGS, NGA, © OpenStreetMap contributors',
+    attribution:
+      'Sources: Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), ' +
+      'Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community',
   },
 };
 
@@ -137,11 +148,11 @@ export function formatLon(lonDeg: number, places = 4): string {
   return `${fmtNum(Math.abs(lonDeg), places)}° ${lonHemisphere(lonDeg)}`;
 }
 
-/** The hemisphere letter {@link formatLat} prints, for a field that keeps the sign. */
-export const latHemisphere = (latDeg: number): 'N' | 'S' => (latDeg < 0 ? 'S' : 'N');
+/** The hemisphere letter {@link formatLat} prints, in the UI language, for a field that keeps the sign. */
+export const latHemisphere = (latDeg: number): string => i18n.t(latDeg < 0 ? 'map.hemisphereS' : 'map.hemisphereN');
 
-/** The hemisphere letter {@link formatLon} prints. */
-export const lonHemisphere = (lonDeg: number): 'E' | 'W' => (lonDeg < 0 ? 'W' : 'E');
+/** The hemisphere letter {@link formatLon} prints, in the UI language. */
+export const lonHemisphere = (lonDeg: number): string => i18n.t(lonDeg < 0 ? 'map.hemisphereW' : 'map.hemisphereE');
 
 /** A latitude and longitude pair. */
 export function formatCoord(latDeg: number, lonDeg: number, places = 4): string {

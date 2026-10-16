@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import {
   isComponentCatalog,
   isComponentRow,
@@ -34,7 +36,7 @@ const tube = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('isComponentCatalog (the gate handed to fetchCatalog)', () => {
-  it('refuses a host that is up but wrong, so the in-build copy is tried', () => {
+  it('refuses a host that is up but serving the wrong shape', () => {
     // Served with HTTP 200 while the data branch rebuilds. Accepting any object
     // would memoize it, and the picker would throw on every open until reload.
     expect(isComponentCatalog({ error: 'rebuilding' })).toBe(false);
@@ -141,5 +143,45 @@ describe('isComponentRow with the stated mass and the nose cone wall and shoulde
   it('refuses a mass or a shoulder that is not a number', () => {
     expect(isComponentRow({ ...nose, mass: '6 g' })).toBe(false);
     expect(isComponentRow({ ...nose, shoulderDiameter: 'wide' })).toBe(false);
+  });
+});
+
+describe('isComponentRow refuses sizes and shapes the editor cannot build', () => {
+  const nose = {
+    type: 'nosecone',
+    mfr: 'Estes',
+    partNo: 'PNC-50K',
+    desc: 'Nose cone',
+    materialDensity: 1050,
+    shape: 'ogive',
+    filled: false,
+    outerDiameter: 0.0247,
+    length: 0.0667,
+  };
+
+  it('drops a zero or negative size, which would be a zero-volume part', () => {
+    expect(isComponentRow(tube({ outerDiameter: 0 }))).toBe(false);
+    expect(isComponentRow(tube({ length: -0.1 }))).toBe(false);
+    expect(isComponentRow(tube({ innerDiameter: -0.001 }))).toBe(false);
+    expect(isComponentRow({ ...nose, length: 0 })).toBe(false);
+    expect(isComponentRow({ ...nose, mass: -1 })).toBe(false);
+    expect(isComponentRow({ type: 'parachute', mfr: 'E', partNo: 'P', desc: 'D', diameter: 0, cd: null })).toBe(false);
+  });
+
+  it('drops a shape the editor does not know, rather than building a different one', () => {
+    expect(isComponentRow({ ...nose, shape: 'blunted-ogive' })).toBe(false);
+    expect(isComponentRow({ ...nose, shape: 'haack' })).toBe(true);
+  });
+
+  it('keeps a zero where a real row has one: no density on file, no shoulder, a closed tail cone end', () => {
+    expect(isComponentRow(tube({ materialDensity: 0, innerDiameter: 0 }))).toBe(true);
+    expect(isComponentRow({ ...nose, shoulderLength: 0 })).toBe(true);
+  });
+
+  it('keeps every row of the bundled catalog', () => {
+    const cat = JSON.parse(readFileSync(resolve(process.cwd(), 'public/data/components.generated.json'), 'utf8')) as {
+      components: unknown[];
+    };
+    expect(cat.components.filter((r) => !isComponentRow(r))).toEqual([]);
   });
 });

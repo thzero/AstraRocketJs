@@ -1,7 +1,9 @@
 // @vitest-environment jsdom
+// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning Allumage -- OpenRocket .ork element names, and a French extension name
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { unzipSync } from 'fflate';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
 import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
 import { defaultRocketTree } from '../../../src/services/design/defaultRocket';
@@ -11,6 +13,7 @@ import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { LoadedOrk } from '../../../src/services/files/loadOrk';
 import type { OrkExportSimulation } from '../../../src/services/files/orkTypes';
 import { noteTexts } from '../../testing/importNotes';
+import i18n from '../../../src/i18n';
 
 /**
  * Every simulation, with its result summary, through a .ork and back.
@@ -101,6 +104,15 @@ describe('reading them back', () => {
     expect(sims[0]!.summary).toEqual(summary);
     expect(sims[2]!.summary).toBeUndefined();
   });
+
+  it('reads an empty summary attribute as missing, not as zero', () => {
+    const xml = write([{ name: 'Calm day', configId: 'cfg-c6', launch, summary, status: 'uptodate' }]).replace(
+      'maxaltitude="333.5"',
+      'maxaltitude=""',
+    );
+    expect(xml).toContain('maxaltitude=""');
+    expect(importOrk(xml).simulations![0]!.summary!.maxAltitude).toBeNaN();
+  });
 });
 
 describe('opening a file with simulations', () => {
@@ -166,6 +178,38 @@ describe('desktop simulation extensions', () => {
     expect(noteTexts(res.notes).some((n) => /Simulation extensions are not run here/.test(n))).toBe(true);
   });
 
+  it('names them as desktop does, and an unknown id as it stands', () => {
+    const note = noteTexts(res.notes).find((n) => /Simulation extensions are not run here/.test(n))!;
+    expect(note).toContain('Air-start');
+    expect(note).not.toMatch(/AirStart|RollControl/);
+    // An id from the file that names an Object.prototype member reads as itself.
+    const odd = importOrk(
+      new TextDecoder()
+        .decode(Object.values(unzipSync(new Uint8Array(example)))[0])
+        .replace(/extensionid="[^"]*"/, 'extensionid="constructor"'),
+    );
+    expect(noteTexts(odd.notes).join(' ')).toContain('constructor');
+    expect(noteTexts(odd.notes).join(' ')).not.toContain('native code');
+  });
+
+  it('translates the names desktop translates, and names a script by its language', async () => {
+    const xml = new TextDecoder()
+      .decode(Object.values(unzipSync(new Uint8Array(example)))[0])
+      .replace(
+        /<extension extensionid="[^"]*RollControl">[\s\S]*?<\/extension>/,
+        '<extension extensionid="info.openrocket.core.simulation.extension.impl.ScriptingExtension"><entry key="language" type="string">Python</entry></extension>',
+      );
+    await i18n.changeLanguage('fr');
+    try {
+      const note = noteTexts(importOrk(xml).notes).join(' ');
+      expect(note).toContain('Allumage en vol');
+      expect(note).toContain('Script Python');
+      expect(note).not.toContain('Air-start');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
+  });
+
   it('keeps them on the simulations it opens, with or without a saved result', () => {
     const loaded = {
       ...res,
@@ -187,5 +231,137 @@ describe('desktop simulation extensions', () => {
     expect(at).toBeLessThan(xml.indexOf('<flightdata'));
     // And they read back the same, so a second round trip keeps them too.
     expect(importOrk(xml).simulations![0]!.xmlExtra).toEqual(carried);
+  });
+});
+
+/**
+ * The conditions a saved result was flown under. The desktop re-flies a
+ * simulation from its `<conditions>`, so a result written up to date has to
+ * carry the step, limit and warning thresholds the run used, and a desktop
+ * file's own conditions this app does not model have to survive a save.
+ */
+describe('simulation options in the conditions', () => {
+  const prefs = {
+    timeStep: 0.01,
+    maxTime: 600,
+    randomSeed: 42,
+    deploymentSpeedWarn: 18,
+    mainHighSpeedWarn: 25,
+    mainLowSpeedWarn: 12,
+    drogueLowSpeedWarn: 2.5,
+  };
+  const cond = (xml: string, tag: string) =>
+    new DOMParser().parseFromString(xml, 'application/xml').querySelector(`simulation > conditions > ${tag}`)
+      ?.textContent;
+
+  it('writes the preferences the run used', () => {
+    const xml = exportOrk({
+      name: 'Sims',
+      tree,
+      configs,
+      activeConfigId: 'cfg-c6',
+      launch,
+      simulations: [{ name: 'Calm day', configId: 'cfg-c6', launch, summary, status: 'uptodate' }],
+      simPrefs: prefs,
+    });
+    expect(cond(xml, 'timestep')).toBe('0.01');
+    expect(cond(xml, 'maxtime')).toBe('600');
+    expect(cond(xml, 'randomseed')).toBe('42');
+    expect(cond(xml, 'recoveryspeedwarning')).toBe('18');
+    expect(cond(xml, 'drogueLowspeedwarning')).toBe('2.5');
+    expect(cond(xml, 'recoverydroguemainhighspeedwarning')).toBe('25');
+    expect(cond(xml, 'recoverydroguemainlowspeedwarning')).toBe('12');
+  });
+
+  const desktopFile = write([{ name: 'Calm day', configId: 'cfg-c6', launch, summary, status: 'uptodate' }]).replace(
+    '<timestep>',
+    '<simulationsteppermethod>rk6</simulationsteppermethod><randomseed>1234</randomseed><timestep>',
+  );
+
+  it('carries the conditions children it does not model back inside the conditions', () => {
+    const sim = importOrk(desktopFile).simulations![0]!;
+    const xml = exportOrk({
+      name: 'Sims',
+      tree,
+      configs,
+      activeConfigId: 'cfg-c6',
+      launch,
+      simulations: [
+        { name: sim.name, configId: 'cfg-c6', launch, summary, status: 'uptodate', xmlExtra: sim.xmlExtra },
+      ],
+    });
+    expect(cond(xml, 'simulationsteppermethod')).toBe('rk6');
+    // No seed of its own, so the file's stands.
+    expect(cond(xml, 'randomseed')).toBe('1234');
+    expect(xml.match(/<timestep>/g)).toHaveLength(1);
+    expect(xml).not.toMatch(/<\/conditions>\s*<conditions>/);
+  });
+
+  it('writes a fixed seed of its own in place of the file one', () => {
+    const sim = importOrk(desktopFile).simulations![0]!;
+    const xml = exportOrk({
+      name: 'Sims',
+      tree,
+      configs,
+      activeConfigId: 'cfg-c6',
+      launch,
+      simulations: [
+        { name: sim.name, configId: 'cfg-c6', launch, summary, status: 'uptodate', xmlExtra: sim.xmlExtra },
+      ],
+      simPrefs: prefs,
+    });
+    expect(xml.match(/<randomseed>/g)).toHaveLength(1);
+    expect(cond(xml, 'randomseed')).toBe('42');
+  });
+});
+
+/**
+ * Desktop keeps a time step, a maximum time and the recovery warnings per
+ * simulation (`SimulationConditionsHandler` reads them into that simulation's
+ * options), so each simulation's own go out in its conditions and come back as
+ * its own overrides, where they differ from the app's globals.
+ */
+describe("each simulation's own run settings", () => {
+  const globals = {
+    timeStep: 0.05,
+    maxTime: 1200,
+    deploymentSpeedWarn: 20,
+    mainHighSpeedWarn: 30.48,
+    mainLowSpeedWarn: 15.24,
+    drogueLowSpeedWarn: 3.048,
+  } as SimPrefs;
+  const fine = { ...globals, timeStep: 0.01 };
+  const xml = write([
+    { name: 'Fine', configId: 'cfg-c6', launch, status: 'notsimulated', prefs: fine },
+    { name: 'Plain', configId: 'cfg-d12', launch, status: 'notsimulated', prefs: globals },
+  ]);
+  const steps = [...new DOMParser().parseFromString(xml, 'application/xml').querySelectorAll('conditions > timestep')];
+
+  it('are written into that simulation', () => {
+    expect(steps.map((e) => e.textContent)).toEqual(['0.01', '0.05']);
+  });
+
+  it('come back as overrides where they differ from the globals', () => {
+    const fileSims = importOrk(xml).simulations;
+    const w = wireLoadedOrk(
+      {
+        name: 'Sims',
+        notes: [],
+        tree,
+        motors: {},
+        configs: configs.map((c) => ({ ...c, motors: {} })),
+        chosenConfigId: 'cfg-c6',
+        simulations: fileSims,
+      } as unknown as LoadedOrk,
+      launch,
+      globals,
+    );
+    expect(w.sims[0]!.prefs).toEqual({ timeStep: 0.01 });
+    expect(w.sims[1]!.prefs).toBeUndefined();
+  });
+
+  it('are refused outside the bounds Settings holds them to', () => {
+    const bad = xml.replace('<timestep>0.01</timestep>', '<timestep>1000000</timestep>');
+    expect(importOrk(bad).simulations?.[0]?.prefs?.timeStep).toBeUndefined();
   });
 });

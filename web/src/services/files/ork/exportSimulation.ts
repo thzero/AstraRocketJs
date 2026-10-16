@@ -1,10 +1,12 @@
+// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning -- OpenRocket .ork element names
 import type { AtmosphereLevel, LaunchConditions } from '../../design/orkTree';
 import { escapeXml } from '../xmlUtil';
 import { isWeatherSource, sourceStatus } from '../../weather/weatherSource';
 import { turbulenceIntensity } from '../../flight/windTurbulence';
 import type { OrkWriter } from './exportWriter';
 import type { FlightSummary } from '../../../engine/openRocketEngine';
-import type { OrkExportSimulation } from '../orkTypes';
+import type { OrkExportSimulation, OrkSimPrefs } from '../orkTypes';
+import { unwrapConditionsChild } from './passthrough';
 import { degToRad } from '../../../prefs/units';
 import { DEFAULT_HEADING_DEG } from '../../flight/simulations';
 import { G0 } from '../../motors/motorMath';
@@ -19,11 +21,12 @@ export function simulationsXml(
   depth: number,
   launch: LaunchConditions | undefined,
   simulations?: readonly OrkExportSimulation[],
+  prefs: OrkSimPrefs = DESKTOP_SIM_PREFS,
 ): void {
   const { emit } = w;
   emit(depth, '<simulations>');
   if (simulations?.length) {
-    for (const sim of simulations) simulationXml(w, depth + 1, sim);
+    for (const sim of simulations) simulationXml(w, depth + 1, sim, prefs);
   } else if (launch) {
     // One <simulation> in the exact shape of the desktop's
     // OpenRocketSaver.saveSimulation() so 24.12 opens it cleanly. Its loader
@@ -36,7 +39,7 @@ export function simulationsXml(
     emit(depth + 2, '<simulator>RK4Simulator</simulator>');
     emit(depth + 2, '<calculator>BarrowmanCalculator</calculator>');
     emit(depth + 2, '<conditions>');
-    conditionsXml(w, depth + 3, launch);
+    conditionsXml(w, depth + 3, launch, prefs, []);
     emit(depth + 2, '</conditions>');
     emit(depth + 1, '</simulation>');
   }
@@ -50,8 +53,17 @@ export function simulationsXml(
  * per-sample <databranch> data is not written, so the desktop shows the figures
  * and re-flies the simulation for its plots.
  */
-function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation): void {
+function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation, prefs: OrkSimPrefs): void {
   const { emit } = w;
+  // Carried conditions children go back inside the conditions; the rest of
+  // the carried children follow them.
+  const carriedConditions: string[] = [];
+  const carried: string[] = [];
+  for (const raw of sim.xmlExtra ?? []) {
+    const child = unwrapConditionsChild(raw);
+    if (child === null) carried.push(raw);
+    else carriedConditions.push(child);
+  }
   const summary = sim.status === 'notsimulated' ? undefined : sim.summary;
   emit(depth, `<simulation status="${summary ? sim.status : 'notsimulated'}">`);
   emit(depth + 1, `<name>${escapeXml(sim.name)}</name>`);
@@ -59,10 +71,12 @@ function simulationXml(w: OrkWriter, depth: number, sim: OrkExportSimulation): v
   emit(depth + 1, '<calculator>BarrowmanCalculator</calculator>');
   emit(depth + 1, '<conditions>');
   const configId = w.writeConfigs.some((c) => c.id === sim.configId) ? sim.configId : w.defaultId;
-  conditionsXml(w, depth + 2, sim.launch, configId);
+  // Each simulation's own: desktop keeps a time step and warning thresholds per
+  // simulation and reads them into that simulation's options.
+  conditionsXml(w, depth + 2, sim.launch, sim.prefs ?? prefs, carriedConditions, configId);
   emit(depth + 1, '</conditions>');
   // What the file carried that this app does not model, where desktop writes it.
-  for (const raw of sim.xmlExtra ?? []) emit(depth + 1, raw);
+  for (const raw of carried) emit(depth + 1, raw);
   if (summary) emit(depth + 1, flightDataTag(summary));
   emit(depth, '</simulation>');
 }
@@ -88,7 +102,28 @@ function flightDataTag(s: FlightSummary): string {
   return `<flightdata${written}/>`;
 }
 
-function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, configId: string = w.defaultId): void {
+/**
+ * The desktop's own defaults for what `OrkSimPrefs` covers (SimulationOptions
+ * and the RK4 stepper's recommended step), for a caller that passes none.
+ */
+const DESKTOP_SIM_PREFS: OrkSimPrefs = {
+  timeStep: 0.05,
+  maxTime: 1200,
+  randomSeed: null,
+  deploymentSpeedWarn: 20,
+  mainHighSpeedWarn: 30.48,
+  mainLowSpeedWarn: 15.24,
+  drogueLowSpeedWarn: 3.048,
+};
+
+function conditionsXml(
+  w: OrkWriter,
+  depth: number,
+  launch: LaunchConditions,
+  prefs: OrkSimPrefs,
+  carried: readonly string[],
+  configId: string = w.defaultId,
+): void {
   const { emit } = w;
   emit(depth, `<configid>${escapeXml(configId)}</configid>`);
   emit(depth, `<launchrodlength>${launch.launchRodLengthM ?? 0}</launchrodlength>`);
@@ -108,6 +143,11 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, co
   // Degrees; the desktop's preference default when the site was never set.
   emit(depth, `<launchlongitude>${launch.longitudeDeg ?? -80.6}</launchlongitude>`);
   emit(depth, `<geodeticmethod>${launch.geodetic ?? 'spherical'}</geodeticmethod>`);
+  // A fixed seed is written as the desktop writes one; with none, the file's
+  // own seed (carried below) is what stands, since a run here drew a fresh one.
+  const seed = prefs.randomSeed;
+  const fixedSeed = seed != null && Number.isInteger(seed);
+  if (fixedSeed) emit(depth, `<randomseed>${seed}</randomseed>`);
   atmosphereXml(w, depth, launch);
   // Gravity in OpenRocketSaver's element, after the atmosphere as the desktop
   // writes it. Only written when it is not the default, so a file that never
@@ -118,9 +158,21 @@ function conditionsXml(w: OrkWriter, depth: number, launch: LaunchConditions, co
     emit(depth, '</gravity>');
   }
   weatherSourceXml(w, depth, launch);
-  // RK4SimulationStepper recommended defaults (the desktop's own values).
-  emit(depth, '<timestep>0.05</timestep>');
-  emit(depth, '<maxtime>1200.0</maxtime>');
+  // What the run flew under, in OpenRocketSaver's elements and order. The
+  // drogue element's capital L is the desktop's own spelling, which its reader
+  // matches exactly.
+  emit(depth, `<timestep>${prefs.timeStep}</timestep>`);
+  emit(depth, `<maxtime>${prefs.maxTime}</maxtime>`);
+  emit(depth, `<recoveryspeedwarning>${prefs.deploymentSpeedWarn}</recoveryspeedwarning>`);
+  emit(depth, `<drogueLowspeedwarning>${prefs.drogueLowSpeedWarn}</drogueLowspeedwarning>`);
+  emit(depth, `<recoverydroguemainhighspeedwarning>${prefs.mainHighSpeedWarn}</recoverydroguemainhighspeedwarning>`);
+  emit(depth, `<recoverydroguemainlowspeedwarning>${prefs.mainLowSpeedWarn}</recoverydroguemainlowspeedwarning>`);
+  // The file's own children this app does not model, the seed among them
+  // unless one was written above.
+  for (const raw of carried) {
+    if (fixedSeed && /^<randomseed[\s>/]/i.test(raw)) continue;
+    emit(depth, raw);
+  }
 }
 
 function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
@@ -150,9 +202,11 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   if (levels.length) {
     // The altitude reference is an attribute of <wind>, as OpenRocketSaver
     // writes it and importt/WindHandler reads it. As a child element the
-    // desktop never looks at it, so an AGL profile saved here would open there
-    // as MSL.
-    emit(depth, `<wind model="multilevel" altituderef="${(launch.windAltitudeReference ?? 'msl').toUpperCase()}">`);
+    // desktop never looks at it. The value is lower case: the desktop writes
+    // enumToXMLName and reads through DocumentConfig.findEnum, which matches
+    // only the lower-case name, so "MSL" or "AGL" reads as no reference, flies
+    // as AGL, and fails the desktop's next save.
+    emit(depth, `<wind model="multilevel" altituderef="${launch.windAltitudeReference ?? 'msl'}">`);
     for (const l of levels) {
       // Attributes, not child elements, and direction in radians like the
       // average block's <direction>.

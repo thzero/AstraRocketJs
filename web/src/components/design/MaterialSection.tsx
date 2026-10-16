@@ -22,9 +22,39 @@ export function MaterialSection({
       <MaterialPicker
         value={typeof node.materialName === 'string' ? node.materialName : undefined}
         density={typeof node.density === 'number' ? node.density : undefined}
-        onChange={(name, d) => onCommitChange({ materialName: name, density: d || undefined })}
+        onChange={(name, d, group) =>
+          onCommitChange({
+            materialName: name,
+            density: d || undefined,
+            // The catalog group rides along, as the fillet picker's does, so
+            // the .ork writer files the material under its own category rather
+            // than the one the part's previous material belonged to.
+            materialGroup: (name && group) || undefined,
+          })
+        }
       />
     </div>
+  );
+}
+
+/** The line material a parachute's shroud lines or a shock cord is weighed by. */
+function LineMaterialPicker({
+  label,
+  node,
+  onCommitChange,
+}: {
+  label: string;
+  node: ComponentNode;
+  onCommitChange: (patch: Partial<ComponentNode>) => void;
+}) {
+  return (
+    <MaterialPicker
+      type="line"
+      label={label}
+      value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
+      density={typeof node.lineDensity === 'number' ? node.lineDensity : undefined}
+      onChange={(name, d) => onCommitChange({ lineMaterialName: name, lineDensity: d || undefined })}
+    />
   );
 }
 
@@ -48,14 +78,25 @@ export function RecoveryMaterialSection({
         onChange={(name, d) => onCommitChange({ surfaceMaterialName: name, surfaceDensity: d || undefined })}
       />
       {node.type === 'parachute' && (
-        <MaterialPicker
-          type="line"
-          label={t('material.lines')}
-          value={typeof node.lineMaterialName === 'string' ? node.lineMaterialName : undefined}
-          density={typeof node.lineDensity === 'number' ? node.lineDensity : undefined}
-          onChange={(name, d) => onCommitChange({ lineMaterialName: name, lineDensity: d || undefined })}
-        />
+        <LineMaterialPicker label={t('material.lines')} node={node} onCommitChange={onCommitChange} />
       )}
+    </div>
+  );
+}
+
+/** A shock cord's line material, which the kernel weighs the cord by, as the
+ *  desktop shock cord dialog offers it. */
+export function CordMaterialSection({
+  node,
+  onCommitChange,
+}: {
+  node: ComponentNode;
+  onCommitChange: (patch: Partial<ComponentNode>) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div className="border-t border-line/5 pt-3">
+      <LineMaterialPicker label={t('material.cord')} node={node} onCommitChange={onCommitChange} />
     </div>
   );
 }

@@ -44,6 +44,11 @@ describe('resultKey caching', () => {
     expect(resultKey(tree, config, moved, globals)).not.toBe(base);
     expect(resultKey(tree, { ...config, motors: { m: {} as never } }, sim, globals)).not.toBe(base);
     expect(resultKey(tree, config, sim, { ...globals, timeStep: 0.02 })).not.toBe(base);
+    // The kernel decides its airframe-step warnings in the length unit, and
+    // they land in the flight, so a unit switch ages the result.
+    expect(resultKey(tree, config, sim, { ...globals, lengthUnit: 'in' })).not.toBe(
+      resultKey(tree, config, sim, { ...globals, lengthUnit: 'mm' }),
+    );
     expect(resultKey({ components: [] } as never, config, sim, globals)).not.toBe(base);
   });
 });

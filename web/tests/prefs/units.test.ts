@@ -1,3 +1,4 @@
+import { NO_VALUE } from '../../src/i18n/noValue';
 import { describe, it, expect } from 'vitest';
 import {
   IMPERIAL_UNITS,
@@ -58,8 +59,8 @@ describe('unit conversion', () => {
   it('never returns a number for an absent value', () => {
     // The kernel emits null for NaN/Infinity, and `null / toSI` is 0, which
     // would print an absent apogee as a confident zero.
-    expect(fmtSi('distance', 'm', NaN)).toBe('—');
-    expect(fmtSi('distance', 'm', null as unknown as number)).toBe('—');
+    expect(fmtSi('distance', 'm', NaN)).toBe(NO_VALUE);
+    expect(fmtSi('distance', 'm', null as unknown as number)).toBe(NO_VALUE);
   });
 
   it('formats with a magnitude ladder, or a requested precision', () => {

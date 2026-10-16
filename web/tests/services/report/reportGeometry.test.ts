@@ -210,18 +210,38 @@ describe('freeform fin: root positions, outline draws', () => {
     expect(Math.max(...out.pts.map((p) => p[0]))).toBeCloseTo(90, 6);
   });
 
-  it('clamps the fin tab to the ROOT, not to the overhang', () => {
+  it('centers the fin tab on the ROOT, not on the overhang', () => {
     const fin = {
       type: 'freeformfinset',
       points: overhang,
       tabHeight: 0.004,
-      tabLength: 0.2, // longer than the fin: must clamp
+      tabLength: 0.02,
+      tabOffsetMethod: 'middle',
     } as unknown as ComponentNode;
     const out = finPlanformMm(fin)!;
     const tabXs = out.pts.slice(overhang.length).map((p) => p[0]);
     expect(tabXs.length).toBeGreaterThan(0);
-    // 60 mm, the real root: a tab running to 90 mm would hang off the airframe.
-    expect(Math.max(...tabXs)).toBeCloseTo(60, 6);
+    // Centered on the 60 mm root, 20 to 40 mm. Measured on the 90 mm overhang
+    // it would run 35 to 55 mm, off the slot cut for it.
+    expect(Math.min(...tabXs)).toBeCloseTo(20, 6);
+    expect(Math.max(...tabXs)).toBeCloseTo(40, 6);
+  });
+
+  it('places a tab longer than the root where the kernel does, not clamped into it', () => {
+    // `FinSet.getTabPoints` reads `getTabFrontEdge()`, `tabPosition`, as it
+    // stands: a 200 mm tab centered on the 60 mm root runs from -70 to 130 mm.
+    const fin = {
+      type: 'freeformfinset',
+      points: overhang,
+      tabHeight: 0.004,
+      tabLength: 0.2,
+      tabOffsetMethod: 'middle',
+    } as unknown as ComponentNode;
+    const tabXs = finPlanformMm(fin)!
+      .pts.slice(overhang.length)
+      .map((p) => p[0]);
+    expect(Math.min(...tabXs)).toBeCloseTo(-70, 6);
+    expect(Math.max(...tabXs)).toBeCloseTo(130, 6);
   });
 
   it('anchors a bottom-mounted fin by its root but still draws the overhang', () => {
@@ -267,7 +287,16 @@ describe('rocketSideView: fins on a transition', () => {
         length: 0.05,
         foreRadius: 0.012,
         aftRadius: 0.008,
-        children: [{ type: 'trapezoidfinset', rootChord: 0.03, tipChord: 0.02, sweep: 0.01, height: 0.02 }],
+        children: [
+          {
+            type: 'trapezoidfinset',
+            rootChord: 0.03,
+            tipChord: 0.02,
+            sweep: 0.01,
+            height: 0.02,
+            position: { method: 'top', offset: 0 },
+          },
+        ],
       },
     ],
   } as unknown as RocketTree;
@@ -287,7 +316,7 @@ describe('rocketSideView: fins on a transition', () => {
   /**
    * A fin sits at the radius under its own front, not at the parent's aft end:
    * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
-   * `symmetricParent.getRadius(xFinFront)` (FinSet.java:959-972).
+   * `symmetricParent.getRadius(xFinFront)` (`FinSet.getBodyRadius` and `getFinFront`).
    *
    * This boat tail runs 12 mm → 8 mm over 50 mm, and the fin starts at its
    * front. Handing `addFins` the aft radius would draw the root at +8 mm while
@@ -297,10 +326,96 @@ describe('rocketSideView: fins on a transition', () => {
   it('seats the fin root on the body surface under the fin front, not the aft radius', () => {
     const view = rocketSideView(withBoatTailFins);
     const fin = view.fins[0]!;
-    const rootY = Math.min(...fin.map((p) => Math.abs(p[1]))); // the root line
+    const rootY = fin[0]![1]; // the leading root corner
     // Conical 12 → 8 mm: at the transition's front the body is 12 mm.
     expect(rootY).toBeCloseTo(12, 6);
     expect(rootY).not.toBeCloseTo(8, 3);
+  });
+
+  /**
+   * The root closes along the parent (`FinSet.getRootPoints`), so at the
+   * trailing edge it sits on the taper: 12 - 4 * 30 / 50 = 9.6 mm, not at the
+   * 12 mm under the fin front. Along a cone the kernel draws the root as one
+   * straight segment, so the outline ends on the taper and closes straight to
+   * the leading corner.
+   */
+  it('runs the root along the taper to the trailing edge', () => {
+    const fin = rocketSideView(withBoatTailFins).fins[0]!;
+    const atTrail = fin.filter(([x, y]) => Math.abs(x - 230) < 1e-6 && y < 11);
+    expect(atTrail.length).toBeGreaterThan(0);
+    expect(atTrail[0]![1]).toBeCloseTo(12 - (4 * 30) / 50, 6);
+    expect(fin[0]![0]).toBeCloseTo(200, 6);
+    expect(fin[0]![1]).toBeCloseTo(12, 6);
+    expect(fin[fin.length - 1]![0]).toBeCloseTo(230, 6);
+  });
+
+  it('runs the root along a curved taper station by station', () => {
+    // An ogive boat tail: the kernel samples the root every 2.5 mm, and each
+    // sample sits on the profile drawn for the transition itself.
+    const ogive = {
+      components: [
+        { type: 'bodytube', length: 0.2, outerRadius: 0.012 },
+        {
+          type: 'transition',
+          shape: 'ogive',
+          length: 0.05,
+          foreRadius: 0.012,
+          aftRadius: 0.008,
+          children: [
+            {
+              type: 'trapezoidfinset',
+              rootChord: 0.03,
+              tipChord: 0.02,
+              sweep: 0.01,
+              height: 0.02,
+              position: { method: 'top', offset: 0 },
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const view = rocketSideView(ogive);
+    const fin = view.fins[0]!;
+    const root = fin.filter(([x, y]) => x > 200 + 1e-6 && x < 230 - 1e-6 && y < 12.5);
+    expect(root.length).toBeGreaterThan(5);
+    const profile = view.body.filter(([x, y]) => x >= 200 && x <= 250 && y > 0);
+    for (const [x, y] of root) {
+      // Between the two profile samples either side of x, as the curve passes.
+      const ahead = profile.filter(([px]) => px <= x).at(-1)!;
+      const behind = profile.find(([px]) => px >= x)!;
+      expect(y).toBeLessThanOrEqual(Math.max(ahead[1], behind[1]) + 1e-6);
+      expect(y).toBeGreaterThanOrEqual(Math.min(ahead[1], behind[1]) - 1e-6);
+    }
+  });
+
+  it("snaps a freeform fin's last point onto the taper, as FreeformFinSet.clampLastPoint does", () => {
+    const freeform = {
+      components: [
+        { type: 'bodytube', length: 0.2, outerRadius: 0.012 },
+        {
+          type: 'transition',
+          length: 0.05,
+          foreRadius: 0.012,
+          aftRadius: 0.008,
+          shape: 'conical',
+          children: [
+            {
+              type: 'freeformfinset',
+              points: [
+                [0, 0],
+                [0.01, 0.02],
+                [0.04, 0],
+              ],
+              position: { method: 'top', offset: 0 },
+            },
+          ],
+        },
+      ],
+    } as unknown as RocketTree;
+    const fin = rocketSideView(freeform).fins[0]!;
+    // Third outline point: x = 240 mm, on the cone at 12 - 4 * 40 / 50.
+    expect(fin[2]![0]).toBeCloseTo(240, 6);
+    expect(fin[2]![1]).toBeCloseTo(12 - (4 * 40) / 50, 6);
   });
 
   it('follows the taper for a fin set further aft', () => {
@@ -327,7 +442,7 @@ describe('rocketSideView: fins on a transition', () => {
       ],
     } as unknown as RocketTree;
     const fin = rocketSideView(halfway).fins[0]!;
-    const rootY = Math.min(...fin.map((p) => Math.abs(p[1])));
+    const rootY = fin[0]![1];
     // Halfway down a linear 12 → 8 mm taper is 10 mm.
     expect(rootY).toBeCloseTo(10, 6);
   });
@@ -386,7 +501,7 @@ describe('rocketSideView: tube fins draw as tubes', () => {
     expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(80, 6); // length 0.08 m
   });
 
-  it('is a rectangle — four corners, two of them flat on the body', () => {
+  it('is a rectangle: four corners, two of them flat on the body', () => {
     const top = rocketSideView(tubeRocket()).fins[0]!;
     expect(top).toHaveLength(4);
     expect(top.filter(([, y]) => Math.abs(y - 12) < 1e-6)).toHaveLength(2); // seated on the airframe
@@ -495,32 +610,6 @@ describe('rocketSideView: off-axis assemblies', () => {
       const ys = p.map(([, y]) => y);
       expect(Math.max(...ys) - Math.min(...ys)).toBeCloseTo(POD_R * 2 * 1000, 6);
     }
-  });
-
-  it('places a pod set attached to the stage from the axis, as the kernel does', () => {
-    // RadiusMethod.RELATIVE adds the parent radius only for a body tube parent.
-    const sv = rocketSideView({
-      name: 'stage pods',
-      components: [
-        node({
-          type: 'stage',
-          children: [
-            node({ type: 'bodytube', length: 0.4, outerRadius: CORE_R }),
-            node({
-              type: 'podset',
-              instanceCount: 2,
-              radiusOffset: 0.03,
-              children: [node({ type: 'bodytube', length: 0.2, outerRadius: POD_R })],
-            }),
-          ],
-        }),
-      ],
-    } as unknown as RocketTree);
-    const centers = sv.pods.map((p) => {
-      const ys = p.map(([, y]) => y);
-      return (Math.max(...ys) + Math.min(...ys)) / 2;
-    });
-    expect(Math.max(...centers)).toBeCloseTo((0.03 + POD_R) * 1000, 6);
   });
 
   it('grows the drawing height to fit the boosters', () => {

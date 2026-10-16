@@ -17,7 +17,7 @@ import { useHelpSearch } from './useHelpSearch';
  * deploy builds that site into `web/public/docs` before the app build, so the
  * pages shown here are byte for byte the pages published at the docs URL; what
  * this adds is a frame around them. The docs stay one source, and the external
- * link stays in the menu too, because a docs site you can send someone is not
+ * link stays in the dialog header, because a docs site you can send someone is not
  * replaceable by a dialog.
  *
  * Why an iframe of the built HTML, rather than rendering the source markdown:
@@ -70,8 +70,9 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
       // "Help", and an eyebrow saying so again just prints the word twice.
       eyebrow={probed?.page?.title ? t('help.title') : undefined}
       onClose={onClose}
-      // Reachable from a dialog's own help link, so it has to sit above one.
-      layer="over"
+      // Reachable from help links inside dialogs that are themselves on the
+      // over layer (the launch site map's key note), so it has to sit above them.
+      layer="top"
       size="4xl"
       // An iframe cannot usefully be scrolled by its container: it takes the
       // height and scrolls its own document.

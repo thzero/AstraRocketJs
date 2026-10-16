@@ -1,0 +1,15 @@
+{
+  // The app's own source, alone and without `@types/node`. The main project
+  // holds src and tests together, and a test that reads a fixture off disk
+  // needs node's types, so there every node global is in scope for src too:
+  // a `Buffer` or `process` in a service would pass typecheck and the
+  // node-environment unit tests and throw in the browser. Here it fails.
+  //
+  // `types: []` drops only the automatically included global packages; a
+  // package src imports (react, three) or references (vite/client) still loads.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "types": []
+  },
+  "include": ["src"]
+}

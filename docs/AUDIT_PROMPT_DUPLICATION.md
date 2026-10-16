@@ -1,6 +1,6 @@
 # AUDIT_PROMPT_DUPLICATION - `web/` duplication and reuse audit (AstraRocketJs)
 
-Companion to `docs/AUDIT_PROMPT.md`. That audit covers security, correctness, architecture, tests, dead code and tooling, and touches duplication only in passing. This one looks at nothing else: code that is written more than once, inline logic that should be a helper, and JSX or hook patterns that should be a shared component.
+Companion to `docs/AUDIT_PROMPT.md`. That audit covers security, correctness, architecture, tests, dead code and tooling; its upkeep section reports duplicated helpers that have drifted, and the `dupes` gate (jscpd, `web/.jscpd.json`) fails on exact token clones above its size floor. This one looks at duplication in depth and nothing else: code that is written more than once, inline logic that should be a helper, and JSX or hook patterns that should be a shared component.
 
 Paste the block below to a capable agent. Run from the repo root (`AstraRocketJs/`); all paths are repo-root-relative.
 
@@ -45,10 +45,10 @@ Reject these before they reach the report:
 **Start from a mechanical baseline, but do not stop there.** Run a token clone detector once and hand its output to every agent:
 
 ```
-cd web && npx --yes jscpd@4 src --ignore "**/vendor/**,**/*.test.ts,**/*.test.tsx,**/*.json,**/*.css" --min-tokens 30 --min-lines 4 --reporters json --output <scratch dir>
+cd web && npx jscpd src --ignore "**/vendor/**,**/*.test.ts,**/*.test.tsx,**/*.json,**/*.css" --min-tokens 30 --min-lines 4 --reporters json --output <scratch dir>
 ```
 
-jscpd finds exact token clones only. On 2026-10-05 it found 0.64% duplicated lines at 50 tokens and 2.4% at 30, which says little: the expensive duplication here is near-copies with renamed variables, the same algorithm written twice in different shapes, and code that ignores a helper that already exists. Treat each jscpd hit as a lead to triage, not a finding.
+This runs the pinned jscpd from `web/package.json` at a lower size floor than the gate. jscpd finds exact token clones only, and the expensive duplication here is near-copies with renamed variables, the same algorithm written twice in different shapes, and code that ignores a helper that already exists. Treat each jscpd hit as a lead to triage, not a finding.
 
 **Each slice agent:**
 
@@ -76,13 +76,13 @@ jscpd finds exact token clones only. On 2026-10-05 it found 0.64% duplicated lin
 
 ## Slices
 
-1. **Canvas, design views** - `web/src/components/canvas/*` except the files in slice 2: the schematic (`TreeSchematic`, `schematic*`, `Schematic*`, `AftView`), the 3D model (`Rocket3D`, `RocketModel`, `rocketPieces`, `rocketCallouts`, `rocketExportCamera`, `offscreen*`, `ImageExportMenu`), aero analysis (`Aero*`, `aeroTables`, `useAeroSweep`), stability (`Stability*`, `stabilityGadget`), and the center frame (`Center*`, `View*`, `InfoOverlay`, `LoadedBanner`, `DesignWarnings`, `StageColorDialog`, `useWheelZoom`, `useViewPrefs`, `useMaximizeCenter`).
+1. **Canvas, design views** - `web/src/components/canvas/*` except the files in slice 2: the schematic (`TreeSchematic`, `schematic*`, `Schematic*`, `AftView`), the 3D model (`Rocket3D`, `RocketModel`, `rocketPieces`, `rocketCallouts`, `rocketExportCamera`, `offscreen*`, `ImageExportMenu`), aero analysis (`Aero*`, `aeroTables`, `useAeroSweep`), stability (`Stability*`, `stabilityInks`), and the center frame (`Center*`, `View*`, `InfoOverlay`, `LoadedBanner`, `DesignWarnings`, `StageColorDialog`, `useWheelZoom`, `useViewPrefs`, `useMaximizeCenter`).
 2. **Canvas, flight views** - `web/src/components/canvas/{Flight*,flight*,PathExport*,pathExport*,GroundTrack,FlightGroundMap,DriftSweepPanel,Environment*,ExportFormatPicker,useChart*,useExport*,useResultFlight,useRecoveryMass,useRocketExport,useAutoRunOutdated}`.
 3. **Simulation, tools and configuration components** - `web/src/components/{sim,tools,config}/*`. The motor dialog family, the weather and wind dialogs, the location picker and site map, and the landing estimator and off-the-rail tools all draw maps, charts and forms; compare them with each other and with slice 2.
 4. **Design, layout, common and report components** - `web/src/components/{design,layout,common,report}/*`, `web/src/App.tsx`, `web/src/main.tsx`. Weight `components/common/*` as the place things should already live: for each common component, find callers that hand-roll it instead.
 5. **File formats, exports and report services** - `web/src/services/{files,exports,report}/**`. `.ork`, `.rkt`, RASAero, DXF, CSV, 3MF, mesh and PDF writers each have their own escaping, number formatting and unit handling. Compare them, but apply the coincidental-similarity rule strictly: two formats with different specs are not duplicates just because both write XML.
 6. **Flight, motor, part and app services** - `web/src/services/{flight,landing,weather,map,tools,motors,parts,materials,app}/**`. Atmosphere, wind, interpolation, drift and landing math appear in several of these; for any physics or unit duplication, check whether the kernel already provides the figure.
-7. **State, storage, design services, tree, prefs, i18n, engine facade** - `web/src/{state,tree,prefs,i18n}/**`, `web/src/services/{storage,design}/**`, `web/src/engine/*.ts` (not `vendor/`). `state/store.ts` is about 1,620 lines, with `state/viewSlice.ts` and `state/fileSlice.ts` beside it; look for store actions that repeat the same clone-mutate-commit sequence, and for tree walks written more than once across `tree/`, `services/design/treeEdit.ts` and the store.
+7. **State, storage, design services, tree, prefs, i18n, engine facade** - `web/src/{state,tree,prefs,i18n}/**`, `web/src/services/{storage,design}/**`, `web/src/engine/*.ts` (not `vendor/`). `state/store.ts` is about 1,720 lines, with `state/viewSlice.ts` and `state/fileSlice.ts` beside it; look for store actions that repeat the same clone-mutate-commit sequence, and for tree walks written more than once across `tree/`, `services/design/treeEdit.ts` and the store.
 8. **Cross-cutting** - as described above.
 
 ## Codebase notes

@@ -14,6 +14,36 @@ export function Section({ title, children }: { title: string; children: React.Re
   );
 }
 
+/** A labeled dropdown whose options are the values of `T`. */
+function SelectRow<T extends string>({
+  label,
+  value,
+  onChange,
+  width,
+  children,
+}: {
+  label: string;
+  value: T;
+  onChange: (v: T) => void;
+  /** The dropdown's Tailwind width class. */
+  width: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className="flex items-center justify-between gap-3">
+      <span className="text-xs text-ink-muted">{label}</span>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(e) => onChange(e.target.value as T)}
+        className={`${width} rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500`}
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
 /** One of the two altitude-reference dropdowns: the track's, and the pins'. */
 export function AltitudeRefSelect({
   label,
@@ -26,20 +56,12 @@ export function AltitudeRefSelect({
 }) {
   const { t } = useTranslation();
   return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-ink-muted">{label}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value as AltitudeReference)}
-        className="w-40 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-      >
-        <option value="automatic">{t('pathExport.altRef.automatic')}</option>
-        <option value="ground">{t('pathExport.altRef.ground')}</option>
-        <option value="sealevel">{t('pathExport.altRef.sealevel')}</option>
-        <option value="clamped">{t('pathExport.altRef.clamped')}</option>
-      </select>
-    </label>
+    <SelectRow label={label} value={value} onChange={onChange} width="w-40">
+      <option value="automatic">{t('pathExport.altRef.automatic')}</option>
+      <option value="ground">{t('pathExport.altRef.ground')}</option>
+      <option value="sealevel">{t('pathExport.altRef.sealevel')}</option>
+      <option value="clamped">{t('pathExport.altRef.clamped')}</option>
+    </SelectRow>
   );
 }
 
@@ -53,20 +75,12 @@ export function UnitRow({
   onChange: (u: DistanceUnit) => void;
 }) {
   return (
-    <label className="flex items-center justify-between gap-3">
-      <span className="text-xs text-ink-muted">{label}</span>
-      <select
-        aria-label={label}
-        value={value}
-        onChange={(e) => onChange(e.target.value as DistanceUnit)}
-        className="w-24 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-      >
-        {UNITS.map((u) => (
-          <option key={u} value={u}>
-            {u}
-          </option>
-        ))}
-      </select>
-    </label>
+    <SelectRow label={label} value={value} onChange={onChange} width="w-24">
+      {UNITS.map((u) => (
+        <option key={u} value={u}>
+          {u}
+        </option>
+      ))}
+    </SelectRow>
   );
 }

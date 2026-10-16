@@ -40,13 +40,14 @@ describe('estimateLanding', () => {
 
 describe('runLandingEstimate', () => {
   const today = ymdInZone(Date.UTC(2026, 9, 4, 18), 'America/Denver');
-  const routes = (terrain: 'ok' | 'fail') => {
+  const routes = (terrain: 'ok' | 'fail' | 'none') => {
     const urls: string[] = [];
     const fetchImpl = ((url: string) => {
       urls.push(url);
       const u = new URL(url);
       if (u.pathname === '/v1/elevation') {
         const n = u.searchParams.get('latitude')!.split(',').length;
+        if (terrain === 'none') return Promise.resolve(new Response('{}', { status: 500 }));
         if (terrain === 'fail' && n > 1) return Promise.resolve(new Response('{}', { status: 500 }));
         // Ground rising to the east: one meter per thousandth of a degree.
         const longitudes = u.searchParams.get('longitude')!.split(',').map(Number);
@@ -70,7 +71,7 @@ describe('runLandingEstimate', () => {
   it('lands on the terrain when it can be had', async () => {
     const { urls, fetchImpl } = routes('ok');
     const run = await runLandingEstimate(q, { fetchImpl, sleep: async () => {} });
-    if (run === 'noHour') throw new Error('noHour');
+    if (typeof run === 'string') throw new Error(run);
     expect(run.terrain).toBe(true);
     // Ground rising downwind: the landing is above the pad.
     expect(run.estimate.nominal.groundElevationM).toBeGreaterThan(1500);
@@ -80,7 +81,7 @@ describe('runLandingEstimate', () => {
   it('falls back to flat ground, and says so, when the terrain cannot be had', async () => {
     const { fetchImpl } = routes('fail');
     const run = await runLandingEstimate(q, { fetchImpl, sleep: async () => {} });
-    if (run === 'noHour') throw new Error('noHour');
+    if (typeof run === 'string') throw new Error(run);
     expect(run.terrain).toBe(false);
     expect(run.estimate.nominal.groundElevationM).toBe(1500);
   });
@@ -88,7 +89,15 @@ describe('runLandingEstimate', () => {
   it("takes the terrain model's height for the pad when none is given", async () => {
     const { fetchImpl } = routes('ok');
     const run = await runLandingEstimate({ ...q, padElevationM: null }, { fetchImpl, sleep: async () => {} });
-    if (run === 'noHour') throw new Error('noHour');
+    if (typeof run === 'string') throw new Error(run);
     expect(run.padElevationM).toBe(1500);
+  });
+
+  it('asks for the pad height when none is given and the terrain model has none', async () => {
+    const { urls, fetchImpl } = routes('none');
+    const run = await runLandingEstimate({ ...q, padElevationM: null }, { fetchImpl, sleep: async () => {} });
+    expect(run).toBe('noElevation');
+    // No forecast is asked for at a height the site does not have.
+    expect(urls.every((u) => new URL(u).pathname === '/v1/elevation')).toBe(true);
   });
 });

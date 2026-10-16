@@ -1,12 +1,21 @@
 import { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { useUnits } from '../../prefs/useUnits';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { avgThrustOf, ispOf, massFracOf } from '../../services/motors/motorMath';
-import { ChartAxes, CHART_HEADROOM, chartScales, linePath, baselineArea, LegendSwatch, peakOf } from './chartAxes';
-import { inUserUnit, withFixedUnit } from './motorFormat';
+import {
+  ChartAxes,
+  CHART_HEADROOM,
+  chartScales,
+  linePath,
+  baselineArea,
+  LegendSwatch,
+  highestSample,
+} from './chartAxes';
+import { inUserUnit, motorTypeLabel, withFixedUnit } from './motorFormat';
 import { token } from '../common/colorTokens';
 import { motorSimilarity } from '../../engine/openRocketEngine';
 import { loadHideSimilar, saveHideSimilar } from './motorPrefs';
@@ -14,8 +23,6 @@ import { finalizeSamples } from '../../services/motors/curveFinalize';
 
 /** Desktop's threshold for "Hide very similar thrust curves" (MOTOR_SIMILARITY_THRESHOLD). */
 const SIMILAR = 0.95;
-
-const TYPE_KEY: Record<string, string> = { SU: 'typeSU', reload: 'typeReload', hybrid: 'typeHybrid' };
 
 /** Detail panel for a catalog motor: manufacturer/class header, thrust-curve
  *  chart, and the spec grid. Reads only bundled data (no fetch). */
@@ -87,10 +94,10 @@ export function MotorDetail({
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto px-4 py-3">
       {onBack && (
         <button onClick={onBack} className="mb-2 self-start text-xs text-accent-400 hover:underline md:hidden">
-          ← {t('motorDlg.backToList')}
+          <span aria-hidden="true">←</span> {t('motorDlg.backToList')}
         </button>
       )}
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">{motor.manufacturer}</div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-300">{motor.manufacturer}</div>
       <div className="mt-1 flex items-center gap-2">
         <span className="rounded bg-ok-500/15 px-1.5 py-0.5 text-xs font-semibold text-ok-300">{motor.class}</span>
         <h3 className="text-2xl font-bold text-ink-strong">{title}</h3>
@@ -101,16 +108,19 @@ export function MotorDetail({
             {t('motorDlg.commonName')} {motor.designation} ·{' '}
           </>
         )}
-        {motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : ''}
+        {motor.type ? motorTypeLabel(motor.type, t) : ''}
       </div>
-      <a
-        href={tcUrl}
-        target="_blank"
-        rel="noreferrer"
-        className="mt-1 self-start text-sm text-accent-400 hover:underline"
-      >
-        {t('motorDlg.viewOnTc')} ↗
-      </a>
+      {/* An imported curve has no ThrustCurve page to link to. */}
+      {!motor.custom && (
+        <a
+          href={tcUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="mt-1 self-start text-sm text-accent-400 hover:underline"
+        >
+          {t('motorDlg.viewOnTc')} <span aria-hidden="true">↗</span>
+        </a>
+      )}
 
       {motor.oop && <p className="mt-1 text-xs font-medium text-warn-300">{t('motorDlg.oop')}</p>}
 
@@ -152,11 +162,8 @@ export function MotorDetail({
 
       <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-4">
         <SpecItem label={t('motorDlg.commonName')} value={motor.designation} />
-        <SpecItem
-          label={t('motorDlg.motorType')}
-          value={motor.type ? t(`motorDlg.${TYPE_KEY[motor.type] ?? ''}`, { defaultValue: motor.type }) : '—'}
-        />
-        <SpecItem label={t('motorDlg.delays')} value={motor.delays ?? '—'} />
+        <SpecItem label={t('motorDlg.motorType')} value={motor.type ? motorTypeLabel(motor.type, t) : NO_VALUE} />
+        <SpecItem label={t('motorDlg.delays')} value={motor.delays ?? NO_VALUE} />
         <SpecItem label={t('prop.diameter')} value={q('motorDimensions', motor.diameter, 0.001)} />
         <SpecItem label={t('prop.length')} value={q('motorDimensions', motor.length, 0.001)} />
         <SpecItem label={t('motorDlg.totalWeight')} value={q('mass', motor.mass, 0.001)} />
@@ -169,9 +176,9 @@ export function MotorDetail({
         <SpecItem label={t('motorDlg.isp') + '*'} value={g(isp, 's', 0)} />
         <SpecItem
           label={t('motorDlg.massFraction') + '*'}
-          value={Number.isFinite(massFrac) ? `${fmtNum(massFrac, 0)}%` : '—'}
+          value={Number.isFinite(massFrac) ? `${fmtNum(massFrac, 0)}%` : NO_VALUE}
         />
-        <SpecItem label={t('motorDlg.propType')} value={motor.propInfo ?? '—'} />
+        <SpecItem label={t('motorDlg.propType')} value={motor.propInfo ?? NO_VALUE} />
         <SpecItem label={t('motorDlg.sparky')} value={t(motor.sparky ? 'motorDlg.yes' : 'motorDlg.no')} />
       </dl>
       <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('motorDlg.calcNote')}</p>
@@ -190,25 +197,47 @@ export function SpecItem({ label, value }: { label: string; value: string }) {
   );
 }
 
-/** Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker. */
-export function ThrustChart({ samples, avg, burn }: { samples: [number, number][]; avg: number; burn: number }) {
+/**
+ * Compact thrust-vs-time chart: filled curve, average-thrust line, burn marker.
+ * `avg` and `burn` are null while they are not known (the kernel not loaded
+ * yet); their lines are left out.
+ */
+export function ThrustChart({
+  samples,
+  avg,
+  burn,
+}: {
+  samples: [number, number][];
+  avg: number | null;
+  burn: number | null;
+}) {
   const { t } = useTranslation();
   const u = useUnits();
   const dims = { width: 460, height: 150, padL: 34, padR: 10, padT: 10, padB: 22 };
   const { width: W, height: H, padL: PL, padR: PR, padT: PT, padB: PB } = dims;
   const tMax = samples[samples.length - 1]![0] || 1;
-  const fMax = Math.max(...samples.map((s) => s[1]), avg) * CHART_HEADROOM || 1;
+  const fMax = Math.max(...samples.map((s) => s[1]), avg ?? 0) * CHART_HEADROOM || 1;
   const { X, Y } = chartScales(dims, tMax, fMax);
   const line = linePath(samples, X, Y);
   const area = baselineArea(samples, X, Y, tMax);
-  const peak = peakOf(samples);
+  const peak = highestSample(samples);
   // Per instance: `url(#id)` resolves to the first match in the document, so a
   // second chart sharing a fixed id would paint with the first one's gradient.
   const fillId = `thrustFill${useId()}`;
 
   return (
     <div className="mt-2">
-      <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="block">
+      <svg
+        viewBox={`0 0 ${W} ${H}`}
+        width="100%"
+        className="block"
+        role="img"
+        aria-label={t('motorDlg.chartAria', {
+          peak: u.fmtSym('force', peak[1], 1),
+          avg: avg == null ? NO_VALUE : u.fmtSym('force', avg, 1),
+          burn: burn == null ? NO_VALUE : fmtNum(burn, 2),
+        })}
+      >
         <defs>
           <linearGradient id={fillId} x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stopColor={token('thrust')} stopOpacity="0.45" />
@@ -221,16 +250,18 @@ export function ThrustChart({ samples, avg, burn }: { samples: [number, number][
         )}
         <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
         <path d={area} fill={`url(#${fillId})`} />
-        <line
-          x1={PL}
-          y1={Y(avg)}
-          x2={W - PR}
-          y2={Y(avg)}
-          stroke={token('thrust-average')}
-          strokeWidth="1"
-          strokeDasharray="4 3"
-        />
-        {burn > 0 && burn <= tMax && (
+        {avg != null && (
+          <line
+            x1={PL}
+            y1={Y(avg)}
+            x2={W - PR}
+            y2={Y(avg)}
+            stroke={token('thrust-average')}
+            strokeWidth="1"
+            strokeDasharray="4 3"
+          />
+        )}
+        {burn != null && burn > 0 && burn <= tMax && (
           <line
             x1={X(burn)}
             y1={PT}

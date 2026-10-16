@@ -35,6 +35,9 @@ export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
             >
               <span aria-hidden>⚠</span>
               <span className="min-w-0">
+                {/* HIGH is said in words too: the danger color is not the only
+                    thing setting it apart from a note. */}
+                {w.priority === 'HIGH' && <span className="font-semibold">{`${t('sim.warningHigh')} `}</span>}
                 <span className="font-medium">{warningText(w.message, t, (q, si) => u.fmtSym(q, si))}</span>
                 {help && <span className="mt-1 block font-normal leading-snug">{help}</span>}
               </span>

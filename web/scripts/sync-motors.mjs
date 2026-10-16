@@ -11,8 +11,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { writeDataManifest } from './lib/dataManifest.mjs';
+import { STAGED_MOTORS } from './lib/catalogStaging.mjs';
 import { collidingRowKeys } from './lib/motorRowKey.mjs';
+import { rankCurves } from './lib/rankCurves.mjs';
 
 const API = 'https://www.thrustcurve.org/api/v1';
 // public/data is served as-is (not bundled) so the catalog can be refreshed
@@ -30,13 +31,15 @@ async function post(path, body) {
   return res.json();
 }
 
+/** Code-unit order, which no locale changes. */
+const cmp = (a, b) => (a < b ? -1 : a > b ? 1 : 0);
 const round = (n, d) => (Number.isFinite(n) ? Number(n.toFixed(d)) : 0);
 const chunk = (arr, size) =>
   Array.from({ length: Math.ceil(arr.length / size) }, (_, i) => arr.slice(i * size, i * size + size));
 
 // A motor can have several data files (cert vs user submissions, RASP/RockSim
-// formats). Bundle them all, best-first, so the picker can offer a choice.
-const SRC_RANK = { cert: 0, mfr: 1, user: 2 };
+// formats). Bundle them all, best-first (lib/rankCurves.mjs), so the picker can
+// offer a choice.
 const sourceLabel = (s) => ({ cert: 'Certified', mfr: 'Manufacturer', user: 'User' })[s] || s || 'Unknown';
 
 /** Fetch thrust-curve files for a batch of motorIds → Map<motorId, file[]>.
@@ -47,8 +50,17 @@ async function fetchSamples(ids) {
   const { results: files = [] } = await post('download.json', { motorIds: ids, data: 'both', maxResults: 4000 });
   for (const f of files) {
     if (!f.samples || f.samples.length < 2) continue;
+    // The curves' final tie-break (lib/rankCurves.mjs). Without it the default
+    // curve would follow the order the API returned the files in.
+    if (!f.simfileId) throw new Error(`download.json: a file for motor ${f.motorId} has no simfileId`);
     if (!out.has(f.motorId)) out.set(f.motorId, []);
-    out.get(f.motorId).push({ source: f.source, format: f.format, samples: f.samples, data: f.data });
+    out.get(f.motorId).push({
+      simfileId: f.simfileId,
+      source: f.source,
+      format: f.format,
+      samples: f.samples,
+      data: f.data,
+    });
   }
   return out;
 }
@@ -171,14 +183,6 @@ async function main() {
   }
   console.log('');
 
-  const rankFiles = (files) =>
-    [...files].sort(
-      (a, b) =>
-        (SRC_RANK[a.source] ?? 9) - (SRC_RANK[b.source] ?? 9) || // cert first
-        (a.format === 'RASP' ? 0 : 1) - (b.format === 'RASP' ? 0 : 1) || // RASP first
-        b.samples.length - a.samples.length,
-    );
-
   const catalog = motors
     .filter((m) => m.totImpulseNs > 0 && m.burnTimeS > 0)
     .map((m) => {
@@ -208,7 +212,7 @@ async function main() {
       // Bundled thrust curves (best-first), so a picked motor resolves with no
       // fetch and the picker can offer a choice when there are several.
       if (curve && Number.isFinite(m.length) && Number.isFinite(m.propWeightG)) {
-        const ranked = rankFiles(curve);
+        const ranked = rankCurves(curve);
         row.curves = ranked.map((c) => ({
           src: `${sourceLabel(c.source)} · ${c.format}`,
           samples: c.samples.map((s) => [round(s.time, 4), round(s.thrust, 3)]),
@@ -229,16 +233,29 @@ async function main() {
       }
       return row;
     })
-    .sort((a, b) => a.impulse - b.impulse || a.designation.localeCompare(b.designation));
+    // Ties broken down to the row key (lib/motorRowKey.mjs), which assertSane
+    // holds unique, so the order never depends on the order the API returned:
+    // a reordered response would otherwise change the file and its manifest hash
+    // with no motor changed.
+    .sort(
+      (a, b) =>
+        a.impulse - b.impulse ||
+        a.designation.localeCompare(b.designation) ||
+        cmp(a.manufacturer, b.manufacturer) ||
+        a.diameter - b.diameter ||
+        cmp(a.code ?? '', b.code ?? '') ||
+        cmp(a.designation, b.designation),
+    );
 
   const withCurves = catalog.filter((m) => m.curves).length;
   const noCurve = catalog.filter((m) => m.noCurve);
   await assertSane(catalog, withCurves);
-  await writeFile(OUT, JSON.stringify(catalog, null, 0) + '\n');
-  writeDataManifest(DATA_DIR); // refresh the cache-bust hashes
-  console.log(
-    `\nWrote ${catalog.length} motors (${withCurves} with bundled curves) → public/data/motors.generated.json`,
-  );
+  // Staged, not written to public/data: these rows have no digests yet, and
+  // sync-motor-digests adds them and writes the finished catalog
+  // (lib/catalogStaging.mjs).
+  await writeFile(STAGED_MOTORS, JSON.stringify(catalog) + '\n');
+  console.log(`\nStaged ${catalog.length} motors (${withCurves} with bundled curves) in ${STAGED_MOTORS}`);
+  console.log('Run `npm run sync:motor-digests` to add their digests and write public/data/motors.generated.json.');
   if (noCurve.length) {
     console.log(`  ${noCurve.length} have NO bundled thrust curve (flagged noCurve):`);
     console.log(`    ${noCurve.map((m) => `${m.manufacturer} ${m.designation}`).join(', ')}`);

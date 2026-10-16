@@ -4,9 +4,10 @@
 //
 //   npm run docs:build
 //
-// The deploy does this itself (.github/workflows/deploy.yml, before the app
-// build), so this script is for working on Help locally: public/docs is
-// gitignored, and without it the dialog can only offer the docs site.
+// The gates' e2e and update-flow jobs run it before their browser checks, and
+// it is how Help is worked on locally: public/docs is gitignored, and without it
+// the dialog can only offer the docs site. The deploy builds the same tree with
+// its own docusaurus command (.github/workflows/deploy.yml).
 //
 // It exists instead of a one-line npm script because of DOCS_BASE_URL. The
 // docs config defaults its baseUrl to "/" so `docusaurus start` and `serve`
@@ -16,18 +17,24 @@
 // 404 instead of its own stylesheet. So the base is derived here from the same
 // PAGES_BASE the app build reads, which keeps the two in step.
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const website = fileURLToPath(new URL('../../website/', import.meta.url));
+// The website's own Docusaurus CLI, run by this same node with no shell: a
+// shell joins the arguments unquoted, so an --out-dir with a space would
+// split, and Windows refuses to spawn npx.cmd without one.
+const core = createRequire(join(website, 'package.json')).resolve('@docusaurus/core/package.json');
+const cli = join(dirname(core), 'bin', 'docusaurus.mjs');
 const outDir = fileURLToPath(new URL('../public/docs', import.meta.url));
 
 // Mirrors vite.config.ts: PAGES_BASE or "/", with the docs one level under it.
 const appBase = (process.env.PAGES_BASE || '/').replace(/\/*$/, '/');
 
-const { status, error } = spawnSync('npx', ['docusaurus', 'build', '--out-dir', outDir], {
+const { status, error } = spawnSync(process.execPath, [cli, 'build', '--out-dir', outDir], {
   cwd: website,
   stdio: 'inherit',
-  shell: true, // npx is a shell script on POSIX and a .cmd on Windows.
   env: { ...process.env, DOCS_BASE_URL: `${appBase}docs/` },
 });
 

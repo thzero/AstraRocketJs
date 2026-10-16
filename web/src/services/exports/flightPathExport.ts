@@ -5,6 +5,7 @@ import { componentName, isDefaultComponentName } from '../app/warningText';
 import { hexOf, parseHexColor } from '../design/colorHex';
 import { neutralizeFormula } from './csvCell';
 import { siToUi } from '../../prefs/units';
+import { stageLabel, withUnit } from '../../i18n/format';
 import { CSV_MIME } from './csvExport';
 import { escapeXml } from '../files/xmlUtil';
 import { offsetToLatLon } from '../map/geodesy';
@@ -446,7 +447,7 @@ function qualifyLabel(qualifier: string, label: string, qualify: boolean): strin
 // Model (format-agnostic, mirrors FlightPathModel)
 // ---------------------------------------------------------------------------
 
-export interface FlightPathWaypoint {
+interface FlightPathWaypoint {
   type: WaypointKind;
   label: string;
   device: string;
@@ -494,7 +495,7 @@ export interface FlightPathWaypoint {
   branchName: string;
 }
 
-export interface FlightPathPoint {
+interface FlightPathPoint {
   latitude: number;
   longitude: number;
   /** Altitude above sea level, in meters. GPX elevations are defined this way. */
@@ -508,7 +509,7 @@ export interface FlightPathPoint {
   altitude: string;
 }
 
-export interface FlightPathBranch {
+interface FlightPathBranch {
   name: string;
   /** Zero-based position in `model.branches`, for building unique style ids. */
   index: number;
@@ -680,6 +681,15 @@ const UNIT_SYMBOL: Record<DistanceUnit, string> = { m: 'm', ft: 'ft', km: 'km', 
 /** Decimals shown per unit (larger units get more). */
 const UNIT_DECIMALS: Record<DistanceUnit, number> = { m: 1, ft: 1, km: 3, mi: 3 };
 
+/**
+ * A compass bearing in degrees, in `unit` with its symbol: whole degrees, or
+ * two more places in radians, the precision `fmtDegrees` gives the app.
+ */
+function fmtBearing(deg: number, unit: string): string {
+  const v = siToUi('angle', unit, (deg * Math.PI) / 180);
+  return withUnit(v.toFixed(unit === '°' ? 0 : 2), unit);
+}
+
 /** Render a meters value in the given unit, without the unit symbol. */
 function fmtLength(meters: number, unit: DistanceUnit): string {
   if (!Number.isFinite(meters)) return '';
@@ -727,13 +737,20 @@ const series = (s: FlightSeries, key: string): (number | null)[] | undefined => 
 
 /**
  * Staged flights carry per-branch data (branch 0 = the sustainer stack); a
- * single flight is exported as one synthetic branch from the top-level series.
+ * single flight is exported as one synthetic branch from the top-level series,
+ * named after the rocket, the simulation or, failing both, the translated
+ * "Flight". A branch is named as every other view names a stage, so an unnamed
+ * stage reads "Stage n" in folders, tracks and qualified waypoints.
  */
 function rawBranchesOf(
   result: FlightResult,
   meta: FlightPathMeta,
+  t: Translate,
 ): { name: string; events: FlightEvent[]; series: FlightSeries }[] {
-  return flightBranches(result, meta.rocketName || meta.simName || 'Flight');
+  return flightBranches(result, meta.rocketName || meta.simName || t('pathExport.doc.flight')).map((b, i) => ({
+    ...b,
+    name: stageLabel(t, i, b.name),
+  }));
 }
 
 /**
@@ -753,8 +770,8 @@ function usableSeries(s: FlightSeries): { time: (number | null)[]; alt: (number 
  * order their `index` will be assigned: what the stage-color picker offers a
  * swatch for. Unprefixed: it names the stage, not the file.
  */
-export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): string[] {
-  return rawBranchesOf(result, meta)
+export function exportBranchNames(result: FlightResult, meta: FlightPathMeta, t: Translate): string[] {
+  return rawBranchesOf(result, meta, t)
     .filter((b) => usableSeries(b.series) !== null)
     .map((b) => b.name);
 }
@@ -765,6 +782,9 @@ export function exportBranchNames(result: FlightResult, meta: FlightPathMeta): s
  * @param t resolves the export's strings. Bind it to `options.language` and
  *          every string in the file follows; the app's own `t` writes the file
  *          in whatever the app is showing.
+ * @param angleUnit the reader's angle unit symbol (`°` or `rad`), which the
+ *          bearing in a distance-and-bearing line is written in. The numeric
+ *          `bearing` fields stay compass degrees for templates.
  */
 export function buildFlightPathModel(
   result: FlightResult,
@@ -772,6 +792,7 @@ export function buildFlightPathModel(
   meta: FlightPathMeta,
   options: FlightPathExportOptions,
   t: Translate,
+  angleUnit = '°',
 ): FlightPathModel {
   // A position left at (0, 0) was never filled in, and is exported from the
   // Kennedy Space Center rather than from Null Island. The design is untouched.
@@ -843,7 +864,7 @@ export function buildFlightPathModel(
     branches: [],
   };
 
-  const rawBranches = rawBranchesOf(result, meta);
+  const rawBranches = rawBranchesOf(result, meta, t);
 
   // Only a staged flight needs its waypoints qualified; see `qualifyLabel`.
   const qualify = rawBranches.length > 1;
@@ -857,6 +878,7 @@ export function buildFlightPathModel(
       launchAlt,
       altUnit: options.altitudeUnit,
       distUnit: options.distanceUnit,
+      angleUnit,
       kmlAltitude,
       kmlWaypointAltitude,
       qualify,
@@ -917,6 +939,8 @@ interface BranchCtx {
   launchAlt: number;
   altUnit: DistanceUnit;
   distUnit: DistanceUnit;
+  /** The angle unit symbol a bearing is written in. */
+  angleUnit: string;
   /** Height above the ground → the altitude a KML coordinate should carry. */
   kmlAltitude: (altAgl: number) => number;
   kmlWaypointAltitude: (altAgl: number) => number;
@@ -995,12 +1019,12 @@ function buildBranch(
   const distanceAt = (i: number) => distanceFromPad({ east: eastAt(i), north: northAt(i) });
   const bearingAt = (i: number) => bearingFromPad({ east: eastAt(i), north: northAt(i) });
 
-  /** "223.6 m at 27°", in the export language. */
+  /** "223.6 m at 27°", in the export language and the reader's angle unit. */
   const distanceBearing = (i: number): string =>
     t('pathExport.doc.distanceBearing', {
       distance: fmtLength(distanceAt(i), ctx.distUnit),
       unit: UNIT_SYMBOL[ctx.distUnit],
-      bearing: bearingAt(i).toFixed(0),
+      bearing: fmtBearing(bearingAt(i), ctx.angleUnit),
     });
 
   const mkWaypoint = (i: number, type: WaypointKind, label: string, device: string | null): FlightPathWaypoint => {
@@ -1463,21 +1487,40 @@ export function hasLaunchPosition(launch: LaunchConditions): boolean {
 /** Choose the value escaper by output extension (mirrors the desktop exporter). */
 function escaperFor(extension: string): (raw: string) => string {
   switch (extension.toLowerCase()) {
+    // Markup formats take the XML escaper too, so a component name from a shared
+    // file cannot become a live element in the generated page.
+    // A KML viewer may set a value into HTML as well as show it as text:
+    // Google Earth's default balloon places a feature's `<name>` there. So a
+    // KML value carries no `<` or `>` at all, and cannot become markup. Text
+    // inside `{{#htmlBalloon}}` is HTML-escaped before it gets here, so it
+    // keeps every character.
     case 'kml':
+      return (raw) => escapeXml(raw.replace(/[<>]/g, '')).replace(/'/g, '&apos;');
     case 'gpx':
     case 'xml':
+    case 'html':
+    case 'htm':
+    case 'xhtml':
+    case 'svg':
       return (raw) => escapeXml(raw).replace(/'/g, '&apos;');
     case 'csv':
       // Neutralize spreadsheet formula injection: a file-sourced value (e.g. a
       // rocket named `=HYPERLINK(...)`) must not execute when the CSV is opened
-      // in Excel/Sheets. Prefix a `'` when it leads with a formula trigger, then
-      // double quotes for RFC-4180 (the template wraps values in quotes).
+      // in Excel/Sheets. The shared rule neutralizes a trigger at the start and
+      // after an embedded separator, then quotes are doubled for RFC-4180 (the
+      // template wraps values in quotes).
       //
-      // A leading `-` is a trigger only when what follows is not a number: the
-      // pre-formatted numeric fields (longitude, altitude, distance) go through
-      // this same escaper, and quoting `-80.600000` would turn every
-      // western-hemisphere longitude and every below-pad altitude into text.
-      return (raw) => neutralizeFormula(raw, { keepNumericMinus: true }).replace(/"/g, '""');
+      // The pre-formatted numeric fields (longitude, altitude, distance) go
+      // through this same escaper; the shared rule leaves a value that is a
+      // whole number alone, so `-80.600000` stays a number while
+      // `-1+HYPERLINK(...)` is neutralized.
+      return (raw) => neutralizeFormula(raw).replace(/"/g, '""');
+    case 'tsv':
+      // A TSV opens straight into a spreadsheet just as a CSV does, so the same
+      // formula rule applies. TSV has no quoting: a tab or line break inside a
+      // value would start a new cell or row, so C0 controls and DEL become a
+      // space after the triggers behind them are neutralized.
+      return (raw) => stripControls(neutralizeFormula(raw));
     case 'json':
       // JSON's own string escaping, via the one function guaranteed to agree
       // with every parser. `JSON.stringify` quotes what it returns, so the
@@ -1492,12 +1535,19 @@ function escaperFor(extension: string): (raw: string) => string {
       // format: C0 controls and DEL, which is what a crafted component name
       // would use to forge a record boundary. Printable punctuation is left
       // alone, because in an unknown format it is as likely to be content.
-      // Matched per character and compared by code point rather than with a
-      // control-character class, which `no-control-regex` rejects because a
-      // literal control in a pattern is usually a mistake. Keeping the test out
-      // of the pattern avoids switching the rule off.
-      return (raw) => raw.replace(/./gsu, (ch) => (ch < ' ' || ch === '' ? ' ' : ch));
+      return stripControls;
   }
+}
+
+/**
+ * The value with every C0 control and DEL replaced by a space. Matched per
+ * character and compared by code point rather than with a control-character
+ * class, which `no-control-regex` rejects because a literal control in a
+ * pattern is usually a mistake. Keeping the test out of the pattern avoids
+ * switching the rule off.
+ */
+function stripControls(raw: string): string {
+  return raw.replace(/./gsu, (ch) => (ch < ' ' || ch === '' ? ' ' : ch));
 }
 
 /** Best-effort MIME type for a downloaded export file, by extension. */

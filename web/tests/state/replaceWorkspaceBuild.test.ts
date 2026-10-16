@@ -47,8 +47,9 @@ describe('replaceWorkspace clears the live build', () => {
     expect((s().info as { mass?: number } | null)?.mass).toBeUndefined();
   });
 
-  it('still clears everything it cleared before', () => {
-    // The guard against "fixed by deleting the rest of the reset".
+  it('clears the run state along with the build', () => {
+    // Clearing the build must not cost the rest of the reset: the runs, the
+    // selection and the drift sweep belong to the outgoing design too.
     s().applyBuild(build(1).info, build(1).rocket);
     s().resetWorkspace();
     expect(s().simRuns).toEqual({});

@@ -1,15 +1,16 @@
 name: CI
 
-# The PR gate. Triggered by `pull_request` ONLY — opening a PR, and every push
+# The PR gate. Triggered by `pull_request` ONLY: opening a PR, and every push
 # to a branch that has one open. There is deliberately no `push` trigger: work
-# on a branch with no PR is not gated here, and master is handled by deploy.yml.
+# on a branch with no PR is gated by dev.yml, and master is reached through a
+# PR, so the merge result this run tests is what master gets.
 # One trigger means no double-firing, so no job here has to detect and skip a
 # duplicate run.
 #
 # A `pull_request` run tests the MERGE of head into base, not the branch tip.
 #
-# WHAT runs is in gates.yml, shared with deploy.yml so master cannot drift from
-# what a PR was held to. Add a gate there, not here.
+# WHAT runs is in gates.yml, shared with dev.yml so a branch push cannot drift
+# from what a PR is held to. Add a gate there, not here.
 
 on:
   pull_request:
@@ -24,3 +25,21 @@ concurrency:
 jobs:
   gates:
     uses: ./.github/workflows/gates.yml
+
+  # `CI / verify`, the one check that stands for every gate on the merge
+  # result.
+  #
+  # `always()` and an explicit result check: a job skipped because a job it
+  # needs failed reports as skipped, and a skipped required check counts as
+  # passing.
+  verify:
+    needs: gates
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - if: needs.gates.result != 'success'
+        run: |
+          echo "::error::A gate did not pass: ${{ needs.gates.result }}"
+          exit 1
+      - run: echo "Every gate passed."

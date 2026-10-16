@@ -8,38 +8,40 @@ El panel de **Componentes** (a la izquierda en escritorio) contiene el árbol de
 
 Un cohete es un árbol de componentes, de la ojiva a la cola, agrupados en etapas. Selecciona cualquier pieza (en el árbol **o** haciendo clic en ella en la vista 2D) para editar sus propiedades.
 
-Las ramas con hijos se **pliegan** con sus galones **▾ / ▸** (o pliega y despliega todo desde la cabecera), y puedes **plegar la lista de componentes entera** —su cabecera mantiene a la vista la pieza seleccionada— para dar más espacio al editor de propiedades en un diseño alto. Al eliminar una pieza (el botón **Eliminar** de sus propiedades) se te pide confirmación.
+Para añadir una pieza, selecciona la pieza en la que va y elígela en la lista **＋ Añadir** de la fila que hay encima del árbol. La lista está agrupada en Cuerpo, Aletas, Interior, Recuperación, Otros y Ensamblaje, y solo ofrece las piezas que la seleccionada puede contener.
+
+Las ramas con hijos se **pliegan** con sus galones **▾ / ▸** (o pliega y despliega todo desde la cabecera), y puedes **plegar la lista de componentes entera** (su cabecera mantiene a la vista la pieza seleccionada) para dar más espacio al editor de propiedades en un diseño alto. Al eliminar una pieza (el botón **Eliminar** de sus propiedades) se te pide confirmación.
 
 ### Cortar, copiar, pegar y duplicar {#cut-copy-paste-and-duplicate}
 
-Los botones ✂ ⧉ ⎘ ❐ a la derecha de la cabecera del árbol cortan, copian, pegan y duplican la pieza seleccionada, con todo lo que contiene. Con una fila enfocada, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** y **Ctrl+D** hacen lo mismo (**⌘** en un Mac). Funcionan como el menú Editar de OpenRocket de escritorio:
+Los botones ✂ ⧉ ⎘ ❐ a la derecha de la cabecera del árbol cortan, copian, pegan y duplican la pieza seleccionada, con todo lo que contiene. Con una fila enfocada, **Ctrl+X**, **Ctrl+C**, **Ctrl+V** y **Ctrl+D** hacen lo mismo con esa fila, que seleccionan (**⌘** en un Mac). Funcionan como el menú Editar de OpenRocket de escritorio:
 
 - **Pegar** coloca la copia dentro de la pieza seleccionada cuando puede contenerla, como su último hijo, y si no, justo después de la pieza seleccionada. Cuando ninguna de las dos opciones vale, Pegar queda desactivado y su información emergente dice por qué: las aletas, por ejemplo, no pueden ir dentro de una ojiva ni a su lado. Una etapa se pega después de la etapa seleccionada.
 - **Duplicar** coloca la copia al final de los hijos de la pieza padre.
 - **Cortar** quita la pieza y la guarda para pegarla. No pide confirmación, porque Deshacer la recupera, salvo para tu único soporte de motor. La última etapa no se puede cortar.
-- La copia conserva el nombre del original. Una etapa tiene como mucho un paracaídas piloto (drogue), así que un paracaídas o una serpentina pegados que serían un segundo llegan como dispositivo de recuperación normal.
+- La copia conserva el nombre del original. Una etapa tiene como mucho un paracaídas piloto, así que un paracaídas o una cinta pegados que serían un segundo llegan como dispositivo de recuperación normal.
 
 Lo que cortaste o copiaste sigue disponible al cambiar de diseño, así que una pieza puede pasar de un diseño a otro. Cada pegado o duplicado es un solo paso de deshacer.
 
-El árbol se recorre por completo con el teclado: entra con **Tab**, después **↑ / ↓** (y **Inicio / Fin**) se mueven entre piezas, **← / →** pliegan o despliegan una rama, y **Intro / Espacio** selecciona — así un árbol largo es una sola parada de tabulación, no una por pieza.
+El árbol se recorre por completo con el teclado: entra con **Tab**, después **↑ / ↓** (y **Inicio / Fin**) se mueven entre piezas, **← / →** pliegan o despliegan una rama, y **Intro / Espacio** selecciona: así un árbol largo es una sola parada de tabulación, no una por pieza.
 
 Los componentes admitidos incluyen:
 
-- **Componentes del cuerpo** — ojiva, tubo, transición (hombro/cola de bote).
-- **Aletas** — trapezoidales, elípticas, de forma libre y aletas tubulares.
-- **Estructura interior** — tubo interior (soporte del motor), anillos de centrado, mamparos, acopladores, topes de motor.
-- **Recuperación** — paracaídas, cinta, cordón de choque.
-- **Masa y exterior** — componente de masa, guía de lanzamiento, botón de raíl, carenados y cápsulas.
+- **Componentes del cuerpo**: ojiva, tubo, transición (hombro/cola de bote).
+- **Aletas**: trapezoidales, elípticas, de forma libre y aletas tubulares.
+- **Estructura interior**: tubo interior (soporte del motor), anillos de centrado, mamparos, acopladores, topes de motor.
+- **Recuperación**: paracaídas, cinta, cordón de choque.
+- **Masa y exterior**: componente de masa, tubo guía, botón de riel, cápsulas y propulsores.
 
 Cada pieza expone las dimensiones y opciones que el motor de física necesita (longitudes, diámetros, espesor, geometría de aletas, etc.). La edición está amortiguada: el modelo se reconstruye y las estadísticas se refrescan mientras escribes o arrastras.
 
-### Despliegue dual
+### Despliegue dual {#dual-deployment}
 
-Un paracaídas o una cinta lleva una casilla **Piloto (despliegue dual)**. Márcala en el dispositivo que se abre en el apogeo y el vuelo se simula como despliegue dual: primero un piloto pequeño que baja el cohete de forma controlada y después el principal, más abajo.
+El editor de una etapa tiene un **Tipo de despliegue de recuperación**: **Despliegue único** o **Despliegue dual**. Elige **Despliegue dual** y escoge como **Dispositivo piloto** el paracaídas o la cinta que se abre en el apogeo, y la etapa se trata como despliegue dual: primero un piloto pequeño que baja el cohete de forma controlada y después el principal, más abajo. Una etapa tiene como mucho un piloto.
 
-No es solo una etiqueta. La simulación juzga cada apertura de forma distinta según esa casilla, y avisa si el principal sale demasiado rápido o demasiado lento, y si el piloto sale demasiado lento en el apogeo para inflarse, según los umbrales de **[Ajustes ▸ Avisos de seguridad](./settings.md#avisos-de-seguridad)**. Si no marcas ninguno, toda la etapa es despliegue simple y se juzga contra un único umbral.
+No es solo una etiqueta. La simulación juzga cada apertura de forma distinta según esa elección, y avisa si el principal sale demasiado rápido o demasiado lento, y si el piloto sale demasiado lento en el apogeo para inflarse, según los umbrales de **[Ajustes ▸ Simulación ▸ Avisos de seguridad](./settings.md#safety-warnings)**. Con **Despliegue único**, toda la etapa se juzga contra un único umbral.
 
-### Qué cabe dentro de un componente de masa
+### Qué cabe dentro de un componente de masa {#what-goes-inside-a-mass-component}
 
 Un componente de masa no es solo un lastre: puede contener estructura interior propia, así que una bahía de altímetro o una bandeja de carga útil se modela como la bandeja más los anillos, mamparos, electrónica y equipo de recuperación anidados dentro. Se le añaden piezas igual que a un tubo de cuerpo.
 
@@ -49,17 +51,17 @@ Un componente de masa no es solo un lastre: puede contener estructura interior p
 
 **Un tubo también declara su interior.** Los tubos de fuselaje, los tubos interiores, los acopladores, los topes de motor, las aletas tubulares y las guías de lanzamiento muestran un **diámetro interior** entre el diámetro exterior y el espesor de pared. No es un cuarto número independiente: un tubo tiene un exterior y una pared, y el interior es lo que dejan los dos. Por eso escribir un diámetro interior cambia la **pared** y deja el diámetro exterior intacto, porque el exterior de un tubo suele venir decidido por aquello en lo que tiene que encajar. Un interior más ancho que el propio tubo se limita a una pared de cero, nunca a una negativa.
 
-Así las preguntas de ajuste son directas. ¿Entra el motor? Compara el diámetro del motor con el diámetro interior del soporte. ¿Encaja el acoplador en el tubo? Su diámetro exterior contra el diámetro interior del tubo. ¿Pasará la varilla por la guía? El diámetro interior de la guía, que hasta ahora era el que trajera el archivo, porque no existía ningún campo para la pared de una guía.
+Así las preguntas de ajuste son directas. ¿Entra el motor? Compara el diámetro del motor con el diámetro interior del soporte. ¿Encaja el acoplador en el tubo? Su diámetro exterior contra el diámetro interior del tubo. ¿Pasará la varilla por la guía? El diámetro interior de la guía.
 
-**Un encaje puede seguir al tubo en el que entra.** Junto a cada diámetro de encaje, en una ojiva y en los dos extremos de una transición, hay un interruptor. Con él activado, el diámetro es el diámetro interior de la pieza contigua - la de abajo en una ojiva, la de arriba y la de abajo en una transición - y se mantiene así: aumenta el espesor de pared del tubo y el encaje que entra en él lo sigue en la misma pulsación. Mientras está activado la casilla es solo lectura, y al desactivarlo se fija el número que hubiera en ese momento.
+**Un hombro puede seguir al tubo en el que entra.** Junto a cada diámetro del hombro, en una ojiva y en los dos extremos de una transición, hay un interruptor. Con él activado, el diámetro es el diámetro interior de la pieza contigua - la de abajo en una ojiva, la de arriba y la de abajo en una transición - y se mantiene así: aumenta el espesor de pared del tubo y el hombro que entra en él lo sigue en la misma pulsación. Mientras está activado la casilla es solo lectura, y al desactivarlo se fija el número que hubiera en ese momento.
 
-Solo sigue el diámetro. Hasta dónde llega el encaje dentro del tubo lo decides tú, así que una pieza con el interruptor activado y sin longitud de encaje sigue sin tener encaje, que es el punto de partida correcto.
+Solo sigue el diámetro. Hasta dónde llega el hombro dentro del tubo lo decides tú, así que una pieza con el interruptor activado y sin longitud del hombro sigue sin tener hombro, que es el punto de partida correcto.
 
-El interruptor viene activado en las piezas que añades aquí y desactivado en todo lo que se lee de un archivo, porque en un archivo un encaje ausente significa que la pieza no lo tiene. Nada de lo que importes gana uno. `.ork` no tiene forma de guardar el interruptor, así que un archivo escrito aquí lleva el número ya resuelto y una ida y vuelta por OpenRocket de escritorio lo deja congelado en ese valor.
+El interruptor viene activado en las piezas que añades aquí y desactivado en todo lo que se lee de un archivo, porque en un archivo un hombro ausente significa que la pieza no lo tiene. Nada de lo que importes gana uno. `.ork` no tiene forma de guardar el interruptor, así que un archivo escrito aquí lleva el número ya resuelto y una ida y vuelta por OpenRocket de escritorio lo deja congelado en ese valor.
 
-**Un encaje tiene pared y puede ir cerrado.** Cada uno lleva su propio espesor y un interruptor **Cerrado** que tapa su extremo exterior con un disco del material de la propia pieza. El disco tiene el espesor de la pared del encaje, y es lo que convierte una ojiva en un compartimento cerrado donde puedes meter lastre de morro o un altímetro. Ambos cuentan para la masa, el CG y los momentos de inercia. Una transición tiene un juego por lado, delantero y trasero, y son independientes.
+**Un hombro tiene pared y puede ir cerrado.** Cada uno lleva su propio espesor y un interruptor **Hombro tapado** que tapa su extremo exterior con un disco del material de la propia pieza. El disco tiene el espesor de la pared del hombro, y es lo que convierte una ojiva en un compartimento cerrado donde puedes meter lastre de morro o un altímetro. Ambos cuentan para la masa, el CG y los momentos de inercia. Una transición tiene un juego por lado, delantero y trasero, y son independientes.
 
-Si dejas en blanco el espesor de un encaje, OpenRocket lo toma de la pared de la propia pieza en cuanto el encaje recibe una longitud, así que un valor ausente no es un cero.
+Si dejas en blanco el espesor de un hombro, OpenRocket lo toma de la pared de la propia pieza en cuanto el hombro recibe una longitud, así que un valor ausente no es un cero.
 
 ## Dimensiones obligatorias {#required-dimensions}
 
@@ -76,34 +78,36 @@ Si una dimensión obligatoria vale **cero**, el campo escala el aviso: la etique
 | Componente | Obligatorio |
 | --- | --- |
 | Ojiva | longitud, diámetro, espesor |
-| Tubo de fuselaje | longitud, diámetro, espesor |
+| Tubo de cuerpo | longitud, diámetro, espesor |
 | Transición | longitud, diámetro anterior, diámetro posterior, espesor |
 | Juego de aletas trapezoidales / elípticas | número de aletas, cuerda raíz, altura, espesor |
 | Juego de aletas de forma libre | número de aletas, espesor |
 | Juego de aletas tubulares | número de tubos, longitud, diámetro del tubo, espesor |
 | Tubo interior | longitud, diámetro, espesor |
 | Acoplador, tope de motor | longitud, espesor |
-| Anillo centrador | espesor |
+| Anillo de centrado | espesor |
 | Mamparo | espesor |
-| Guía de lanzamiento | longitud, diámetro |
+| Tubo guía | longitud, diámetro |
 | Botón de riel | diámetro exterior |
 | Paracaídas | diámetro, coeficiente de arrastre |
 | Cinta | longitud, anchura, coeficiente de arrastre |
 | Componente de masa | masa |
 | Conjunto de cápsulas / etapa paralela | número de instancias |
 
-**Los diámetros que se ajustan a la pieza que los contiene se dejan en blanco.** Un acoplador, un tope de motor, un anillo centrador o un mamparo toman su diámetro exterior de la pieza en la que van montados, y un anillo centrador toma su diámetro interior del soporte del motor que lo atraviesa, así que dejarlos vacíos es una respuesta real y no un hueco: es lo que los archivos `.ork` llaman *auto*, y el valor se ajusta solo cuando cambias el tubo de tamaño. En el editor es la casilla pequeña que hay junto al campo, y un acoplador, un tope de motor, un anillo centrador o un mamparo nuevo llega con ella marcada, así que la pieza tiene el tamaño del fuselaje en el que la sueltas antes de que la toques. Desmárcala, o elige una pieza del catálogo, y se usa el número que des. Un anillo centrador sin soporte de motor al lado tiene diámetro interior cero, es decir un disco macizo: es lo que da también OpenRocket de escritorio. El tubo interior es la excepción a todo esto: él *es* el soporte del motor, así que su tamaño es justo lo que se está declarando.
+**Los diámetros que se ajustan a la pieza que los contiene se dejan en blanco.** Un acoplador, un tope de motor, un anillo centrador o un mamparo toman su diámetro exterior de la pieza en la que van montados, y un anillo centrador toma su diámetro interior del soporte del motor que lo atraviesa, así que dejarlos vacíos es una respuesta real y no un hueco: es lo que los archivos `.ork` llaman *auto*, y el valor se ajusta solo cuando cambias el tubo de tamaño. En el editor es la casilla pequeña que hay junto al campo, y un acoplador, un tope de motor, un anillo centrador o un mamparo nuevo llega con ella marcada, así que la pieza tiene el tamaño del fuselaje en el que la sueltas antes de que la toques. Desmárcala, o elige una pieza del catálogo, y se usa el número que des. Un anillo centrador sin ningún tubo de motor que lo atraviese tiene diámetro interior cero, es decir un disco macizo: es lo que da también OpenRocket de escritorio. El tubo interior es la excepción a todo esto: él *es* el soporte del motor, así que su tamaño es justo lo que se está declarando.
 
-Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de calado** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **voladizo del motor** de 0 está enrasado; un **diámetro interior** de 0 en un anillo centrador es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
+**Los diámetros del fuselaje también pueden ser automáticos.** Un tubo de fuselaje nuevo y los dos extremos de una transición nueva llegan con **Auto** marcado, y la base de una ojiva tiene la misma casilla. Un diámetro automático sigue a la pieza contigua a lo largo del fuselaje, a través de otros tubos automáticos y entre etapas, así que un tubo añadido entre otros dos coincide con ellos. Si no hay nada que seguir, mide 50 mm, como en OpenRocket de escritorio. El diámetro del tubo de un juego de aletas tubulares también puede ser **Auto**, que dimensiona los tubos para que se toquen entre sí alrededor del cuerpo.
+
+Todo lo demás puede valer cero legítimamente, y por eso no está marcado. Una **cuerda de punta** de 0 es una aleta delta; una **flecha** o un **ángulo de inclinación** de 0 es una aleta recta; un **hombro** o una **lengüeta** de 0 simplemente no existe; un **sobresaliente del motor** de 0 está enrasado; un **diámetro interior** de 0 en un anillo de centrado es un disco macizo; una **longitud** de 0 en un componente de masa es una masa puntual; y todos los **retardos** y **desplazamientos angulares** parten de 0. Una etapa no tiene ningún campo obligatorio: sus ajustes son disparadores y retardos.
 
 
 ## Filetes de las aletas {#fin-fillets}
 
 La sección **Filete** de un juego de aletas toma el radio del cordón de cola a lo largo de la raíz de la aleta y el material del que está hecho. Los dos cuentan: el volumen del filete se suma a la masa de cada aleta y su centroide tira del CG hacia atrás, igual que lo calcula OpenRocket de escritorio.
 
-El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Un filete que añades aquí empieza como epoxi espesada **West System Six10** (1180 kg/m³), porque los filetes se hacen con epoxi; OpenRocket de escritorio lo empieza como cartón. Elige otro de los [adhesivos](#adhesives), o añade el tuyo con el selector de materiales. Un filete de un `.ork` que no nombra material se pesa como cartón (680 kg/m³), que es como lo lee el escritorio.
+El material importa porque un filete rara vez es del mismo material que la aleta. Un cordón de 6 mm en tres aletas alrededor de un tubo de 26 mm son unos 1,1 g en cartón y 2,0 g en algo con la densidad de la resina epoxi, y el CG se desplaza un par de milímetros con ello. Un filete que añades aquí empieza como **Epoxy - West System Six10**, una epoxi espesada (1180 kg/m³), porque los filetes se hacen con epoxi; OpenRocket de escritorio lo empieza como cartón. Elige otro de los [adhesivos](#adhesives), o añade el tuyo con el selector de materiales. Un filete de un `.ork` que no nombra material se pesa como cartón (680 kg/m³), que es como lo lee el escritorio.
 
-**Los tubos como aletas no tienen filete.** Un juego de tubos como aletas es un tubo, no una aleta, así que el núcleo no tiene ningún filete que darle y la sección no aparece.
+**Las aletas tubulares no tienen filete.** Un juego de aletas tubulares es un tubo, no una aleta, así que el núcleo no tiene ningún filete que darle y la sección no aparece.
 
 **La lista de materiales de un filete solo tiene adhesivos**, y la de una pieza estructural tiene todo lo demás. Para usar algo poco común, añádelo con **＋ Añadir personalizado…** y archívalo en Adhesivos. Un material que una pieza ya usa sigue en su lista en cualquier caso.
 
@@ -115,53 +119,62 @@ Un juego de aletas **de forma libre** se modela punto por punto en lugar de a pa
 
 - **Arrastra un punto ámbar** para moverlo.
 - **Toca un punto azul intermedio** de una arista para insertar un punto ahí.
-- **Selecciona un punto** para borrarlo o para escribir sus coordenadas exactas.
+- **Selecciona un punto** para borrarlo o para escribir sus coordenadas exactas. El primer y el último punto, los dos extremos de la raíz, no se pueden borrar.
 
 Los ejes son los de la propia aleta: **X recorre el cuerpo**, del frente de la raíz a la parte trasera, e **Y es la altura sobre la superficie del cuerpo**. La arista de la raíz cierra el perfil en Y = 0, así que das forma al borde de ataque, a la punta y al borde de salida, no a la raíz.
+
+Debajo del perfil:
+
+- **Dimensionar aleta** toma un factor, y **Aplicar** escala a la vez el contorno, la pared, la lengüeta y el filete.
+- **Importar una imagen** traza el perfil a partir de una imagen. Usa una forma oscura sólida sobre un fondo claro que toque el borde inferior, que será la raíz. Un píxel es un milímetro, así que escala la aleta después.
+- **Exportar CSV** descarga los puntos.
+
+Un juego de aletas trapezoidales o elípticas tiene un botón **Convertir a forma libre**, que lo reconstruye como un perfil de forma libre con la misma forma.
 
 El perfil gobierna la pieza real y no solo el dibujo: la masa, el CG y la aerodinámica lo siguen, y [escalar todo el cohete](#scaling-the-whole-rocket) mueve los puntos con todo lo demás. Viaja de ida y vuelta en los archivos `.ork` y de RockSim.
 
 ## Etapas (cohetes de varias etapas) {#staging-multi-stage-rockets}
 
-Un cohete puede tener más de una etapa. **+ Etapa** (en la cabecera del panel de Componentes) añade un **propulsor** debajo de la etapa inferior actual; sus piezas (cuerpo, aletas, soporte de motor, recuperación) se construyen y editan exactamente igual que las del sustentador. Selecciona un nodo de **etapa** para definir cómo abandona el conjunto:
+Un cohete puede tener más de una etapa. **＋ Etapa** (en la fila que hay encima de la lista de componentes) añade un **propulsor** debajo de la etapa inferior actual; sus piezas (cuerpo, aletas, soporte de motor, recuperación) se construyen y editan exactamente igual que las del sustentador. Selecciona un nodo de **etapa** para definir cómo abandona el conjunto:
 
-- **Separación** — el evento que libera el propulsor: en la **ignición**, el **fin de combustión**, la **eyección**, el **apogeo**, a una **altitud** (ascendiendo o descendiendo), o **nunca**. Una etapa configurada como *nunca* permanece unida y baja con la etapa superior. Un **retardo** o una **altitud** opcionales afinan el disparo.
-- **Ignición de la etapa superior** — el motor de una etapa superior se enciende con el **fin de combustión** o la **carga de eyección** del propulsor (o **nunca**); esto se define en la tarjeta del motor (consulta **[Motores](./motors.md)**).
+- **Separación de etapa**: el evento que libera el propulsor: **Carga de eyección de la etapa superior**, **Fin de combustión de la etapa superior**, **Lanzamiento**, **Encendido de la etapa superior**, **Encendido de la siguiente etapa**, **Apogeo**, **Altitud (ascendiendo)**, **Altitud (descendiendo)** o **Nunca**. Una etapa configurada como **Nunca** permanece unida y baja con la etapa superior. Un **retardo** o una **altitud** opcionales afinan el disparo.
+- **Encendido**: el motor de una etapa superior se enciende con **Eyección de la etapa inferior** o **Fin de combustión de la etapa inferior** (o **Nunca**). Esto se define en la tarjeta del motor, en la pestaña Configuraciones (consulta **[Configuraciones de vuelo](./flight-configurations.md#motors)**).
 
-También puedes añadir **cápsulas** (podsets) y propulsores en **paralelo** (adosados) como conjuntos. Tras un vuelo por etapas, las **[gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation)** dibujan la trayectoria propia de cada etapa.
+Con un tubo de fuselaje seleccionado, **＋ Añadir ▸ Ensamblaje** añade una **Cápsula** o un **Propulsor** (una etapa paralela, adosada). Cada uno empieza con un tubo de fuselaje sobre el que construir, y un propulsor empieza con dos copias, como en el escritorio. Tras un vuelo por etapas, las **[gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation)** dibujan la trayectoria propia de cada etapa.
 
-> Los vuelos por etapas se **simulan** como ramas independientes —cada propulsor agotado vuela, despliega y aterriza por su cuenta— y la masa, el CG y la estabilidad estáticos coinciden con OpenRocket de escritorio. La *trayectoria de vuelo* también se comprueba contra OpenRocket original sin modificar: secuencias de eventos idénticas en cada rama y apogeos que coinciden con una tolerancia relativa de 1e-5.
+> Los vuelos por etapas se **simulan** como ramas independientes (cada propulsor agotado vuela, despliega y aterriza por su cuenta) y la masa, el CG y la estabilidad estáticos salen del mismo código de OpenRocket que el programa de escritorio. La *trayectoria de vuelo* también se comprueba contra OpenRocket original sin modificar: secuencias de eventos idénticas en cada rama y apogeos que coinciden con una tolerancia relativa de 1e-5.
 
 ## Deshacer / rehacer {#undo--redo}
 
 Toda edición se puede deshacer. Usa los botones **↶ / ↷** de la barra superior, o `Ctrl/⌘+Z` para deshacer y `Ctrl+Mayús+Z` (o `Ctrl+Y`) para rehacer. Una interacción es un paso: el arrastre completo de un deslizador o un valor escrito se deshacen de una sola vez, no carácter a carácter.
 
-Deshacer y rehacer abarcan **todo el espacio de trabajo** en una sola línea temporal: añadir, quitar, mover y editar componentes, **y** los cambios de simulación (motor, ignición, condiciones de lanzamiento, y añadir/renombrar/eliminar simulaciones). También restaura tu selección, así que vuelves a la pieza que cambió. Importar un `.ork` o empezar un diseño nuevo borra el historial (un documento nuevo no tiene nada que deshacer hacia atrás). Deshacer restaura tus *datos de entrada*; los resultados de vuelo guardados se borran, así que vuelve a simular para ver el vuelo.
+Deshacer y rehacer abarcan **todo el espacio de trabajo** en una sola línea temporal: añadir, quitar, mover y editar componentes, **y** los cambios de simulación (motor, ignición, condiciones de lanzamiento, y añadir/renombrar/eliminar simulaciones). También restaura tu selección, así que vuelves a la pieza que cambió. Importar un `.ork` o empezar un diseño nuevo borra el historial (un documento nuevo no tiene nada que deshacer hacia atrás). Deshacer restaura tus *datos de entrada*; los resultados de vuelo siguen legibles y aparecen como **Desactualizado** hasta que vuelvas a ejecutarlos.
 
 ## Escalar todo el cohete {#scaling-the-whole-rocket}
 
-El botón **⤢ Escalar** (junto al nombre del cohete en el panel de Componentes) redimensiona el diseño con un solo factor: el flujo de trabajo de «construir este plano a mitad de tamaño» o «ampliarlo a un tubo mayor». Es el cuadro Escalar de OpenRocket de escritorio:
+El botón **⤢ Escalar** (en la fila que hay encima de la lista de componentes, junto a **＋ Etapa** y **＋ Añadir**) redimensiona el diseño con un solo factor: el flujo de trabajo de «construir este plano a mitad de tamaño» o «ampliarlo a un tubo mayor». Es el cuadro Escalar de OpenRocket de escritorio:
 
 - **Escala**: **Todo el cohete**, la **Selección y todos sus subcomponentes**, o **Solo el componente seleccionado**. Con una pieza que no sea una etapa seleccionada, empieza en esa pieza y lo que contiene.
-- **Escalar por** un factor (con atajos de 0,5× / 2×), o **Escalar desde** una longitud **hasta** otra y el factor se ajusta solo. «Desde» empieza en el diámetro de la pieza seleccionada (o su longitud, si no tiene diámetro), o en el fuselaje más ancho si no hay nada seleccionado, así que puedes escalar directamente al tubo con el que vas a construir.
+- **Escalar por** un factor (con atajos de 0,5× / 2×), o **Escalar desde** una longitud **hasta** otra y el factor se ajusta solo. «Desde» empieza en el diámetro de la pieza seleccionada (el extremo mayor, en una ojiva o una transición), la cuerda raíz de un juego de aletas, el desplazamiento radial de un conjunto de cápsulas o de un propulsor, o la longitud de cualquier otra pieza, o en el fuselaje más ancho si no hay nada seleccionado, así que puedes escalar directamente al tubo con el que vas a construir. El factor llega hasta 100. Si «Desde» empieza en cero, la casilla **hasta** espera a que des un tamaño en **Escalar desde**.
 - **Actualizar valores de masa explícitos**: los componentes de masa y las masas anuladas también se escalan. Desactivado cuando el diseño no tiene ninguno de los dos.
 - **Escalar desplazamientos**: las posiciones también se escalan (desplazamientos axiales y radiales, separación entre instancias, CG anulados). Desactivado, las piezas conservan su posición y solo cambian de tamaño. Empieza desactivado para **Solo el componente seleccionado**, donde lo habitual es una pieza mayor en el mismo sitio, y activado en los demás casos.
 
 Para todo el cohete, un resumen en vivo muestra la longitud y el diámetro antes → después.
 
-Multiplica cada longitud, diámetro, espesor de pared, planta de aleta (incluidos los puntos de forma libre), hombro, pestaña, filete, tamaño de paracaídas y cinta y longitud de cordón, y con los desplazamientos activados, cada posición. Deliberadamente **no** escala ángulos, número de aletas o instancias, densidades de materiales, coeficientes de resistencia, acabado, elección de motor ni ajustes de lanzamiento; el herraje de tamaño fijo (carenados de cámara, botones de raíl) conserva su tamaño y simplemente se mueve a su nueva posición. Una guía de lanzamiento escala como cualquier otro tubo, diámetro interior incluido, como en el programa de escritorio.
+Multiplica cada longitud, diámetro, espesor de pared, planta de aleta (incluidos los puntos de forma libre), hombro, pestaña, filete, tamaño de paracaídas y cinta y longitud de cordón, y con los desplazamientos activados, cada posición. Deliberadamente **no** escala ángulos, número de aletas o instancias, densidades de materiales, coeficientes de resistencia, acabado, elección de motor ni ajustes de lanzamiento; el herraje de tamaño fijo (botones de riel) conserva su tamaño y simplemente se mueve a su nueva posición. Un tubo guía escala como cualquier otro tubo, diámetro interior incluido, como en el programa de escritorio.
 
 Las piezas macizas conservan su material, así que su masa crece con el **cubo** del factor. El tejido de recuperación no: una campana escala con su área, de modo que un diseño escalado ya no es exactamente semejante y su estabilidad se desplaza ligeramente; vuelve a comprobar el tamaño del paracaídas y que el motor siga cabiendo en su soporte. Todo el escalado queda como **un único paso de deshacer** (`Ctrl/⌘+Z`).
 
 ## Elegir piezas de un catálogo {#selecting-parts-from-a-catalog}
 
-En lugar de introducir dimensiones a mano, usa los selectores contextuales **«Selecciona una pieza…»** para colocar **piezas reales de fabricante** (Estes / Apogee / LOC / …):
+En lugar de introducir dimensiones a mano, usa los selectores contextuales **Seleccionar pieza…** (el número entre paréntesis es cuántas piezas del catálogo y guardadas hay de ese tipo) para colocar **piezas reales de fabricante** (Estes / Apogee / LOC / …):
 
 - **Ojivas, tubos, tubos interiores, transiciones, acopladores, anillos de centrado, mamparos, topes de motor y guías de lanzamiento** rellenan su geometría y su material. Una transición trae ambos extremos y ambos hombros.
 - Un **paracaídas** rellena su diámetro y su coeficiente de resistencia.
-- Una **serpentina** rellena el largo, el ancho y el material de la tira, y deja automático el coeficiente de resistencia, como hace el programa de escritorio.
+- Una **cinta** rellena el largo, el ancho y el material de la tira, y deja automático el coeficiente de resistencia, como hace el programa de escritorio.
+- Un **botón de riel** rellena su tamaño, y su masa con el tornillo y la tuerca que lo sujetan.
 
-Son las piezas que ofrece la biblioteca de piezas de OpenRocket de escritorio: la base de datos comunitaria y los archivos que el programa de escritorio incluye junto a ella (catálogos antiguos de fabricantes, varios fabricantes de paracaídas y los botones de riel). Un botón de riel rellena su tamaño y su masa, con el tornillo y la tuerca que lo sujetan. Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo (~5.200 piezas) viene con la aplicación y se actualiza cada semana a partir de los datos de OpenRocket.
+Son las piezas que ofrece la biblioteca de piezas de OpenRocket de escritorio: la base de datos comunitaria y los archivos que el programa de escritorio incluye junto a ella (catálogos antiguos de fabricantes, varios fabricantes de paracaídas y los botones de riel). Aplicar un preajuste solo rellena los campos del componente: puedes retocarlo después. El catálogo (~5.200 piezas) viene con la aplicación y se actualiza cada semana a partir de los datos de OpenRocket.
 
 ### Guardar tus propias piezas {#saving-your-own-parts}
 
@@ -193,12 +206,12 @@ Los dos **diámetros** sugeridos siguen siendo estimaciones en todos los casos, 
 
 Todo componente estructural tiene un **material**, que el motor de física usa (por su **densidad**) para calcular la masa y el CG. Una pieza que añades lleva uno desde que existe: el que hayas puesto en [Ajustes ▸ Materiales](./settings.md#materials), o si no el material de serie con el que el motor la pesaría de todos modos: **Cardboard** para una pieza maciza, **Ripstop nylon** para una tela, **Elastic cord** para las cuerdas y el cordón de choque. Son los propios valores por defecto de OpenRocket, los mismos con los que construye cada componente nuevo.
 
-Una pieza aún puede poner **Sin especificar** si viene de un diseño guardado antes de que esta aplicación los nombrara. No es una pieza sin peso: el motor recurre a esos mismos tres materiales. Elige uno de la lista y el panel deja de adivinar.
+Una pieza aún puede poner **Sin especificar** si su diseño no nombra ningún material. No es una pieza sin peso: el motor recurre a esos mismos tres materiales. Elige uno de la lista y el panel deja de adivinar.
 
 Una pieza elegida del catálogo lleva el material de su fabricante, como «Balsa, bulk, BMS typical», con la densidad del fabricante. La mayoría de esos nombres no están en la lista de abajo, así que el selector muestra el material propio de la pieza bajo **De esta pieza**, con su densidad, y es con él con el que se pesa la pieza. Cuando el catálogo indica además la masa de la pieza, como hace con muchas ojivas y transiciones, la densidad es la que reparte esa masa por la pieza, así que la pieza pesa lo que dice su fabricante, como en OpenRocket de escritorio. Un paracaídas con masa indicada la toma como su anulación de masa.
 
-- **Materiales incorporados** — la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) — el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud — y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
-- **Materiales personalizados** — define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.
+- **Materiales incorporados**: la lista completa de OpenRocket (volumen / superficie / línea, con sus densidades). Cada tipo tiene su propia [unidad de densidad](./settings.md#units) (el material sólido por volumen, la tela del paracaídas por superficie y la cuerda por longitud) y la densidad de un material personalizado se lee en la unidad que esté mostrándose.
+- **Materiales personalizados**: define los tuyos (nombre, densidad y a qué grupo pertenece); se guardan en tu navegador y se reutilizan en todos los diseños. Un material personalizado va **dentro de ese grupo**, marcado con una ★, y no en un grupo aparte: casi siempre es una variante de algo que ya está en la lista y se lee mejor a su lado. Si le das el **mismo nombre que a uno incorporado**, lo reemplaza con tu densidad en vez de aparecer dos veces.
 
 > Nota: el **nombre y la densidad** de un material sobreviven al viaje de ida y vuelta por `.ork`, incluso los de un material que esta aplicación tiene y OpenRocket de escritorio no. Lo que no viaja es su pertenencia a tu lista personalizada; ver las [preguntas frecuentes](./faq.md).
 

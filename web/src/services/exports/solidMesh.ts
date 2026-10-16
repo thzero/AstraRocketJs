@@ -2,12 +2,13 @@ import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { num, numOpt } from '../../tree/nodeProps';
-import { finCutContour, finRootChord, finSpan } from '../../tree/finPlanform';
+import { finCutContour, finRootChord, finSpan, mountRadius, type FinParent } from '../../tree/finPlanform';
 import { freeformPoints, partLength } from '../../tree/position';
-import { nodeShape, outerProfile } from '../../tree/shapeProfile';
+import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
 import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
-import { edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
+import { directedEdges, edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * Build the rocket's external airframe as watertight solids for 3D print / CAD.
@@ -52,13 +53,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // Directed boundary edges (a→b): an undirected edge used by exactly one
   // triangle, keeping the direction it had there so the caps wind to match.
   const undirected = undirectedEdgeCounts(idx);
-  const dirList: Array<[number, number]> = [];
-  for (let i = 0; i < idx.count; i += 3) {
-    const a = idx.getX(i),
-      b = idx.getX(i + 1),
-      c = idx.getX(i + 2);
-    dirList.push([a, b], [b, c], [c, a]);
-  }
+  const dirList = directedEdges(idx);
   // Successors keyed by start vertex, as a multimap. A vertex where two boundary
   // loops meet (a self-touching planform, a figure-8 seam) is the start of more
   // than one boundary edge; a single-valued map would keep only one and leave
@@ -189,7 +184,7 @@ export function makeWatertight(geo: THREE.BufferGeometry): THREE.BufferGeometry 
   // shipping a hole to a slicer, where it surfaces as a part that prints wrong.
   const left = countBoundaryEdges(out);
   if (left > 0) {
-    throw new Error(`Could not close this solid: ${left} open edge(s) remain after capping.`);
+    throw new KeyedError('errors.export.openSolid', { edges: left });
   }
   return out;
 }
@@ -320,7 +315,10 @@ function revolveSolidX(surface: [number, number][], axialOffset: number): THREE.
  * without capping onto the axis.
  */
 export function discSolid(outerR: number, innerR: number, length: number): THREE.BufferGeometry | null {
-  const len = length > 1e-6 ? length : 0.002;
+  // A part with no length flew as nothing, so it exports as nothing rather than
+  // as a disc of some made-up thickness.
+  if (!(length > 1e-6)) return null;
+  const len = length;
   // An inverted ring (ID >= OD, reachable from a malformed .ork or a bad catalog
   // row) would otherwise fall through to the solid-cylinder branch and export a
   // centering ring as a solid disc, which blocks the motor tube once printed with
@@ -353,7 +351,7 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centered on Z), ready to lay on a print bed. */
-function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
+function oneFinSolid(child: ComponentNode, parent: FinParent): THREE.BufferGeometry | null {
   const root = finRootChord(child, 0);
   const height = finSpan(child);
   const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
@@ -370,7 +368,7 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
   // The outline, tab folded in, from the shared fin-geometry module, so the printed
   // fin is the shape that flew. Sampling an elliptical curve here instead yields
   // a sine arch rather than the kernel's half-ellipse. See tree/finPlanform.ts.
-  const contour = finCutContour(child, parentRadius);
+  const contour = finCutContour(child, parent);
   if (!contour || contour.length < 3) return null;
 
   const shape = new THREE.Shape();
@@ -391,8 +389,8 @@ function oneFinSolid(child: ComponentNode, parentRadius: number | null): THREE.B
  * per-component STL/OBJ/GLB export. Disc parts (rings, bulkheads, couplers,
  * engine blocks) are built through {@link discSolidForNode} instead.
  */
-export function solidForNode(node: ComponentNode, parentRadius: number | null = null): THREE.BufferGeometry | null {
-  return validated(buildSolid(node, parentRadius));
+export function solidForNode(node: ComponentNode, parent: FinParent = null): THREE.BufferGeometry | null {
+  return validated(buildSolid(node, parent));
 }
 
 /**
@@ -449,7 +447,8 @@ export function discSolidForNode(outerR: number, innerR: number, length: number)
   return validated(discSolid(outerR, innerR, length));
 }
 
-function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.BufferGeometry | null {
+function buildSolid(node: ComponentNode, parent: FinParent): THREE.BufferGeometry | null {
+  const parentRadius = mountRadius(parent);
   const len = partLength(node);
   switch (node.type) {
     case 'nosecone': {
@@ -464,8 +463,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       return revolveSolidX(surface, 0);
     }
     case 'transition': {
-      const rf = num(node, 'foreRadius', 0.012);
-      const ra = num(node, 'aftRadius', 0.009);
+      const { fore: rf, aft: ra } = profileEnds(node);
       if (!(len > 0) || !(Math.max(rf, ra) > 0)) return null; // degenerate → no solid
       const shape = nodeShape(node);
       const clipped = typeof node['clipped'] === 'boolean' ? node['clipped'] : undefined;
@@ -504,6 +502,11 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
       // still reads as "watertight"; return null so it's skipped from export
       // rather than handed over as a hollow non-solid (matches nose/transition/fin).
       if (!(R > 0) || !(len > 0)) return null;
+      // A filled body tube flies as a solid rod (BodyTube.setFilled), whatever
+      // wall thickness the part still carries, so it prints as one. Nose cones
+      // and transitions, the other filled-capable parts, are already printed as
+      // solids of revolution.
+      if (node.type === 'bodytube' && node['filled'] === true) return discSolid(R, 0, len);
       // A wall at least as thick as the radius has no bore left, and
       // `discSolid` would silently fall through to its no-bore branch and
       // export a solid rod. Same policy as discSolid's inverted-ring check: a
@@ -516,7 +519,7 @@ function buildSolid(node: ComponentNode, parentRadius: number | null): THREE.Buf
     case 'trapezoidfinset':
     case 'ellipticalfinset':
     case 'freeformfinset':
-      return oneFinSolid(node, parentRadius);
+      return oneFinSolid(node, parent);
     default:
       return null;
   }

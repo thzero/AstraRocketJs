@@ -1,7 +1,7 @@
 import { nsKey } from './storageKeys';
 import type { PartKey } from '../design/partColors';
 import type { CompleteLaunch } from '../flight/requiredLaunch';
-import { DEFAULT_HEADING_DEG } from '../flight/simulations';
+import { DEFAULT_HEADING_DEG, MAX_ANGLE_STEP_RANGE, seedFromInput } from '../flight/simulations';
 import { defaultCsvFormat } from '../flight/flightColumns';
 import { usableWindLevels } from '../flight/windLevels';
 import { usableAtmosphereLevels } from '../flight/atmosphereLevels';
@@ -32,8 +32,8 @@ export const TREE_PANE_DEFAULT = 360;
 /**
  * Bounds for the right-hand column (see `Settings.sidePaneWidth`).
  *
- * The minimum is where the Results tiles stop working: they are a 3-up grid, and
- * narrower than this "Static margin @ rail exit" wraps onto three lines.
+ * The minimum is where the Results tiles stop working: they are a 2-up grid, and
+ * narrower than this "Static margin @ rail exit" wraps onto several lines.
  */
 export const SIDE_PANE_MIN = 300;
 export const SIDE_PANE_MAX = 640;
@@ -125,7 +125,7 @@ export interface SimulationSettings {
    * high; rail buttons are not considered at all.
    *
    * True flies the guide-aware model: the guided phase ends when the aft-most
-   * guide, lug or button, leaves the rod, and the rocket is released there as
+   * lug, or a button line's second-to-last station, leaves the rod, and the rocket is released there as
    * well as reported there.
    *
    * A choice and not a fix, because the engine is validated bit-identical to
@@ -136,7 +136,7 @@ export interface SimulationSettings {
 }
 
 /** Which sides of the 2D side view carry a measurement ruler. */
-export interface RulerSides {
+interface RulerSides {
   top: boolean;
   bottom: boolean;
   left: boolean;
@@ -173,7 +173,7 @@ export interface Settings {
    * equivalent preference is, because that would make the same file weigh one
    * thing here and another on the machine you sent it to.
    */
-  defaultMaterials: Record<string, { name: string; density: number }>;
+  defaultMaterials: Record<string, { name: string; density: number; group?: string }>;
   /** Flight-path phase colors. */
   phaseColors: { boost: string; coast: string; descent: string };
   /**
@@ -457,12 +457,13 @@ const clampPlayback = (v: unknown): number =>
  * `maxTime / timeStep` is the solver's iteration count: 1000000 s (a plausible
  * slip for 1000) at the default step asks for tens of millions of RK4 steps,
  * with nothing to interrupt it. One constant keeps the two surfaces from
- * drifting apart. `maxAngleStep` is in radians here, like the field it bounds.
+ * drifting apart. `maxAngleStep` is in radians here, like the field it bounds,
+ * and is the range the kernel flies.
  */
 export const SIM_BOUNDS = {
   timeStep: { min: 0.001, max: 10 },
   maxTime: { min: 1, max: 10_000 },
-  maxAngleStep: { min: (0.05 * Math.PI) / 180, max: (30 * Math.PI) / 180 },
+  maxAngleStep: MAX_ANGLE_STEP_RANGE,
 } as const;
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -591,8 +592,8 @@ export function loadSettings(): Settings {
           ) as Partial<RulerSides>)
         : {};
     return {
-      // Unknown/absent symbols fall back per quantity, so an older store (which
-      // has no `units` at all) keeps exactly the units it was displaying.
+      // Unknown/absent symbols fall back per quantity, so a store with no
+      // `units` at all keeps exactly the units it was displaying.
       units: normalizeUnits(s.units),
       unitOverrides: normalizeUnitOverrides(s.unitOverrides),
       // Filtered, not spread. These values reach a style attribute (the same
@@ -606,20 +607,25 @@ export function loadSettings(): Settings {
       // Filtered the same way, and for a sharper reason: a density out of this
       // map is stamped onto a new part and flown. A stored string, NaN or a
       // negative would reach the kernel as the mass of somebody's airframe.
+      // The group, a picker category the .ork writer files the material under,
+      // rides along only as a string with text in it.
       defaultMaterials: Object.fromEntries(
-        Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).filter(([key, v]) => {
-          if (!parseDefaultMaterialKey(key)) return false;
-          const m = v as { name?: unknown; density?: unknown } | null;
-          return (
-            !!m &&
-            typeof m.name === 'string' &&
-            m.name.trim() !== '' &&
-            typeof m.density === 'number' &&
-            Number.isFinite(m.density) &&
-            m.density > 0
-          );
+        Object.entries((s.defaultMaterials ?? {}) as Record<string, unknown>).flatMap(([key, v]) => {
+          if (!parseDefaultMaterialKey(key)) return [];
+          const m = v as { name?: unknown; density?: unknown; group?: unknown } | null;
+          if (
+            !m ||
+            typeof m.name !== 'string' ||
+            m.name.trim() === '' ||
+            typeof m.density !== 'number' ||
+            !Number.isFinite(m.density) ||
+            !(m.density > 0)
+          )
+            return [];
+          const group = typeof m.group === 'string' && m.group.trim() !== '' ? { group: m.group } : {};
+          return [[key, { name: m.name, density: m.density, ...group }]];
         }),
-      ) as Settings['defaultMaterials'],
+      ),
       // The same hex filter partColors gets: these reach a style attribute
       // and the KML/GPX exports, so a plain merge would let any value through.
       phaseColors: (() => {
@@ -630,7 +636,7 @@ export function loadSettings(): Settings {
         }
         return c;
       })(),
-      // An older store has no value here, and an unrecognized one falls back
+      // A store may have no value here, and an unrecognized one falls back
       // rather than leaving the tables with a style nothing renders.
       aeroHeat: s.aeroHeat === 'openrocket' ? 'openrocket' : DEFAULT_SETTINGS.aeroHeat,
       // Clamped like every adjacent field: a bare `typeof === 'number'` admits
@@ -665,6 +671,14 @@ export function loadSettings(): Settings {
         // options parser refuses anything but a boolean and takes the whole run
         // down rather than the one key.
         sim.guideAwareRodClearance = sim.guideAwareRodClearance === true;
+        // The bridge reads the seed as a number and fails every run on anything
+        // else, so a stored string falls back to a random seed, and a number is
+        // held to the integer range the Settings field allows.
+        const seed: unknown = sim.randomSeed;
+        sim.randomSeed = typeof seed === 'number' && Number.isFinite(seed) ? seedFromInput(seed) : null;
+        const flag = (v: unknown, d: boolean) => (typeof v === 'boolean' ? v : d);
+        sim.confirmDelete = flag(sim.confirmDelete, DEFAULT_SETTINGS.simulation.confirmDelete);
+        sim.autoRunOutdated = flag(sim.autoRunOutdated, DEFAULT_SETTINGS.simulation.autoRunOutdated);
         return sim;
       })(),
       launchDefaults: (() => {
@@ -774,6 +788,9 @@ export function loadSettings(): Settings {
         // outside 0..100 and would take the whole export down with it.
         c.decimals = Number.isFinite(c.decimals) ? Math.min(Math.max(Math.round(c.decimals), 0), 12) : 3;
         if (typeof c.separator !== 'string' || !c.separator) c.separator = ',';
+        // A stored two-character backslash-t names the tab character; written
+        // verbatim it would put every value in one spreadsheet column.
+        if (c.separator === '\\t') c.separator = '\t';
         if (typeof c.commentChar !== 'string' || !c.commentChar) c.commentChar = '#';
         // The flags drive `if (opts.flightEvents)` branches in the writer; a
         // stored "false" string is truthy there.
@@ -787,6 +804,28 @@ export function loadSettings(): Settings {
   } catch {
     return structuredClone(DEFAULT_SETTINGS);
   }
+}
+
+/**
+ * The settings as stored right now, or null when nothing readable is stored.
+ *
+ * Another tab may have written since this one loaded, so a change is applied
+ * to this rather than to the tab's own copy. Null, not the defaults, when
+ * storage holds nothing or cannot be read: the caller's copy is then the best
+ * record of what the user chose.
+ */
+export function loadStoredSettings(): Settings | null {
+  try {
+    if (!localStorage.getItem(KEY)) return null;
+  } catch {
+    return null;
+  }
+  return loadSettings();
+}
+
+/** Whether a `storage` event touched the settings: their key, or a clear of the whole store. */
+export function isSettingsStorageKey(key: string | null): boolean {
+  return key === null || key === KEY;
 }
 
 /**

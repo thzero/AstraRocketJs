@@ -5,14 +5,14 @@ import type { StaticInfo } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { AxisCallout } from './rocketCallouts';
 import { marginText } from '../../tree/schematicGeometry';
-import { CP_INK, MARGIN_INK } from './stabilityGadget';
+import { CP_INK, MARGIN_INK } from './stabilityInks';
 import { useSceneColors } from './sceneColors';
 
 /**
  * Owns the CP row of the 3D view: marker, dashed leader and the
  * "CP · X cm  N cal · P%" label that Rocket3D mounts beside the hull. The
- * tiers and inks come from stabilityGadget.ts, so this and the floating
- * gadget never disagree on a color.
+ * inks come from stabilityInks.ts, which Rocket3D's CG marker reads too, so
+ * the 3D view's stability colors have one source.
  */
 
 /**
@@ -37,9 +37,8 @@ export function StabilityCallout({
   const cal = info.stabilityCalibers;
   // The CP row as one text label (the labelTexture/CalloutLabel path), laid
   // out left→right like the 2D: "CP · X cm", then marginText's "⚠ N cal · P%"
-  // and the stability word. The tiers
-  // and inks are the shared marginText / MARGIN_INK, the same text the 2D
-  // overlay prints and the inks the callout gadget (stabilityGadget.ts) uses.
+  // and the stability word. The tiers and inks are the shared marginText and
+  // MARGIN_INK (stabilityInks.ts), the same text the 2D overlay prints.
   const cpCallout = useMemo(() => {
     if (!Number.isFinite(info.cp)) return null;
     // The engine's own percentage, not ours: see StaticInfo.stabilityPercent.

@@ -1,3 +1,4 @@
+import { NO_VALUE } from '../src/i18n/noValue';
 import { test, expect, type Page, note, tableUnder, tableRows, defined } from './base';
 
 /**
@@ -157,7 +158,7 @@ test('carries the mass breakdown beside the aero figures', async ({ page }) => {
     r.find((x) => /fin set/i.test(x[0] ?? '')),
     'the fin set row',
   );
-  expect(fins.some((c) => c === '—')).toBe(false);
+  expect(fins.some((c) => c === NO_VALUE)).toBe(false);
   note('fins row', fins.join(' | '));
 });
 

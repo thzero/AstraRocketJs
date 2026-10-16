@@ -37,10 +37,11 @@ import {
   ensureConfig,
   type FlightConfig,
 } from '../services/flight/flightConfigs';
-import type { LaunchConditions } from '../services/design/orkTree';
+import { launchPatchFor, type LaunchConditions, type LaunchPatch } from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { ImportNote } from '../services/files/importNote';
 import { repairValues } from '../services/design/repairValues';
+import { withKernelEnds } from '../services/design/autoRadius';
 import {
   changedPrefKeys,
   effectivePrefs,
@@ -70,13 +71,15 @@ import {
 import { loadSettings } from '../services/storage/settings';
 import { defaultMaterialPatch } from '../services/design/materialSlots';
 import { unflyable, unflyableText, designBlocker, designBlockerText } from '../services/flight/runnability';
+import { configPowerClass } from '../services/flight/powerClass';
 import { landingView, planRun, runProblems } from '../services/flight/runPlan';
 import { isComplete } from '../services/flight/requiredLaunch';
 import type { MotorDims } from '../tree/schematicGeometry';
 import { type ConfigsTab } from './tabs';
 import { createViewSlice, type ViewSlice } from './viewSlice';
 import { createFileSlice, type FileSlice } from './fileSlice';
-import { errorMessage } from '../services/app/errorMessage';
+import { markWritten } from './writtenWorkspace';
+import { errorText } from '../i18n/keyedError';
 import { flightBranches } from '../services/flight/flightColumns';
 import {
   configOf,
@@ -84,23 +87,21 @@ import {
   displayUnits,
   repairNotes,
   selectActive,
+  simPrefsOf,
   type StorageWarningKind,
 } from './workspaceSelectors';
 
 // Defined in a leaf module so fileSlice, which this file builds while it loads,
 // can import them without importing this file at run time; re-exported here for
-// everything else.
+// the modules that import them from the store.
 export {
   configOf,
-  defaultConfig,
-  displayUnits,
-  repairNotes,
   saveFailure,
   selectActive,
   selectConfig,
   selectDesignName,
+  selectShownSim,
   workspaceSnapshot,
-  type StorageWarningKind,
 } from './workspaceSelectors';
 
 type Rocket = ReturnType<typeof buildRocketTree>;
@@ -164,9 +165,10 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * Browser storage is not keeping the user's work (quota hit, or IndexedDB
    * blocked and we are back on the 5 MB localStorage cap).
    *
-   * A separate slot from `err`, because the rebuild effect clears `err` on every
-   * successful build (milliseconds after load, and again on every keystroke),
-   * and this warning has to outlive that.
+   * A separate slot from `err`, because `err` is cleared by switching designs
+   * and by a successful rebuild after any edit (the rebuild effect keeps it only
+   * while the tree is still the one it was raised on), and this warning has to
+   * outlive both.
    *
    * A successful save clears only the transient "full" case. `degraded` and
    * `loadFailed` are facts about this session that a later save does not undo,
@@ -195,7 +197,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    */
   clipboard: ComponentNode | null;
   loadedMeta: LoadedMeta;
-  rocket: Rocket | null; // live engine handle (set by the rebuild effect; used by runSim)
+  rocket: Rocket | null; // live engine handle (set by the rebuild effect; read by the aero sweep and the dimension fields)
   // --- history (undo/redo of component edits) ---
   past: HistoryEntry[];
   future: HistoryEntry[];
@@ -367,9 +369,9 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * Run one of the tree-shape actions from services/design/componentActions: convert a
    * fin set to freeform, split a fin set / pod / booster / cluster, reset a
    * cluster's spacing. One undo step, and nothing at all when the action says
-   * there was nothing to do.
+   * there was nothing to do. `origins` collects copied parts' ids (see `reid`),
+   * so their per-configuration settings follow them.
    */
-  /** `origins` collects copied parts' ids (see `reid`), so their per-configuration settings follow them. */
   applyTreeAction: (change: (tree: RocketTree, origins: Map<string, string>) => RocketTree) => void;
   /** Dual deployment for one stage: which of its recovery devices is the
    *  drogue, or `null` for single deployment. One undo step, because it clears
@@ -442,8 +444,16 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   addConfig: () => void;
   /** Copy one configuration, placing the copy after it, and select it. */
   copyConfig: (id: string) => void;
-  /** Name a configuration; an empty name means unnamed (labeled by its motors). */
+  /**
+   * Write a configuration's name exactly as typed, spaces included, so a
+   * controlled input can be typed into. `commitConfigName` tidies it.
+   */
   renameConfig: (id: string, name: string) => void;
+  /**
+   * End a name edit: trim the stored name, store an empty one as unnamed
+   * (labeled by its motors), and finalize the edit into one undo step.
+   */
+  commitConfigName: (id: string) => void;
   /**
    * Delete a configuration. Refused for the last one, since every simulation
    * names the configuration it flies. Rows that flew it move to the first
@@ -452,7 +462,15 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   deleteConfig: (id: string) => void;
   /** Point one simulation at a configuration. */
   setSimConfig: (simId: string, configId: string) => void;
-  patchLaunch: (p: Partial<LaunchConditions>) => void;
+  patchLaunch: (p: LaunchPatch) => void;
+  /**
+   * Patch the active simulation's launch conditions alone, as one undo step.
+   *
+   * For surfaces away from the simulation editor (Launch Locations, opened
+   * from the menu), where the "editing N simulations" banner is not on screen
+   * to say that the ticked rows would be written too.
+   */
+  patchActiveLaunch: (p: Partial<LaunchConditions>) => void;
   addSim: () => void;
   duplicateSim: (id: string) => void;
   deleteSim: (id: string) => void;
@@ -516,6 +534,21 @@ export const selectDriftSweepFor = (s: WorkspaceState, simId: string): DriftSwee
   s.driftSweep && s.driftSweep.simId === simId ? s.driftSweep : null;
 
 /**
+ * Whether a held sweep no longer describes its row: the airframe, the row's own
+ * motor, loadout, launch conditions and overrides, or the global run
+ * preferences have moved since it flew. A sweep for a row that has since been
+ * deleted is stale too, since there is nothing left to compare it against.
+ */
+export const isDriftSweepStale = (s: WorkspaceState, sweep: DriftSweep): boolean => {
+  const sim = s.sims.find((x) => x.id === sweep.simId);
+  if (!sim || sweep.tree !== s.tree) return true;
+  const config = configOf(s.configs, sim);
+  return (
+    !sameSimInputs(sweep.inputs, simInputs(sim, config)) || sweep.key !== resultKey(s.tree, config, sim, s.simPrefs)
+  );
+};
+
+/**
  * What the Run button will fly: the ticked rows, or the active simulation when
  * nothing is ticked. One place decides it, so the button's label, its enabled
  * state and the action itself can never disagree.
@@ -565,15 +598,16 @@ export const selectOutdated = (s: WorkspaceState, sim: Simulation = selectActive
   isOutdated(sim, s.tree, configOf(s.configs, sim), s.simPrefs);
 
 /**
- * True when the active sim's last run threw on the design that is still loaded.
+ * True when a sim's last run (the active one by default) threw on the design
+ * that is still loaded.
  *
  * Self-expiring by construction: it compares the recorded tree against the
  * current one, so any edit makes it false again and a retry is allowed:
  * auto-run must not retry a configuration it already knows fails, but it must
  * try again the moment the user changes something.
  */
-export const selectRunFailed = (s: WorkspaceState): boolean => {
-  const run = s.simRuns[selectActive(s).id];
+export const selectRunFailed = (s: WorkspaceState, sim: Simulation = selectActive(s)): boolean => {
+  const run = s.simRuns[sim.id];
   return run?.phase === 'failed' && run.tree === s.tree;
 };
 
@@ -590,7 +624,7 @@ function sanitizeSims(sims: Simulation[], configs: FlightConfig[]): Simulation[]
   const known = new Set(configs.map((c) => c.id));
   const fallback = configs[0]!.id;
   const safe = (Array.isArray(sims) ? sims : []).filter((s) => s && typeof s.id === 'string');
-  if (!safe.length) return [newSimulation('Simulation 1', fallback, launchDefaults)];
+  if (!safe.length) return [newSimulation(i18n.t('sims.untitled', { n: 1 }), fallback, launchDefaults)];
   return safe.map((s) => ({
     ...s,
     launch: { ...launchDefaults, ...(s.launch ?? {}) },
@@ -675,6 +709,14 @@ function withKey<T extends object, K extends keyof T>(obj: T | undefined, key: K
   return next;
 }
 
+/**
+ * Whether `withKey(obj, key, value)` would leave `obj` saying what it already
+ * says: the value is already there, or a cleared key is already absent.
+ */
+function holdsKey<T extends object, K extends keyof T>(obj: T | undefined, key: K, value: T[K] | null): boolean {
+  return value === null ? obj?.[key] === undefined : obj?.[key] === value;
+}
+
 /** The map, or undefined when it holds nothing: an empty override map reads as "overridden with nothing". */
 const nonEmpty = <T extends object>(obj: T): T | undefined => (Object.keys(obj).length ? obj : undefined);
 
@@ -714,6 +756,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   };
 
   /**
+   * Whether two motor specs are the same motor: every field equal, the curve
+   * arrays sample by sample. A catalog pick builds a new object each time, so
+   * reference equality would call every reseat a change.
+   */
+  const sameMotorSpec = (a: MotorSpec, b: MotorSpec): boolean => {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)] as (keyof MotorSpec)[]);
+    for (const k of keys) {
+      const x = a[k];
+      const y = b[k];
+      if (Array.isArray(x) && Array.isArray(y)) {
+        if (x.length !== y.length || x.some((v, i) => v !== y[i])) return false;
+      } else if (x !== y) return false;
+    }
+    return true;
+  };
+
+  /**
    * Edit one flight configuration in place.
    *
    * Shared by design: a configuration is a setup several simulations can point
@@ -742,7 +801,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     const s = get();
     // Drop cached flight results: large per-timestep arrays and a recomputable
     // output, not an edit. Undo/redo restores inputs and leaves sims to re-run.
-    return structuredClone({
+    //
+    // Everything else is held by reference. Workspace state is replaced on every
+    // edit and never mutated, so an entry shares whatever the steps around it
+    // did not change: a hundred steps of one field cost a hundred small paths,
+    // not a hundred copies of the design and its thrust curves. Sharing also
+    // keeps identity, so a restored tree is the very object a drift sweep or a
+    // run recorded, and reads as the design it flew.
+    return {
       tree: s.tree,
       selectedId: s.selectedId,
       sims: withoutResults(s.sims),
@@ -751,7 +817,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       selectedSimIds: s.selectedSimIds,
       lastRunIds: s.lastRunIds,
       resultSimId: s.resultSimId,
-    });
+    };
   };
   /**
    * Put the recorded inputs back, and carry the live results across.
@@ -769,7 +835,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       selectedId: e.selectedId,
       sims: e.sims.map((x) => {
         const held = live.get(x.id);
-        return held?.result ? { ...x, result: held.result, resultKey: held.resultKey } : x;
+        return held?.result
+          ? { ...x, result: held.result, resultKey: held.resultKey, resultLaunch: held.resultLaunch }
+          : x;
       }),
       configs: e.configs,
       activeId: e.activeId,
@@ -873,7 +941,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
   // finds no simulation at all has nothing to fall back to.
   const tree0 = defaultRocketTree();
   const config0 = defaultConfig(tree0);
-  const sim0 = newSimulation('Simulation 1', config0.id, loadSettings().launchDefaults);
+  const sim0 = newSimulation(i18n.t('sims.untitled', { n: 1 }), config0.id, loadSettings().launchDefaults);
 
   return {
     tree: tree0,
@@ -904,7 +972,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     activeId: sim0.id,
     selectedSimIds: [],
     simBusy: false,
-    simPrefs: loadSettings().simulation,
+    simPrefs: simPrefsOf(loadSettings()),
     ...createViewSlice(set, get, api),
     ...createFileSlice({ replaceWorkspace, clearHistory })(set, get, api),
 
@@ -926,17 +994,34 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // And the values, which nothing clamped on the way in: a design autosaved
       // by a build without a given limit, or opened from a file by one, can
       // carry a density no material has. See `repairValues`.
-      const fixed = repairValues(w.tree);
-      const sims = sanitizeSims(w.sims, configs).map((x) =>
-        legacyResultKey(x, fixed.tree, configOf(configs, x), get().simPrefs),
-      );
+      const repaired = repairValues(w.tree);
+      // Transition ends with no radius on record, which a design stored by an
+      // older build can carry, resolved as the bridge flies them (automatic), so
+      // the report drawings, the templates and the printable solids, which read
+      // the tree as given, draw the radius that flies. The flight is the same
+      // either way, so a result current against the stored tree is current
+      // against the resolved one.
+      const fixed = { ...repaired, tree: withKernelEnds(repaired.tree) };
+      const prefs = get().simPrefs;
+      const sims = sanitizeSims(w.sims, configs)
+        .map((x) => legacyResultKey(x, repaired.tree, configOf(configs, x), prefs))
+        .map((x) =>
+          fixed.tree !== repaired.tree &&
+          x.resultKey !== undefined &&
+          x.resultKey === resultKey(repaired.tree, configOf(configs, x), x, prefs)
+            ? { ...x, resultKey: resultKey(fixed.tree, configOf(configs, x), x, prefs) }
+            : x,
+        );
       const activeId = sims.some((s) => s.id === w.activeId) ? w.activeId : sims[0]!.id;
       // A stored design is a fresh document. Edits made to whatever was on
       // screen before it arrived (the default rocket, before the boot load
       // resolves) must not stay undoable over it.
       clearHistory();
       replaceWorkspace((s) => ({
-        quietReplace: s.quietReplace + 1,
+        // Quiet unless a value was repaired. A repaired design differs from the
+        // stored one, and it is the autosave that keeps the repair, so the note
+        // is said once rather than on every load until the next edit.
+        quietReplace: fixed.repaired.length ? s.quietReplace : s.quietReplace + 1,
         repairNotes: repairNotes(fixed.repaired),
         tree: fixed.tree,
         sims,
@@ -944,6 +1029,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         activeId,
         loadedMeta: w.loadedMeta ?? null,
       }));
+      // What storage holds, unless a repair changed it (see `writtenWorkspace`).
+      if (!fixed.repaired.length) markWritten(get());
     },
 
     // Each structural/field edit reconciles the flight configurations to the new
@@ -1050,6 +1137,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     },
     updateDesignMeta: (patch) => {
       // Applied in one shot from the Rocket-configuration dialog → one undo step.
+      // OK on an unedited dialog changes nothing, and must not record a step,
+      // clear redo or replace the tree. An absent design type reads as
+      // "original" everywhere (the exporter writes it so), so the dialog's
+      // default for it is not a change either.
+      const { tree } = get();
+      const differs = (Object.keys(patch) as (keyof typeof patch)[]).some((k) =>
+        k === 'designType' ? (patch[k] ?? 'original') !== (tree[k] ?? 'original') : patch[k] !== tree[k],
+      );
+      if (!differs) return;
       beginEdit();
       set((s) => ({ tree: { ...s.tree, ...patch } }));
       commitEdit();
@@ -1076,12 +1172,20 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     setSelectedConfigId: (selectedConfigId) => set({ selectedConfigId }),
     setConfigsTab: (configsTab) => set({ configsTab }),
     setMountMotor: (configId, mountId, m) => {
-      // An unknown configuration changes nothing, so it records no undo step.
-      if (!get().configs.some((c) => c.id === configId)) return;
+      // An unknown configuration, or the motor already in the mount, changes
+      // nothing, so it records no undo step and leaves redo alone.
+      const current = get().configs.find((c) => c.id === configId);
+      if (!current) return;
+      const seated = current.motors[mountId];
+      if (seated && sameMotorSpec(seated.spec, m)) return;
       recordStep();
       patchConfig(configId, (c) => ({ ...c, motors: { ...c.motors, [mountId]: { ...c.motors[mountId], spec: m } } }));
     },
     setMountIgnition: (configId, mountId, event, delay) => {
+      // No motor in that mount, or the timing it already has: nothing to
+      // record, so no transaction is opened.
+      const seated = get().configs.find((c) => c.id === configId)?.motors[mountId];
+      if (!seated || ((seated.ignitionEvent ?? 'automatic') === event && (seated.ignitionDelay ?? 0) === delay)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         const seated = c.motors[mountId];
@@ -1090,6 +1194,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     setDeployment: (configId, deviceId, key, value) => {
+      // Already so: no step. An empty one clears redo, and the new config
+      // object would read as a changed input and drop a run in flight.
+      const config = get().configs.find((c) => c.id === configId);
+      if (!config || holdsKey(config.deployments?.[deviceId], key, value)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         // Removed, not stored as undefined: `applyDeployments` patches every key
@@ -1103,6 +1211,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     setSeparation: (configId, stageId, key, value) => {
+      const config = get().configs.find((c) => c.id === configId);
+      if (!config || holdsKey(config.separations?.[stageId], key, value)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         // Same shape as the deployment override above, field by field: an empty
@@ -1147,20 +1257,40 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       recordStep();
       // Named copies say so; an unnamed one stays unnamed, because its label is
       // its motor list and "Estes C6 copy" would name a thing nobody named.
-      const copy = newFlightConfig(
+      const copy: FlightConfig = newFlightConfig(
         { ...src.motors },
         src.name === null ? null : i18n.t('configs.copyName', { name: src.name }),
       );
+      // Everything else the configuration overrides comes along too, as
+      // desktop's copy runs copyFlightConfiguration on every configurable
+      // component: a copy made to vary the motor must not quietly differ in
+      // recovery or staging.
+      if (src.deployments) copy.deployments = { ...src.deployments };
+      if (src.separations) copy.separations = { ...src.separations };
+      if (src.grounded) copy.grounded = [...src.grounded];
       const next = [...s.configs];
       next.splice(s.configs.findIndex((c) => c.id === id) + 1, 0, copy);
       set({ configs: next, selectedConfigId: copy.id });
     },
     renameConfig: (id, name) => {
+      // Untrimmed while typing: trimming here would eat the space before the
+      // next word reaches the box.
+      const next = name === '' ? null : name;
+      const current = get().configs.find((c) => c.id === id);
+      if (!current || current.name === next) return;
       beginEdit();
+      set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: next } : c)) }));
+    },
+    commitConfigName: (id) => {
+      const current = get().configs.find((c) => c.id === id);
       // Empty means unnamed, not a blank name: the label falls back to the motor
       // list, which is what the desktop shows and what a blank row could not.
-      const trimmed = name.trim();
-      set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: trimmed || null } : c)) }));
+      const tidy = current?.name?.trim() || null;
+      if (current && current.name !== tidy) {
+        beginEdit();
+        set((s) => ({ configs: s.configs.map((c) => (c.id === id ? { ...c, name: tidy } : c)) }));
+      }
+      commitEdit();
     },
     deleteConfig: (id) => {
       const s = get();
@@ -1184,8 +1314,28 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       set({ sims: s.sims.map((x) => (x.id === simId ? { ...x, configId } : x)) });
     },
     patchLaunch: (p) => {
+      // Each row's patch, made once: a row whose patch says what it already
+      // holds is not an edit, and when no row changes there is no step.
+      const ids = new Set(selectEditIds(get()));
+      const patches = new Map<string, Partial<LaunchConditions>>();
+      for (const sim of get().sims) if (ids.has(sim.id)) patches.set(sim.id, launchPatchFor(p, sim.launch, sim.id));
+      const changes = (sim: Simulation) => {
+        const patch = patches.get(sim.id) ?? {};
+        return (Object.keys(patch) as (keyof LaunchConditions)[]).some((k) => patch[k] !== sim.launch[k]);
+      };
+      if (!get().sims.some(changes)) return;
       beginEdit();
-      patchTargets((sim) => ({ launch: { ...sim.launch, ...p } }));
+      patchTargets((sim) => ({ launch: { ...sim.launch, ...patches.get(sim.id) } }));
+    },
+    patchActiveLaunch: (p) => {
+      const active = selectActive(get());
+      // Already so: no step, the way every other edit here treats a no-op.
+      const keys = Object.keys(p) as (keyof LaunchConditions)[];
+      if (keys.every((k) => p[k] === active.launch[k])) return;
+      recordStep();
+      set((s) => ({
+        sims: s.sims.map((x) => (x.id === active.id ? { ...x, launch: { ...x.launch, ...p } } : x)),
+      }));
     },
     addSim: () => {
       // A fresh simulation flies the app default loadout under the user's global
@@ -1235,10 +1385,14 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       });
     },
     renameSim: (id, name) => {
+      const sim = get().sims.find((x) => x.id === id);
+      if (!sim || sim.name === name) return;
       beginEdit();
       set((s) => ({ sims: s.sims.map((x) => (x.id === id ? { ...x, name } : x)) }));
     },
     setSimPref: (key, value) => {
+      const ids = new Set(selectEditIds(get()));
+      if (get().sims.every((x) => !ids.has(x.id) || holdsKey(x.prefs, key, value))) return;
       beginEdit();
       patchTargets((sim) => {
         // A cleared override is removed, not stored as undefined: `prefs` is
@@ -1301,7 +1455,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       const prefs = s.simPrefs;
       // What flies and what does not is decided before anything is dispatched,
       // so the queued rows all light up together rather than one at a time.
-      const plan = planRun(ids, s.sims, s.tree, s.configs);
+      const plan = planRun(ids, s.sims, s.tree, s.configs, s.info?.massEmpty);
       const outcomes: Record<string, RunOutcome> = {};
       // What we are about to fly. The awaits below can outlast the design: if the
       // user edits while the pool is busy, the answers coming back describe a
@@ -1359,6 +1513,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
                   // The sim's own overrides win over the global preferences; unset keys
                   // fall through, so a workspace that never touches them runs on the globals.
                   options: simConditions(launch, effectivePrefs(prefs, sim.prefs)),
+                  // Sent with each flight: the worker's unit must not depend on
+                  // whether the main-thread build has caught up.
+                  lengthUnit: effectivePrefs(prefs, sim.prefs).lengthUnit,
                 },
                 // Queued and running are different states once there is a pool:
                 // the client says when this one actually reached a worker.
@@ -1368,6 +1525,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               // rocket, so drop it rather than install numbers for geometry that
               // is no longer on screen. The others in flight do the same.
               if (get().tree !== ranOn) {
+                setRun(sim.id, null);
                 outcomes[sim.id] = 'dropped';
                 return;
               }
@@ -1387,7 +1545,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               outcomes[sim.id] = 'landed';
               set((st) => ({
                 sims: st.sims.map((x) =>
-                  x.id === sim.id ? { ...x, result, resultKey: flownKey, fileSummary: undefined } : x,
+                  x.id === sim.id
+                    ? { ...x, result, resultKey: flownKey, resultLaunch: launch, fileSummary: undefined }
+                    : x,
                 ),
               }));
             } catch (e) {
@@ -1401,7 +1561,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
               }
               // A timeout means the worker was killed mid-hang; show a friendly line
               // rather than the raw sentinel.
-              const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : errorMessage(e);
+              const msg = e instanceof SimTimeoutError ? i18n.t('sim.timeout') : errorText(e, i18n.t);
               setRun(sim.id, { phase: 'failed', tree: ranOn });
               failed.push({ name: sim.name, msg });
               outcomes[sim.id] = 'failed';
@@ -1414,7 +1574,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         const problems = runProblems(skipped, failed, launcherT(), displayUnits());
         if (problems.length) set({ err: problems.join(' ') });
         // Show the run. Every run, one or twelve: running is asking to see the
-        // answer, and having to click over to Results afterwards is a step with
+        // answer, and having to click over to Results afterward is a step with
         // nothing behind it.
         if (get().tree !== ranOn) return outcomes;
         const landed = flying.map((f) => f.sim.id).filter((id) => get().sims.find((x) => x.id === id)?.result);
@@ -1503,7 +1663,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // behind, and every cell of the grid would be refused individually
       // anyway.
       const config = configOf(s.configs, sim);
-      const reason = unflyable(sim, primaryMotor(s.tree, config));
+      const reason = unflyable(sim, primaryMotor(s.tree, config), configPowerClass(s.tree, config, s.info?.massEmpty));
       if (reason) {
         set({ err: unflyableText({ id: sim.id, name: sim.name, reason }, launcherT(), displayUnits()) });
         return;
@@ -1522,6 +1682,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // changed is worse than no region.
       const ranOn = s.tree;
       const flownFrom = simInputs(sim, config);
+      const flownKey = resultKey(ranOn, config, sim, s.simPrefs);
       // The row's own overrides win over the globals, exactly as a normal run
       // resolves them; only then is a missing seed filled in.
       const runPrefs = effectivePrefs(s.simPrefs, sim.prefs);
@@ -1549,6 +1710,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
                     ...simConditions(sweepLaunch(launch, point), { ...runPrefs, randomSeed: seed }),
                     series: 'summary',
                   },
+                  lengthUnit: runPrefs.lengthUnit,
                 },
                 { signal: abort.signal },
               );
@@ -1584,12 +1746,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
         );
         // A canceled sweep keeps nothing. Half a grid is not half a region: the
         // cells arrive in whatever order the pool frees up, so what survives is
-        // an arbitrary subset of the conditions, and a hull drawn round it
+        // an arbitrary subset of the conditions, and a hull drawn around it
         // would understate the drift by an amount nobody could estimate.
         if (abort.signal.aborted) return;
         if (get().tree !== ranOn) return;
         const now = get().sims.find((x) => x.id === simId);
         if (!now || !sameSimInputs(flownFrom, simInputs(now, configOf(get().configs, now)))) return;
+        if (resultKey(ranOn, configOf(get().configs, now), now, get().simPrefs) !== flownKey) return;
         if (!landings.length) {
           set({ err: i18n.t('sweep.noLandings') });
           return;
@@ -1599,6 +1762,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
             simId,
             tree: ranOn,
             inputs: flownFrom,
+            key: flownKey,
             spec: normalized,
             asked: points.length,
             flown,

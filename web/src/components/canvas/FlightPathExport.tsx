@@ -23,6 +23,7 @@ import { ExportFormatPicker } from './ExportFormatPicker';
 import { StageColorDialog } from './StageColorDialog';
 import { EXPORT_PRESETS, matchingPreset } from '../../services/exports/pathExportPresets';
 import { useExportOptions } from './useExportOptions';
+import { useUnits } from '../../prefs/useUnits';
 import { useExportTemplates } from './useExportTemplates';
 import { Check } from '../common/Check';
 import { DialogButton } from '../common/DialogButton';
@@ -71,7 +72,7 @@ export function FlightPathExport({
   return (
     <>
       <button onClick={() => setOpen(true)} title={t('pathExport.open')} className={btnClass}>
-        ⬇ {t('pathExport.short')}
+        <span aria-hidden>⬇</span> {t('pathExport.short')}
       </button>
       {open && (
         <ExportDialog
@@ -103,13 +104,14 @@ export function ExportDialog({
 }) {
   const { t, i18n } = useTranslation();
   const { opts, patchOpts, change, setUnit } = useExportOptions();
+  const units = useUnits();
   const [colorsOpen, setColorsOpen] = useState(false);
   // Where a stage's track begins only means something once there is more than
   // one stage, so the control stays out of the way of a single-stage flight.
   const staged = (result.branches?.length ?? 0) > 1;
   // The stages that will actually get a track, in the order the model numbers
   // them - so a swatch always lines up with the branch it colors.
-  const branchNames = useMemo(() => exportBranchNames(result, meta), [result, meta]);
+  const branchNames = useMemo(() => exportBranchNames(result, meta, t), [result, meta, t]);
   // Which preset the controls currently spell out, or none. Derived every
   // render rather than remembered from the last click: a preset only sets the
   // controls, so a remembered selection would go on claiming a shape the
@@ -153,7 +155,7 @@ export function ExportDialog({
       // Building the model is part of the render that can fail (a result with
       // no usable samples, a waypoint the branch never reached), so it belongs
       // under the same catch as the template render rather than in front of it.
-      const model = buildFlightPathModel(result, launch, meta, opts, exportT);
+      const model = buildFlightPathModel(result, launch, meta, opts, exportT, units.sym('angle'));
       let text: string;
       let ext: string;
       let mime: string;
@@ -416,7 +418,10 @@ export function ExportDialog({
             </p>
           )}
           {error && (
-            <p className="rounded-lg bg-error-500/10 px-3 py-2 text-xs leading-relaxed text-error-300 ring-1 ring-error-400/30">
+            <p
+              role="alert"
+              className="rounded-lg bg-error-500/10 px-3 py-2 text-xs leading-relaxed text-error-300 ring-1 ring-error-400/30"
+            >
               {error}
             </p>
           )}

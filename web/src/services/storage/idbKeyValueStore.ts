@@ -7,8 +7,8 @@
 // through. IndexedDB is async and effectively uncapped, and KeyValueStore is
 // declared async so this drops in.
 //
-// Existing data is migrated lazily, per key, on first read: a key absent
-// from IndexedDB but present in localStorage is copied across and then dropped
+// Existing data is migrated lazily, per key, on first read: a key present in
+// localStorage is copied across and then dropped
 // from localStorage (which is the point: it frees that 5 MB budget). The copy
 // is only deleted after the IndexedDB write is confirmed, so an interrupted
 // migration leaves the original where it was and simply retries next time.
@@ -29,6 +29,13 @@ const STORE = 'kv';
 
 let dbPromise: Promise<IDBDatabase> | null = null;
 
+/**
+ * Whether a connection has opened in this session. Until one has, IndexedDB has
+ * held nothing this session could need: a read it refuses is nothing stored,
+ * and the fallback is the whole store (see `readIdb`).
+ */
+let everOpened = false;
+
 function openDb(): Promise<IDBDatabase> {
   if (dbPromise) return dbPromise;
   const p = new Promise<IDBDatabase>((resolve, reject) => {
@@ -42,6 +49,7 @@ function openDb(): Promise<IDBDatabase> {
     };
     req.onsuccess = () => {
       const db = req.result;
+      everOpened = true;
       // A newer build in another tab is asking to upgrade the schema. Yield:
       // close this connection and forget the cached promise, so this tab
       // reconnects (at the new version) on its next operation. Without this an
@@ -55,6 +63,13 @@ function openDb(): Promise<IDBDatabase> {
         } catch {
           /* already gone */
         }
+        if (dbPromise === p) dbPromise = null;
+      };
+      // The browser closed the connection on its own (storage cleared in
+      // settings, a lost connection after the app went to the background).
+      // Forget it so the next operation reopens instead of failing every
+      // transaction against a closed handle and falling back for the session.
+      db.onclose = () => {
         if (dbPromise === p) dbPromise = null;
       };
       resolve(db);
@@ -124,6 +139,37 @@ function isQuotaError(e: unknown): boolean {
   return !!e && typeof e === 'object' && (e as { name?: unknown }).name === 'QuotaExceededError';
 }
 
+function isInvalidState(e: unknown): boolean {
+  return !!e && typeof e === 'object' && (e as { name?: unknown }).name === 'InvalidStateError';
+}
+
+/**
+ * Start a transaction on the cached connection, reopening once if that
+ * connection has been closed.
+ *
+ * A closed connection throws InvalidStateError from `transaction()`. The close
+ * event that clears the cache is not guaranteed to arrive first (a close the
+ * page asked for never fires it), so the stale handle is dropped here as well
+ * and one fresh open is tried.
+ */
+async function begin(mode: IDBTransactionMode): Promise<IDBTransaction> {
+  const cached = openDb();
+  const db = await cached;
+  try {
+    return db.transaction(STORE, mode);
+  } catch (e) {
+    if (!isInvalidState(e)) throw e;
+    if (dbPromise === cached) dbPromise = null;
+    return (await openDb()).transaction(STORE, mode);
+  }
+}
+
+/** Rejects when the transaction aborts or fails, with its own error when it has one. */
+function rejectOnTxFailure(t: IDBTransaction, reject: (e: Error) => void): void {
+  t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
+  t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+}
+
 /**
  * Run one transaction against the kv store, resolving with the request result.
  *
@@ -140,9 +186,8 @@ function isQuotaError(e: unknown): boolean {
  * is in hand at that point.
  */
 async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => IDBRequest): Promise<T> {
-  const db = await openDb();
+  const t = await begin(mode);
   return await new Promise<T>((resolve, reject) => {
-    const t = db.transaction(STORE, mode);
     const req = run(t.objectStore(STORE));
     let result: T;
     req.onsuccess = () => {
@@ -152,8 +197,7 @@ async function tx<T>(mode: IDBTransactionMode, run: (store: IDBObjectStore) => I
     req.onerror = () => reject(req.error ?? new Error('IndexedDB request failed'));
     // Durability for writes: only a committed transaction counts.
     t.oncomplete = () => resolve(result);
-    t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
-    t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+    rejectOnTxFailure(t, reject);
   });
 }
 
@@ -177,9 +221,8 @@ class ReducerError extends Error {
  * an IndexedDB request lets the transaction auto-commit first.
  */
 async function txUpdate(key: string, fn: (raw: string | null) => string | null): Promise<void> {
-  const db = await openDb();
+  const t = await begin('readwrite');
   return await new Promise<void>((resolve, reject) => {
-    const t = db.transaction(STORE, 'readwrite');
     const store = t.objectStore(STORE);
     const read = store.get(key);
     read.onsuccess = () => {
@@ -207,8 +250,7 @@ async function txUpdate(key: string, fn: (raw: string | null) => string | null):
     };
     read.onerror = () => reject(read.error ?? new Error('IndexedDB read failed'));
     t.oncomplete = () => resolve();
-    t.onabort = () => reject(t.error ?? new Error('IndexedDB transaction aborted'));
-    t.onerror = () => reject(t.error ?? new Error('IndexedDB transaction failed'));
+    rejectOnTxFailure(t, reject);
   });
 }
 
@@ -218,12 +260,16 @@ export async function __resetIdbForTests(): Promise<void> {
   const pending = dbPromise;
   dbPromise = null;
   degraded = false;
+  everOpened = false;
   try {
     (await pending)?.close();
   } catch {
     /* never opened */
   }
 }
+
+/** A read of IndexedDB that failed, which is not the same as nothing stored. */
+const UNREADABLE = Symbol('unreadable');
 
 export class IndexedDbKeyValueStore implements KeyValueStore {
   constructor(private readonly fallback: KeyValueStore = new LocalStorageKeyValueStore()) {}
@@ -241,21 +287,52 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
    */
   private readonly fellBack = new Set<string>();
 
+  /**
+   * A copy in the fallback is always the newer one.
+   *
+   * The fallback holds a key only when it is a pre-IndexedDB value not yet
+   * migrated, or when IndexedDB refused a write. A successful IndexedDB write
+   * clears the fallback copy, so the rule holds in both directions. It is what
+   * lets a later session, where `fellBack` is empty, read the right tier even
+   * when `demote` could not delete the stale IndexedDB entry (a closed
+   * connection fails the delete as surely as the write).
+   *
+   * Newer is not the same as complete. An `update` in a session where
+   * IndexedDB never opened seeds its reducer with null (see `readIdb`), so the
+   * fallback copy it writes is built without whatever an earlier session left
+   * in IndexedDB, and still wins here.
+   */
   async get(key: string): Promise<string | null> {
-    // A key we had to write to the fallback is newer there; the IndexedDB
-    // entry, if any, is the stale one.
-    if (this.fellBack.has(key)) {
-      const v = await this.fallback.get(key);
-      if (v != null) return v;
-      this.fellBack.delete(key);
+    try {
+      return await this.getChecked(key);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * As `get`, but a failed IndexedDB read rejects instead of reading as
+   * "nothing stored". A browser with no IndexedDB at all reads as empty, as
+   * `get` does: the fallback is the whole store there, not a read that failed.
+   */
+  async getChecked(key: string): Promise<string | null> {
+    const newer = await this.fallback.get(key);
+    if (newer != null) {
+      // A key that fell back this session has just been refused by IndexedDB;
+      // retrying the same write on every read gains nothing.
+      if (!this.fellBack.has(key)) await this.promote(key, newer);
+      return newer;
+    }
+    this.fellBack.delete(key);
+    if (typeof indexedDB === 'undefined') {
+      markDegraded();
+      return null;
     }
     try {
-      const found = await tx<string | undefined>('readonly', (s) => s.get(key));
-      if (found != null) return found;
-      return await this.migrate(key);
-    } catch {
+      return (await tx<string | undefined>('readonly', (s) => s.get(key))) ?? null;
+    } catch (e) {
       markDegraded();
-      return await this.fallback.get(key);
+      throw e instanceof Error ? e : new Error(errorMessage(e));
     }
   }
 
@@ -263,6 +340,9 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
     try {
       await tx('readwrite', (s) => s.put(value, key));
       this.fellBack.delete(key);
+      // Any fallback copy is now the older one; left behind it would win
+      // every later read (see `get`).
+      await this.fallback.remove(key);
       return true;
     } catch (e) {
       // Only an unusable IndexedDB degrades the session; a full one reports
@@ -275,13 +355,18 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
   }
 
   async update(key: string, fn: (raw: string | null) => string | null): Promise<boolean> {
-    if (this.fellBack.has(key)) {
-      // As in `get`: a fallback with no copy means the key has gone back to
-      // IndexedDB (another tab's read migrated it and cleared localStorage), and
-      // a reducer handed the fallback's null would rebuild the value from nothing.
-      if ((await this.fallback.get(key)) != null) return await this.fallback.update(key, fn);
-      this.fellBack.delete(key);
+    // As in `get`, a fallback copy is the newer value and the reducer must see
+    // it. Moved into IndexedDB first when possible; otherwise the update runs
+    // on the fallback. A fallback with no copy means the key lives in
+    // IndexedDB (another tab's read may have migrated it back and cleared
+    // localStorage), and a reducer handed the fallback's null would rebuild
+    // the value from nothing.
+    const newer = await this.fallback.get(key);
+    if (newer != null && (this.fellBack.has(key) || !(await this.promote(key, newer)))) {
+      this.fellBack.add(key);
+      return await this.fallback.update(key, fn);
     }
+    this.fellBack.delete(key);
     try {
       await txUpdate(key, fn);
       this.fellBack.delete(key);
@@ -297,9 +382,19 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
       // reducer handed `null` would rebuild the design-library index from
       // nothing and drop every other entry, so seed it with the IndexedDB copy
       // whenever the fallback has none of its own (a fallback copy, if present,
-      // is the newer one: see `get`).
+      // is the newer one: see `get`), and refuse below when that copy cannot be
+      // read.
       const current = await this.readIdb(key);
-      const ok = await this.fallback.update(key, (raw) => fn(raw ?? current));
+      // IndexedDB failing mid-session (WebKit's "Connection to Indexed Database
+      // server lost") can refuse the read as well as the write. Then nothing
+      // says what is stored, and a reducer handed null would write a one-item
+      // list to the fallback, the demotion below would drop the full copy, and
+      // the next session would promote the short list over it: every other
+      // saved design unlisted. Unless the fallback has its own copy to seed
+      // from, the write is refused, as a full store refuses it.
+      if (current === UNREADABLE && (await this.fallback.get(key)) == null) return false;
+      const seed = current === UNREADABLE ? null : current;
+      const ok = await this.fallback.update(key, (raw) => fn(raw ?? seed));
       // The design library index is mutated only through `update`, so it is
       // the key the demotion matters most for.
       if (ok) await this.demote(key);
@@ -323,12 +418,18 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
     }
   }
 
-  /** The IndexedDB copy of `key`, or null if there is none or it cannot be read. */
-  private async readIdb(key: string): Promise<string | null> {
+  /**
+   * The IndexedDB copy of `key`: null if there is none, {@link UNREADABLE} if it
+   * cannot be read. A read refused before any connection has opened this
+   * session is null: IndexedDB that never opened (disabled, blocked, absent)
+   * holds nothing the session wrote, and refusing on it would refuse the first
+   * write of every list and design for good.
+   */
+  private async readIdb(key: string): Promise<string | null | typeof UNREADABLE> {
     try {
       return (await tx<string | undefined>('readonly', (s) => s.get(key))) ?? null;
     } catch {
-      return null;
+      return everOpened ? UNREADABLE : null;
     }
   }
 
@@ -344,17 +445,20 @@ export class IndexedDbKeyValueStore implements KeyValueStore {
     await this.fallback.remove(key);
   }
 
-  /** Copy a pre-IndexedDB value across on first read. Returns it either way. */
-  private async migrate(key: string): Promise<string | null> {
-    const legacy = await this.fallback.get(key);
-    if (legacy == null) return null;
+  /**
+   * Move the fallback's copy of `key` into IndexedDB. Resolves whether it
+   * moved. On failure the original stays where it is and the next read tries
+   * again; an unusable IndexedDB degrades the session as any other failure.
+   */
+  private async promote(key: string, value: string): Promise<boolean> {
     try {
-      await tx('readwrite', (s) => s.put(legacy, key));
-      // Only now is it safe to reclaim the localStorage entry.
-      await this.fallback.remove(key);
-    } catch {
-      // Leave the original in place; the next read tries again.
+      await tx('readwrite', (s) => s.put(value, key));
+    } catch (e) {
+      if (!isQuotaError(e)) markDegraded();
+      return false;
     }
-    return legacy;
+    // Only now is it safe to reclaim the localStorage entry.
+    await this.fallback.remove(key);
+    return true;
   }
 }

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { loadHideOop, saveHideOop } from './motorPrefs';
 import { useTranslation } from 'react-i18next';
+import { withUnit } from '../../i18n/format';
 import { filterMotors, allClasses, allManufacturers, type CatalogMotor } from '../../services/motors/motorDb';
 import { STD_DIAMS, MAX_IDX, fitIdx, type MountFit } from '../../services/motors/motorPicker';
 import { useUnits } from '../../prefs/useUnits';
@@ -250,7 +251,7 @@ export function DiameterRange({ dia, onChange }: { dia: [number, number]; onChan
         high={highIdx}
         onChange={(lo, hi) => onChange([lo, hi])}
         label={t('motorDlg.diameter')}
-        stops={STD_DIAMS.map((_, i) => `${stop(i)} ${u.sym('motorDimensions')}`)}
+        stops={STD_DIAMS.map((_, i) => withUnit(stop(i), u.sym('motorDimensions')))}
       />
       <span className="w-20 shrink-0 text-right tabular-nums text-ink-muted">
         {lowIdx > 0 ? stop(lowIdx) : t('motorDlg.any')}–{highIdx < MAX_IDX ? stop(highIdx) : t('motorDlg.any')}{' '}

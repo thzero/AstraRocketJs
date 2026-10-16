@@ -3,6 +3,8 @@ import type { TFunction } from 'i18next';
 import type { CatalogMotor } from '../../services/motors/motorDb';
 import { avgThrustOf as avgOf, ispOf, massFracOf } from '../../services/motors/motorMath';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
+import { motorTypeLabel } from './motorFormat';
 import type { Units } from '../../prefs/useUnits';
 import type { Quantity } from '../../prefs/units';
 import { nsKey } from '../../services/storage/storageKeys';
@@ -15,14 +17,14 @@ import { readLocalJson, writeLocalJson } from '../../services/storage/localPref'
  */
 
 /** Format a numeric cell to `d` decimals, or a dash when absent / non-finite. */
-const fmtCell = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : '—');
+const fmtCell = (v: number | undefined, d: number) => (v != null && Number.isFinite(v) ? fmtNum(v, d) : NO_VALUE);
 
 export interface Col {
   id: string;
   label: string; // i18n suffix under `dash.*`
   align: 'left' | 'center' | 'right';
   always?: boolean;
-  cell: (m: CatalogMotor, u: Units) => string;
+  cell: (m: CatalogMotor, u: Units, t: TFunction) => string;
   /** Sort key; omit for a column that does not sort. NaN or '' means unknown, which sorts last. */
   sortVal?: (m: CatalogMotor) => number | string;
   /**
@@ -40,7 +42,7 @@ export const heading = (c: Col, t: TFunction, u: Units): string =>
 
 /** A catalog value in the user's unit, the catalog's mm/g lifted to SI first. */
 const cell = (u: Units, q: Quantity, v: number | undefined, siScale: number, d: number): string =>
-  v != null && Number.isFinite(v) ? u.fmt(q, v * siScale, d) : '—';
+  v != null && Number.isFinite(v) ? u.fmt(q, v * siScale, d) : NO_VALUE;
 
 // Every column the grid can show. `always` = the anchor (Motor), never hidden.
 export const COLUMNS: Col[] = [
@@ -111,8 +113,14 @@ export const COLUMNS: Col[] = [
     cell: (m, u) => cell(u, 'mass', m.propWeightG, 0.001, 0),
     sortVal: (m) => m.propWeightG ?? NaN,
   },
-  { id: 'delays', label: 'colDelays', align: 'center', cell: (m) => m.delays ?? '—' },
-  { id: 'type', label: 'colType', align: 'center', cell: (m) => m.type ?? '—', sortVal: (m) => m.type ?? '' },
+  { id: 'delays', label: 'colDelays', align: 'center', cell: (m) => m.delays ?? NO_VALUE },
+  {
+    id: 'type',
+    label: 'colType',
+    align: 'center',
+    cell: (m, _u, t) => (m.type ? motorTypeLabel(m.type, t) : NO_VALUE),
+    sortVal: (m) => m.type ?? '',
+  },
   {
     id: 'code',
     label: 'colCode',
@@ -125,14 +133,14 @@ export const COLUMNS: Col[] = [
     id: 'massFrac',
     label: 'colMassFrac',
     align: 'right',
-    cell: (m) => (Number.isFinite(massFracOf(m)) ? `${fmtNum(massFracOf(m), 0)}%` : '—'),
+    cell: (m) => (Number.isFinite(massFracOf(m)) ? `${fmtNum(massFracOf(m), 0)}%` : NO_VALUE),
     sortVal: (m) => massFracOf(m),
   },
   {
     id: 'sparky',
     label: 'colSparky',
     align: 'center',
-    cell: (m) => (m.sparky ? '⚡' : '—'),
+    cell: (m, _u, t) => (m.sparky ? t('motorDlg.yes') : NO_VALUE),
     sortVal: (m) => (m.sparky ? 1 : 0),
   },
   {

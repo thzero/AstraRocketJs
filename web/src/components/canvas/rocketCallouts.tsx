@@ -75,12 +75,12 @@ function labelTexture(text: string, color: string): { texture: THREE.CanvasTextu
 }
 
 /**
- * Billboard text beside a gadget sphere. The sprite `center` shifts it in
+ * Billboard text beside an axis marker. The sprite `center` shifts it in
  * screen space by `gap` (world units), so every label hangs the same distance
  * from its anchor at any camera angle; a world-space offset would swing
- * around with the orbit. `place` splits the three labels vertically: CG and
- * CP sit almost on one line, so hanging all three to the right piles them up
- * exactly when the margin is small, the case that matters most.
+ * around with the orbit. `place` splits the labels vertically (CG above, CP
+ * below by default): CG and CP sit almost on one station when the margin is
+ * small, the case that matters most, and labels hung to one side would pile up.
  */
 function CalloutLabel({
   text,

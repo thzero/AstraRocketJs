@@ -30,7 +30,10 @@ export function TabBar() {
   const onPane = useWorkspaceStore((s) => s.setDesignPane);
   const showResults = useShowResultsTab();
   return (
-    <nav className="flex shrink-0 border-t border-line/10 bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden">
+    <nav
+      aria-label={t('tabs.workbench')}
+      className="flex shrink-0 border-t border-line/10 bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur lg:hidden"
+    >
       <TabButton
         active={tab === 'design' && pane === 'stats'}
         onClick={() => onPane('stats')}

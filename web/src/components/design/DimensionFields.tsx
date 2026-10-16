@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useMemo, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { NumberInput } from '../common/NumberInput';
@@ -7,12 +7,51 @@ import { UnitChip } from '../common/UnitChip';
 import { useUnits, type FieldUnit } from '../../prefs/useUnits';
 import { clampEntry } from '../../prefs/entryValue';
 import { unitScope, type Quantity } from '../../prefs/units';
-import { MAX_CANT, MAX_FIN_COUNT, MAX_INSTANCE_COUNT, num, str } from '../../tree/nodeProps';
-import { clusterCount } from '../../tree/cluster';
-import { shapeIsClippable, shapeParamMax, shapeUsesParameter } from '../../tree/shapeProfile';
+import { num } from '../../tree/nodeProps';
+import { shapeSelect } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
+import { clampToBounds, type DimensionBounds } from '../../services/design/linkedDimensions';
+import { KERNEL_AUTO_KEYS, fieldApplies, fieldRange, fieldValue, liveBounds } from '../../services/design/fieldRange';
+import { parentRadiusOf } from '../../tree/finPlanform';
 import { PropSection } from './PropSection';
+import { isClosedEnd } from '../../services/design/requiredComponent';
+import { rebaseTabOffset } from '../../tree/axialRebase';
+import { useWorkspaceStore } from '../../state/store';
+
+/**
+ * The kernel's value for an automatic field it resolves itself, while the field
+ * is on Auto.
+ *
+ * Memoized on the live build: the panel re-renders on every keystroke in any of
+ * its fields, and each read is a kernel call and an envelope parse. A new build
+ * is a new `rocket`, so an edit that moves the value is still picked up.
+ */
+function useKernelAutoValue(node: ComponentNode, f: Field): number | undefined {
+  const rocket = useWorkspaceStore((s) => s.rocket);
+  const autoOn = !!f.auto && node[f.auto.flag] === true && KERNEL_AUTO_KEYS.has(f.key);
+  const id = typeof node.id === 'string' ? node.id : null;
+  return useMemo(() => {
+    if (!autoOn || !rocket || id === null) return undefined;
+    try {
+      const v = (rocket.componentInfo(id) as unknown as Record<string, unknown>)[f.key];
+      return typeof v === 'number' && Number.isFinite(v) ? v : undefined;
+    } catch {
+      // A part the live build does not hold yet (the rebuild trails the edit).
+      return undefined;
+    }
+  }, [rocket, id, f.key, autoOn]);
+}
+
+/**
+ * A fin tab's depth limit, `FinSet.getMaxTabHeight()`: the parent's radius at
+ * the tab's two ends, which no field bound can read because it lives on the
+ * parent. Null for every other field, and for a fin with no symmetric parent.
+ */
+function useTabDepthLimit(node: ComponentNode, f: Field): number | null {
+  const id = f.key === 'tabHeight' && typeof node.id === 'string' ? node.id : null;
+  return useWorkspaceStore((s) => (id === null ? null : parentRadiusOf(s.tree, id)));
+}
 
 /**
  * The property panel's per-type shape and dimension fields: the numeric row
@@ -21,54 +60,6 @@ import { PropSection } from './PropSection';
  * part's declared fields to show (`visibleFields`).
  */
 
-/**
- * The shape a nose cone or transition falls back to when the node carries
- * none: what `shapeUsesParameter` and `shapeParamMax` are asked about, shared by
- * the field filter and the shape-parameter field so the two agree.
- */
-const defaultShape = (node: ComponentNode): string =>
-  str(node, 'shape', node.type === 'nosecone' ? 'ogive' : 'conical');
-
-/**
- * Whether a declared field applies to this particular node, as opposed to being
- * declared for its type. Every one of these would otherwise be a control that
- * sets a value nothing reads.
- *
- * Shared by `visibleFields` and `sectionFields`, which partition a type's
- * fields between them: a test in only one of the two would hide a row in the
- * dimension list and leave the same row on a section heading.
- */
-function applies(node: ComponentNode, f: Field): boolean {
-  /**
-   * Drop the shape parameter for shapes that do not use one. For a
-   * power/haack/ogive/parabolic shape it changes the whole profile, and the
-   * mesh, report, schematic, 3D view and both .ork paths all read it.
-   */
-  if (f.key === 'shapeParameter') return shapeUsesParameter(defaultShape(node));
-  /**
-   * Same for the clipped flag. `Transition.isClipped()` returns false outright
-   * for a shape that cannot be clipped (conical, ogive, parabolic), so on those
-   * the checkbox would set a value the kernel and both views ignore: a control
-   * that does nothing.
-   */
-  if (f.key === 'clipped') return shapeIsClippable(defaultShape(node));
-  /**
-   * A filled part is solid, so it has no wall and no bore. The desktop grays
-   * both out; a one-column panel drops them, which also stops the bore row
-   * offering to write a thickness the kernel is ignoring.
-   */
-  if (f.key === 'thickness' || f.key === 'innerDiameter') return node['filled'] !== true;
-  /**
-   * The cluster's spacing and roll, both ways of stating the spacing, and the
-   * angle the group sits at describe where the other tubes go. A single tube
-   * has no others: `clusterCount` is 1 and every consumer ignores all three.
-   */
-  if (f.key === 'clusterScale' || f.key === 'clusterSeparation' || f.key === 'clusterRotation') {
-    return clusterCount(str(node, 'cluster', 'single')) > 1;
-  }
-  return true;
-}
-
 /** The declared fields of this part that the panel shows in its dimension list. */
 export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field[] {
   // The top stage separates from nothing above it, so hide its separation fields.
@@ -76,7 +67,7 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
   return allFields.filter(
     // Sectioned fields are rendered by their own section instead, so the
     // dimension list stays dimensions.
-    (f) => f.section === undefined && applies(node, f),
+    (f) => f.section === undefined && fieldApplies(node, f),
   );
 }
 
@@ -87,7 +78,7 @@ export function visibleFields(node: ComponentNode, isFirstStage: boolean): Field
  * and a field that fell out of both would simply stop being editable.
  */
 export function sectionFields(node: ComponentNode, section: PanelSection): Field[] {
-  return (FIELDS[node.type] ?? []).filter((f) => f.section === section && applies(node, f));
+  return (FIELDS[node.type] ?? []).filter((f) => f.section === section && fieldApplies(node, f));
 }
 
 /**
@@ -124,6 +115,47 @@ export function FieldSection({
   );
 }
 
+/** What a property panel section edits: the part, and the panel's patch and commit handlers. */
+export interface NodeEditProps {
+  node: ComponentNode;
+  onChange: (patch: Partial<ComponentNode>) => void;
+  /** Closes the undo entry the edits since the last commit opened. */
+  onCommit?: () => void;
+}
+
+/**
+ * The stub that plugs into the tube next door. It is a different piece of the
+ * part from the cone or taper above it, and under the same heading it would
+ * read as four more dimensions of the same shape. A transition has two, kept
+ * apart because each end is its own build and eight rows under one heading is
+ * a wall. At most two render for a given part (a transition's fore and aft):
+ * FieldSection draws
+ * nothing when the type has no field in it.
+ */
+export function ShoulderSections({ node, onChange, onCommit }: NodeEditProps) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {(
+        [
+          ['shoulder', t('prop.shoulder')],
+          ['foreShoulder', t('prop.foreShoulder')],
+          ['aftShoulder', t('prop.aftShoulder')],
+        ] as const
+      ).map(([section, title]) => (
+        <FieldSection
+          key={section}
+          node={node}
+          title={title}
+          fields={sectionFields(node, section)}
+          onChange={onChange}
+          onCommit={onCommit}
+        />
+      ))}
+    </>
+  );
+}
+
 export function NumberField({
   label,
   unit,
@@ -132,6 +164,7 @@ export function NumberField({
   min = 0,
   max,
   required,
+  zeroAllowed,
   auto,
   onChange,
   onCommit,
@@ -146,6 +179,11 @@ export function NumberField({
   /** A zero here is degenerate geometry; see the `Field` type. */
   required?: boolean;
   /**
+   * A typed 0 the run accepts here, such as the closed end of a transition
+   * whose other end has a radius: the box is still required, not missing.
+   */
+  zeroAllowed?: boolean;
+  /**
    * A "follows something else" switch. While it is on the number is derived
    * and the box is read-only, so the checkbox is the control and the box is
    * the readout - rather than a box you can type into whose value is silently
@@ -158,7 +196,7 @@ export function NumberField({
   const { t } = useTranslation();
   // No separate "blank" state to check for: 0 is exactly what is wrong here, so
   // an emptied box and a typed zero collapse into one condition.
-  const missing = required && !(Number.isFinite(value) && value > 0);
+  const missing = required && !(Number.isFinite(value) && (value > 0 || (zeroAllowed && value === 0)));
   /**
    * An empty required box writes nothing at all.
    *
@@ -226,23 +264,27 @@ export function NumberField({
 }
 
 /**
+ * What picking `value` in a select field writes. A tab reference rebases the
+ * tab so it stays put, and a nose cone or transition shape brings the new
+ * shape's own parameter and clip.
+ */
+function selectPatch(node: ComponentNode, key: string, value: string): Partial<ComponentNode> {
+  if (key === 'tabOffsetMethod') return rebaseTabOffset(node, value);
+  if (key === 'shape' && (node.type === 'nosecone' || node.type === 'transition')) return shapeSelect(node, value);
+  return { [key]: value };
+}
+
+/**
  * One type-specific field of the selected part, by its declared kind. The kind
  * switch lives here, rather than as inline branches in the panel's render loop,
  * so the panel body reads as a list of rows.
  */
-export function FieldRow({
-  node,
-  field: f,
-  onChange,
-  onCommit,
-}: {
-  node: ComponentNode;
-  field: Field;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
-}) {
+export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps & { field: Field }) {
   const { t } = useTranslation();
   const u = useUnits();
+  const kernelAuto = useKernelAutoValue(node, f);
+  const tabDepth = useTabDepthLimit(node, f);
+  const bounds: DimensionBounds | undefined = liveBounds(f, tabDepth);
   const label = t(`prop.${f.label}`);
   // One scope per field of this component type: every body tube is the
   // same Length field on the same card, so selecting another must not
@@ -280,7 +322,13 @@ export function FieldRow({
             on: node[f.auto.flag] === true,
             label: `${label}: ${t('prop.auto')}`,
             title: t(`prop.${f.auto.tip}`),
-            onToggle: (on: boolean) => commitChange({ [f.auto!.flag]: on }),
+            // Turning Auto off keeps the length it was showing, as desktop does.
+            onToggle: (on: boolean) =>
+              commitChange(
+                on || kernelAuto === undefined
+                  ? { [f.auto!.flag]: on }
+                  : { [f.auto!.flag]: false, [f.key]: kernelAuto },
+              ),
           },
         }
       : {};
@@ -292,13 +340,21 @@ export function FieldRow({
     max?: number;
     auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
     onChange: (v: number) => void;
-  }) => <NumberField label={label} required={f.required} onCommit={onCommit} {...props} />;
+  }) => (
+    <NumberField
+      label={label}
+      required={f.required}
+      zeroAllowed={isClosedEnd(node, f.key)}
+      onCommit={onCommit}
+      {...props}
+    />
+  );
   /** The field's own stored SI number, edited in its unit with a unit chip. */
   const inUnit = (quantity: Quantity, stepSi: number, min?: (fu: FieldUnit) => number, maxSi?: number) => {
     const fu = u.at(scope, quantity);
     return numeric({
       unit: <UnitChip quantity={quantity} scope={scope} />,
-      value: fu.toUi(num(node, f.key)),
+      value: fu.toUi(Number(fieldValue(node, f))),
       step: fu.step(stepSi),
       min: min?.(fu),
       max: maxSi === undefined ? undefined : fu.toUi(maxSi),
@@ -311,13 +367,16 @@ export function FieldRow({
 
   switch (f.kind) {
     case 'select': {
-      const cur = typeof node[f.key] === 'string' ? (node[f.key] as string) : (f.fallback ?? f.options[0]);
+      const cur = String(fieldValue(node, f));
       return (
         <label className="flex items-center justify-between gap-3">
           <span className="text-xs text-ink-muted">{label}</span>
           <select
             value={cur}
-            onChange={(e) => commitChange({ [f.key]: e.target.value })}
+            // A new tab reference keeps the tab where it is, as the kernel's
+            // FinSet.setTabOffsetMethod does, and a new shape takes its own
+            // parameter and clip, as Transition.setShapeType does.
+            onChange={(e) => commitChange(selectPatch(node, f.key, e.target.value))}
             className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
             {f.options.map((o) => (
@@ -348,24 +407,23 @@ export function FieldRow({
           <span className="text-xs text-ink-muted">{label}</span>
           <input
             type="checkbox"
-            checked={node[f.key] === true}
+            checked={fieldValue(node, f) === true}
             onChange={(e) => commitChange({ [f.key]: e.target.checked })}
             className="accent-accent-500"
           />
         </label>
       );
     case 'count': {
-      // Every fin type's count is `finCount`, and the kernel builds at most 8.
-      const max = f.key === 'finCount' ? MAX_FIN_COUNT : MAX_INSTANCE_COUNT;
+      const { min = 1, max = 1 } = fieldRange(node, f);
       return numeric({
-        value: num(node, f.key),
+        value: Number(fieldValue(node, f)),
         step: 1,
-        min: 1,
+        min,
         max,
         // Clamped here as well as in every consumer: without a ceiling at the
         // source, the count would reach the node and be persisted and exported
         // before any renderer saw it.
-        onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(1, Math.round(v))) }),
+        onChange: (v) => patchNumber({ [f.key]: Math.min(max, Math.max(min, Math.round(v))) }),
       });
     }
     case 'mass':
@@ -373,28 +431,31 @@ export function FieldRow({
     case 'distance':
       return inUnit('distance', f.step ?? 10);
     case 'number': {
-      // The shape parameter has a shape-dependent ceiling the kernel enforces
-      // (Shape.maxParameter: haack tops out at LV-Haack, 1/3). `shapeParamMax`
-      // is the tested port of it.
-      const paramMax = f.key === 'shapeParameter' ? shapeParamMax(defaultShape(node)) : undefined;
+      const { min, max } = fieldRange(node, f);
       return numeric({
         unit: f.unit,
-        value: num(node, f.key),
+        // On Auto, the number the kernel works out (a recovery device's Cd),
+        // not the stored one it ignores.
+        value: kernelAuto ?? Number(fieldValue(node, f)),
         step: f.step ?? 0.1,
-        max: paramMax,
+        min,
+        max,
         ...autoProp(),
-        onChange: (v) => patchNumber({ [f.key]: paramMax === undefined ? v : Math.min(paramMax, Math.max(0, v)) }),
+        onChange: (v) => patchNumber({ [f.key]: Math.min(max ?? Infinity, Math.max(min ?? -Infinity, v)) }),
       });
     }
-    case 'angle':
+    case 'angle': {
       // Stored in radians (kernel/.ork convention), edited in the user's unit.
-      // Half a turn either way, in whatever unit is selected: a fixed -180
-      // would clamp a radian entry to well inside its legal range. Fin cant
-      // stops at the kernel's +/-15 deg, which is where the desktop spinner stops.
-      if (f.key === 'cant') {
-        return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(MAX_CANT), MAX_CANT);
-      }
-      return inUnit('angle', ((f.step ?? 5) * Math.PI) / 180, (fu) => -fu.toUi(Math.PI));
+      // The range is converted, not fixed in degrees: a fixed -180 would clamp
+      // a radian entry to well inside its legal range.
+      const { min, max } = fieldRange(node, f);
+      return inUnit(
+        'angle',
+        ((f.step ?? 5) * Math.PI) / 180,
+        min === undefined ? undefined : (fu) => fu.toUi(min),
+        max,
+      );
+    }
     case 'bore': {
       // A tube's inner diameter, which is not stored: the node and the `.ork`
       // carry the outer radius and the wall, and the bore is the pair of them.
@@ -467,15 +528,27 @@ export function FieldRow({
       // the doubling lives here, at the edit boundary, and nowhere else.
       const fu = u.at(scope, 'length');
       const k = f.diameter ? 2 : 1;
+      // `bounds`: the range the kernel's setter holds this value in, given the
+      // rest of the part. The box stops there, and so does the stored value, so
+      // the panel never shows a figure the kernel would fly as another.
+      const { min, max } = fieldRange(node, f, bounds);
+      const range = {
+        ...(min === undefined ? {} : { min: fu.toUi(k * min) }),
+        ...(max === undefined ? {} : { max: fu.toUi(k * max) }),
+      };
       // `auto`: the value follows something else (a shoulder follows the bore of
       // the tube it plugs into). Ticking it commits at once and the resolver
       // fills the number in the same edit; clearing it pins whatever it now is.
       return numeric({
         unit: <UnitChip quantity="length" scope={scope} />,
-        value: fu.toUi(k * num(node, f.key)),
+        value: fu.toUi(k * (kernelAuto ?? Number(fieldValue(node, f)))),
         step: fu.step(0.0005),
+        ...range,
         ...autoProp(),
-        onChange: (v) => patchNumber({ [f.key]: fu.toSi(v, (si) => si / k) }),
+        onChange: (v) => {
+          const si = fu.toSi(v, (s) => s / k);
+          patchNumber({ [f.key]: si === null ? si : clampToBounds(node, bounds, si) });
+        },
       });
     }
   }

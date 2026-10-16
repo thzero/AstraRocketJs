@@ -180,7 +180,7 @@ describe('findCatalogMotor', () => {
  * impulse figure. Without reading past the number, such a motor matches
  * nothing at all and the mount opens empty.
  */
-describe('findCatalogMotor — a leading impulse number', () => {
+describe('findCatalogMotor: a leading impulse number', () => {
   const cat: CatalogMotor[] = [
     {
       designation: 'J530',
@@ -220,7 +220,7 @@ describe('findCatalogMotor — a leading impulse number', () => {
  * `26E31-15A`. Dropping only one trailing segment leaves `26-E31-WH`, which is
  * neither, so the motor would match nothing and the mount would open empty.
  */
-describe('findCatalogMotor — a name in several hyphenated parts', () => {
+describe('findCatalogMotor: a name in several hyphenated parts', () => {
   const cat: CatalogMotor[] = [
     {
       designation: 'E31',
@@ -277,7 +277,7 @@ describe('findCatalogMotor — a name in several hyphenated parts', () => {
   });
 });
 
-describe('findCatalogMotor — full .ork designations vs short catalog names', () => {
+describe('findCatalogMotor: full .ork designations vs short catalog names', () => {
   // Catalog keys the short designation; the full name lives in `code`, exactly
   // as the bundled motors.generated.json does.
   const cat: CatalogMotor[] = [
@@ -373,9 +373,8 @@ describe('findCatalogMotor — full .ork designations vs short catalog names', (
  * One malformed row must cost that row, not the catalog.
  *
  * `isCatalog` must not be `every(isCatalogMotor)`: remoteData rejects a body its
- * predicate refuses, so a single bad row on the data host throws the whole
- * ~1500-motor catalog away, and once the in-build copy carries the same row the
- * picker is empty. Row by row instead: drop the bad rows, keep the rest.
+ * predicate refuses, so a single bad row on the data host would throw the
+ * whole ~1500-motor catalog away and leave the picker empty. Row by row instead: drop the bad rows, keep the rest.
  */
 describe('loadCatalog with a malformed row', () => {
   const good = (designation: string): CatalogMotor => ({
@@ -409,6 +408,19 @@ describe('loadCatalog with a malformed row', () => {
     expect(rows.map((m) => m.designation)).toEqual(['C6', 'D12']);
   });
 
+  it('drops a row whose optional fields are malformed', async () => {
+    serve([
+      good('C6'),
+      { ...good('B4'), code: 4 },
+      { ...good('D12'), curves: [{ src: 'x', samples: [[0, null]] }] },
+      { ...good('E9'), cg: [[0, 'x']] },
+      { ...good('F15'), digests: [{ digest: 'd', delays: 'P' }] },
+      { ...good('G40'), digests: [{ digest: 'd', delays: [4, 'P'] }], cg: [[0, 0.1]], code: 'G40W' },
+    ]);
+    const rows = await loadCatalog();
+    expect(rows.map((m) => m.designation)).toEqual(['C6', 'G40']);
+  });
+
   it('still rejects a catalog that is not an array', async () => {
     serve({ error: 'rebuilding' });
     await expect(loadCatalog()).rejects.toThrow(/Could not load the motors catalog/);
@@ -430,7 +442,7 @@ describe('loadCatalog with a malformed row', () => {
  * which: otherwise an `I170-P` filed under Kosdon loads Cesaroni's I170 in
  * silence.
  */
-describe('matchCatalogMotor — how sure the match is', () => {
+describe('matchCatalogMotor: how sure the match is', () => {
   const cat: CatalogMotor[] = [
     { designation: 'C6', manufacturer: 'Estes', class: 'C', diameter: 18, impulse: 1, burn: 1, mass: 1 },
     { designation: 'I170', manufacturer: 'Cesaroni', class: 'I', diameter: 38, impulse: 1, burn: 1, mass: 1 },

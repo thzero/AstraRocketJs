@@ -44,8 +44,11 @@ describe('required component fields', () => {
   });
 
   it('marks recovery devices by what makes them slow the rocket', () => {
-    expect(req('parachute')).toEqual(['cd', 'diameter']);
-    expect(req('streamer')).toEqual(['cd', 'stripLength', 'stripWidth']);
+    // The drag coefficient is not required: left blank, the kernel works it out
+    // (`RecoveryDevice.cdAutomatic`), which is what an .ork's `<cd>auto</cd>`
+    // reads as. Marking it required would refuse a valid imported design.
+    expect(req('parachute')).toEqual(['diameter']);
+    expect(req('streamer')).toEqual(['stripLength', 'stripWidth']);
   });
 
   it('marks the rest', () => {

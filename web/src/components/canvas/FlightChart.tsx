@@ -1,21 +1,24 @@
 import { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { fmtNum, ladderDigits, stageLabel } from '../../i18n/format';
+import { fmtNum, stageLabel } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
-import { lerpAt } from '../../services/flight/interpolate';
 import { EVENT_LABEL, clusterEventLabels } from '../../services/flight/simReport';
 import { FlightCsvDialog } from '../sim/FlightCsvDialog';
 import { useSettings } from '../../state/SettingsProvider';
-import { PAD_L, PAD_R, PANEL_H, maxFlightTime } from './flightChartAxis';
+import { PAD_L, PAD_R, PANEL_H, maxFlightTime, minWindow } from './flightChartAxis';
 import {
   SERIES,
   buildTraces,
+  panelDigits,
+  panelSeries,
   traceScale,
   traceUnit,
   visibleSeries,
   type ChartFlight,
   type Key,
+  type PanelLine,
 } from './flightChartTraces';
+import { hoverValue } from './FlightChartHover';
 import { useChartZoom } from './useChartZoom';
 import { useChartCrosshair } from './useChartCrosshair';
 import { EventLabelStrip, eventStripHeight, packEventLabels } from './FlightChartEvents';
@@ -24,10 +27,9 @@ import { crosshairReadout, eventsSummary } from './chartSummary';
 import { FlightXYPanel } from './FlightXYPanel';
 import { useElementResize } from '../common/useElementResize';
 
-// The series catalog and the axis math live in their own modules; GroundTrack
-// and the chart tests import them through this one.
-export { buildTraces, visibleSeries, type ChartFlight } from './flightChartTraces';
-export { maxFlightTime } from './flightChartAxis';
+// The series catalog lives in its own module; GroundTrack imports the trace
+// builder through this one.
+export { buildTraces, type ChartFlight } from './flightChartTraces';
 
 /**
  * Flight data as small MULTIPLES: time on a shared x, and one
@@ -110,7 +112,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
     [selectedBranches, maxT],
   );
 
-  // Boost→apogee window: aero series (CP / stability) are only meaningful until
+  // Boost→apogee window: aero series (CP / stability / q·α) are only meaningful until
   // the rocket stops flying forward (recovery deploy, else apogee).
   const clipT = useMemo(() => {
     const at = (type: string) => flight.result.events?.find((e) => e.type === type)?.time;
@@ -152,6 +154,20 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   // steps change it (see useChartCrosshair), so a mouse hover stays quiet.
   const { keyT } = crosshair;
   const primary = selectedBranches[0];
+  // Each panel's header decimals, from the same span the header uses. Built
+  // only once the keyboard has moved the crosshair, since a pointer never
+  // writes the live region.
+  const announcing = keyT != null;
+  const panelOf = useMemo(() => {
+    const out = new Map<Key, { digits: number; primary: PanelLine | undefined }>();
+    if (!announcing) return out;
+    for (const m of SERIES) {
+      if (m.xy || !on.includes(m.key)) continue;
+      const { list, lo, hi } = panelSeries(selectedBranches, m, traceScale(m, u), clipT);
+      out.set(m.key, { digits: panelDigits(m, lo, hi), primary: list[0] });
+    }
+    return out;
+  }, [announcing, on, selectedBranches, u, clipT]);
   const announcement =
     keyT == null || !primary
       ? ''
@@ -160,14 +176,13 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           shownMetas
             .filter((m) => !m.xy && !(m.aero && keyT > clipT))
             .map((m) => {
-              const scale = traceScale(m, u);
-              const raw = lerpAt(primary.series.time ?? [], primary.series[m.key] ?? [], keyT);
-              const value = raw == null ? null : raw * scale;
+              // The header's own figure: none outside the primary stage's span.
+              const panel = panelOf.get(m.key);
               return {
                 label: t(m.label),
-                value,
-                digits: m.quantity ? ladderDigits(value ?? 0) : m.digits,
-                unit: traceUnit(m, u),
+                value: panel?.primary ? hoverValue(panel.primary, keyT) : null,
+                digits: panel?.digits ?? m.digits,
+                unit: traceUnit(m, u, t),
               };
             }),
         );
@@ -207,6 +222,8 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
             </button>
             <button
               onClick={() => zoomAt(0.6, centerT())}
+              // At the narrowest window a press would change nothing.
+              disabled={t1 - t0 <= minWindow(maxT) + 1e-9}
               title={t('flight.zoomIn')}
               aria-label={t('flight.zoomIn')}
               className={zBtn}
@@ -240,12 +257,18 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
           </span>
           {branches.map((b) => {
             const active = isOn(b.key);
+            // The only stage shown cannot be turned off, so it says so rather
+            // than taking the press and doing nothing. aria-disabled, not
+            // disabled: it stays focusable, so the reason can be read.
+            const locked = active && selectedBranches.length === 1;
             return (
               <button
                 key={b.key}
                 onClick={() => toggleStage(b.key)}
                 aria-pressed={active}
-                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${active ? 'bg-elevated text-ink-strong ring-line/20' : 'bg-raised text-ink-muted ring-line/10'}`}
+                aria-disabled={locked || undefined}
+                title={locked ? t('flight.lastStageShown') : undefined}
+                className={`flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 aria-disabled:cursor-not-allowed ${active ? 'bg-elevated text-ink-strong ring-line/20' : 'bg-raised text-ink-muted ring-line/10'}`}
               >
                 <span
                   className="inline-block h-2 w-2 shrink-0 rounded-full"

@@ -32,17 +32,18 @@ import {
 } from '../../services/parts/componentFilter';
 import { confirm } from '../../state/confirmStore';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { useUnits, type Units } from '../../prefs/useUnits';
 import { useCatalogProgress } from '../common/CatalogLoading';
 import { Dialog } from '../common/Dialog';
-import { errorMessage } from '../../services/app/errorMessage';
+import { errorText } from '../../i18n/keyedError';
 import { progressPercent } from '../../services/app/remoteData';
 import { SortHeader } from '../common/SortHeader';
 import { UnitBound } from '../common/UnitBound';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 
 /**
- * How many rows are rendered at once. There are 1088 body tubes and no
+ * How many rows are rendered at once. There are well over a thousand body tubes and no
  * virtualization in the tree, so the list is capped. The footer reports the match
  * count and how many rows are held back, rather than printing the cap as the
  * total and making the catalog read as small.
@@ -55,7 +56,6 @@ const ROW_CAP = 200;
  */
 type CatalogState =
   { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; all: Component[] };
-/** A fetch that finished, filed under the type and attempt it answers. */
 
 /**
  * The rows for a node type: the user's own saved parts (customParts.ts) first,
@@ -70,8 +70,26 @@ async function loadRows(type: PickerType): Promise<Component[]> {
   return [...saved, ...catalog];
 }
 
+/** A catalog link as `presetRef` records it on a node. */
+export interface CurrentPart {
+  manufacturer?: string;
+  partNo?: string;
+}
+
+const sameText = (a: string | undefined, b: string | undefined): boolean =>
+  a != null && b != null && a.trim().toLowerCase() === b.trim().toLowerCase();
+
 /**
- * Picks a real cataloged part (from the bundled OpenRocket component DB) of a
+ * Whether a row is the part a component is linked to. Part numbers are unique
+ * only within a manufacturer, so both have to match.
+ */
+function isCurrent(part: Pick<Component, 'mfr' | 'partNo'>, current: CurrentPart | undefined): boolean {
+  return current != null && sameText(part.partNo, current.partNo) && sameText(part.mfr, current.manufacturer);
+}
+
+/**
+ * Picks a real cataloged part (from the OpenRocket component catalog, fetched
+ * at runtime) of a
  * given type and applies it via `onApply`. Opens a modal dialog with a sortable
  * table, free-text search, a manufacturer facet, an outer-diameter range and a
  * "fits here" filter; the caller maps the chosen Component onto its target node
@@ -90,7 +108,7 @@ export function ComponentPicker({
    *  be ranked first. Absent is fine: the fit control then says so. */
   fit?: FitContext;
   /** The part this component is already linked to, so the list can mark it. */
-  current?: string;
+  current?: CurrentPart;
   onApply: (p: Component) => void;
 }) {
   const { t } = useTranslation();
@@ -193,7 +211,7 @@ interface Col {
  * it fills. The unit is named once, in the heading, rather than after every cell.
  */
 function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ranked: boolean): Col[] {
-  const len = (v: number | null | undefined) => (v == null ? '—' : u.fmt('length', v));
+  const len = (v: number | null | undefined) => (v == null ? NO_VALUE : u.fmt('length', v));
   const withUnit = (label: string) => `${label} (${u.sym('length')})`;
   const od = (r: Ranked<Component>) => outerDiameterOf(r.part);
   const inner = (r: Ranked<Component>) => ('innerDiameter' in r.part ? r.part.innerDiameter : null);
@@ -245,7 +263,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
     head: t('material.title'),
     w: 'w-36',
     hide: 'hidden lg:table-cell',
-    cell: (r) => ('material' in r.part ? (r.part.material ?? '—') : '—'),
+    cell: (r) => ('material' in r.part ? (r.part.material ?? NO_VALUE) : NO_VALUE),
     title: (r) => ('material' in r.part ? (r.part.material ?? '') : ''),
   };
   // The one column with no width: it absorbs whatever the fixed ones leave.
@@ -292,7 +310,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
     head: t('prop.shape'),
     sort: 'shape',
     w: 'w-28',
-    cell: (r) => ('shape' in r.part ? t(`noseShape.${r.part.shape}`) : '—'),
+    cell: (r) => ('shape' in r.part ? t(`noseShape.${r.part.shape}`) : NO_VALUE),
   };
 
   switch (type) {
@@ -361,7 +379,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
               ? r.part.cd == null
                 ? `(${fmtNum(DEFAULT_CHUTE_CD, 2)})`
                 : fmtNum(r.part.cd, 2)
-              : '—',
+              : NO_VALUE,
           title: (r) => (r.part.type === 'parachute' && r.part.cd == null ? t('picker.cdDefault') : ''),
         },
         notes,
@@ -380,7 +398,7 @@ function PickerDialog({
   type: PickerType;
   all: Component[];
   fit?: FitContext;
-  current?: string;
+  current?: CurrentPart;
   onApply: (p: Component) => void;
   onClose: () => void;
 }) {
@@ -394,8 +412,8 @@ function PickerDialog({
   // wrong: no nose cone in the catalog is within 0.6 mm of a 54.66 mm airframe,
   // because manufacturers' nominal sizes cluster in families that do not line
   // up, so a picker that hid everything else would open empty on a perfectly
-  // ordinary design. Sorting by fit puts the five couplers that suit a
-  // 51.5 mm bore at the top of 237 and still lets an unusual build scroll past
+  // ordinary design. Sorting by fit puts the few couplers that suit a
+  // 51.5 mm bore at the top of several hundred and still lets an unusual build scroll past
   // them. The toggle is there for anyone who does want the hard filter.
   const [q, setQ] = useState<ComponentQuery>({ ...emptyQuery, sort: canFit ? 'fit' : 'mfr' });
   const set = (patch: Partial<ComponentQuery>) => setQ((prev) => ({ ...prev, ...patch }));
@@ -434,7 +452,7 @@ function PickerDialog({
       // subscribes to, so there is nothing to re-fetch here.
       await deleteCustomPart(p.id);
     } catch (e) {
-      setDelErr(errorMessage(e));
+      setDelErr(errorText(e, t));
     }
   };
   // The delete column exists only when there is something to delete, so an
@@ -626,9 +644,9 @@ function PickerDialog({
               // The one this component is already built from, marked rather than
               // merely present: opening a list of hundreds of parts to find out which one
               // you are on is not an answer.
-              aria-current={r.part.partNo === current ? 'true' : undefined}
+              aria-current={isCurrent(r.part, current) ? 'true' : undefined}
               className={`cursor-pointer border-b border-line/5 hover:bg-raised focus-within:bg-raised ${
-                r.part.partNo === current ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'
+                isCurrent(r.part, current) ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'
               }`}
             >
               {cols.map((c) => (
@@ -648,7 +666,7 @@ function PickerDialog({
                         e.stopPropagation(); // the row's own click would apply it twice
                         onApply(r.part);
                       }}
-                      aria-current={r.part.partNo === current ? 'true' : undefined}
+                      aria-current={isCurrent(r.part, current) ? 'true' : undefined}
                       className="max-w-full truncate text-left focus:outline-none focus-visible:underline"
                     >
                       {c.cell(r)}

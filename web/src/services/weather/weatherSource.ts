@@ -17,6 +17,14 @@ export const STALE_AFTER_MS = 3 * 3_600_000;
 /** Coordinates within this many degrees are the site the forecast was asked for (requests round to 3 dp). */
 const SAME_SITE_DEG = 0.0005;
 
+/** Whether a launch at `lat`, `lon` is at the site a forecast was asked for at `siteLat`, `siteLon`. */
+export const sameSite = (
+  lat: number | null | undefined,
+  lon: number | null | undefined,
+  siteLat: number,
+  siteLon: number,
+) => lat != null && lon != null && Math.abs(lat - siteLat) <= SAME_SITE_DEG && Math.abs(lon - siteLon) <= SAME_SITE_DEG;
+
 /** The fields each applied group writes. The site altitude, when applied, is added by `sourceFields`. */
 const GROUP_FIELDS: Record<WeatherSource['groups'][number], (keyof LaunchConditions)[]> = {
   temperature: ['temperatureC'],
@@ -82,11 +90,7 @@ export function sourceStatus(launch: LaunchConditions, nowMs: number): SourceSta
   const edited =
     s.edited === true ||
     (s.applied !== undefined && sourceFields(s).some((k) => k in s.applied! && !same(launch[k], s.applied![k])));
-  const otherSite =
-    launch.latitudeDeg == null ||
-    launch.longitudeDeg == null ||
-    Math.abs(launch.latitudeDeg - s.latitudeDeg) > SAME_SITE_DEG ||
-    Math.abs(launch.longitudeDeg - s.longitudeDeg) > SAME_SITE_DEG;
+  const otherSite = !sameSite(launch.latitudeDeg, launch.longitudeDeg, s.latitudeDeg, s.longitudeDeg);
   const validMs = Date.parse(s.validAt);
   const old = s.endpoint === 'forecast' && validMs > nowMs && nowMs - Date.parse(s.fetchedAt) > STALE_AFTER_MS;
   return { edited, otherSite, old };
@@ -123,7 +127,7 @@ export function isWeatherSource(x: unknown): x is WeatherSource {
     typeof s['fetchedAt'] === 'string' &&
     !Number.isNaN(Date.parse(s['fetchedAt'])) &&
     Array.isArray(s['groups']) &&
-    (s['groups'] as unknown[]).every((g) => typeof g === 'string' && g in GROUP_FIELDS) &&
+    (s['groups'] as unknown[]).every((g) => typeof g === 'string' && Object.hasOwn(GROUP_FIELDS, g)) &&
     typeof s['elevationApplied'] === 'boolean'
   );
 }

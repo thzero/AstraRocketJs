@@ -13,6 +13,8 @@ import { execFileSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { delimiter, join } from 'node:path';
+import { arg } from './args.mjs';
+import { checkJar, checkSourceTree } from './openrocketRelease.mjs';
 
 /** The Gradle-cached jars a `--or` checkout needs, by artifact name. */
 const JARS = [
@@ -44,14 +46,6 @@ const JARS = [
   'txw2',
 ];
 
-// Not exported: `chooseBuild` below is the only caller, and nothing outside this
-// module imports it. (`sync-examples.mjs` has its own `arg`, which is a separate
-// copy of the same four lines.)
-const arg = (name, fallback = null) => {
-  const i = process.argv.indexOf(`--${name}`);
-  return i >= 0 ? process.argv[i + 1] : fallback;
-};
-
 /** Every jar under the Gradle cache whose file name starts with a wanted artifact. */
 function cachedJars() {
   const gradleHome = process.env.GRADLE_USER_HOME ?? join(homedir(), '.gradle');
@@ -81,11 +75,11 @@ function cachedJars() {
 /**
  * The installed OpenRocket, when neither flag is given.
  *
- * The usual case is a release install, and its jar is the build whose digests a
- * reader's desktop will compare against. Checked rather than assumed: a path
- * that is not there is skipped, and finding none is reported by the caller.
+ * The usual case is a release install. The jar found is checked against the
+ * pinned release where it is used (lib/openrocketRelease.mjs), because an
+ * install of another release gives digests the desktop rejects. A path that is
+ * not there is skipped, and finding none is reported by the caller.
  */
-// Not exported either: `chooseBuild` is its only caller.
 export function installedJar() {
   const roots = [
     'C:/Program Files/OpenRocket/jar',
@@ -109,8 +103,10 @@ function classpath(orDir, jar) {
   // and the databases.
   if (jar) {
     if (!existsSync(jar)) throw new Error(`no such jar: ${jar}`);
+    checkJar(jar);
     return jar;
   }
+  checkSourceTree(orDir);
   const main = join(orDir, 'core/build/classes/java/main');
   const test = join(orDir, 'core/build/classes/java/test');
   for (const d of [main, test]) {
@@ -134,29 +130,11 @@ export function chooseBuild() {
     console.error(
       'No installed OpenRocket found. Pass one:\n' +
         '  --jar <OpenRocket-NN.NN.jar>   a release\n' +
-        '  --or  <openrocket checkout>    a built source tree',
+        '  --or  <openrocket checkout>    a built source tree (needs OPENROCKET_UNPINNED=1)',
     );
     process.exit(2);
   }
   return { cp: classpath(orDir, jar), label: jar ?? orDir };
-}
-
-/**
- * Compile `javaSrc` against that build and run it with `args`, letting its
- * output through. Returns the exit status rather than throwing, so a caller
- * that is checking something can report it.
- */
-export function runJava({ cp, javaSrc, className, args = [] }) {
-  const work = mkdtempSync(join(tmpdir(), 'or-java-'));
-  try {
-    execFileSync('javac', ['-cp', cp, '-d', work, javaSrc], { stdio: 'inherit' });
-    execFileSync('java', ['-cp', `${cp}${delimiter}${work}`, className, ...args], { stdio: 'inherit' });
-    return 0;
-  } catch (e) {
-    return typeof e.status === 'number' ? e.status : 1;
-  } finally {
-    rmSync(work, { recursive: true, force: true });
-  }
 }
 
 /**

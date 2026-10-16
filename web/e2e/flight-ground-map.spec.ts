@@ -17,7 +17,7 @@ import { test, expect, openTab, ready, runFlight, type Page } from './base';
  * here touches Esri.
  */
 
-const attribution = (page: Page) => page.getByText(/Imagery: Esri/);
+const attribution = (page: Page) => page.getByText(/Source: Esri, Vantor/);
 const streetAttribution = (page: Page) => page.getByText(/OpenStreetMap contributors/);
 
 async function flyAndOpen3D(page: Page): Promise<void> {
@@ -101,7 +101,7 @@ test('the choice carries between the 3D ground and the ground track', async ({ p
   // Turned on in 3D, the plan view opens with it on too.
   await page.getByRole('button', { name: 'Ground track', exact: true }).click();
   await expect(page.getByRole('button', { name: 'Satellite', exact: true })).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.getByText(/Imagery: Esri/)).toBeVisible();
+  await expect(page.getByText(/Source: Esri, Vantor/)).toBeVisible();
 
   // And back the other way.
   await page.getByRole('button', { name: 'None', exact: true }).click();

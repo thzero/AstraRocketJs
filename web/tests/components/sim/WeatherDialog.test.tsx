@@ -5,8 +5,8 @@ import { WeatherDialog } from '../../../src/components/sim/WeatherDialog';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport, ymdInZone } from '../../../src/services/weather/openMeteo';
-import { writeWeatherKey } from '../../../src/services/weather/weatherKey';
-import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
+import { launchPatchFor, type LaunchConditions, type LaunchPatch } from '../../../src/services/design/orkTree';
 
 const SITE = {
   launchRodLengthM: 1,
@@ -37,7 +37,7 @@ beforeEach(() => {
 });
 afterEach(() => {
   setWeatherTransport(null);
-  writeWeatherKey('');
+  weatherKeyStore.write('');
 });
 
 const open = (launch: LaunchConditions = SITE) => {
@@ -63,6 +63,43 @@ describe('WeatherDialog', () => {
     expect(screen.queryByRole('button', { name: 'Fetch' })).toBeNull();
   });
 
+  it('asks for the elevation first when it is blank, rather than fetching for sea level', () => {
+    renderWithProviders(
+      <WeatherDialog launch={{ ...SITE, launchAltitudeM: null }} onChange={() => {}} onClose={() => {}} />,
+    );
+    expect(screen.getByText('Set the launch site’s elevation first.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Fetch' })).toBeNull();
+    // The site line is where a minted 0 m would show.
+    expect(document.body.textContent).not.toMatch(/(^|[^\d.,])0 m/);
+  });
+
+  it('does not fetch on Refresh while the elevation is blank', () => {
+    const stamp = {
+      provider: 'open-meteo' as const,
+      endpoint: 'forecast' as const,
+      date,
+      hour: 9,
+      timezone: 'America/Denver',
+      latitudeDeg: 40,
+      longitudeDeg: -105,
+      elevationM: 1500,
+      validAt: new Date().toISOString(),
+      fetchedAt: new Date().toISOString(),
+      groups: ['wind' as const],
+      elevationApplied: false,
+    };
+    renderWithProviders(
+      <WeatherDialog
+        launch={{ ...SITE, launchAltitudeM: null, weatherSource: stamp }}
+        onChange={() => {}}
+        onClose={() => {}}
+        refresh
+      />,
+    );
+    expect(urls).toEqual([]);
+    expect(screen.getByText('Set the launch site’s elevation first.')).toBeTruthy();
+  });
+
   it('fetches from the free service, shows each value with the credit, and changes nothing yet', async () => {
     const { onChange } = open();
     await fetchIt();
@@ -80,7 +117,7 @@ describe('WeatherDialog', () => {
     await fetchIt();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Wind' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    const patch = onChange.mock.calls[0]![0] as Partial<LaunchConditions>;
+    const patch = launchPatchFor(onChange.mock.calls[0]![0] as LaunchPatch, SITE, 'row');
     expect(patch).toMatchObject({ temperatureC: expect.any(Number), pressureHPa: 850, relativeHumidity: 0.4 });
     expect(patch.atmosphereLevels!.length).toBeGreaterThan(0);
     expect(patch.windLevels).toBeUndefined();
@@ -88,12 +125,51 @@ describe('WeatherDialog', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  /**
+   * A forecast is for one place and one height: its pressure is corrected to
+   * the site's elevation and its wind levels start above it. Applied to several
+   * simulations at once, only the rows at that site (within the source line's
+   * same-site tolerance) and elevation take it; the others keep their own.
+   */
+  it('applies the forecast only to rows at the fetched site and elevation', async () => {
+    // Asked for at the site's elevation and the terrain's, the service answers both.
+    setWeatherTransport(((url: string) => {
+      const body = url.includes('/v1/elevation')
+        ? { elevation: [1700] }
+        : [answer(1500, { start, hours: 96 }), answer(1700, { start, hours: 96 })];
+      return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
+    }) as typeof fetch);
+    const { onChange } = open();
+    await fetchIt();
+    fireEvent.click(screen.getByRole('checkbox', { name: /Use the terrain elevation/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
+    const made = onChange.mock.calls[0]![0] as LaunchPatch;
+    const here = launchPatchFor(made, SITE, 'here');
+    expect(here.launchAltitudeM).toBe(1700);
+    expect(here.weatherSource?.elevationApplied).toBe(true);
+    // A position picked again at the same field, a few meters off.
+    expect(launchPatchFor(made, { ...SITE, latitudeDeg: SITE.latitudeDeg! + 0.0003 }, 'near')).toEqual(here);
+    expect(launchPatchFor(made, { ...SITE, latitudeDeg: SITE.latitudeDeg! + 1 }, 'elsewhere')).toEqual({});
+    expect(launchPatchFor(made, { ...SITE, launchAltitudeM: 20 }, 'lower')).toEqual({});
+  });
+
+  it('says so when some of the simulations being edited are elsewhere', async () => {
+    const onChange = vi.fn();
+    renderWithProviders(
+      <WeatherDialog launch={SITE} diff={new Set(['latitudeDeg'] as const)} onChange={onChange} onClose={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText('Date'), { target: { value: date } });
+    fireEvent.change(screen.getByLabelText('Hour (site time)'), { target: { value: '12' } });
+    await fetchIt();
+    expect(screen.getByText(/Only the selected simulations at this site and elevation are changed/)).toBeTruthy();
+  });
+
   it('stamps what it applied: the date, hour, place, groups and values', async () => {
     const { onChange } = open();
     await fetchIt();
     fireEvent.click(screen.getByRole('checkbox', { name: 'Humidity' }));
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }));
-    const patch = onChange.mock.calls[0]![0] as Partial<LaunchConditions>;
+    const patch = launchPatchFor(onChange.mock.calls[0]![0] as LaunchPatch, SITE, 'row');
     const { weatherSource, ...values } = patch;
     expect(weatherSource).toMatchObject({
       provider: 'open-meteo',
@@ -182,7 +258,7 @@ describe('WeatherDialog', () => {
   }, 15_000);
 
   it('uses the paid service when a key is set', async () => {
-    writeWeatherKey('paid-key');
+    weatherKeyStore.write('paid-key');
     open();
     await fetchIt();
     expect(
@@ -210,7 +286,7 @@ const goOffline = () => {
 };
 
 describe('WeatherDialog offline', () => {
-  it('greys out Fetch and says why', () => {
+  it('grays out Fetch and says why', () => {
     const back = goOffline();
     try {
       open();

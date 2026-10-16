@@ -3,7 +3,7 @@
 > The npm version policy, and why a package is deliberately held back from its latest.
 > Read this before "fixing" anything `npm outdated` flags.
 
-Only `web/` has npm dependencies (`engine-java/` uses the bundled Gradle wrapper). This page records the **version policy** and, more importantly, **why a package is deliberately not on its latest version** - so the next person to run `npm outdated` doesn't re-litigate a decision, or "fix" a pin that exists for a reason.
+This page covers `web/`. `website/` (the Help site) has its own `package.json`, and `engine-java/` uses the bundled Gradle wrapper. This page records the **version policy** and, more importantly, **why a package is deliberately not on its latest version** - so the next person to run `npm outdated` doesn't re-litigate a decision, or "fix" a pin that exists for a reason.
 
 _Last audited: **2026-10-09**._
 
@@ -30,9 +30,9 @@ This is why some `@types/*` entries use `~` (patch-only) rather than `^` - they 
 
 **3. Peer-blocked upgrades move as a group, in one `npm install`.** Bumping a React-ecosystem package alone produces a confusing `ERESOLVE` cascade. See the hold below for the current group.
 
-**4. `three` is `0.x` forever.** Three.js has never shipped a 1.0; it bumps the *minor* every release, and `^0.186.0` therefore means `>=0.186.0 <0.187.0` - the caret pins the release, not a major line. A Three.js upgrade is always an explicit decision.
+**4. `three` is on `0.x`; every minor is a breaking release.** Three.js bumps the *minor* every release, and `^0.186.0` therefore means `>=0.186.0 <0.187.0` - the caret pins the release, not a major line. A Three.js upgrade is always an explicit decision.
 
-**5. `prettier` and `cspell` are pinned to an exact version.** They are the only exact pins, because each one is a gate whose verdict depends on its own version. Prettier can change its output in a patch release, so a newer copy fails `format:check` on files nobody edited, or rewrites them across the repo; Prettier's own documentation says to pin it exactly for this reason. A newer cspell ships updated dictionaries, so it can flag words the spell gate passed before. Upgrading either is its own change: bump the version, then run `npm run format` or `npm run spell` and settle the result (reformatted files, or new entries in `.cspell/project-words.txt`) together.
+**5. `prettier`, `cspell` and `jscpd` are pinned to an exact version.** They are the only exact pins, because each one is a gate whose verdict depends on its own version. Prettier can change its output in a patch release, so a newer copy fails `format:check` on files nobody edited, or rewrites them across the repo; Prettier's own documentation says to pin it exactly for this reason. A newer cspell ships updated dictionaries, so it can flag words the spell gate passed before. jscpd counts tokens with its own tokenizer, so a release that splits code differently moves blocks across the 45-token floor of the `dupes` gate and fails code nobody edited. Upgrading any of them is its own change: bump the version, then run `npm run format`, `npm run spell` or `npm run dupes` and settle the result (reformatted files, new entries in `.cspell/project-words.txt`, or consolidated code) together.
 
 ## Deliberate holds
 
@@ -55,9 +55,9 @@ React 19.4 falls outside that ceiling, so `react` and `react-dom` take patch rel
 
 **Unblocked when:** a stable `@react-three/fiber` widens that peer range. All four packages then move together, in one install.
 
-### `@types/node` on `^22`
+### `@types/node` on `^24`
 
-CI and the documented minimum run Node 22, so `@types/node` stays on the 22 line, per policy #2.
+CI and the documented minimum run Node 24, so `@types/node` stays on the 24 line, per policy #2.
 
 ## Re-checking a hold
 

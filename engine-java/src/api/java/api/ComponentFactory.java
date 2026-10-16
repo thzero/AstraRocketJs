@@ -95,10 +95,19 @@ final class ComponentFactory {
      * boundary exists to prevent.
      */
     private static int count(Map<String, Object> node, String key, int fallback, int max) {
+        return count(node, key, fallback, 1, max);
+    }
+
+    /**
+     * {@link #count} with its own floor, for a count where none is a real
+     * answer: a parachute may have no shroud lines ({@code Parachute.setLineCount}
+     * takes 0, and the desktop spinner starts there).
+     */
+    private static int count(Map<String, Object> node, String key, int fallback, int min, int max) {
         double v = dbl(node, key, fallback);
-        if (Double.isNaN(v) || v != Math.floor(v) || v < 1 || v > max) {
+        if (Double.isNaN(v) || v != Math.floor(v) || v < min || v > max) {
             throw new IllegalArgumentException(
-                    "'" + key + "' must be a whole number in 1.." + max + " (got " + v + ")");
+                    "'" + key + "' must be a whole number in " + min + ".." + max + " (got " + v + ")");
         }
         return (int) v;
     }
@@ -161,25 +170,34 @@ final class ComponentFactory {
                     nose.setShapeParameter(shapeParam);
                 }
                 nose.setFilled(bool(node, "filled", false));
-                // Nose cones use the aft shoulder (into the tube behind them).
-                double shR = dbl(node, "shoulderRadius", Double.NaN);
-                if (!Double.isNaN(shR)) {
-                    nose.setAftShoulderRadius(shR);
-                }
-                double shL = dbl(node, "shoulderLength", Double.NaN);
-                if (!Double.isNaN(shL)) {
-                    nose.setAftShoulderLength(shL);
-                }
-                double shT = dbl(node, "shoulderThickness", Double.NaN);
-                if (!Double.isNaN(shT)) {
-                    nose.setAftShoulderThickness(shT);
-                }
-                nose.setAftShoulderCapped(bool(node, "shoulderCapped", false));
                 // A flipped nose cone is how a tail cone is modeled: the same
                 // part turned round, with the profile running the other way.
                 // The desktop writes it as <isflipped>; without it an imported
-                // tail cone flies nose-first.
+                // tail cone flies nose-first. Flipped before the shoulder is set:
+                // setFlipped carries a shoulder to the other end through the
+                // clamping setter, against a base that may not have resolved yet.
                 nose.setFlipped(bool(node, "flipped", false));
+                // The shoulder sits at the base, wherever the base is
+                // (NoseCone.setShoulder*). Its radius is set unclamped, as
+                // desktop's .ork loader sets it (DocumentConfig,
+                // "Transition:aftshoulderradius"): a clamp here would read an
+                // automatic base before it has anything to follow. A flipped
+                // cone is the exception desktop makes, and settleFlippedShoulders
+                // applies it once the base has resolved.
+                double shR = dbl(node, "shoulderRadius", Double.NaN);
+                if (!Double.isNaN(shR)) {
+                    nose.setShoulderRadius(shR, false);
+                }
+                double shL = dbl(node, "shoulderLength", Double.NaN);
+                if (!Double.isNaN(shL)) {
+                    nose.setShoulderLength(shL);
+                }
+                // Always set, 0 when the node states none, and after the length:
+                // setShoulderLength seeds a shoulder that grows from length 0
+                // with the part's own wall, which the panel and the .ork would
+                // both show as 0.
+                nose.setShoulderThickness(dbl(node, "shoulderThickness", 0));
+                nose.setShoulderCapped(bool(node, "shoulderCapped", false));
                 // Automatic base diameter. `aftRadiusAuto` is the base wherever it
                 // sits: the aft end, or the fore end of a flipped nose cone, which
                 // then follows the component ahead of it.
@@ -223,9 +241,14 @@ final class ComponentFactory {
                 }
                 t.setThickness(dbl(node, "thickness", 0.002));
                 t.setFilled(bool(node, "filled", false));
+                // Stated shoulders are set unclamped, as desktop's .ork loader
+                // sets them (DocumentConfig, "Transition:foreshoulderradius"):
+                // an automatic end has nothing to follow until the part and its
+                // neighbors are attached, so a clamp here would cut a shoulder to
+                // SymmetricComponent.DEFAULT_RADIUS.
                 double fShR = dbl(node, "foreShoulderRadius", Double.NaN);
                 if (!Double.isNaN(fShR)) {
-                    t.setForeShoulderRadius(fShR);
+                    t.setForeShoulderRadius(fShR, false);
                 }
                 double fShL = dbl(node, "foreShoulderLength", Double.NaN);
                 if (!Double.isNaN(fShL)) {
@@ -233,25 +256,20 @@ final class ComponentFactory {
                 }
                 double aShR = dbl(node, "aftShoulderRadius", Double.NaN);
                 if (!Double.isNaN(aShR)) {
-                    t.setAftShoulderRadius(aShR);
+                    t.setAftShoulderRadius(aShR, false);
                 }
                 double aShL = dbl(node, "aftShoulderLength", Double.NaN);
                 if (!Double.isNaN(aShL)) {
                     t.setAftShoulderLength(aShL);
                 }
-                // Shoulder wall, per side. Set after the radius, which clamps
-                // the thickness it already holds (Transition.setForeShoulderRadius).
-                // Without it a transition's shoulders fly with no wall and no
-                // mass, and since a capped shoulder is made out of this wall,
-                // the cap below would add nothing either.
-                double fShT = dbl(node, "foreShoulderThickness", Double.NaN);
-                if (!Double.isNaN(fShT)) {
-                    t.setForeShoulderThickness(fShT);
-                }
-                double aShT = dbl(node, "aftShoulderThickness", Double.NaN);
-                if (!Double.isNaN(aShT)) {
-                    t.setAftShoulderThickness(aShT);
-                }
+                // Shoulder wall, per side: the stated wall, 0 when the node states
+                // none. Always set, and after the lengths, which seed a shoulder
+                // that grows from length 0 with the part's own wall
+                // (Transition.setForeShoulderLength); the panel and the .ork would
+                // show 0 while the kernel flew that wall. A capped shoulder is made
+                // out of this wall, so with none the cap below adds nothing either.
+                t.setForeShoulderThickness(dbl(node, "foreShoulderThickness", 0));
+                t.setAftShoulderThickness(dbl(node, "aftShoulderThickness", 0));
                 // Capped shoulder = a closed disc of the part's own material, so
                 // it has mass. A transition has one per side, each with its own
                 // key. `shoulderCapped` (the nose cone's single key) is read as
@@ -466,10 +484,9 @@ final class ComponentFactory {
                 // Angle around the body (rad); absent, the kernel default π
                 // (180°). It shifts lateral balance and the wind response, not drag.
                 lug.setAngleOffset(dbl(node, "angleOffset", Math.PI));
-                // A lug's default separation is derived from its length
-                // (LaunchLug's constructor), so instanceSeparation is set in the
-                // repeated-parts block below, after the length, or the kernel's
-                // derived value wins.
+                // instanceSeparation is set in the repeated-parts block below;
+                // absent, the lug keeps its constructor's spacing (its own 0.03 m
+                // length x 2), which setLength does not change.
                 c = lug;
                 break;
             }
@@ -484,23 +501,22 @@ final class ComponentFactory {
                 rb.setAngleOffset(dbl(node, "angleOffset", Math.PI));
                 // The rest of the button's geometry. Each absent key keeps the
                 // kernel default, so a hand-sized 1010 rail button needs these
-                // for its mass to be right. Total height first: the kernel
-                // clamps the flange and base against it.
-                double rbH = dbl(node, "height", Double.NaN);
-                if (!Double.isNaN(rbH)) {
-                    rb.setTotalHeight(rbH);
-                }
+                // for its mass to be right. The setters clamp the total height
+                // against the base and flange and those two against the total,
+                // so the base and flange are cleared before the total is set:
+                // a button whose heights agree then builds exactly as stated,
+                // whatever the constructor's heights were.
+                double rbH = dbl(node, "height", rb.getTotalHeight());
+                double rbBase = dbl(node, "baseHeight", rb.getBaseHeight());
+                double rbFlange = dbl(node, "flangeHeight", rb.getFlangeHeight());
+                rb.setBaseHeight(0);
+                rb.setFlangeHeight(0);
+                rb.setTotalHeight(rbH);
+                rb.setBaseHeight(rbBase);
+                rb.setFlangeHeight(rbFlange);
                 double rbId = dbl(node, "innerDiameter", Double.NaN);
                 if (!Double.isNaN(rbId)) {
                     rb.setInnerDiameter(rbId);
-                }
-                double rbBase = dbl(node, "baseHeight", Double.NaN);
-                if (!Double.isNaN(rbBase)) {
-                    rb.setBaseHeight(rbBase);
-                }
-                double rbFlange = dbl(node, "flangeHeight", Double.NaN);
-                if (!Double.isNaN(rbFlange)) {
-                    rb.setFlangeHeight(rbFlange);
                 }
                 double rbScrew = dbl(node, "screwHeight", Double.NaN);
                 if (!Double.isNaN(rbScrew)) {
@@ -527,7 +543,7 @@ final class ComponentFactory {
                 if (!Double.isNaN(cd)) {
                     p.setCD(cd);
                 }
-                p.setLineCount(count(node, "lineCount", 6, MAX_LINE_COUNT));
+                p.setLineCount(count(node, "lineCount", 6, 0, MAX_LINE_COUNT));
                 p.setLineLength(dbl(node, "lineLength", 0.3));
                 double chuteSurf = dbl(node, "surfaceDensity", Double.NaN);
                 if (!Double.isNaN(chuteSurf)) {
@@ -784,7 +800,24 @@ final class ComponentFactory {
         if (c instanceof ShockCord && bool(node, "cordLengthAuto", false)) {
             ((ShockCord) c).setCordLengthAutomatic(true);
         }
-        // Mass / CG / CD overrides; an absent key means "not overridden".
+        applyOverrides(c, node);
+        Map<String, Object> position = obj(node, "position");
+        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
+        // their setAxialMethod NPEs without one, so their position is applied
+        // post-attach in applyAssembly. Every other component positions here.
+        if (position != null && !(c instanceof ComponentAssembly)) {
+            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
+            c.setAxialOffset(dbl(position, "offset", 0));
+        }
+        return c;
+    }
+
+    /**
+     * Mass, CG and drag overrides, for a part and for a stage alike; an absent
+     * key means "not overridden". A stage is built by OpenRocketEngine rather
+     * than {@link #create}, so it calls this itself.
+     */
+    static void applyOverrides(RocketComponent c, Map<String, Object> node) {
         double overrideMass = dbl(node, "overrideMass", Double.NaN);
         if (!Double.isNaN(overrideMass)) {
             c.setOverrideMass(overrideMass);
@@ -812,15 +845,6 @@ final class ComponentFactory {
         if (bool(node, "overrideSubcomponentsCD", false)) {
             c.setSubcomponentsOverriddenCD(true);
         }
-        Map<String, Object> position = obj(node, "position");
-        // Off-axis assemblies (PodSet/ParallelStage) have no parent here yet, and
-        // their setAxialMethod NPEs without one, so their position is applied
-        // post-attach in applyAssembly. Every other component positions here.
-        if (position != null && !(c instanceof ComponentAssembly)) {
-            c.setAxialMethod(axialMethodOf(str(position, "method", "top")));
-            c.setAxialOffset(dbl(position, "offset", 0));
-        }
-        return c;
     }
 
     /**
@@ -846,12 +870,12 @@ final class ComponentFactory {
     }
 
     // The string-to-enum readers below take every name of the upstream enum,
-    // case- and underscore-insensitive (the desktop writes them lowercased, as
-    // `lower_stage_separation`), and refuse anything else. Defaulting an unknown
-    // name would silently change the rocket: `crossSection:"diamond"` would fly
-    // square fins, `shape:"bogus"` an ogive nose (moving CP), `method:"nonsense"`
-    // would put the part at the top. An absent key still takes its default, at
-    // the call site.
+    // case- and underscore-insensitive (the desktop writes them lowercased with
+    // the underscores dropped, as `lowerstageseparation`), and refuse anything
+    // else. Defaulting an unknown name would silently change the rocket:
+    // `crossSection:"diamond"` would fly square fins, `shape:"bogus"` an ogive
+    // nose (moving CP), `method:"nonsense"` would put the part at the top. An
+    // absent key still takes its default, at the call site.
     private static String enumKey(String name) {
         return name.toLowerCase().replace("_", "");
     }
@@ -953,6 +977,56 @@ final class ComponentFactory {
         fins.setTabLength(tabLength);
         fins.setTabOffset(dbl(node, "tabOffset", 0));
         fins.setTabHeight(tabHeight);
+    }
+
+    /**
+     * A flipped nose cone's shoulder against its settled base. Desktop's .ork
+     * loader reads `<isflipped>` last, and NoseCone.setFlipped carries the
+     * shoulder to the base through the clamping setter, against a base that
+     * has resolved because desktop attaches a part before reading it; the wall
+     * is carried after the radius, unclamped. So once the rocket is built, a
+     * flipped cone's stated shoulder radius is set again with the clamp on, and
+     * its stated wall after it.
+     */
+    static void settleFlippedShoulders(Map<String, Object> node, Map<String, RocketComponent> idIndex) {
+        for (Map<String, Object> kid : JsonLite.objList(node, "children")) {
+            String id = str(kid, "id", null);
+            RocketComponent c = id == null ? null : idIndex.get(id);
+            if (c instanceof NoseCone && ((NoseCone) c).isFlipped()) {
+                NoseCone nose = (NoseCone) c;
+                double r = dbl(kid, "shoulderRadius", Double.NaN);
+                if (!Double.isNaN(r)) nose.setShoulderRadius(r);
+                nose.setShoulderThickness(dbl(kid, "shoulderThickness", 0));
+            }
+            settleFlippedShoulders(kid, idIndex);
+        }
+    }
+
+    /**
+     * Fin tab depths against the settled body radius. setTabHeight() clamps to
+     * the parent radius at the moment it is called, and while the rocket is
+     * being built an automatic tube's radius follows whatever is attached so
+     * far, and a fin set placed by its middle or bottom has not yet been moved to
+     * its station; the clamp is never revisited after either settles. So once
+     * the rocket is built and its parts placed, each tab's requested depth is
+     * applied again, in tree order, and clamps against the radius the design
+     * flies with.
+     */
+    static void settleFinTabs(Map<String, Object> node, Map<String, RocketComponent> idIndex) {
+        for (Map<String, Object> kid : JsonLite.objList(node, "children")) {
+            String id = str(kid, "id", null);
+            RocketComponent c = id == null ? null : idIndex.get(id);
+            // Keyed on the depth asked for: a clamp during the build can have
+            // zeroed a tab that the settled radius has room for. Zeroed first,
+            // unvalidated: FinSet.setTabHeight returns early on a depth equal
+            // to the stored one, so a tab the build let through whole would
+            // otherwise never meet the settled getMaxTabHeight.
+            if (c instanceof FinSet && dbl(kid, "tabHeight", 0) > 0 && dbl(kid, "tabLength", 0) > 0) {
+                ((FinSet) c).setTabHeight(0, false);
+                ((FinSet) c).setTabHeight(dbl(kid, "tabHeight", 0));
+            }
+            settleFinTabs(kid, idIndex);
+        }
     }
 
     /**

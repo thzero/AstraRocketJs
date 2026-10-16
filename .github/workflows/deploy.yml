@@ -1,15 +1,12 @@
 name: Deploy
 
-# The master pipeline: the full gate set, then the Pages publish.
+# The master pipeline: build the docs and the app, then publish to Pages.
 #
-# The gates are the SAME jobs a PR runs — gates.yml, called from both here and
-# ci.yml. They are not duplicated: GitHub has no cross-workflow ordering, so
-# "run ci.yml first, then deploy" is not expressible between two files, but a
-# reusable workflow (`workflow_call`) shares the job definitions without needing
-# it. Nothing publishes until every one of them is green.
-#
-# ci.yml is `pull_request`-only and this file is master-push-only, so the two
-# never fire on the same event.
+# No gate set here: master is reached by merged pull requests, and ci.yml
+# already ran the gate set (gates.yml) on each one's merge result. The build
+# step (npm run build) still typechecks and lints, so a type or lint error stops
+# the publish. A direct push to master, or a PR merged after master moved,
+# publishes without the rest of the gates.
 #
 # Publishes web/dist to GitHub Pages.
 # ONE-TIME SETUP: repo Settings → Pages → Source = "GitHub Actions".
@@ -30,11 +27,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  gates:
-    uses: ./.github/workflows/gates.yml
-
   build:
-    needs: gates
     runs-on: ubuntu-latest
     # The web build plus both Docusaurus locales. Without a cap a hung webpack
     # compile holds the Pages deployment for the 360-minute default.
@@ -43,11 +36,11 @@ jobs:
       run:
         working-directory: web
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
           cache-dependency-path: |
             web/package-lock.json
@@ -83,36 +76,25 @@ jobs:
         working-directory: website
         run: npm ci
 
-      # The docs gate lives HERE, not in gates.yml: the Docusaurus site is not
-      # built on a PR at all. This typecheck is part of that gate — without
-      # it, website/'s `typecheck` script would be run by nothing again.
-      - name: Typecheck docs
-        working-directory: website
-        run: npm run typecheck
-
       - name: Build docs into the app
         working-directory: website
         run: npx docusaurus build --out-dir "$GITHUB_WORKSPACE/web/public/docs"
         env:
           DOCS_BASE_URL: /${{ github.event.repository.name }}/docs/
-      # Serve from https://<user>.github.io/<repo>/ — base must be /<repo>/.
+      # Serve from https://<user>.github.io/<repo>/, so base must be /<repo>/.
       - run: npm run build
         env:
           PAGES_BASE: /${{ github.event.repository.name }}/
           # Read the motor/component catalogs from the separately published `data`
-          # branch (see sync-catalogs.yml) instead of the copy inside this build, so
-          # a catalog refresh goes live without a deploy. The in-build copy stays as
-          # the fallback for when the CDN is unreachable.
-          #
-          # Safe before the `data` branch exists: jsDelivr 404s a missing branch in
-          # ~0.4s (measured — as fast as it serves a real file), and the catalogs are
-          # fetched when a picker first opens, not at page load. So until the first
-          # sync runs this costs ~0.4s on first open and then falls back.
+          # branch (see sync-catalogs.yml) and nowhere else, so a catalog refresh
+          # goes live without a deploy and the app never shows an older one. This
+          # build leaves its own copy of the two out (vite.config.ts); offline, the
+          # service worker answers from its cached download.
           VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/${{ github.repository }}@data/
 
-      - uses: actions/configure-pages@v6
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
 
-      - uses: actions/upload-pages-artifact@v5
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
         with:
           path: web/dist
 
@@ -127,4 +109,4 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - id: deployment
-        uses: actions/deploy-pages@v5
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

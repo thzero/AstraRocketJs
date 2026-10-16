@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { samplesToMotorSpec, fetchMotorSpec, isCachedMotorSpec } from '../../../src/services/motors/thrustcurve';
+import { PLUGGED_DELAY } from '../../../src/engine/openRocketEngine';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
 import { getMotorStore } from '../../../src/services/motors/motorStore';
 
@@ -100,7 +101,7 @@ describe('samplesToMotorSpec', () => {
         ],
         0,
       ),
-    ).toThrow(/no loaded\/propellant weight/i);
+    ).toThrow(expect.objectContaining({ key: 'errors.thrustcurve.noWeight', values: { motor: 'C6' } }));
   });
 
   it('throws when propellant exceeds loaded mass (negative burnout mass)', () => {
@@ -117,7 +118,36 @@ describe('samplesToMotorSpec', () => {
   });
 });
 
-describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
+describe('samplesToMotorSpec refuses what ThrustCurveMotor.Builder.build() refuses', () => {
+  it('a negative thrust sample', () => {
+    expect(() =>
+      samplesToMotorSpec(
+        motor(),
+        [
+          { time: 0, thrust: 0 },
+          { time: 0.5, thrust: -3 },
+          { time: 1, thrust: 0 },
+        ],
+        0,
+      ),
+    ).toThrow(expect.objectContaining({ key: 'errors.thrustcurve.negativeThrust', values: { motor: 'C6' } }));
+  });
+
+  it('a launch CG outside [0, length]', () => {
+    const samples = [
+      { time: 0, thrust: 1 },
+      { time: 1, thrust: 1 },
+    ];
+    for (const cg of [-0.001, 0.071]) {
+      expect(() => samplesToMotorSpec(motor(), samples, 0, [[0, cg]])).toThrow(
+        expect.objectContaining({ key: 'errors.thrustcurve.badCg', values: { motor: 'C6', length: 70 } }),
+      );
+    }
+    expect(samplesToMotorSpec(motor(), samples, 0, [[0, 0.07]]).cgX).toBe(0.07);
+  });
+});
+
+describe('fetchMotorSpec: bundled catalog motor (offline path)', () => {
   const bundled = {
     designation: 'C6',
     manufacturer: 'Estes',
@@ -140,7 +170,7 @@ describe('fetchMotorSpec — bundled catalog motor (offline path)', () => {
     ],
   } as unknown as CatalogMotor;
 
-  it('builds a MotorSpec entirely from bundled data — no thrustcurve.org fetch', async () => {
+  it('builds a MotorSpec entirely from bundled data: no thrustcurve.org fetch', async () => {
     const spec = await fetchMotorSpec(bundled, 5);
     expect(spec.designation).toBe('C6');
     expect(spec.diameter).toBeCloseTo(0.018, 9); // mm → m
@@ -285,6 +315,104 @@ describe('fetchMotorSpec - malformed thrustcurve.org response', () => {
   });
 });
 
+/** A download.json answer whose `results` is not an array reads as no data. */
+describe('fetchMotorSpec - download.json results not an array', () => {
+  const online = {
+    designation: 'J777',
+    manufacturer: 'Nobody',
+    class: 'J',
+    diameter: 38,
+    impulse: 900,
+    burn: 2,
+    mass: 600,
+    length: 300,
+    propWeightG: 400,
+  } as unknown as CatalogMotor;
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+  });
+
+  it('throws the keyed no-data error instead of a TypeError', async () => {
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) =>
+      String(url).includes('search.json')
+        ? json({
+            results: [
+              {
+                motorId: 'j777',
+                designation: 'J777',
+                commonName: 'J777',
+                manufacturerAbbrev: 'Nobody',
+                diameter: 38,
+                length: 300,
+                totalWeightG: 600,
+                propWeightG: 400,
+                availability: 'regular',
+              },
+            ],
+          })
+        : json({ results: { format: 'RASP' } }),
+    );
+    await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/No thrust-curve data/);
+  });
+});
+
+/**
+ * A reply that parses but is not the documented shape is reported with the
+ * keyed bad-data message, the same as a malformed curve, rather than as the
+ * browser's English TypeError from reading a property off null.
+ */
+describe('fetchMotorSpec - null thrustcurve.org reply', () => {
+  const online = {
+    designation: 'J350',
+    manufacturer: 'Nobody',
+    class: 'J',
+    diameter: 38,
+    impulse: 700,
+    burn: 2,
+    mass: 600,
+    length: 300,
+    propWeightG: 400,
+  } as unknown as CatalogMotor;
+  const hit = {
+    motorId: 'j350',
+    designation: 'J350',
+    commonName: 'J350',
+    manufacturerAbbrev: 'Nobody',
+    diameter: 38,
+    length: 300,
+    totalWeightG: 600,
+    propWeightG: 400,
+    availability: 'regular',
+  };
+  const stub = (search: unknown, download: unknown) => {
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) => json(String(url).includes('search.json') ? search : download));
+  };
+  const keyOf = async () =>
+    ((await fetchMotorSpec(online, 0).catch((e: unknown) => e)) as Error & { key?: string }).key;
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('a null search.json body', async () => {
+    stub(null, null);
+    expect(await keyOf()).toBe('errors.thrustcurve.badData');
+  });
+
+  it('a null download.json body', async () => {
+    stub({ results: [hit] }, null);
+    expect(await keyOf()).toBe('errors.thrustcurve.badData');
+  });
+
+  it('a null element in download.json results is skipped', async () => {
+    stub({ results: [hit] }, { results: [null] });
+    expect(await keyOf()).toBe('errors.thrustcurve.noData');
+  });
+});
+
 /**
  * The search.json hit is validated before it is picked, cached or requested.
  *
@@ -411,6 +539,21 @@ describe('isCachedMotorSpec', () => {
     expect(isCachedMotorSpec(null)).toBe(false);
     expect(isCachedMotorSpec('C6')).toBe(false);
   });
+
+  it('rejects a spec samplesToMotorSpec could not have built', () => {
+    // Each would otherwise be served from the cache and fail the build with a
+    // raw kernel message instead of being refetched.
+    expect(isCachedMotorSpec({ ...good, thrusts: [0, -1, 0] })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, diameter: 0 })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, length: Number.NaN })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, cgX: 0.08 })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, cgX: -0.01 })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, cgX: undefined })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, ejectionDelay: null })).toBe(false);
+    expect(isCachedMotorSpec({ ...good, ejectionDelay: -2 })).toBe(false);
+    // A plugged motor's stored delay is a number like any other.
+    expect(isCachedMotorSpec({ ...good, ejectionDelay: PLUGGED_DELAY })).toBe(true);
+  });
 });
 
 /**
@@ -488,5 +631,39 @@ describe('post on an error reply', () => {
     });
     await expect(fetchMotorSpec(online, 0)).rejects.toThrow(/HTTP 503/);
     expect(signal?.aborted).toBe(true);
+  });
+});
+
+/**
+ * A failed request is reported in the app's language. The browser's own text
+ * for a refused connection ("Failed to fetch") or a reply that is not JSON is
+ * English whatever the app shows.
+ */
+describe('post on a network or parse failure', () => {
+  const online = {
+    designation: 'K185',
+    manufacturer: 'AeroTech',
+    class: 'K',
+    diameter: 54,
+    impulse: 1400,
+    burn: 7,
+    mass: 900,
+    length: 400,
+    propWeightG: 500,
+  } as unknown as CatalogMotor;
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('keys a refused connection as a network failure', async () => {
+    vi.stubGlobal('fetch', () => Promise.reject(new TypeError('Failed to fetch')));
+    const err = (await fetchMotorSpec(online, 0).catch((e: unknown) => e)) as Error & { key?: string; cause?: unknown };
+    expect(err.key).toBe('errors.remote.network');
+    expect(err.cause).toBeInstanceOf(TypeError);
+  });
+
+  it('keys a reply that is not JSON as a bad shape', async () => {
+    vi.stubGlobal('fetch', () => Promise.resolve(new Response('<html>not json</html>', { status: 200 })));
+    const err = (await fetchMotorSpec(online, 0).catch((e: unknown) => e)) as Error & { key?: string };
+    expect(err.key).toBe('errors.remote.badShape');
   });
 });

@@ -3,7 +3,7 @@
 ## The short version
 
 Be kind, be constructive, and assume good faith. We're all here to build cool
-rocketry software together — treat people the way you'd want to be treated.
+rocketry software together: treat people the way you'd want to be treated.
 
 ## What we're going for
 
@@ -18,7 +18,7 @@ Harassment, insults, personal or discriminatory attacks, sexualized comments or
 advances, sharing someone's private info, or generally being a jerk. If it would
 get you side-eyed at a decent workplace, don't do it here.
 
-This applies everywhere the project lives — issues, PRs, discussions, chat — and
+This applies everywhere the project lives (issues, PRs, discussions, chat) and
 whenever you're representing the project in public.
 
 ## If something goes wrong

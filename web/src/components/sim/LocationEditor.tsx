@@ -92,8 +92,8 @@ export function LocationEditor({
   const trimmed = name.trim();
   const duplicate = trimmed !== '' && takenNames.some((n) => n.toLowerCase() === trimmed.toLowerCase());
   // Latitude and longitude have no sensible default (a location at 0°,0° is in
-  // the Gulf of Guinea, not "unset"), so both are required. Elevation defaults
-  // to sea level, which is a real answer for a coastal field.
+  // the Gulf of Guinea, not "unset"), so both are required. A blank elevation
+  // is saved as unknown, never as sea level: a coastal field types its 0.
   const valid = trimmed !== '' && lat !== null && lon !== null;
 
   // Compared against what is stored rather than tracked by a flag set on every
@@ -135,7 +135,7 @@ export function LocationEditor({
       name: trimmed,
       latitudeDeg: lat,
       longitudeDeg: lon,
-      launchAltitudeM: alt ?? 0,
+      launchAltitudeM: alt,
     });
   };
 

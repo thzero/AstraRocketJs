@@ -2,8 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import { simConditions, type SimPrefs } from '../../../src/services/flight/simulations';
 import { exportOrk, importOrk } from '../../../src/services/files/orkFile';
-import { specToTree } from '../../testing/specTree';
-import type { RocketSpec } from '../../../src/engine/openRocketEngine';
+import { specToTree, type RocketSpec } from '../../testing/specTree';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import type { CompleteLaunch } from '../../../src/services/flight/requiredLaunch';
 
@@ -95,7 +94,7 @@ describe('the new launch fields round-trip through .ork', () => {
     expect(xml).toContain('<baserelativehumidity>0.9</baserelativehumidity>');
   });
 
-  it("reads desktop's humidity element, and the one this app wrote before", () => {
+  it("reads desktop's humidity element, and the alternate spelling", () => {
     const xml = exportOrk({
       name: 'Opts',
       tree,

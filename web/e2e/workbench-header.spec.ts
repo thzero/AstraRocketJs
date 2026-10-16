@@ -42,7 +42,7 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   // The save status is part of the tightest state, and it only appears once the
   // debounced autosave lands - a tick or two after the run. Measured before it
   // arrives the header is lighter than the one anybody sees.
-  await expect(header.getByText(/^Saved/)).toBeVisible();
+  await expect(header.getByRole('status').filter({ hasText: /^Saved/ })).toBeVisible();
   await page.addStyleTag({ content: WIDE_FACE });
 
   const nav = page.getByRole('navigation', { name: /Workbench/i });
@@ -93,9 +93,9 @@ test('the identity block is the same at every width, and the row fits from 1180'
   await runFlight(page);
 
   const header = page.locator('header').first();
-  await expect(header.getByText(/^Saved/)).toBeVisible();
+  await expect(header.getByRole('status').filter({ hasText: /^Saved/ })).toBeVisible();
   await page.getByRole('combobox', { name: /language|idioma/i }).selectOption('pt-PT');
-  await expect(header.getByText(/^Guardado/)).toBeVisible();
+  await expect(header.getByRole('status').filter({ hasText: /^Guardado/ })).toBeVisible();
   await page.addStyleTag({ content: WIDE_FACE });
 
   const title = header.getByRole('heading', { level: 1 });
@@ -129,7 +129,7 @@ test('the identity block is the same at every width, and the row fits from 1180'
     ['nl', /^Opgeslagen/],
   ] as const) {
     await page.getByRole('combobox', { name: /language|idioma|язык|taal/i }).selectOption(lang);
-    await expect(header.getByText(saved)).toBeVisible();
+    await expect(header.getByRole('status').filter({ hasText: saved })).toBeVisible();
     expect((await box(header)).height, lang).toBeLessThan(70);
   }
 });

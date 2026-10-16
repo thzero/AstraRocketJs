@@ -17,9 +17,13 @@ describe('renderUserTemplate escapers', () => {
   const DEL = String.fromCharCode(127);
 
   it('escapes XML-family output', () => {
-    for (const ext of ['kml', 'gpx', 'xml']) {
+    for (const ext of ['gpx', 'xml', 'html', 'htm', 'xhtml', 'svg', 'HTML']) {
       expect(render(ext, '<a & "b">'), ext).toBe('&lt;a &amp; &quot;b&quot;&gt;');
     }
+  });
+
+  it('leaves angle brackets out of KML values, which a viewer may set into HTML', () => {
+    for (const ext of ['kml', 'KML']) expect(render(ext, '<a & "b">'), ext).toBe('a &amp; &quot;b&quot;');
   });
 
   it("escapes JSON output with JSON's own rules", () => {
@@ -29,6 +33,18 @@ describe('renderUserTemplate escapers', () => {
     expect(render('json', 'line\nbreak')).toBe('line\\nbreak');
     // Valid JSON once the template's quotes are around it.
     expect(JSON.parse(`"${render('json', 'a"b')}"`)).toBe('a"b');
+  });
+
+  it('neutralizes spreadsheet formulas in TSV output', () => {
+    // A TSV opens straight into a spreadsheet, so a file-sourced name must not
+    // become a live formula there.
+    expect(render('tsv', '=HYPERLINK("http://x")')).toBe(`'=HYPERLINK("http://x")`);
+    expect(render('TSV', '@SUM(A1)')).toBe("'@SUM(A1)");
+    expect(render('tsv', '-80.6')).toBe('-80.6');
+    // TSV has no quoting, so a tab or line break cannot stay in a value, and the
+    // trigger behind it is neutralized before it becomes a space.
+    expect(render('tsv', 'a\t=1+1')).toBe("a '=1+1");
+    expect(render('tsv', 'row\n+forged')).toBe("row '+forged");
   });
 
   it('strips control characters for an unknown extension', () => {

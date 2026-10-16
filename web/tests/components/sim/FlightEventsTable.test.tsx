@@ -162,7 +162,7 @@ describe('FlightEventsTable', () => {
         designName="Big Bertha"
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: /CSV/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Download flight events (.csv)' }));
     expect(spy).toHaveBeenCalledOnce();
     const [file, body] = spy.mock.calls[0]!;
     // Rocket, then run, then what it is, so a downloads folder stays sortable

@@ -65,6 +65,23 @@ describe('primaryMotor', () => {
   it('is undefined when nothing is seated', () => {
     expect(primaryMotor(tree, newFlightConfig())).toBeUndefined();
   });
+
+  /**
+   * A loaded `.ork` puts a curve-less placeholder in a mount the file left
+   * empty, and the sustainer's mount comes first. A design seating only its
+   * booster flies on desktop, so the gate judges the motor that can fly.
+   */
+  it('is the first motor with a usable curve, past an empty mount ahead of it', () => {
+    const empty = { ...spec(''), times: [], thrusts: [], masses: [] } as MotorSpec;
+    const config = newFlightConfig({ aft: { spec: empty }, pod: { spec: C6 } });
+    expect(primaryMotor(tree, config)).toBe(C6);
+  });
+
+  it('is still the first mount when no motor anywhere can fly', () => {
+    const empty = { ...spec(''), times: [], thrusts: [], masses: [] } as MotorSpec;
+    const config = newFlightConfig({ aft: { spec: empty }, pod: { spec: { ...empty, designation: 'X' } } });
+    expect(primaryMotor(tree, config)).toBe(empty);
+  });
 });
 
 describe('reconcileConfig', () => {

@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -86,6 +86,18 @@ const upstream = {
   commitUrl: `${upstreamRepo}/commit/${upstreamRef}`,
 };
 
+/**
+ * The catalogs a data-host build reads from the host and nowhere else
+ * (services/app/remoteData.ts). Such a build leaves its own copy of them out of
+ * the output and the precache, so the app can never fall back to a catalog
+ * older than the published one. Offline, the service worker answers from its
+ * cached download (the `astra-catalogs` rule below). Dev, preview and a build
+ * with no data host keep reading public/data.
+ */
+const hostedCatalogs = process.env.VITE_DATA_BASE?.trim()
+  ? ['data/motors.generated.json', 'data/components.generated.json']
+  : [];
+
 export default defineConfig({
   // On GitHub Pages the app is served from https://<user>.github.io/<repo>/, so the
   // CI build sets PAGES_BASE=/<repo>/ and every asset + engine URL resolves under it.
@@ -100,6 +112,13 @@ export default defineConfig({
       apply: 'build',
       generateBundle() {
         this.emitFile({ type: 'asset', fileName: swBuildFile, source: swBuildSource });
+      },
+    },
+    {
+      name: 'drop-hosted-catalogs',
+      apply: 'build',
+      closeBundle() {
+        for (const file of hostedCatalogs) rmSync(new URL(`./dist/${file}`, import.meta.url), { force: true });
       },
     },
     // Offline support. Everything the app needs is static (the WASM kernel runs
@@ -132,18 +151,12 @@ export default defineConfig({
       workbox: {
         // .wasm and the public/data catalogs are not in the default glob.
         //
-        // The catalogs (public/data/*.generated.json, ~2.6 MB) are precached
-        // on purpose, and it is a real double: the deployed app reads them from
-        // the CDN copy on the `data` branch first (VITE_DATA_BASE in deploy.yml)
-        // and the runtimeCaching rule below stores that copy too. But the CDN
-        // is tried first and the in-build copy is the fallback
-        // (services/app/remoteData.ts), so a runtime rule for /data/ would only
-        // ever fill on a session where the CDN had already failed. Someone who
-        // installs the app online and first opens the motor picker at a launch
-        // site with no signal gets an empty picker unless the in-build copy was
-        // precached at install. Offline at first open is the stated goal of the
-        // PWA (the comment on VitePWA above), so the 2.6 MB stays in the
-        // precache and the CDN copy is the one that refreshes.
+        // The catalogs in the build (public/data/*.generated.json) are
+        // precached. In a data-host build that is the materials and the
+        // contributors only: the motors and components come from the host, are
+        // kept by the `astra-catalogs` rule below, and are fetched in the
+        // background on the first visit (services/app/warmCatalogs.ts), so an
+        // app installed online still has them at a launch site with no signal.
         // `ork` is in here for the bundled OpenRocket examples
         // (public/examples/, see services/storage/exampleLibrary.ts). The set comes
         // to ~340 kB with their stored flight data stripped, which is cheap
@@ -151,20 +164,25 @@ export default defineConfig({
         // opens on a first offline load, not only if you happened to be online
         // when you went looking for one.
         globPatterns: ['**/*.{js,css,html,svg,png,wasm,json,ork}'],
-        // The JS engine is a ~970 kB fallback backend, emitted twice (main thread
+        // The JS engine is a ~1.1 MB fallback backend, emitted twice (main thread
         // + sim worker). WASM-GC is the path essentially every current browser
-        // takes, so precaching ~1.9 MB of unused fallback on every install is a
+        // takes, so precaching ~2.2 MB of unused fallback on every install is a
         // bad trade: the runtimeCaching rule below stores it on first use, which
         // is when we learn the browser actually needs it.
         //
-        // The docs site's own search index is the other one: 1.5 MB across the two
+        // The docs site's own search index is the other one: 2.2 MB across the two
         // locales, and the search box it feeds lives in the Docusaurus navbar,
         // which `website/src/css/custom.css` hides whenever a page is embedded in
-        // the Help dialog. So precaching it would cost every install 1.5 MB for a
+        // the Help dialog. So precaching it would cost every install 2.2 MB for a
         // control nobody in the app can reach. It stays available to anyone reading
         // the published site, which is who the plugin is for, and the Help dialog
         // searches the same pages its own way.
-        globIgnores: ['**/openrocket-engine-*.js', '**/search-index*.json', '**/sw-build-*.js'],
+        globIgnores: [
+          '**/openrocket-engine-*.js',
+          '**/search-index*.json',
+          '**/sw-build-*.js',
+          ...hostedCatalogs.map((file) => `**/${file}`),
+        ],
         // Loaded by sw.js itself, so it answers which build it is (see buildId).
         importScripts: [swBuildFile],
         // The WASM kernel alone is ~2.5 MB, over Workbox's 2 MiB default.
@@ -190,7 +208,12 @@ export default defineConfig({
         // host - the copy the hash exists for - is a different origin and is
         // answered by its own StaleWhileRevalidate rule below, which this does
         // not touch.
-        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/],
+        //
+        // `?retry=<n>` is the engine Retry (retryUrl in engine/openRocketEngine.ts).
+        // A retry needs a url the browser has not already got in flight, but the
+        // file it names is the precached one, and offline the precache is the
+        // only copy there is.
+        ignoreURLParametersMatching: [/^utm_/, /^fbclid$/, /^v$/, /^retry$/],
         cleanupOutdatedCaches: true,
         // No precache-first navigation route. With one, every page load would be
         // answered from the worker's precache, so a plain reload could never
@@ -261,9 +284,11 @@ export default defineConfig({
             },
           },
           {
-            // Catalogs published to the `data` branch (see sync-catalogs.yml).
-            // Stale-while-revalidate: render instantly from cache, refresh in the
-            // background, so a weekly catalog refresh lands on the next open.
+            // Catalogs published to the `data` branch (see sync-catalogs.yml),
+            // and the only copy of the motors and components a data-host build
+            // has offline. Stale-while-revalidate: render instantly from cache,
+            // refresh in the background, so a weekly catalog refresh lands on the
+            // next open.
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/gh\/.*@data\//,
             handler: 'StaleWhileRevalidate',
             options: {
@@ -280,6 +305,24 @@ export default defineConfig({
             options: {
               cacheName: 'astra-engine-js',
               expiration: { maxEntries: 4 },
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
+            // The PDF report's Unicode fonts (public/fonts, ~2.5 MB in all; see
+            // services/report/reportFonts.ts). Not in the precache glob: most
+            // reports are WinAnsi text and never ask for them, and the JP pair
+            // alone is 2.3 MB. A report that needs one fetches it once and this
+            // keeps it, so the same report works at the field. A report that
+            // needs a font never fetched prints in Helvetica and says so.
+            //
+            // Cache-first and never revalidated, so the cache name carries a
+            // version: bump it whenever a file in public/fonts changes.
+            urlPattern: /\/fonts\/[\w-]+\.ttf$/,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'astra-report-fonts-v1',
+              expiration: { maxEntries: 8 },
               cacheableResponse: { statuses: [200] },
             },
           },
@@ -316,6 +359,19 @@ export default defineConfig({
               cacheName: 'astra-map-tiles-v2',
               expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 180 },
               cacheableResponse: { statuses: [0, 200] },
+              // A tile is cached under its address without the user's Esri
+              // key (services/map/esriKey), so adding, renewing or clearing a
+              // key still finds every tile already stored, and the key itself
+              // is never written into the cache.
+              plugins: [
+                {
+                  cacheKeyWillBeUsed: ({ request }) => {
+                    const url = new URL(request.url);
+                    url.searchParams.delete('token');
+                    return Promise.resolve(url.href);
+                  },
+                },
+              ],
             },
           },
         ],

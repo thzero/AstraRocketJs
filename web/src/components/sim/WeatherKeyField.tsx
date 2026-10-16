@@ -1,37 +1,15 @@
-import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
-import { readWeatherKey, writeWeatherKey } from '../../services/weather/weatherKey';
+import { UserKeyField } from '../common/UserKeyField';
+import { weatherKeyStore } from '../../services/weather/weatherKey';
 
-/**
- * The Open-Meteo API key, for someone with a paid plan. Blank is the free tier.
- *
- * Saved on blur to its own storage entry (services/weather/weatherKey), never
- * into the settings object, so the Settings dialog's reset and every settings
- * copy leave it alone and no export can carry it.
- */
+/** The Open-Meteo API key, for someone with a paid plan. Blank is the free tier. */
 export function WeatherKeyField() {
-  const { t } = useTranslation();
-  const [value, setValue] = useState(() => readWeatherKey() ?? '');
-  const [failed, setFailed] = useState(false);
   return (
-    <div className="space-y-1 border-t border-line/10 pt-2">
-      <label className="flex items-center justify-between gap-3">
-        <span className="text-xs text-ink-muted">{t('weather.keyLabel')}</span>
-        <input
-          type="password"
-          autoComplete="off"
-          spellCheck={false}
-          value={value}
-          placeholder={t('weather.keyPlaceholder')}
-          onChange={(e) => setValue(e.target.value)}
-          onBlur={() => setFailed(!writeWeatherKey(value))}
-          className="w-56 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-        />
-      </label>
-      <p className="text-[11px] leading-snug text-ink-faint">{t('weather.keyNote')}</p>
-      <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
-        {failed ? t('weather.keyNotSaved') : ''}
-      </p>
-    </div>
+    <UserKeyField
+      store={weatherKeyStore}
+      label="weather.keyLabel"
+      placeholder="weather.keyPlaceholder"
+      note="weather.keyNote"
+      notSaved="weather.keyNotSaved"
+    />
   );
 }

@@ -1,11 +1,11 @@
 import { create } from 'zustand';
-import { initEngine, resetEngineInit, type EngineLoadStatus } from '../engine/openRocketEngine';
+import { engineRetryCanRecover, initEngine, resetEngineInit, type EngineLoadStatus } from '../engine/openRocketEngine';
 import { errorMessage } from '../services/app/errorMessage';
 
 /**
  * Where the physics kernel is, as UI state.
  *
- * The engine is a 2.3 MB WASM module (or a 1 MB JS chunk when that is not
+ * The engine is a 2.7 MB WASM module (or a 1.1 MB JS chunk when that is not
  * available). Loading it before React mounts would make every way the download
  * can go wrong a way the whole app fails to appear, and the worst of them is
  * silent: a stalled fetch neither resolves nor rejects, so a splash would stay up
@@ -15,7 +15,7 @@ import { errorMessage } from '../services/app/errorMessage';
  * library and every import/export path need no kernel; the static numbers and
  * the simulations do, and they stay absent until `phase` is 'ready'.
  */
-export type EnginePhase = 'loading' | 'ready' | 'failed';
+type EnginePhase = 'loading' | 'ready' | 'failed';
 
 /**
  * How long a load may run before the UI stops saying "loading" and offers a way
@@ -34,10 +34,17 @@ interface EngineState {
   slow: boolean;
   /** Why the load failed, when it failed rather than stalled. */
   error: string | null;
+  /**
+   * True when {@link retry} cannot recover this load and only a page reload
+   * can: the JS build is the only backend, and its chunk url cannot vary.
+   */
+  needsReload: boolean;
   /** Begin the first load. Called once, from main.tsx. */
   start: () => void;
   /** Abandon whatever is in flight and load again from scratch. */
   retry: () => void;
+  /** Reload the page, the way out when {@link needsReload} is set. */
+  reload: () => void;
 }
 
 export const useEngineStore = create<EngineState>((set) => {
@@ -56,12 +63,12 @@ export const useEngineStore = create<EngineState>((set) => {
     const mine = attempt;
     clearSlowTimer();
     slowTimer = setTimeout(() => {
-      if (mine === attempt) set({ slow: true });
+      if (mine === attempt) set({ slow: true, needsReload: !engineRetryCanRecover() });
     }, SLOW_AFTER_MS);
     set({ phase: 'loading', status: null, error: null, slow: false });
 
     initEngine((s) => {
-      if (mine === attempt) set({ status: s });
+      if (mine === attempt) set({ status: s, needsReload: !engineRetryCanRecover() });
     })
       .then((backend) => {
         if (mine !== attempt) return;
@@ -71,7 +78,7 @@ export const useEngineStore = create<EngineState>((set) => {
       .catch((e: unknown) => {
         if (mine !== attempt) return;
         clearSlowTimer();
-        set({ phase: 'failed', error: errorMessage(e), status: null });
+        set({ phase: 'failed', error: errorMessage(e), status: null, needsReload: !engineRetryCanRecover() });
       });
   };
 
@@ -81,11 +88,13 @@ export const useEngineStore = create<EngineState>((set) => {
     status: null,
     slow: false,
     error: null,
+    needsReload: false,
     start: run,
     retry: () => {
       attempt++;
       resetEngineInit();
       run();
     },
+    reload: () => location.reload(),
   };
 });

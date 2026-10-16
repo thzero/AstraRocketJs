@@ -16,9 +16,10 @@ import { act, cleanup } from '@testing-library/react';
 const load = vi.hoisted(() => vi.fn());
 const save = vi.hoisted(() => vi.fn());
 const saveSync = vi.hoisted(() => vi.fn());
+const setActiveId = vi.hoisted(() => vi.fn());
 vi.mock('../../src/services/storage/workspaceStore', async (orig) => ({
   ...(await orig<typeof import('../../src/services/storage/workspaceStore')>()),
-  getWorkspaceStore: () => ({ load, save, saveSync }),
+  getWorkspaceStore: () => ({ load, save, saveSync, setActiveId }),
 }));
 
 const computeStaticInfo = vi.hoisted(() => vi.fn());
@@ -73,6 +74,7 @@ beforeEach(() => {
   load.mockReset().mockResolvedValue(null);
   save.mockReset().mockResolvedValue(undefined);
   saveSync.mockReset();
+  setActiveId.mockReset();
   computeStaticInfo.mockReset().mockReturnValue({ info: { length: 1 }, rocket: {} });
   // The rebuild effect waits on the kernel, because the app mounts before it is
   // loaded. Every test here but the gating one is about what the rebuild does
@@ -158,6 +160,39 @@ describe('hydration', () => {
       await Promise.resolve();
     });
     expect(save).toHaveBeenCalled();
+  });
+
+  // The store read the design and holds its claim on it; `hydrate` is what
+  // failed. Left attached, the first edit would autosave the default rocket
+  // over the stored design.
+  it('detaches the store when the loaded design fails to hydrate', async () => {
+    load.mockResolvedValue({ ...saved(), tree: null });
+    await mount();
+
+    expect(s().storageWarningKind).toBe('loadFailed');
+    expect(s().tree.name).not.toBe('Restored');
+    expect(setActiveId).toHaveBeenCalledWith(null);
+  });
+});
+
+describe('a build that fails', () => {
+  afterEach(async () => {
+    await i18n.changeLanguage('en');
+  });
+
+  it("shows a keyed failure in the app's language", async () => {
+    await i18n.changeLanguage('de');
+    computeStaticInfo.mockReturnValue({ error: { key: 'errors.motorCurve.noMass', values: { motor: 'F67' } } });
+    await mount();
+    expect(s().buildErr).toBe(i18n.t('errors.motorCurve.noMass', { motor: 'F67' }));
+    expect(s().buildErr).toContain('F67');
+    expect(s().buildErr).not.toContain('thrust curve');
+  });
+
+  it('shows a plain failure as its own text', async () => {
+    computeStaticInfo.mockReturnValue({ error: 'kernel blew up' });
+    await mount();
+    expect(s().buildErr).toBe('kernel blew up');
   });
 });
 
@@ -288,6 +323,7 @@ describe('autosave', () => {
 describe('the unload journal', () => {
   it('flushes synchronously on pagehide', async () => {
     await mount();
+    act(() => s().addPartToTree('bodytube'));
     act(() => {
       window.dispatchEvent(new Event('pagehide'));
     });
@@ -335,7 +371,7 @@ describe('what triggers a rebuild', () => {
     expect(s().sims.every((x) => !isStale(x))).toBe(true);
   });
 
-  it('renaming a part rebuilds — the engine labels its rows with the name', async () => {
+  it('renaming a part rebuilds: the engine labels its rows with the name', async () => {
     await mount();
     computeStaticInfo.mockClear();
 
@@ -368,6 +404,16 @@ describe('what triggers a rebuild', () => {
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
     const built = computeStaticInfo.mock.calls[0]![0] as { components: { length?: number }[] };
     expect(built.components[0]!.length).toBe(0.24);
+  });
+
+  it('rebuilds the open design when an import that reset the engine did not replace it', async () => {
+    // The reset voided the open design's handle; nothing about the design
+    // itself changed, so only the store's request can bring it back.
+    await mount();
+    computeStaticInfo.mockClear();
+    act(() => useWorkspaceStore.setState((st) => ({ rebuildSeq: st.rebuildSeq + 1 })));
+    settleRebuild();
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
   });
 
   it('builds the first time at once, without waiting out the debounce', async () => {
@@ -585,6 +631,29 @@ describe('a hydrate does not re-stamp the design', () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  // The flush ahead of the switch has nothing to store for an untouched New.
+  it('does not store an untouched New when a library design is opened', async () => {
+    await mount();
+    act(() => s().resetWorkspace());
+    save.mockClear();
+    const original = getDesignLibrary();
+    setDesignLibrary({
+      read: async () => saved(),
+      setActive: async () => true,
+      list: async () => [],
+      activeId: async () => 'lib-1',
+    } as unknown as DesignLibrary);
+    try {
+      await act(async () => {
+        await s().openDesign('lib-1');
+      });
+    } finally {
+      setDesignLibrary(original);
+    }
+    expect(s().tree.name).toBe('Restored');
+    expect(save).not.toHaveBeenCalled();
+  });
+
   // An untouched blank design is not worth a library entry; the first edit is.
   it('writes nothing after New until the first edit', async () => {
     load.mockResolvedValue(saved());
@@ -603,6 +672,70 @@ describe('a hydrate does not re-stamp the design', () => {
       await Promise.resolve();
     });
     expect(save).toHaveBeenCalledTimes(1);
+  });
+
+  /** Hide the tab, as switching to another one does, and let any write settle. */
+  const hideTab = async () => {
+    const vis = vi.spyOn(document, 'visibilityState', 'get').mockReturnValue('hidden');
+    try {
+      await act(async () => {
+        document.dispatchEvent(new Event('visibilitychange'));
+        await Promise.resolve();
+      });
+    } finally {
+      vis.mockRestore();
+    }
+  };
+
+  // A tab switch is not an edit: after New it would create a library entry
+  // for a design nobody touched, and after a load it would re-stamp one only
+  // opened. Neither the async save nor the journal runs.
+  it('writes nothing when the tab is hidden after New', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    act(() => s().resetWorkspace());
+    save.mockClear();
+    await hideTab();
+    act(() => void window.dispatchEvent(new Event('pagehide')));
+    expect(save).not.toHaveBeenCalled();
+    expect(saveSync).not.toHaveBeenCalled();
+  });
+
+  // A first visit has nothing stored: the default rocket on screen is as
+  // untouched as after New, and storing it would put a library entry ahead of
+  // the first import.
+  it('writes nothing when the tab is hidden on a first visit', async () => {
+    // The page's own starting state, which no New or load has marked.
+    useWorkspaceStore.setState({ tree: { ...s().tree } });
+    load.mockResolvedValue(null);
+    await mount();
+    save.mockClear();
+    await hideTab();
+    act(() => void window.dispatchEvent(new Event('pagehide')));
+    expect(save).not.toHaveBeenCalled();
+    expect(saveSync).not.toHaveBeenCalled();
+  });
+
+  it('writes nothing when the tab is hidden after a load', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    save.mockClear();
+    await hideTab();
+    expect(save).not.toHaveBeenCalled();
+    expect(saveSync).not.toHaveBeenCalled();
+  });
+
+  it('writes an edit when the tab is hidden, and nothing on the next hide once it is stored', async () => {
+    load.mockResolvedValue(saved());
+    await mount();
+    act(() => s().addPartToTree('bodytube'));
+    save.mockClear();
+    await hideTab();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saveSync).toHaveBeenCalledTimes(1);
+    await hideTab();
+    expect(save).toHaveBeenCalledTimes(1);
+    expect(saveSync).toHaveBeenCalledTimes(1);
   });
 
   it('saves normally when there was no saved workspace to hydrate from', async () => {

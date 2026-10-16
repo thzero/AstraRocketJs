@@ -1,4 +1,18 @@
 import type { KeyValueStore } from './keyValueStore';
+import { errorText, type Translate } from '../../i18n/keyedError';
+
+/** What a refused list write rejects with: a token for the UI to map, not a message. */
+const WRITE_REFUSED = 'storage-full';
+
+/**
+ * A failed list write as the user reads it: the refused-write token in their
+ * language, anything else as `errorText` gives it. Every place that shows a
+ * list store's rejection goes through this, so the token never reaches the
+ * screen.
+ */
+export function listWriteErrorText(e: unknown, t: Translate): string {
+  return e instanceof Error && e.message === WRITE_REFUSED ? t('storage.writeRefused') : errorText(e, t);
+}
 
 /**
  * The items of a stored JSON array that pass `isItem`, tolerating an absent,
@@ -56,7 +70,7 @@ export class JsonListStore<T> {
 
   private async mutate(fn: (list: T[]) => T[]): Promise<void> {
     const ok = await this.kv.update(this.key, (raw) => JSON.stringify(fn(this.parse(raw))));
-    if (!ok) throw new Error('storage-full');
+    if (!ok) throw new Error(WRITE_REFUSED);
   }
 
   /** The stored items in stored order; empty when storage cannot be read. */

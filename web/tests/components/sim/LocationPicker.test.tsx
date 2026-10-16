@@ -97,6 +97,18 @@ describe('LocationPicker', () => {
     expect(onCommit).toHaveBeenCalled();
   });
 
+  /**
+   * A location saved with no elevation (a tool site left to the terrain model)
+   * applies a blank elevation, not sea level and not the previous site's.
+   */
+  it('applies an unknown elevation as blank and recognizes it on screen', async () => {
+    setLaunchLocationStore(memoryStore([{ ...HOME, id: 'club', name: 'Club field', launchAltitudeM: null }]));
+    const { onChange } = render();
+    await waitFor(() => screen.getByRole('option', { name: 'Club field' }));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'club' } });
+    expect(onChange).toHaveBeenCalledWith({ latitudeDeg: 39.05, longitudeDeg: -104.8, launchAltitudeM: null });
+  });
+
   it('returns the site to the launch defaults when Custom location is picked', async () => {
     // The select's value is derived from the fields, so the option has to change
     // the fields or it is inert: React would put the matching location straight
@@ -187,6 +199,22 @@ describe('LocationPicker', () => {
     });
   });
 
+  it('updates a location when the name is reused in another case', async () => {
+    // The name dialog warns of a duplicate without regard to case, so the save
+    // has to treat it as the same location too.
+    render();
+    await waitFor(() => screen.getByRole('option', { name: 'Home field' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Save this location' }));
+    fireEvent.change(screen.getByRole('textbox'), { target: { value: 'home FIELD' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }));
+
+    await waitFor(async () => {
+      const list = await setPadThenList();
+      expect(list).toHaveLength(1);
+      expect(list[0]).toMatchObject({ id: 'home', latitudeDeg: 28.6 });
+    });
+  });
+
   it('says so when the store refuses the write', async () => {
     // The user holds the only copy of what they just typed; a clean resolve
     // over a refused write leaves a list that simply lacks it.
@@ -198,10 +226,15 @@ describe('LocationPicker', () => {
       remove: async () => undefined,
     });
     render();
+    // The live region is there, empty, before the refusal: one created with its
+    // text is not announced by most screen readers.
+    const region = screen.getByRole('status');
+    expect(region.textContent).toBe('');
     fireEvent.click(screen.getByRole('button', { name: 'Save this location' }));
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'Nowhere' } });
     fireEvent.click(screen.getByRole('button', { name: 'Save' }));
-    await waitFor(() => expect(screen.getByText(/could not be saved/i)).toBeTruthy());
+    await waitFor(() => expect(region.textContent).toMatch(/could not be saved/i));
+    expect(screen.getByRole('status')).toBe(region);
   });
 
   it('manages saved locations: the list shows their coordinates', async () => {

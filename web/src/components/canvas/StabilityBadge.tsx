@@ -1,11 +1,13 @@
 import { useTranslation } from 'react-i18next';
 import { fmtNum, fmtSig } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import type { StaticInfo } from '../../engine/api';
 import { stabilityState, stabilityToneOf, stabilityVerdictKey } from '../../services/flight/simReport';
 import { Stat } from '../common/Stat';
 import { UnitChip } from '../common/UnitChip';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
+import { STABILITY_GLYPH } from '../../tree/schematicGeometry';
 
 /**
  * "All stats" strip under the canvas: length, max diameter,
@@ -72,8 +74,12 @@ export function StabilityBadge({
         {!expanded && (
           <span className="ml-auto truncate text-[11px] tabular-nums text-ink-muted">
             {lengthTile.fmt(info.length)} {lengthTile.sym} ·{' '}
+            {/* The band is in the glyph and, for a screen reader, in words, as
+                well as in the color. */}
             <span className={padTone}>
+              {padState && <span aria-hidden>{`${STABILITY_GLYPH[padState]} `}</span>}
               {fmtNum(cal, 2)} {t('stability.caliber')}
+              {padState && <span className="sr-only">{` (${t(stabilityVerdictKey(cal))})`}</span>}
             </span>
           </span>
         )}
@@ -120,7 +126,7 @@ export function StabilityBadge({
           <Stat
             card
             label={recoveryEstimated ? t('stats.recoveryWeightEstimated') : t('stats.recoveryWeight')}
-            value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : '—'}
+            value={recoveryWeight != null ? recoveryTile.fmt(recoveryWeight) : NO_VALUE}
             sub={
               recoveryWeight != null ? (
                 <UnitChip
@@ -153,7 +159,7 @@ export function StabilityBadge({
           <Stat
             card
             label={t('stats.fineness')}
-            value={fmtNum(info.refDiameter > 0 ? info.length / info.refDiameter : 0, 1)}
+            value={info.refDiameter > 0 ? fmtNum(info.length / info.refDiameter, 1) : NO_VALUE}
             sub="L/D"
           />
           {/* One card, both conventions for the same margin: calibers and % of
@@ -166,7 +172,7 @@ export function StabilityBadge({
             sub={`${t('stability.caliber')} / %${padState ? ` · ${t(stabilityVerdictKey(cal))}` : ''}`}
             tone={padTone}
           />
-          <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : '—'} sub="Ma 0.3" />
+          <Stat card label={t('stats.cd')} value={info.cd != null ? fmtNum(info.cd, 3) : NO_VALUE} sub="Ma 0.3" />
           {/* Symbol lives in the sub: the tile label is uppercased, which would
               turn the Greek α into Α (a plain "A"). */}
           <Stat card label={t('stats.cna')} value={fmtNum(info.cna, 2)} sub="CNα · rad⁻¹" />

@@ -1,3 +1,5 @@
+import { KeyedError } from '../../i18n/keyedError';
+
 /**
  * Reading a response body with byte-level progress.
  *
@@ -51,7 +53,7 @@ export async function readStreamWithProgress(
       // reject (a stream already errored by the network), and that must not
       // mask the reason we are here.
       await reader.cancel().catch(() => {});
-      throw new Error('response too large');
+      throw new KeyedError('errors.remote.tooLarge');
     }
     onProgress({ loaded, total });
   }

@@ -4,6 +4,7 @@ import type { ComponentNode } from '../../engine/openRocketEngine';
 import { colorForType, mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
 import { PropSection } from './PropSection';
+import { ColorInput } from '../common/ColorInput';
 
 /**
  * How the part is drawn, as against what it is.
@@ -14,7 +15,8 @@ import { PropSection } from './PropSection';
  * changes nothing about the rocket. A section of its own says so, and leaves room
  * for the other appearance settings (finish, texture) whenever they land.
  *
- * Second to last on every part, directly above Overrides, for the same reason
+ * Below the part's own sections, above the tree actions, Overrides and Comment,
+ * for the same reason
  * Overrides is last: it is read far less often than anything describing the
  * part, so it sits below all of it and above the one thing read less still.
  *
@@ -23,14 +25,13 @@ import { PropSection } from './PropSection';
  */
 export function AppearanceSection({
   node,
-  onChange,
-  onCommit,
   onCommitChange,
 }: {
   node: ComponentNode;
-  onChange: (patch: Partial<ComponentNode>) => void;
-  onCommit?: () => void;
-  /** Patch and close the undo entry in one shot (the reset is discrete). */
+  /**
+   * Patch and close the undo entry in one shot. The color lands once, when the
+   * picker closes, and the reset is discrete, so neither leaves an entry open.
+   */
   onCommitChange: (patch: Partial<ComponentNode>) => void;
 }) {
   const { t } = useTranslation();
@@ -47,16 +48,17 @@ export function AppearanceSection({
           {t('prop.color')}
         </label>
         <span className="flex items-center gap-2">
-          <input
+          {/* ColorInput rather than a raw color input: the OS picker does not
+              always move focus when it closes, so a blur commit can miss and
+              leave the edit open to merge with the next one. The swatch always
+              shows what is drawn, so with no color of its own it shows the one
+              this part type gets from the palette. That is why the reset button
+              appears only when the node carries one: it is the only way to
+              tell "set to this" from "defaulted to this". */}
+          <ColorInput
             id={colorId}
-            type="color"
-            // The swatch always shows what is drawn, so with no color of its
-            // own it shows the one this part type gets from the palette. That
-            // is why the reset button appears only when the node carries one:
-            // it is the only way to tell "set to this" from "defaulted to this".
             value={typeof node.color === 'string' ? node.color : colorForType(node.type, palette)}
-            onChange={(e) => onChange({ color: e.target.value })}
-            onBlur={onCommit}
+            onCommit={(color) => onCommitChange({ color })}
             className="h-7 w-10 cursor-pointer rounded-md border border-line/10 bg-raised p-0.5"
           />
           {typeof node.color === 'string' && (

@@ -4,6 +4,8 @@ import { useUnits } from '../../prefs/useUnits';
 import type { LaunchConditions } from '../../services/design/orkTree';
 import { LAUNCH_SITE_LIMITS } from '../../services/storage/launchLocationStore';
 import { LocationPicker } from '../sim/LocationPicker';
+import { loadSettings } from '../../services/storage/settings';
+import { defaultToolSite } from './remembered';
 import { SiteMapDialog } from '../sim/SiteMapDialog';
 import { QNum } from '../sim/LaunchPanel';
 import { LatLonRows } from '../sim/LatLonRows';
@@ -37,6 +39,7 @@ export function SiteFields({
     <>
       <LocationPicker
         launch={site as unknown as LaunchConditions}
+        defaultSite={() => defaultToolSite(loadSettings().launchDefaults)}
         onChange={(p) =>
           onChange((s) => ({
             latitudeDeg: p.latitudeDeg !== undefined ? p.latitudeDeg : s.latitudeDeg,
@@ -66,13 +69,15 @@ export function SiteFields({
         />
       )}
       <button className={`${toolBtn} w-full`} onClick={() => setMapOpen(true)}>
-        🗺 {t('map.show')}
+        <span aria-hidden="true">🗺</span> {t('map.show')}
       </button>
       {mapOpen && (
         <SiteMapDialog
           latitudeDeg={site.latitudeDeg}
           longitudeDeg={site.longitudeDeg}
-          onPick={(la, lo) => onChange((s) => ({ ...s, latitudeDeg: la, longitudeDeg: lo }))}
+          // A point on the map has no elevation of its own, and the old
+          // site's is not this one's: blank, the tool takes the terrain's.
+          onPick={(la, lo) => onChange((s) => ({ ...s, latitudeDeg: la, longitudeDeg: lo, launchAltitudeM: null }))}
           onClose={() => setMapOpen(false)}
         />
       )}

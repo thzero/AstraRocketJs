@@ -19,7 +19,43 @@ export interface KernelGeometry {
   outerRadius?: number;
   innerRadius?: number;
   maxTabHeight?: number;
+  /**
+   * A fin set's outline (`FinSet.getFinPoints`), its root along the parent
+   * (`getRootPoints`) and its tab (`getTabPoints`, present only when the fin set
+   * has one), each as `[x, y]` in the fin's own frame: x from the fin front, y
+   * from the body surface there.
+   */
+  finPoints?: [number | null, number | null][];
+  rootPoints?: [number | null, number | null][];
+  tabPoints?: [number | null, number | null][];
+  /**
+   * A pod set's or booster's distance from its parent's axis
+   * (`RadiusMethod.getRadius`), read in tree order right after its parent.
+   */
+  instanceRadius?: number;
+  /** Where each tube of an inner tube's cluster sits across its parent, [y, z] (`getInstanceOffsets`). */
+  clusterPoints?: [number, number][];
   radius?: number;
+  /** A rail button's linked dimensions, after the kernel's setters have clamped them. */
+  outerDiameter?: number;
+  innerDiameter?: number;
+  totalHeight?: number;
+  baseHeight?: number;
+  flangeHeight?: number;
+  /** The front of the part's first copy from the nose tip (`getComponentInfo`). */
+  positionX?: number;
+  /**
+   * The part's length from `getComponentInfo`, read after every geometry read.
+   * A mass object with an automatic radius moves its length when the radius
+   * settles (`MassObject.getRadius`), and `length` above is read before that.
+   */
+  settledLength?: number;
+  /**
+   * Every field the kernel holds for the part (`getComponentFields`), read last
+   * and only when asked for: the angles, counts and spacings a part flies with
+   * after the setters have clamped or wrapped them.
+   */
+  fields?: Record<string, number | string | boolean>;
 }
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
@@ -49,7 +85,11 @@ export function walkTree(tree: RocketTree): Visit[] {
 }
 
 /** Build the design in the kernel and read back each part's geometry, keyed by id. */
-export function kernelGeometry(engine: any, tree: RocketTree): Map<string, KernelGeometry> {
+export function kernelGeometry(
+  engine: any,
+  tree: RocketTree,
+  options: { fields?: boolean } = {},
+): Map<string, KernelGeometry> {
   engine.reset();
   const handle: number = engine.buildRocket(JSON.stringify(tree));
   const out = new Map<string, KernelGeometry>();
@@ -60,6 +100,29 @@ export function kernelGeometry(engine: any, tree: RocketTree): Map<string, Kerne
     };
     if (json.error) throw new Error(`${id}: ${json.error}`);
     out.set(id, json);
+  }
+  // Read after every geometry read: those reads are what settle an automatic
+  // tube, in tree order, and reading anything else between them would change
+  // the order the kernel evaluates them in.
+  for (const [id, geometry] of out) {
+    const info = JSON.parse(engine.getComponentInfo(handle, id) as string) as {
+      positionX?: number;
+      length?: number;
+      error?: string;
+    };
+    if (info.error) throw new Error(`${id}: ${info.error}`);
+    geometry.positionX = info.positionX;
+    geometry.settledLength = info.length;
+  }
+  if (options.fields) {
+    for (const [id, geometry] of out) {
+      const fields = JSON.parse(engine.getComponentFields(handle, id) as string) as Record<
+        string,
+        number | string | boolean
+      >;
+      if (fields['error']) throw new Error(`${id}: ${String(fields['error'])}`);
+      geometry.fields = fields;
+    }
   }
   return out;
 }

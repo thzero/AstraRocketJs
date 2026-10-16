@@ -8,8 +8,9 @@
  */
 import { initEngine, resetEngine, setKernelLengthUnit } from './openRocketEngine';
 import { buildConfiguredRocket } from '../services/design/buildRocket';
-import type { WorkerRequest, WorkerResponse } from './simProtocol';
+import type { WorkerReady, WorkerRequest, WorkerResponse } from './simProtocol';
 import { errorMessage } from '../services/app/errorMessage';
+import { errorReason, KeyedError } from '../i18n/keyedError';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
 
@@ -27,22 +28,36 @@ const ctx = self as unknown as DedicatedWorkerGlobalScope;
  * terminate and replace this worker.
  */
 let ready: Promise<void> | null = null;
-let fatal: string | null = null;
+let fatal: KeyedError | null = null;
 
 ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
   const req = e.data;
   const id = req.id;
   const reply = (r: WorkerResponse) => ctx.postMessage(r);
+  // A keyed error crosses as its key and values, so the main thread can show it
+  // in the user's language; `error` is the English text, for logs.
+  const fail = (err: unknown, isFatal?: true) =>
+    reply({
+      id,
+      ok: false,
+      error: errorMessage(err),
+      ...(err instanceof KeyedError
+        ? { keyed: err.values ? { key: err.key, values: err.values } : { key: err.key } }
+        : {}),
+      ...(isFatal ? { fatal: isFatal } : {}),
+    });
   ready ??= initEngine(undefined, req.engine).then(
-    () => undefined,
+    () => {
+      ctx.postMessage({ ready: true } satisfies WorkerReady);
+    },
     (err: unknown) => {
-      fatal = `sim worker engine failed to load: ${errorMessage(err)}`;
+      fatal = new KeyedError('errors.sim.engineLoad', { reason: errorReason(err) });
     },
   );
   try {
     await ready;
     if (fatal) {
-      reply({ id, ok: false, error: fatal, fatal: true });
+      fail(fatal, true);
       return;
     }
     switch (req.method) {
@@ -52,9 +67,9 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
       case 'simulate': {
         // Narrowed by the discriminated union, not cast: `req.args` is a
         // SimPayload here and nothing else.
-        const { tree, config, options } = req.args;
+        const { tree, config, options, lengthUnit } = req.args;
         // The flight's airframe-step warnings, in the unit the app shows.
-        setKernelLengthUnit(req.lengthUnit);
+        setKernelLengthUnit(lengthUnit ?? req.lengthUnit);
         // This worker only ever holds sim rockets; clear prior handles so the
         // engine's handle registry doesn't grow across runs.
         resetEngine();
@@ -64,9 +79,9 @@ ctx.onmessage = async (e: MessageEvent<WorkerRequest>) => {
         return;
       }
       default:
-        reply({ id, ok: false, error: `unknown method: ${String((req as { method: unknown }).method)}` });
+        fail(new KeyedError('errors.sim.unknownMethod', { method: String((req as { method: unknown }).method) }));
     }
   } catch (err) {
-    reply({ id, ok: false, error: errorMessage(err) });
+    fail(err);
   }
 };

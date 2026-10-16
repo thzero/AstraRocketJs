@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, waitFor, within } from '@testing-library/react';
-import { ComponentPicker } from '../../../src/components/design/ComponentPicker';
+import { ComponentPicker, type CurrentPart } from '../../../src/components/design/ComponentPicker';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
 import type { PickerType } from '../../../src/services/parts/componentDb';
@@ -17,7 +17,7 @@ import type { FitContext } from '../../../src/services/parts/componentFilter';
 /** A Public Missiles 2.1" airframe tube: 54.66 mm OD, 51.51 mm bore. */
 const PM_TUBE = { od: 0.0546608, bore: 0.0515112 };
 
-const open = async (type: PickerType, fit?: FitContext, current?: string) => {
+const open = async (type: PickerType, fit?: FitContext, current?: CurrentPart) => {
   const onApply = vi.fn();
   const { container, unmount } = renderWithProviders(
     <ComponentPicker type={type} fit={fit} current={current} onApply={onApply} />,
@@ -415,10 +415,24 @@ describe('the part this component already is', () => {
   it('marks the linked row rather than leaving it in the pile', async () => {
     // A component built from a catalog part opens a list of a thousand rows, so
     // the row it came from has to be marked.
-    const { dialog, unmount } = await open('bodytube', undefined, 'BT-50, 30352');
+    const { dialog, unmount } = await open('bodytube', undefined, { manufacturer: 'Estes', partNo: 'BT-50, 30352' });
     const marked = [...dialog.querySelectorAll('tbody tr[aria-current="true"]')];
     expect(marked).toHaveLength(1);
     expect(marked[0]!.textContent).toContain('BT-50, 30352');
+    unmount();
+  });
+
+  it('marks only the linked maker’s row when two makers share a part number', async () => {
+    // The catalog lists CR-38/29 under two makers.
+    const { dialog, unmount } = await open('centeringring', undefined, {
+      manufacturer: 'Giant Leap',
+      partNo: 'CR-38/29',
+    });
+    fireEvent.change(search(dialog), { target: { value: 'CR-38/29' } });
+    expect(rows(dialog).filter((r) => r.join(' ').includes('CR-38/29')).length).toBeGreaterThan(1);
+    const marked = [...dialog.querySelectorAll('tbody tr[aria-current="true"]')];
+    expect(marked).toHaveLength(1);
+    expect(marked[0]!.textContent).toContain('Giant Leap');
     unmount();
   });
 

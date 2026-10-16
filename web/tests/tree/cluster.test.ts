@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import {
   CLUSTER_POINTS,
@@ -6,6 +8,66 @@ import {
   clusterOffsets,
   isClusterPattern,
 } from '../../src/tree/cluster';
+
+/** Java source with runs of whitespace collapsed, so the guards survive reformatting. */
+const JAVA = readFileSync(
+  fileURLToPath(
+    new URL(
+      '../../../engine-java/src/java/info/openrocket/core/rocketcomponent/ClusterConfiguration.java',
+      import.meta.url,
+    ),
+  ),
+  'utf8',
+).replace(/\s+/g, ' ');
+
+/**
+ * Every `new ClusterConfiguration("name", x0, y0, ...)` in the Java, in source
+ * order, each point expression evaluated with the file's own helper constants.
+ */
+function kernelPatterns(): [string, number[]][] {
+  const R5 = 1.0 / (2 * Math.sin((2 * Math.PI) / 10));
+  const SQRT2 = 1.4142135623730951;
+  const SQRT3 = 1.7320508075688772;
+  const out: [string, number[]][] = [];
+  const marker = 'new ClusterConfiguration(';
+  for (let at = JAVA.indexOf(marker); at >= 0; at = JAVA.indexOf(marker, at + 1)) {
+    let depth = 1;
+    let end = at + marker.length;
+    for (; depth > 0; end++) depth += JAVA[end] === '(' ? 1 : JAVA[end] === ')' ? -1 : 0;
+    const args = JAVA.slice(at + marker.length, end - 1).split(',');
+    const name = /^\s*"([^"]+)"\s*$/.exec(args[0]!)?.[1];
+    // The constructor's own declaration has no quoted name.
+    if (!name) continue;
+    // The point expressions are Java arithmetic that is also valid JavaScript,
+    // evaluated as written so the table is the kernel's and not a retyped copy.
+    // eslint-disable-next-line @typescript-eslint/no-implied-eval -- source is the committed kernel file
+    const evaluate = new Function('R5', 'SQRT2', 'SQRT3', `return [${args.slice(1).join(',')}];`) as (
+      ...k: number[]
+    ) => number[];
+    out.push([name, evaluate(R5, SQRT2, SQRT3)]);
+  }
+  return out;
+}
+
+describe('CLUSTER_POINTS vs ClusterConfiguration.java', () => {
+  it('is generated from the helper constants the table was written against', () => {
+    expect(JAVA).toContain('private static final double R5 = 1.0 / (2 * Math.sin(2 * Math.PI / 10));');
+    expect(JAVA).toContain('private static final double SQRT2 = 1.4142135623730951;');
+    expect(JAVA).toContain('private static final double SQRT3 = 1.7320508075688772;');
+  });
+
+  it('holds every kernel pattern, its points and the kernel order', () => {
+    const kernel = kernelPatterns();
+    expect(kernel.length).toBeGreaterThan(10);
+    // SINGLE is declared once on its own and once more in CONFIGURATIONS by reference.
+    expect(kernel.map(([name]) => name)).toEqual(Object.keys(CLUSTER_POINTS));
+    for (const [name, pts] of kernel) {
+      const ours = CLUSTER_POINTS[name as keyof typeof CLUSTER_POINTS];
+      expect(ours, name).toHaveLength(pts.length);
+      pts.forEach((v, i) => expect(ours[i], `${name}[${i}]`).toBeCloseTo(v, 12));
+    }
+  });
+});
 
 describe('clusterCount', () => {
   it('defaults an absent cluster to a single motor', () => {
@@ -77,6 +139,7 @@ describe('clusterOffsets', () => {
    * instead of only in whichever single case someone remembered to pin.
    */
   it('matches ClusterConfiguration.getPoints for every pattern and rotation', () => {
+    expect(JAVA).toContain('ret.add(x * cos + y * sin); ret.add(-x * sin + y * cos);');
     const kernelPoints = (pts: number[], rotation: number) => {
       const cos = Math.cos(rotation);
       const sin = Math.sin(rotation);

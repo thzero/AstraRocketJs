@@ -1,4 +1,4 @@
-import { fmtNum } from '../../i18n/format';
+import { fmtList, fmtNum, withUnit } from '../../i18n/format';
 
 /**
  * The written summaries the charts give a screen reader: what a chart shows,
@@ -41,7 +41,9 @@ export function rangeOf(ys: readonly number[]): { min: number; max: number } | n
   return { min, max };
 }
 
-const withUnit = (v: number, digits: number, unit: string) => `${fmtNum(v, digits)}${unit ? ` ${unit}` : ''}`;
+/** A value in its unit, spaced as everywhere else (`withUnit`); a unitless value stands alone. */
+const valueIn = (v: number, digits: number, unit: string) =>
+  unit ? withUnit(fmtNum(v, digits), unit) : fmtNum(v, digits);
 
 /**
  * What a chart's live region says when the keyboard moves its crosshair: where
@@ -53,14 +55,14 @@ export function crosshairReadout(
   items: readonly { label: string; value: number | null; digits: number; unit: string }[],
 ): string {
   const values = items.flatMap((it) =>
-    it.value != null && Number.isFinite(it.value) ? [`${it.label} ${withUnit(it.value, it.digits, it.unit)}`] : [],
+    it.value != null && Number.isFinite(it.value) ? [`${it.label} ${valueIn(it.value, it.digits, it.unit)}`] : [],
   );
-  return values.length ? `${at}: ${values.join(', ')}` : at;
+  return values.length ? `${at}: ${fmtList(values)}` : at;
 }
 
 /** "Booster: …" when there are several stages, the bare part when there is one. */
 const perStage = (stages: readonly SummaryStage[], part: (s: SummaryStage) => string): string =>
-  stages.length === 1 ? part(stages[0]!) : stages.map((s) => `${s.name}: ${part(s)}`).join('; ');
+  stages.length === 1 ? part(stages[0]!) : fmtList(stages.map((s) => `${s.name}: ${part(s)}`));
 
 /**
  * A flight panel against time. A flow series (altitude, velocity, thrust) is
@@ -79,12 +81,12 @@ export function timeSeriesSummary(
     if (level) {
       const r = rangeOf(s.ys);
       return r
-        ? t('flight.summaryRange', { min: withUnit(r.min, digits, unit), max: withUnit(r.max, digits, unit) })
+        ? t('flight.summaryRange', { min: valueIn(r.min, digits, unit), max: valueIn(r.max, digits, unit) })
         : t('flight.summaryNoData');
     }
     const p = peakOf(s.xs, s.ys);
     return p
-      ? t('flight.summaryPeak', { value: withUnit(p.value, digits, unit), time: fmtNum(p.at, 1) })
+      ? t('flight.summaryPeak', { value: valueIn(p.value, digits, unit), time: fmtNum(p.at, 1) })
       : t('flight.summaryNoData');
   };
   return `${label}: ${perStage(stages, part)}`;
@@ -109,7 +111,7 @@ export function eventsSummary(
     seen.add(key);
     items.push(t('flight.summaryEventAt', { event: eventLabel(e.type), time }));
   }
-  return items.length ? t('flight.summaryEvents', { list: items.join(', ') }) : null;
+  return items.length ? t('flight.summaryEvents', { list: fmtList(items) }) : null;
 }
 
 /** The velocity-over-altitude panel: the top speed and the altitude it was reached at. */
@@ -125,7 +127,7 @@ export function velocityAltitudeSummary(
       ? t('flight.summaryVelocityAltitude', { velocity: fmt.velocity(p.value), altitude: fmt.altitude(p.at) })
       : t('flight.summaryNoData');
   };
-  const list = stages.length === 1 ? part(stages[0]!) : stages.map((s) => `${s.name}: ${part(s)}`).join('; ');
+  const list = stages.length === 1 ? part(stages[0]!) : fmtList(stages.map((s) => `${s.name}: ${part(s)}`));
   return `${label}: ${list}`;
 }
 
@@ -149,9 +151,9 @@ export function machSeriesSummary(
     });
     const p = peakOf(xs, ys);
     const text = p
-      ? t('aero.summaryPeakMach', { value: withUnit(p.value, digits, unit), mach: fmtNum(p.at, 2) })
+      ? t('aero.summaryPeakMach', { value: valueIn(p.value, digits, unit), mach: fmtNum(p.at, 2) })
       : t('flight.summaryNoData');
     return series.length === 1 ? text : `${se.name}: ${text}`;
   });
-  return `${title}: ${parts.join('; ')}`;
+  return `${title}: ${fmtList(parts)}`;
 }

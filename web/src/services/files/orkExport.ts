@@ -23,12 +23,14 @@ export function exportOrk({
   tree,
   launch,
   simulations,
+  simPrefs,
   configs,
   activeConfigId,
   designInfo,
+  componentInfo,
 }: OrkTreeExportInput): string {
   const { writeConfigs, defaultId } = resolveWriteConfigs({ configs, activeConfigId });
-  const w = createOrkWriter(writeConfigs, defaultId);
+  const w = createOrkWriter(writeConfigs, defaultId, componentInfo);
   const { emit } = w;
 
   emit(0, "<?xml version='1.0' encoding='utf-8'?>");
@@ -54,7 +56,7 @@ export function exportOrk({
   // structural elements below it (ork/passthrough.ts).
   for (const raw of passthroughOf(tree, ROCKET_EXTRA_KEY)) emit(2, raw);
   // Stage nodes at the top level export as sibling <stage> blocks (the
-  // desktop model); legacy flat trees wrap into one implicit stage.
+  // desktop model); a flat tree wraps into one implicit stage.
   const stageNodes = asStageNodes(tree);
   // The ids, not just the count: a configuration grounds a stage by node id,
   // and their order here is the file's stage numbering.
@@ -76,7 +78,7 @@ export function exportOrk({
   }
   emit(2, '</subcomponents>');
   emit(1, '</rocket>');
-  simulationsXml(w, 1, launch, simulations);
+  simulationsXml(w, 1, launch, simulations, simPrefs);
   designInfoXml(w, 1, designInfo);
   // Document-level blocks this app has no editor for: the Photo Studio setup,
   // the design's own preferences and materials, its custom expressions. Last,

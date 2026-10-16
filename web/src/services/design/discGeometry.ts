@@ -82,12 +82,22 @@ export function mountBore(siblings: ComponentNode[]): number | null {
   return Number.isNaN(or) ? null : or;
 }
 
-/** Where a child sits along its parent, from the parent's front, clamped into the parent (m). */
-function spanIn(child: ComponentNode, parent: ComponentNode): [number, number] {
+/**
+ * Where a child sits along its parent, from the parent's front, clamped into
+ * the parent (m). `parentStart` is the parent's rocket-frame start, which an
+ * `absolute` child is measured against.
+ */
+function spanIn(child: ComponentNode, parent: ComponentNode, parentStart: number): [number, number] {
   const len = partLength(parent);
-  const start = startFromPosition(positionOf(child), partLength(child), len);
+  const [start, end] = rawSpanIn(child, parent, parentStart);
   const clamp = (x: number) => Math.min(Math.max(x, 0), len);
-  return [clamp(start), clamp(start + partLength(child))];
+  return [clamp(start), clamp(end)];
+}
+
+/** Where a child sits along its parent, from the parent's front (m), overhang and all. */
+function rawSpanIn(child: ComponentNode, parent: ComponentNode, parentStart: number): [number, number] {
+  const start = startFromPosition(positionOf(child), partLength(child), partLength(parent), parentStart);
+  return [start, start + partLength(child)];
 }
 
 /**
@@ -107,10 +117,11 @@ function innerRadiusAt(parent: ComponentNode, x: number): number | null {
  * The automatic outer radius of a ring, bulkhead, coupler or engine block: the
  * narrower of its parent's bores at the part's fore and aft faces
  * (`RadiusRingComponent.getOuterRadius`, `ThicknessRingComponent.getOuterRadius`).
- * Null when the parent offers no bore.
+ * Null when the parent offers no bore. `parentStart` is the parent's
+ * rocket-frame start, which an `absolute` part is measured against.
  */
-export function boreAround(child: ComponentNode, parent: ComponentNode): number | null {
-  const [x0, x1] = spanIn(child, parent);
+export function boreAround(child: ComponentNode, parent: ComponentNode, parentStart: number): number | null {
+  const [x0, x1] = spanIn(child, parent, parentStart);
   const a = innerRadiusAt(parent, x0);
   const b = innerRadiusAt(parent, x1);
   return a === null || b === null ? null : Math.min(a, b);
@@ -119,14 +130,16 @@ export function boreAround(child: ComponentNode, parent: ComponentNode): number 
 /**
  * A centering ring's automatic bore: the widest inner tube beside it whose span
  * overlaps the ring's, 0 when none does, and never wider than the ring
- * (`CenteringRing.getInnerRadius`).
+ * (`CenteringRing.getInnerRadius`). The spans are compared as placed, not
+ * clipped to the parent: a mount that overhangs the tube's aft end still
+ * misses a ring placed past its own end.
  */
-export function ringBore(ring: ComponentNode, parent: ComponentNode, ringOuter: number): number {
-  const [r0, r1] = spanIn(ring, parent);
+export function ringBore(ring: ComponentNode, parent: ComponentNode, ringOuter: number, parentStart: number): number {
+  const [r0, r1] = rawSpanIn(ring, parent, parentStart);
   let bore = 0;
   for (const sib of parent.children ?? []) {
     if (sib.type !== 'innertube') continue;
-    const [t0, t1] = spanIn(sib, parent);
+    const [t0, t1] = rawSpanIn(sib, parent, parentStart);
     if (r1 < t0 || r0 > t1) continue;
     bore = Math.max(bore, num(sib, 'outerRadius', 0));
   }
@@ -210,13 +223,13 @@ export function discDims(
       'length',
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.length : COMPONENT_DEFAULTS.tubecoupler.length,
     );
-    // A wall at least as thick as the radius leaves no bore, and `discSolid`
-    // would then fall through to its no-bore branch and lathe a solid rod: a
-    // coupler printed as a plug, with nothing saying so. `discDims` also feeds
-    // the DXF sheet and the 3D internals, so refusing here keeps all three from
-    // agreeing on the wrong part. Reachable from a units slip in a hand-edited
-    // .ork (thickness 0.02 against radius 0.012).
-    if (!(wall < outerR)) return null;
+    // A wall exactly as thick as the radius is a solid part, which a catalog
+    // row with an inner diameter of 0 states (a balsa nose block), and the
+    // kernel flies it as one. A wall thicker than the radius is a units slip in
+    // a hand-edited .ork (thickness 0.02 against radius 0.012), and is refused
+    // here rather than lathed into a plug nobody asked for: `discDims` also
+    // feeds the DXF sheet and the 3D internals, so all three stay out of it.
+    if (!(wall <= outerR)) return null;
     return { outerR, innerR: outerR - wall, length };
   }
   return null;
@@ -234,24 +247,36 @@ export function discDims(
  * tail's fore shoulder the aft radius.
  *
  * Returns null when the part has no bore to offer at that end: a nose cone is
- * closed at the tip, and anything that is not airframe has no end to plug.
+ * closed at the tip, a filled part is solid (`SymmetricComponent.getInnerRadius`
+ * is 0, as {@link tubeRadii} has it), and anything that is not airframe has no
+ * end to plug.
  */
 export function boreAt(node: ComponentNode, end: 'fore' | 'aft'): number | null {
-  const wall = (dflt: number) => num(node, 'thickness', dflt);
-  const bore = (outer: number, w: number) => (outer > 0 && w < outer ? outer - w : null);
+  const e = endAt(node, end);
+  return e && e.outer > 0 && e.wall < e.outer ? e.outer - e.wall : null;
+}
+
+/**
+ * A hollow airframe part's outer radius and wall at one end, the two numbers
+ * {@link boreAt} takes the bore from. Null where {@link boreAt} has no bore to
+ * offer: a filled part, a nose cone's tip, anything that is not airframe.
+ */
+export function endAt(node: ComponentNode, end: 'fore' | 'aft'): { outer: number; wall: number } | null {
+  if (node['filled'] === true) return null;
+  const at = (outer: number, dflt: number) => ({ outer, wall: num(node, 'thickness', dflt) });
   switch (node.type) {
     case 'bodytube':
     case 'innertube':
     case 'tubecoupler':
-      return bore(num(node, 'outerRadius', NaN), wall(TUBE_WALL[node.type]));
+      return at(num(node, 'outerRadius', NaN), TUBE_WALL[node.type]);
     case 'transition':
-      return bore(
-        num(node, end === 'fore' ? 'foreRadius' : 'aftRadius', NaN),
-        wall(COMPONENT_DEFAULTS.transition.thickness),
-      );
-    case 'nosecone':
-      // Open at its base, closed at the tip.
-      return end === 'aft' ? bore(num(node, 'aftRadius', NaN), wall(COMPONENT_DEFAULTS.nosecone.thickness)) : null;
+      return at(num(node, end === 'fore' ? 'foreRadius' : 'aftRadius', NaN), COMPONENT_DEFAULTS.transition.thickness);
+    case 'nosecone': {
+      // Open at its base, closed at the tip. A flipped cone's base is its fore
+      // end (`NoseCone.getBaseRadius`).
+      const base = node['flipped'] === true ? 'fore' : 'aft';
+      return end === base ? at(num(node, 'aftRadius', NaN), COMPONENT_DEFAULTS.nosecone.thickness) : null;
+    }
     default:
       return null;
   }

@@ -35,9 +35,11 @@ import info.openrocket.core.rocketcomponent.ComponentAssembly;
 import info.openrocket.core.rocketcomponent.FlightConfiguration;
 import info.openrocket.core.rocketcomponent.FlightConfigurationId;
 import info.openrocket.core.rocketcomponent.InnerTube;
+import info.openrocket.core.rocketcomponent.MassObject;
 import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.Parachute;
+import info.openrocket.core.rocketcomponent.ShockCord;
 import info.openrocket.core.rocketcomponent.Rocket;
 import info.openrocket.core.rocketcomponent.RocketComponent;
 import info.openrocket.core.rocketcomponent.StageSeparationConfiguration;
@@ -308,7 +310,7 @@ public final class OpenRocketEngine {
             for (Object o : topLevel) {
                 if (!(o instanceof Map) || !"stage".equals(((Map<?, ?>) o).get("type"))) {
                     throw new IllegalArgumentException(
-                            "Top level mixes stage and component nodes — with stages, EVERY top-level node must be a stage");
+                            "Top level mixes stage and component nodes: with stages, EVERY top-level node must be a stage");
                 }
                 @SuppressWarnings("unchecked")
                 Map<String, Object> stageNode = (Map<String, Object>) o;
@@ -327,6 +329,8 @@ public final class OpenRocketEngine {
                 }
                 applySeparationConfig(stage, stageNode, nozzleDia);
                 ComponentFactory.attachChildren(stage, stageNode, ids, nozzleDia);
+                // A stage's own mass, CG and drag overrides, as a part's.
+                ComponentFactory.applyOverrides(stage, stageNode);
             }
             if (firstStage == null) {
                 throw new IllegalArgumentException("Staged rocket has no stages");
@@ -351,6 +355,23 @@ public final class OpenRocketEngine {
         }
 
         rocket.enableEvents();
+        settleAutoRadii(rocket);
+        // After enableEvents, which places every part along its parent: a fin
+        // set placed by its middle or bottom stands at its true station only
+        // from then on, and the tab clamp reads the body radius there.
+        if (staged) {
+            for (Object o : topLevel) {
+                @SuppressWarnings("unchecked")
+                Map<String, Object> stageNode = (Map<String, Object>) o;
+                ComponentFactory.settleFlippedShoulders(stageNode, ctx.ids);
+                ComponentFactory.settleFinTabs(stageNode, ctx.ids);
+            }
+        } else {
+            Map<String, Object> rootNode = new java.util.LinkedHashMap<>();
+            rootNode.put("children", tree.get("components"));
+            ComponentFactory.settleFlippedShoulders(rootNode, ctx.ids);
+            ComponentFactory.settleFinTabs(rootNode, ctx.ids);
+        }
         return register(ctx);
     }
 
@@ -615,7 +636,7 @@ public final class OpenRocketEngine {
         MotorConfiguration mc = ((MotorMount) comp).getMotorConfig(ctx.fcid);
         if (mc == null || mc.getMotor() == null) {
             throw new IllegalArgumentException(
-                    "No motor loaded on mount '" + componentId + "' — call setMotorById first");
+                    "No motor loaded on mount '" + componentId + "'; call setMotorById first");
         }
         // At the boundary, like the motor curve in applyMotor. This method is
         // void, so a bad delay cannot come back as an envelope; unchecked, it
@@ -817,6 +838,11 @@ public final class OpenRocketEngine {
      * aware; a fin set's mass covers all its fins), subtree mass including
      * children, CG from the component's own front, and the component's
      * absolute position from the rocket nose (first instance).
+     *
+     * Plus the lengths the kernel resolves for itself when a part leaves them
+     * automatic: a shock cord's cord (three times the rocket's length) and a
+     * parachute's shroud lines. The editor shows these while the box is on Auto,
+     * since the number stored on the node is not what flies.
      */
     @JSExport
     public static String getComponentInfo(int rocketHandle, String componentId) {
@@ -833,6 +859,12 @@ public final class OpenRocketEngine {
         if (c == null) {
             throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
         }
+        // A mass object's length follows its radius when the radius is
+        // automatic, and only getRadius() settles the pair, as in ComponentFields:
+        // read before it, the length and CG are those of the stored radius.
+        if (c instanceof MassObject) {
+            ((MassObject) c).getRadius();
+        }
         CoordinateIF[] locations = c.getComponentLocations();
         double absX = locations.length > 0 ? locations[0].getX() : Double.NaN;
         StringBuilder sb = new StringBuilder("{");
@@ -841,7 +873,97 @@ public final class OpenRocketEngine {
         num(sb, "sectionMass", c.getSectionMass()).append(',');
         num(sb, "cgX", c.getCG().getX()).append(',');
         num(sb, "positionX", absX);
+        if (c instanceof ShockCord) {
+            sb.append(',');
+            num(sb, "cordLength", ((ShockCord) c).getCordLength());
+        } else if (c instanceof Parachute) {
+            sb.append(',');
+            num(sb, "lineLength", ((Parachute) c).getLineLength());
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.RecoveryDevice) {
+            // The drag coefficient it flies: the computed one while it is on
+            // automatic, which the panel shows in place of the stored number.
+            sb.append(',');
+            num(sb, "cd", ((info.openrocket.core.rocketcomponent.RecoveryDevice) c).getCD());
+        }
         return sb.append('}').toString();
+    }
+
+    /**
+     * Every field of a buildRocket() id as the kernel holds it after the build,
+     * under the app's node keys ({@link ComponentFields}): the value that flies,
+     * after clamps, automatic rules and constructor defaults.
+     */
+    @JSExport
+    public static String getComponentFields(int rocketHandle, String componentId) {
+        try {
+            RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+            RocketComponent c = ctx.ids.get(componentId);
+            if (c == null) {
+                throw new IllegalArgumentException("Unknown component id: '" + componentId + "'");
+            }
+            return ComponentFields.of(c);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    /**
+     * A shoulder length set on a part of a built rocket through the kernel's own
+     * setter, the way desktop's dialog sets it, and the part's fields after
+     * ({@link ComponentFields}). `side` is "" for a nose cone's shoulder, "fore"
+     * or "aft" for a transition's. The setter seeds a shoulder that grows from
+     * length 0 from the part next to it (Transition.setForeShoulderLength), which
+     * buildRocket cannot show: it sets the length before the part is attached.
+     * The rocket is changed in place.
+     */
+    @JSExport
+    public static String setShoulderLength(int rocketHandle, String componentId, String side, double length) {
+        try {
+            RocketCtx ctx = get(rocketHandle, RocketCtx.class, "a rocket");
+            RocketComponent c = ctx.ids.get(componentId);
+            if (c instanceof NoseCone && side.isEmpty()) {
+                ((NoseCone) c).setShoulderLength(length);
+            } else if (c instanceof Transition && !(c instanceof NoseCone) && "fore".equals(side)) {
+                ((Transition) c).setForeShoulderLength(length);
+            } else if (c instanceof Transition && !(c instanceof NoseCone) && "aft".equals(side)) {
+                ((Transition) c).setAftShoulderLength(length);
+            } else {
+                throw new IllegalArgumentException("No '" + side + "' shoulder on component id: '" + componentId + "'");
+            }
+            return ComponentFields.of(c);
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    /**
+     * Every automatic radius read against the finished rocket, front to back,
+     * once per symmetric part and once more. An automatic body tube remembers
+     * which neighbor it last sized from (BodyTube.refComp) and skips a neighbor
+     * that is sizing from it. The build attaches parts one at a time, so a tube
+     * evaluated before the parts behind it were attached remembers the part
+     * ahead, and the tube ahead of it then skips it and falls back to
+     * DEFAULT_RADIUS. A front-to-back pass corrects one more tube of such a run,
+     * counted from its fixed end, so a run as long as the airframe needs as many
+     * passes. Read through here first, every later read (the panel's, the
+     * drawing's, a flight's) gets the radius of the finished airframe.
+     */
+    private static void settleAutoRadii(Rocket rocket) {
+        int symmetric = 0;
+        for (RocketComponent c : rocket) {
+            if (c instanceof info.openrocket.core.rocketcomponent.SymmetricComponent) symmetric++;
+        }
+        for (int pass = 0; pass <= symmetric; pass++) {
+            for (RocketComponent c : rocket) {
+                if (c instanceof info.openrocket.core.rocketcomponent.SymmetricComponent) {
+                    info.openrocket.core.rocketcomponent.SymmetricComponent s =
+                            (info.openrocket.core.rocketcomponent.SymmetricComponent) c;
+                    s.getForeRadius();
+                    s.getAftRadius();
+                }
+            }
+        }
     }
 
     /** Stations along a symmetric component at which its profile is sampled. */
@@ -909,12 +1031,52 @@ public final class OpenRocketEngine {
             num(sb, "innerRadius", t.getInnerRadius());
         }
         if (c instanceof info.openrocket.core.rocketcomponent.FinSet) {
+            info.openrocket.core.rocketcomponent.FinSet f = (info.openrocket.core.rocketcomponent.FinSet) c;
             sb.append(',');
-            num(sb, "maxTabHeight", ((info.openrocket.core.rocketcomponent.FinSet) c).getMaxTabHeight());
+            num(sb, "maxTabHeight", f.getMaxTabHeight());
+            // The outline the kernel flies and desktop's cut exports draw, in the
+            // fin's own frame (x from the fin front, y from the body surface there).
+            sb.append(",\"finPoints\":");
+            points(sb, f.getFinPoints());
+            sb.append(",\"rootPoints\":");
+            points(sb, f.getRootPoints());
+            if (f.hasTab()) {
+                sb.append(",\"tabPoints\":");
+                points(sb, f.getTabPoints());
+            }
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.InnerTube) {
+            // Where each tube of the cluster sits across its parent, as
+            // InnerTube.getInstanceOffsets places it: [y, z] per tube.
+            sb.append(",\"clusterPoints\":[");
+            CoordinateIF[] offsets = c.getInstanceOffsets();
+            for (int i = 0; i < offsets.length; i++) {
+                if (i > 0) sb.append(',');
+                nums(sb, new double[] { offsets[i].getY(), offsets[i].getZ() });
+            }
+            sb.append(']');
         }
         if (c instanceof info.openrocket.core.rocketcomponent.MassObject) {
             sb.append(',');
             num(sb, "radius", ((info.openrocket.core.rocketcomponent.MassObject) c).getRadius());
+        }
+        if (c instanceof info.openrocket.core.rocketcomponent.RailButton) {
+            // The button's linked dimensions, after its setters have clamped them.
+            info.openrocket.core.rocketcomponent.RailButton b = (info.openrocket.core.rocketcomponent.RailButton) c;
+            sb.append(',');
+            num(sb, "outerDiameter", b.getOuterDiameter()).append(',');
+            num(sb, "innerDiameter", b.getInnerDiameter()).append(',');
+            num(sb, "totalHeight", b.getTotalHeight()).append(',');
+            num(sb, "baseHeight", b.getBaseHeight()).append(',');
+            num(sb, "flangeHeight", b.getFlangeHeight());
+        }
+        if (c instanceof ComponentAssembly
+                && c instanceof info.openrocket.core.rocketcomponent.position.RadiusPositionable) {
+            info.openrocket.core.rocketcomponent.position.RadiusPositionable p =
+                    (info.openrocket.core.rocketcomponent.position.RadiusPositionable) c;
+            // The distance of each copy's axis from its parent's, as getInstanceOffsets places it.
+            sb.append(',');
+            num(sb, "instanceRadius", p.getRadiusMethod().getRadius(c.getParent(), c, p.getRadiusOffset()));
         }
         return sb.append('}').toString();
     }
@@ -1038,8 +1200,8 @@ public final class OpenRocketEngine {
      * (BarrowmanStabilityCalculator's DIAMETER_DISCONTINUITY, AIRFRAME_GAP and
      * AIRFRAME_OVERLAP checks), as desktop does in the unit its user has chosen.
      * Left at the kernel's default, centimeters, an inch user is warned only at a
-     * step several times larger than desktop in inches warns at
-     * (openrocket/openrocket#3285). Only string formatting reads this; no number
+     * step several times larger than desktop in inches warns at, because the
+     * strings round in centimeters. Only string formatting reads this; no number
      * the kernel computes depends on it. An unknown symbol keeps the unit.
      */
     @JSExport
@@ -1079,18 +1241,41 @@ public final class OpenRocketEngine {
         return MotorCorrelation.similarity(curveMotor("a", times1, thrusts1), curveMotor("b", times2, thrusts2));
     }
 
-    /** A thrust-curve motor carrying only the curve, for comparing curves. */
+    /**
+     * A thrust curve's statistics as the kernel states them for the motor built
+     * from it (ThrustCurveMotor.computeStatistics): the burn measured between
+     * the crossings of 5% of peak thrust (Motor.MARGINAL_THRUST), the average
+     * thrust over that burn, the peak, and the total impulse. These are the
+     * figures desktop's motor table shows. JSON:
+     * {burnTime, averageThrust, maxThrust, totalImpulse}.
+     */
+    @JSExport
+    public static String getMotorStatistics(double[] times, double[] thrusts) {
+        try {
+            ThrustCurveMotor m = curveMotor("statistics", times, thrusts);
+            StringBuilder sb = new StringBuilder("{");
+            num(sb, "burnTime", m.getBurnTimeEstimate()).append(',');
+            num(sb, "averageThrust", m.getAverageThrustEstimate()).append(',');
+            num(sb, "maxThrust", m.getMaxThrustEstimate()).append(',');
+            num(sb, "totalImpulse", m.getTotalImpulseEstimate());
+            return sb.append('}').toString();
+        } catch (RuntimeException e) {
+            return errorJson(e);
+        }
+    }
+
+    /** A thrust-curve motor carrying only the curve, for comparing curves and reading its statistics. */
     private static ThrustCurveMotor curveMotor(String name, double[] times, double[] thrusts) {
         if (times == null || thrusts == null || times.length < 2 || thrusts.length != times.length) {
-            throw new IllegalArgumentException("motor similarity " + name + ": times/thrusts must be the same length and at least 2");
+            throw new IllegalArgumentException("motor curve " + name + ": times/thrusts must be the same length and at least 2");
         }
         Coordinate[] cg = new Coordinate[times.length];
         for (int i = 0; i < times.length; i++) {
             if (!isFinite(times[i]) || !isFinite(thrusts[i]) || thrusts[i] < 0) {
-                throw new IllegalArgumentException("motor similarity " + name + ": non-finite or negative sample at " + i);
+                throw new IllegalArgumentException("motor curve " + name + ": non-finite or negative sample at " + i);
             }
             if (i > 0 && times[i] < times[i - 1]) {
-                throw new IllegalArgumentException("motor similarity " + name + ": times must be non-decreasing at " + i);
+                throw new IllegalArgumentException("motor curve " + name + ": times must be non-decreasing at " + i);
             }
             cg[i] = new Coordinate(0.05, 0, 0, 0.1);
         }
@@ -1486,6 +1671,16 @@ public final class OpenRocketEngine {
         sb.append('}');
     }
 
+    /** Each point's x and y as a [x, y] pair; a non-finite value is written as null. */
+    private static StringBuilder points(StringBuilder sb, CoordinateIF[] values) {
+        sb.append('[');
+        for (int i = 0; i < values.length; i++) {
+            if (i > 0) sb.append(',');
+            nums(sb, new double[] { values[i].getX(), values[i].getY() });
+        }
+        return sb.append(']');
+    }
+
     private static StringBuilder nums(StringBuilder sb, double[] values) {
         sb.append('[');
         for (int i = 0; i < values.length; i++) {
@@ -1499,8 +1694,8 @@ public final class OpenRocketEngine {
     // ---------- Simulation ----------
 
     /**
-     * Runs a full flight simulation. Returns JSON:
-     * { summary:{...}, events:[{type,time}...], series:{time[],altitude[],velocity[],acceleration[]} }
+     * Runs a full flight simulation with the seven basic options. Returns what
+     * {@link #simulateJson} returns.
      */
     @JSExport
     public static String simulate(int rocketHandle, double launchRodLength, double launchRodAngle,
@@ -1527,8 +1722,9 @@ public final class OpenRocketEngine {
      *   temperature (K, launch-site), pressure (Pa, launch-site),
      *   timeStep, maxTime, randomSeed,
      *   series: "summary" (default) | "full" (see appendBranchSeries) }
-     * Custom temperature/pressure switch the atmosphere to an ISA model based
-     * at the launch site; otherwise standard ISA is used.
+     * Forecast atmosphereLevels select a profile; otherwise any of temperature,
+     * pressure or relativeHumidity selects an ISA model based at the launch
+     * site; otherwise standard ISA is used.
      */
     @JSExport
     public static String simulateJson(int rocketHandle, String optionsJson) {

@@ -1,9 +1,12 @@
 import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
-// Unit tests run under Vitest (Vite-native, so it reuses vite.config's `define`
-// for __APP_VERSION__ / __HELP_URL__ and the same module resolution). Playwright
-// e2e stays in ./e2e and is not picked up here.
+// Unit tests run under Vitest. This file takes the place of vite.config.ts for
+// them: Vitest reads one config, so nothing in vite.config.ts (its `define`,
+// plugins or resolution) applies here. The build-time constants the app reads
+// are defined below with test stand-ins, and the one virtual module a test
+// imports is aliased to a stub. Playwright e2e stays in ./e2e and is not picked
+// up here.
 //
 // Default environment is 'node' (fast, for the pure services). Tests that need a
 // DOM opt in per-file with a
@@ -44,20 +47,22 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'node',
+    setupFiles: ['tests/testing/allLocales.ts'],
     // Vitest isolates one worker per file, and this suite has hundreds of them.
     // Uncapped, a 32-core box starts one worker per file at ~9.5 s of startup
     // each, and under that load a file that drives the real TeaVM kernel can blow
     // the 5 s default timeout on a flight sim that takes about 1 s unloaded.
     // Capping the pool avoids that and is faster overall.
     maxWorkers: 4,
-    // CI runs the suite with coverage on a shared 4-vCPU runner, where tests
-    // run about ten times slower than on a developer machine: a 500 ms test
+    // CI runs the suite on a shared 4-vCPU runner, where tests run about ten
+    // times slower than on a developer machine: a 500 ms test
     // passes the 5 s default there. On CI the default is a minute, which still
     // catches a hang; off CI it stays at vitest's 5 s, so a test that has
     // started taking seconds is noticed where it is written. Files that fly the
     // kernel still set KERNEL_TEST_TIMEOUT_MS, which is longer.
     ...(process.env.CI ? { testTimeout: 60_000, hookTimeout: 60_000 } : {}),
-    // Reported and enforced. `npm run verify:ci` (what both workflows run) fails
+    // Reported and enforced by `npm run audit`, `verify:ci` and `test:coverage`,
+    // which are run by hand (CI runs `verify`), and fail
     // below these minimums; `npm run verify` and `npm test` do not collect coverage
     // at all and are unaffected, which is why instrumentation stays off the command
     // a developer types before pushing.
@@ -68,27 +73,24 @@ export default defineConfig({
     // when a higher reading has stayed put.
     coverage: {
       provider: 'v8',
-      // `json-summary` is what gates.yml reads to put the totals in the job
-      // summary; `text-summary` is the same numbers in the log, `lcov` the
-      // per-line file it uploads.
+      // `text-summary` is the totals in the log of `npm run audit` and
+      // `test:coverage`; `json-summary` the same numbers as a file, `lcov` the
+      // per-line report for an editor or a coverage viewer.
       reporter: ['text-summary', 'json-summary', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
       // Generated (the 2.9 MB TeaVM bundle), or not code under test.
       // The tests and their scaffolding live outside src, and coverage only
       // includes src, so neither needs excluding.
       exclude: ['src/engine/vendor/**', 'src/**/*.d.ts'],
-      // Measured 2026-10-02 (`npm run verify:ci`, 3490 tests in 263 files): lines
-      // 74.85%, statements 73.55%, branches 66.52%, functions 66%.
-      //
-      // Each minimum is about five points under its measurement: enough to absorb
-      // the ordinary wobble of a refactor that moves code between files, and
-      // little enough that deleting a tested module still fails. Twenty points of
-      // slack would let roughly a fifth of the suite be deleted and still pass.
+      // Each minimum is five points under its measurement (`npm run
+      // test:coverage`), rounded down to a whole number: enough to absorb the
+      // ordinary wobble of a refactor that moves code between files, and little
+      // enough that deleting a tested module still fails.
       //
       // Branches and functions are enforced as well as lines. A number nothing enforces is
       // decoration, and these two are where coverage actually erodes: a new `if`
       // with no test for its other side moves branches and leaves lines alone.
-      thresholds: { lines: 70, branches: 62, functions: 61, statements: 69 },
+      thresholds: { lines: 82, branches: 74, functions: 76, statements: 81 },
     },
   },
 });

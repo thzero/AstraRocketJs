@@ -4,7 +4,7 @@ import { Dialog } from '../common/Dialog';
 import { DialogButton } from '../common/DialogButton';
 
 /** Privacy policy modal: the app is client-only; nothing leaves the device
- *  except the optional public motor-data fetch. Copy lives in i18n.
+ *  except the optional fetches the dialog lists. Copy lives in i18n.
  *  Mounted only while open (`{open && <PrivacyDialog />}`). */
 export function PrivacyDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();
@@ -13,10 +13,9 @@ export function PrivacyDialog({ onClose }: { onClose: () => void }) {
       id="privacy"
       title={t('privacy.title')}
       onClose={onClose}
-      // It opens from the About dialog, so it has to sit above one.
       layer="over"
       layout="pad"
-      // Four paragraphs. Widening them past a readable measure would make them
+      // A few short paragraphs. Widening them past a readable measure would make them
       // harder to read, not easier.
       expandable={false}
     >

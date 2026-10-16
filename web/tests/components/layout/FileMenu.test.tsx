@@ -72,4 +72,29 @@ describe('FileMenu structure', () => {
     expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Save As…' }));
     spy.mockRestore();
   });
+
+  it('opens with focus on its first item and hands it back to the button on Escape', () => {
+    openMenu(true);
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'New' }));
+    fireEvent.keyDown(window, { key: 'Escape' });
+    expect(screen.queryByRole('menu')).toBeNull();
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Menu' }));
+  });
+
+  it('keeps the arrow keys it answers from reaching the page around it', () => {
+    const spy = vi.spyOn(HTMLElement.prototype, 'offsetParent', 'get').mockImplementation(function (this: HTMLElement) {
+      return this.parentElement;
+    });
+    const outer = vi.fn();
+    renderWithProviders(
+      <div onKeyDown={outer}>
+        <FileMenuButton canSave actions={actions()} />
+      </div>,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Menu' }));
+    fireEvent.keyDown(screen.getByRole('menu'), { key: 'ArrowDown' });
+    expect(outer).not.toHaveBeenCalled();
+    expect(document.activeElement).toBe(screen.getByRole('menuitem', { name: 'Open…' }));
+    spy.mockRestore();
+  });
 });

@@ -6,7 +6,7 @@ import { fmtMb } from '../../i18n/format';
 /**
  * Download feedback for the runtime catalogs (see services/app/remoteData.ts).
  *
- * The motor catalog is ~1.6 MB and the component catalog ~1.0 MB, fetched on
+ * The motor catalog is ~1.4 MB and the component catalog ~1.8 MB, fetched on
  * first use rather than bundled. A bare "Loading…" leaves the user unable to
  * tell a slow link from a stalled one, which is the common case on mobile,
  * where the transfer can legitimately take tens of seconds.

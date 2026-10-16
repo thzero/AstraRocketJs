@@ -62,7 +62,7 @@ describe('design library', () => {
     expect(treeName(await lib.read(meta.id))).toBe('bertha');
   });
 
-  it('keeps designs independent — saving one does not touch another', async () => {
+  it('keeps designs independent: saving one does not touch another', async () => {
     const a = await lib.create('A', ws('a'));
     const b = await lib.create('B', ws('b'));
     await lib.write(b.id, 'B', ws('b-edited'));

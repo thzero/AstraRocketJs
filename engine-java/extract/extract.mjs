@@ -210,7 +210,7 @@ const stale = walk(extractedRoot)
 console.log(`extract: source = ${coreJavaRoot}`);
 console.log(`extract: ${manifest.length} manifest files (${patches.length} patched), from OpenRocket source.`);
 if (missing.length) {
-  console.error(`extract: ${missing.length} manifest file(s) NOT FOUND upstream (version mismatch — update manifest/patches):`);
+  console.error(`extract: ${missing.length} manifest file(s) NOT FOUND upstream (version mismatch: update manifest/patches):`);
   missing.forEach((m) => console.error(`  - ${m}`));
 }
 if (stale.length) {

@@ -1,44 +1,69 @@
-import { describe, it, expect } from 'vitest';
-import type { MotorSpec } from '../../../src/engine/openRocketEngine';
+import { describe, it, expect, vi, beforeAll } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { __setEngineForTests, type MotorSpec } from '../../../src/engine/openRocketEngine';
 import { motorStats } from '../../../src/services/report/rocketReport';
+import { powerClass } from '../../../src/services/flight/powerClass';
+import { loadEngine } from '../../testing/kernelGeometry';
+import { fetchMotorSpec } from '../../../src/services/motors/thrustcurve';
+import type { CatalogMotor } from '../../../src/services/motors/motorDb';
+import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 
-// A simple triangular-ish curve: 10 N held for 2 s → 20 N·s, avg 10 N.
-const motor = {
-  designation: 'C6',
-  manufacturer: 'Estes',
-  diameter: 0.018,
-  length: 0.07,
-  times: [0, 1, 2],
-  thrusts: [10, 14, 0],
-  masses: [0.024, 0.018, 0.012],
-  ejectionDelay: 6,
-} as unknown as MotorSpec;
+vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
+beforeAll(async () => {
+  __setEngineForTests(await loadEngine());
+});
+
+/** The bundled catalog's Apogee C6, built into a spec the way the app builds one to fly. */
+async function apogeeC6(): Promise<MotorSpec> {
+  const rows = JSON.parse(
+    readFileSync(join(__dirname, '../../../public/data/motors.generated.json'), 'utf8'),
+  ) as CatalogMotor[];
+  const row = rows.find((r) => r.manufacturer === 'Apogee' && /^C6\b/.test(r.designation))!;
+  return fetchMotorSpec(row, 6);
+}
+
+/**
+ * The report's motor table prints the kernel's figures, as desktop's does
+ * (ThrustCurveMotor.computeStatistics): the burn runs between the crossings of
+ * 5% of peak thrust (Motor.MARGINAL_THRUST), and the average is over that burn.
+ * For the Apogee C6 the kernel states 1.20 s and 8.3 N; to the last sample it
+ * would be 1.32 s and 7.5 N.
+ */
 describe('motorStats', () => {
-  it('reads the peak of a curve too long to spread into Math.max', () => {
+  it("prints the kernel's burn time and average thrust for the Apogee C6", async () => {
+    const spec = await apogeeC6();
+    const m = motorStats(spec);
+    expect(m.burnTime).toBeCloseTo(1.2, 1);
+    expect(m.avgThrust).toBeCloseTo(8.3, 1);
+    // The burn ends before the curve's last sample.
+    expect(m.burnTime).toBeLessThan(spec.times[spec.times.length - 1]!);
+    expect(m.designation).toMatch(/^C6/);
+  });
+
+  /**
+   * A curve the kernel builds no motor from (one sample, as a RockSim file can
+   * carry) has no burn or average to state. It prints as no value rather than
+   * failing the report, and the power class does not fail the design over it.
+   */
+  it('states no burn or average for a curve the kernel cannot build, without failing', async () => {
+    const one = { ...(await apogeeC6()), times: [0], thrusts: [5], masses: [0.02] } as unknown as MotorSpec;
+    const m = motorStats(one);
+    expect(Number.isNaN(m.burnTime)).toBe(true);
+    expect(Number.isNaN(m.avgThrust)).toBe(true);
+    expect(() => powerClass([{ spec: one, count: 1 }], 0.1)).not.toThrow();
+    // A mount the configuration leaves empty is seated with a curve-less placeholder.
+    const none = { ...one, times: [], thrusts: [], masses: [] } as unknown as MotorSpec;
+    expect(() => powerClass([{ spec: none, count: 1 }], 0.1)).not.toThrow();
+  });
+
+  it('reads the peak of a curve too long to spread into Math.max', async () => {
     // Engines cap spread arguments well below a million.
     const n = 1_000_000;
     const times = Array.from({ length: n }, (_, i) => i / 1000);
     const thrusts = times.map((_, i) => (i === 1234 ? 99 : 5));
-    const m = motorStats({ ...motor, times, thrusts } as unknown as MotorSpec);
+    const m = motorStats({ ...(await apogeeC6()), times, thrusts } as unknown as MotorSpec);
     expect(m.maxThrust).toBe(99);
-  });
-
-  it('summarizes a thrust curve', () => {
-    const m = motorStats(motor);
-    expect(m.burnTime).toBe(2);
-    // Trapezoidal impulse: (10+14)/2 + (14+0)/2 = 12 + 7 = 19 N·s.
-    expect(m.totalImpulse).toBeCloseTo(19, 6);
-    expect(m.avgThrust).toBeCloseTo(9.5, 6); // 19 / 2
-    expect(m.maxThrust).toBe(14);
-    expect(m.weight).toBeCloseTo(0.024, 6); // loaded mass = masses[0]
-    expect(m.designation).toBe('C6');
-  });
-
-  it('handles an empty curve without dividing by zero', () => {
-    const m = motorStats({ ...motor, times: [], thrusts: [], masses: [] } as unknown as MotorSpec);
-    expect(m.burnTime).toBe(0);
-    expect(m.avgThrust).toBe(0);
-    expect(m.totalImpulse).toBe(0);
   });
 });

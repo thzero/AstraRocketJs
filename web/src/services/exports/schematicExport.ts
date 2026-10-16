@@ -1,10 +1,13 @@
 import type { StaticInfo } from '../../engine/openRocketEngine';
-import { fmtSi, type UnitSelection } from '../../prefs/units.js';
+import { siToUi, type UnitSelection } from '../../prefs/units.js';
 import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
+import { KeyedError } from '../../i18n/keyedError';
+import { fmtList, fmtNum, fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
+import { staticInfoRows } from '../report/designInfo';
 
 /**
- * 2D/3D image + model export with a data header, the drawings an L3 / Tripoli
+ * 2D/3D image export with a data header, the drawings an L3 / Tripoli
  * Class 3 certification packet includes. The SVG is true scale (its
  * width/height are physical millimeters, so it prints 1:1 and still scales
  * freely on screen); raster output is PNG or JPEG.
@@ -18,32 +21,43 @@ export interface ExportData {
   spanM?: number;
   withMotors: boolean;
   appVersion: string;
+  /** The UI's translator: the header is written in the language the user reads. */
+  t: (key: string, options?: Record<string, unknown>) => string;
 }
 
 /** RockSim-style header block: the numbers a cert reviewer wants on the page. */
 export function dataHeaderLines(d: ExportData): string[] {
-  const u = d.units;
+  const { t, units: u } = d;
+  // In the UI language's number format, as the margin beside them is.
+  const length = (si: number) => withUnit(fmtUpTo(siToUi('length', u.length, si), 3), u.length);
+  const mass = (si: number) => {
+    const v = siToUi('mass', u.mass, si);
+    return withUnit(fmtNum(v, ladderDigits(v)), u.mass);
+  };
   const lines: string[] = [d.name];
   if (d.info) {
     const i = d.info;
     const dims = [
-      `Length ${fmtSi('length', u.length, i.length, 3)} ${u.length}`,
-      `max diameter ${fmtSi('length', u.length, i.refDiameter, 3)} ${u.length}`,
-      ...(d.spanM ? [`span ${fmtSi('length', u.length, d.spanM, 3)} ${u.length}`] : []),
+      t('export.headerLength', { value: length(i.length) }),
+      t('export.headerMaxDiameter', { value: length(i.refDiameter) }),
+      ...(d.spanM ? [t('export.headerSpan', { value: length(d.spanM) })] : []),
     ];
-    lines.push(dims.join(', '));
+    lines.push(fmtList(dims));
     lines.push(
       d.withMotors
-        ? `Launch mass ${fmtSi('mass', u.mass, i.mass)} ${u.mass} (dry ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass})`
-        : `Dry mass ${fmtSi('mass', u.mass, i.massEmpty)} ${u.mass} — no motors loaded`,
+        ? t('export.headerLaunchMass', { mass: mass(i.mass), dry: mass(i.massEmpty) })
+        : t('export.headerDryMass', { dry: mass(i.massEmpty) }),
     );
+    // CP and margin only when the design has them, by the same test as every
+    // other design-info table: with no normal force there is no CP to state.
+    const hasCp = staticInfoRows(i).some((r) => r.key === 'cp');
     lines.push(
-      `CG ${fmtSi('length', u.length, i.cg, 3)} ${u.length}, ` +
-        `CP ${fmtSi('length', u.length, i.cp, 3)} ${u.length} from nose tip, ` +
-        `margin ${i.stabilityCalibers.toFixed(2)} cal`,
+      hasCp
+        ? t('export.headerBalance', { cg: length(i.cg), cp: length(i.cp), margin: fmtNum(i.stabilityCalibers, 2) })
+        : t('export.headerCg', { cg: length(i.cg) }),
     );
   }
-  lines.push(`${appName()} v${d.appVersion} — ${new Date().toISOString().slice(0, 10)}`);
+  lines.push(`${appName()} v${d.appVersion}, ${new Date().toISOString().slice(0, 10)}`);
   return lines;
 }
 
@@ -170,32 +184,49 @@ const JPEG_QUALITY = 0.92;
 const encodeCanvas = (canvas: HTMLCanvasElement, format: ImageFormat): Promise<Blob> =>
   new Promise((resolve, reject) => {
     canvas.toBlob(
-      (b) => (b ? resolve(b) : reject(new Error('image encode failed'))),
+      (b) => (b ? resolve(b) : reject(new KeyedError('errors.export.imageEncode'))),
       `image/${format}`,
       format === 'jpeg' ? JPEG_QUALITY : undefined,
     );
   });
 
-/** Rasterize an SVG string at the given pixel width. */
+/**
+ * Rasterize an SVG string at the given pixel width.
+ *
+ * A canvas past the browser's size limit (Safari stops near 16.7 Mpx, and the
+ * widest preset on a short, wide-finned rocket passes it) has no 2D context, and
+ * a browser may also throw while allocating it. Either way the promise rejects
+ * with a keyed error the caller shows, and the object URL is released on every
+ * path.
+ */
 export function svgToImage(svgString: string, widthPx = 3840, format: ImageFormat = 'png'): Promise<Blob> {
   return new Promise((resolve, reject) => {
     const url = URL.createObjectURL(new Blob([svgString], { type: 'image/svg+xml' }));
     const img = new Image();
     img.onload = () => {
-      const ratio = img.naturalHeight / Math.max(1, img.naturalWidth);
-      const canvas = document.createElement('canvas');
-      canvas.width = widthPx;
-      canvas.height = Math.round(widthPx * ratio);
-      const c = canvas.getContext('2d')!;
-      c.fillStyle = '#ffffff';
-      c.fillRect(0, 0, canvas.width, canvas.height);
-      c.drawImage(img, 0, 0, canvas.width, canvas.height);
-      URL.revokeObjectURL(url);
-      encodeCanvas(canvas, format).then(resolve, reject);
+      try {
+        const ratio = img.naturalHeight / Math.max(1, img.naturalWidth);
+        const canvas = document.createElement('canvas');
+        canvas.width = widthPx;
+        canvas.height = Math.round(widthPx * ratio);
+        const c = canvas.getContext('2d');
+        if (!c) {
+          reject(new KeyedError('errors.export.imageTooLarge'));
+          return;
+        }
+        c.fillStyle = '#ffffff';
+        c.fillRect(0, 0, canvas.width, canvas.height);
+        c.drawImage(img, 0, 0, canvas.width, canvas.height);
+        encodeCanvas(canvas, format).then(resolve, reject);
+      } catch {
+        reject(new KeyedError('errors.export.imageTooLarge'));
+      } finally {
+        URL.revokeObjectURL(url);
+      }
     };
     img.onerror = () => {
       URL.revokeObjectURL(url);
-      reject(new Error('SVG rasterize failed'));
+      reject(new KeyedError('errors.export.svgRasterize'));
     };
     img.src = url;
   });
@@ -206,7 +237,8 @@ export function svgToImage(svgString: string, widthPx = 3840, format: ImageForma
  * `glCanvas` is any canvas holding the rendered frame at export size: the
  * offscreen 2D canvas the render-target capture produces, or, on the
  * fallback path, the live WebGL canvas (which then needs
- * preserveDrawingBuffer for drawImage to see the frame).
+ * preserveDrawingBuffer for drawImage to see the frame). A composed canvas past
+ * the browser's size limit rejects with the same keyed error `svgToImage` gives.
  */
 export function snapshotWithHeader(
   glCanvas: HTMLCanvasElement,
@@ -220,9 +252,15 @@ export function snapshotWithHeader(
   const headerH = lineH * (lines.length + 1);
 
   const canvas = document.createElement('canvas');
-  canvas.width = w;
-  canvas.height = headerH + glCanvas.height;
-  const c = canvas.getContext('2d')!;
+  let c: CanvasRenderingContext2D | null;
+  try {
+    canvas.width = w;
+    canvas.height = headerH + glCanvas.height;
+    c = canvas.getContext('2d');
+  } catch {
+    c = null;
+  }
+  if (!c) return Promise.reject(new KeyedError('errors.export.imageTooLarge'));
   c.fillStyle = '#ffffff';
   c.fillRect(0, 0, canvas.width, canvas.height);
   c.fillStyle = '#20242c';

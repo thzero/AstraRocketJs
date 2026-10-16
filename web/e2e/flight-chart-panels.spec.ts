@@ -35,7 +35,11 @@ test('the run table downloads every simulation as CSV', async ({ page }) => {
   const file = await download;
   expect(file.suggestedFilename()).toMatch(/run-table\.csv$/);
   const text = await (await file.createReadStream()).toArray();
-  const csv = Buffer.concat(text).toString('utf8');
+  const raw = Buffer.concat(text).toString('utf8');
+  // A CSV download starts with a UTF-8 byte-order mark, so Excel on Windows
+  // reads the units and accented headings as UTF-8.
+  expect(raw.startsWith('﻿')).toBe(true);
+  const csv = raw.slice(1);
   expect(csv.split('\r\n')[0]).toMatch(/^Simulation,Configuration,Motors,Status,Apogee \(/);
   expect(csv.split('\r\n').filter(Boolean).length).toBeGreaterThan(1);
 });

@@ -11,6 +11,7 @@
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { catalogTypeFor, isComponentRow, type Component, type ComponentType, type PickerType } from './componentDb';
 import { getPresetStore, type CustomPart } from './presetStore';
+import { KeyedError } from '../../i18n/keyedError';
 
 /** What the manufacturer column says when the user names no maker. */
 export const DEFAULT_CUSTOM_MFR = 'Custom';
@@ -33,7 +34,7 @@ export const DEFAULT_CUSTOM_MFR = 'Custom';
 const NOT_SAVED: ReadonlySet<string> = new Set(['id', 'type', 'name', 'position', 'children']);
 
 /** What of a node gets saved: everything but its identity and where it sits. */
-export function presetNode(node: ComponentNode): Partial<ComponentNode> {
+export function presetNode(node: Partial<ComponentNode>): Partial<ComponentNode> {
   const out: Record<string, unknown> = {};
   for (const [k, v] of Object.entries(node)) if (!NOT_SAVED.has(k) && v !== undefined) out[k] = v;
   return out;
@@ -241,7 +242,7 @@ export interface PartMeta {
 /** Trimmed, with the two rules that apply wherever a part is written. */
 function cleanMeta(meta: PartMeta): PartMeta {
   const partNo = meta.partNo.trim();
-  if (!partNo) throw new Error('A part number is required');
+  if (!partNo) throw new KeyedError('errors.savedPart.partNoRequired');
   return { mfr: meta.mfr.trim() || DEFAULT_CUSTOM_MFR, partNo, desc: meta.desc.trim() };
 }
 
@@ -252,7 +253,7 @@ function newPartId(): string {
 
 /** The one write path: gate on the projection, store, announce. */
 async function write(part: CustomPart): Promise<CustomPart> {
-  if (!customPartToRow(part)) throw new Error('This part is missing the dimensions the picker lists parts by');
+  if (!customPartToRow(part)) throw new KeyedError('errors.savedPart.missingDimensions');
   await getPresetStore().add(part);
   bump();
   return part;
@@ -271,11 +272,11 @@ export async function updateCustomPart(id: string, meta: PartMeta, node: Partial
   const clean = cleanMeta(meta);
   const saved = await getPresetStore().list();
   const current = saved.find((p) => p.id === id);
-  if (!current) throw new Error('That part is no longer saved');
+  if (!current) throw new KeyedError('errors.savedPart.gone');
   const clash = saved.some(
     (p) => p.id !== id && p.type === current.type && p.mfr === clean.mfr && p.partNo === clean.partNo,
   );
-  if (clash) throw new Error('Another saved part of this type already uses that maker and name');
+  if (clash) throw new KeyedError('errors.savedPart.nameTaken');
   return write({ ...current, ...clean, node });
 }
 
@@ -288,8 +289,9 @@ export async function deleteCustomPart(id: string): Promise<void> {
 /**
  * The user's saved parts of one catalog type, as picker rows.
  *
- * Row by row, like the catalog itself: a part that no longer projects (an
- * older shape, a hand-edited store) costs that part and not the list.
+ * Row by row, like the catalog itself: a stored part that does not project (a
+ * shape this build does not read, a hand-edited store) costs that part and not
+ * the list.
  */
 export async function customRowsForType(type: ComponentType): Promise<Component[]> {
   const saved = await getPresetStore().list();

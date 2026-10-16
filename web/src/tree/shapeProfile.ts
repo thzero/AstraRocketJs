@@ -20,8 +20,9 @@
  *   same profile the engine then flies.
  */
 import type { ComponentNode } from '../engine/openRocketEngine';
-import { KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
-import { num, numOpt } from './nodeProps';
+import { KERNEL_AUTO_RADIUS, KERNEL_DEFAULTS, KERNEL_SHAPES } from './kernelDefaults';
+import { bodyTubeRadius, num, numOpt } from './nodeProps';
+import { partLength } from './position';
 
 const MINFEATURE = 0.001;
 const CLIP_PRECISION = 0.0001;
@@ -59,6 +60,32 @@ export function shapeParamMax(shape: string): number {
 /** Mirrors Shape.isClippable(): ellipsoid, power and haack transitions clip. */
 export function shapeIsClippable(shape: string): boolean {
   return shape === 'ellipsoid' || shape === 'power' || shape === 'haack';
+}
+
+/**
+ * The keys a nose cone or transition takes with a new shape, as
+ * `Transition.setShapeType` and `loadFromPreset` leave them: the shape's
+ * default parameter, and on a transition the shape's clippable flag. A
+ * parameter or clip kept from the old shape would fly a different profile
+ * (an ogive's 1.0 makes a power series a straight cone).
+ *
+ * A shape that cannot clip leaves no `clipped` key, as a file read leaves
+ * none: `Transition.isClipped` ignores the flag for it, and the `.ork` writer
+ * omits the tag.
+ */
+export function shapeChange(type: string, shape: string): Partial<ComponentNode> {
+  const patch: Partial<ComponentNode> = { shape, shapeParameter: shapeParamDefault(shape) };
+  if (type === 'transition') patch['clipped'] = shapeIsClippable(shape) ? true : undefined;
+  return patch;
+}
+
+/**
+ * What choosing `shape` for a part in the panel writes. The parameter and clip
+ * reset only when the shape changes: `Transition.setShapeType` returns early on
+ * the shape the part already has, so re-choosing it keeps both.
+ */
+export function shapeSelect(node: ComponentNode, shape: string): Partial<ComponentNode> {
+  return shape === nodeShape(node) ? { shape } : shapeChange(node.type, shape);
 }
 
 /**
@@ -221,7 +248,7 @@ export function outerProfile(
   }
 
   // Transition.getRadius() normalizes to the small end first: r1 < r2,
-  // x measured from the small end, flipped back afterwards.
+  // x measured from the small end, flipped back afterward.
   const flipped = foreR > aftR;
   const r1 = flipped ? aftR : foreR;
   const r2 = flipped ? foreR : aftR;
@@ -262,13 +289,20 @@ export function nodeShape(node: ComponentNode): string {
  * A nose cone runs from its tip to its base, and `aftRadius` holds the base.
  * Flipped, it is a tail cone: the kernel moves the base to the fore end
  * (`NoseCone.setFlipped`), so the profile runs from the base down to the tip.
+ *
+ * A transition end with no radius on record is automatic to the bridge, and
+ * `syncAutoRadii` writes the resolved radius onto it, so a missing one is a
+ * tree that has not been through it. With no neighbors in hand this reads it as
+ * the kernel does an automatic end with nothing to follow:
+ * `SymmetricComponent.DEFAULT_RADIUS`. The drawings resolve such a tree first
+ * (`autoRadius.withKernelEnds`), so they follow the neighbor as the kernel does.
  */
 export function profileEnds(node: ComponentNode): { fore: number; aft: number } {
   if (node.type === 'nosecone') {
     const base = num(node, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
     return node['flipped'] === true ? { fore: base, aft: 0 } : { fore: 0, aft: base };
   }
-  return { fore: num(node, 'foreRadius'), aft: num(node, 'aftRadius') };
+  return { fore: num(node, 'foreRadius', KERNEL_AUTO_RADIUS), aft: num(node, 'aftRadius', KERNEL_AUTO_RADIUS) };
 }
 
 /**
@@ -276,16 +310,14 @@ export function profileEnds(node: ComponentNode): { fore: number; aft: number } 
  *
  * `SymmetricComponent.getRadius(x)`: a tube is one radius end to end, a nose
  * cone runs from a point to its base and a transition between its two ends. The
- * station is clamped into the part, as the kernel's own getter does.
+ * station is clamped into the part, as the kernel's own getter does. A part
+ * with no `length` on record is the length the bridge builds it at.
  *
  * `extraX` gives the profile an exact sample at the station asked for, so this
- * reads the true curve rather than a chord between two even samples. Note
- * `reportGeometry` keeps its own copy of the same call: it already has the pair
- * of radii in hand from its walk, and would have to look them up again to use
- * this.
+ * reads the true curve rather than a chord between two even samples.
  */
 export function stationRadius(node: ComponentNode, x: number): number {
-  const length = num(node, 'length');
+  const length = partLength(node);
   switch (node.type) {
     case 'nosecone':
     case 'transition': {
@@ -296,6 +328,8 @@ export function stationRadius(node: ComponentNode, x: number): number {
       const pts = outerProfile(nodeShape(node), numOpt(node, 'shapeParameter'), length, foreR, aftR, 1, [at], clipped);
       return pts.find(([px]) => Math.abs(px - at) < 1e-9)?.[1] ?? aftR;
     }
+    case 'bodytube':
+      return bodyTubeRadius(node);
     default:
       return num(node, 'outerRadius');
   }

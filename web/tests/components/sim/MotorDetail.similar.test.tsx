@@ -52,3 +52,20 @@ describe('the curve choice', () => {
     expect(screen.getByText('Out of production')).toBeTruthy();
   });
 });
+
+describe('the ThrustCurve link', () => {
+  it('is offered for a catalog motor, named without its arrow glyph', () => {
+    renderWithProviders(<MotorDetail motor={motor} curveIndex={0} onCurveChange={vi.fn()} />);
+    expect(screen.getByRole('link', { name: 'View on ThrustCurve.org' })).toBeTruthy();
+  });
+
+  it('is left out for an imported motor', () => {
+    renderWithProviders(<MotorDetail motor={{ ...motor, custom: true }} curveIndex={0} onCurveChange={vi.fn()} />);
+    expect(screen.queryByRole('link')).toBeNull();
+  });
+
+  it('names the back button without its arrow glyph', () => {
+    renderWithProviders(<MotorDetail motor={motor} curveIndex={0} onCurveChange={vi.fn()} onBack={vi.fn()} />);
+    expect(screen.getByRole('button', { name: 'Back to list' })).toBeTruthy();
+  });
+});

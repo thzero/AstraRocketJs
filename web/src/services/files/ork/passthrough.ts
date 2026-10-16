@@ -1,4 +1,7 @@
+// cspell:ignore randomseed recoveryspeedwarning droguelowspeedwarning Lowspeedwarning recoverydroguemainhighspeedwarning recoverydroguemainlowspeedwarning -- OpenRocket .ork element names
 import type { ComponentNode, RocketTree } from '../../../engine/openRocketEngine';
+import { KeyedError } from '../../../i18n/keyedError';
+import { MAX_PASSTHROUGH } from './importLimits';
 
 /**
  * Elements of a component that this app does not understand, carried through a
@@ -104,7 +107,9 @@ export const KNOWN_COMPONENT_TAGS: ReadonlySet<string> = new Set([
   'cd',
   'linecount',
   'linelength',
+  'linelengthauto',
   'cordlength',
+  'cordlengthauto',
   'striplength',
   'stripwidth',
   'width',
@@ -141,8 +146,6 @@ export const KNOWN_COMPONENT_TAGS: ReadonlySet<string> = new Set([
   'finleradius',
   'caseairframe',
   'fairingshape',
-  // Legacy aliases the reader accepts.
-  'value',
 ]);
 
 /**
@@ -199,6 +202,59 @@ export const KNOWN_SIMULATION_TAGS: ReadonlySet<string> = new Set([
   'flightdata',
 ]);
 
+/**
+ * Children of a simulation's `<conditions>` that our own reader or writer
+ * handles, lower case. The writer states the run's time step, time limit and
+ * recovery warning thresholds from the simulation preferences, so a file's own
+ * are not carried beside them.
+ *
+ * The rest are carried: the stepper choice and the drag and stability lookup
+ * tables have no counterpart here, and `randomseed` is written back as the file
+ * had it unless the preferences fix a seed of their own.
+ */
+export const KNOWN_CONDITIONS_TAGS: ReadonlySet<string> = new Set([
+  'configid',
+  'launchrodlength',
+  'launchintowind',
+  'launchrodangle',
+  'launchroddirection',
+  'windaverage',
+  'windturbulence',
+  'winddirection',
+  'wind',
+  'windmodeltype',
+  'launchaltitude',
+  'launchlatitude',
+  'launchlongitude',
+  'geodeticmethod',
+  'atmosphere',
+  'launchrelativehumidity',
+  'gravity',
+  'gravitymodel',
+  'constantgravity',
+  'weathersource',
+  'timestep',
+  'maxtime',
+  'recoveryspeedwarning',
+  'droguelowspeedwarning',
+  'recoverydroguemainhighspeedwarning',
+  'recoverydroguemainlowspeedwarning',
+]);
+
+/**
+ * A carried `<conditions>` child rides in the simulation's passthrough list
+ * wrapped in its own `<conditions>` element, so the writer can put it back
+ * inside the conditions it writes rather than beside them.
+ */
+export const wrapConditionsChild = (raw: string): string => `<conditions>${raw}</conditions>`;
+
+/** The child a {@link wrapConditionsChild} entry carries, or null for any other entry. */
+export function unwrapConditionsChild(raw: string): string | null {
+  const open = '<conditions>';
+  const close = '</conditions>';
+  return raw.startsWith(open) && raw.endsWith(close) ? raw.slice(open.length, -close.length) : null;
+}
+
 /** The node key the raw XML rides on. Not a `FIELDS` entry, so never editable. */
 export const EXTRA_KEY = 'xmlExtra';
 
@@ -234,6 +290,7 @@ export function readPassthrough(el: Element, known: ReadonlySet<string> = KNOWN_
   const serializer = new XMLSerializer();
   for (const child of Array.from(el.children)) {
     if (known.has(child.tagName.toLowerCase())) continue;
+    if (xml.length === MAX_PASSTHROUGH) throw new KeyedError('errors.file.tooManyUnknownElements');
     // Cloned before editing: the caller's document is still being read, and a
     // reader that runs after this one would otherwise see a modified tree.
     const copy = child.cloneNode(true) as Element;

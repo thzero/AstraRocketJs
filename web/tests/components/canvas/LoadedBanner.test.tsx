@@ -62,8 +62,8 @@ describe('LoadedBanner import notes', () => {
 
 /**
  * A keyed note is translated when the card renders, in the language showing
- * then, with its data interpolated as is. A plain string is what a workspace
- * saved by an earlier build holds, and it shows exactly as stored.
+ * then, with its data interpolated as is. A note stored as a plain string
+ * shows exactly as stored.
  */
 describe('LoadedBanner note text', () => {
   const notes = {

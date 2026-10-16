@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 /** What the last manual check found. */
-export type UpdateCheckResult = 'idle' | 'checking' | 'upToDate' | 'available' | 'failed';
+type UpdateCheckResult = 'idle' | 'checking' | 'upToDate' | 'available' | 'failed';
 
 interface UpdateState {
   /**

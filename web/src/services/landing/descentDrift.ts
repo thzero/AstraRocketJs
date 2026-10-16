@@ -29,7 +29,7 @@ export interface DescentPlan {
   apogeeAglM: number;
   /** The drogue's rate, or the only parachute's. */
   firstRateMs: number;
-  /** A main, opening at `mainAglM` above the pad. Absent for single deployment. */
+  /** A main, opening at `aglM` above the pad. Absent for single deployment. */
   main?: { rateMs: number; aglM: number };
 }
 

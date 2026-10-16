@@ -8,7 +8,7 @@ import { useUnits, type Units } from '../../prefs/useUnits';
 import { partLabel } from '../../i18n/format';
 import { isFinSet } from '../../tree/tubefins';
 import { token } from '../common/colorTokens';
-import type { TreeCommand } from './useTreeEdit';
+import type { TreeCommands } from './useTreeEdit';
 
 // Parts offered in the "Add part" menu, grouped like OpenRocket's palette.
 // Labels come from the `part.*` / `tree.*` i18n keys at render time.
@@ -16,13 +16,13 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
   { group: 'groupBody', items: ['nosecone', 'bodytube', 'transition'] },
   { group: 'groupFins', items: ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset', 'tubefinset'] },
   { group: 'groupInner', items: ['innertube', 'tubecoupler', 'centeringring', 'bulkhead', 'engineblock'] },
-  { group: 'groupRecovery', items: ['parachute', 'streamer'] },
-  { group: 'groupOther', items: ['launchlug', 'masscomponent'] },
-  { group: 'groupAssembly', items: ['podset'] },
+  { group: 'groupRecovery', items: ['parachute', 'streamer', 'shockcord'] },
+  { group: 'groupOther', items: ['launchlug', 'railbutton', 'masscomponent'] },
+  { group: 'groupAssembly', items: ['podset', 'parallelstage'] },
 ];
 
 /**
- * Read-only component tree for the left panel: an OpenRocket-style indented
+ * The component tree for the left panel: an OpenRocket-style indented
  * hierarchy of the rocket's parts (stage > components > sub-components). Renders
  * the same `RocketTree` the 2D/3D views draw, so it works for a loaded `.ork`
  * design as well as the built-in editor design. Each row shows a category dot,
@@ -30,7 +30,8 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  *
  * Selection is two-way with the 2D schematic: clicking a row selects the part
  * (and the schematic outlines it); selecting in the schematic highlights the
- * row here and scrolls it into view.
+ * row here and scrolls it into view. The header adds parts and stages, opens
+ * Scale, and carries Cut, Copy, Paste and Duplicate when `edit` is given.
  *
  * A real `tree` of `treeitem`s, not `role="button"` rows: a button may not contain
  * interactive content, which the expand toggle and the export button are, and it
@@ -134,7 +135,9 @@ const typeLabel = (type: string, t: TFunction): string => t(`part.${type}`, { de
 function detail(n: ComponentNode, t: TFunction, u: Units): string {
   const ty = n.type;
   if (ty === 'nosecone')
-    return [typeof n.shape === 'string' ? n.shape : null, len(u, n.length)].filter(Boolean).join(' · ');
+    return [typeof n.shape === 'string' ? t(`noseShape.${n.shape}`, { defaultValue: n.shape }) : null, len(u, n.length)]
+      .filter(Boolean)
+      .join(' · ');
   if (isFinSet(ty)) {
     const c = n.finCount ?? n.count;
     return typeof c === 'number' ? t('tree.fins', { count: c }) : '';
@@ -249,12 +252,14 @@ function Row({
         </span>
         <span className={`truncate text-sm ${selected ? 'text-accent-200' : 'text-ink'}`}>{name}</span>
         {isMount && (
-          <span className="shrink-0 rounded bg-accent-500/15 px-1 text-[10px] font-medium text-accent-300">
+          <span className="shrink-0 rounded bg-accent-500/15 px-1 text-[10px] font-medium text-accent-200">
             {t('tree.motorTag')}
           </span>
         )}
         <div className="ml-auto flex shrink-0 items-center gap-1 pl-2">
-          {det && <span className="text-[11px] tabular-nums text-ink-faint">{det}</span>}
+          {det && (
+            <span className={`text-[11px] tabular-nums ${selected ? 'text-ink-muted' : 'text-ink-faint'}`}>{det}</span>
+          )}
           {/* Tabbable only on the tree's tab stop row, so the tree stays one
               stop plus the export button of the row it is on. */}
           <ComponentExportButton node={node} tabIndex={selectable && id === tabbableId ? 0 : -1} />
@@ -292,8 +297,11 @@ export function ComponentTree({
   onAdd?: (type: ComponentType) => void;
   onScale?: () => void; // open the whole-rocket scale dialog
   onAddStage?: () => void; // append a new (booster) stage at the bottom
-  /** Cut, Copy, Paste and Duplicate (useTreeEdit): buttons in the header, and their shortcuts on the rows. */
-  edit?: { cut: TreeCommand; copy: TreeCommand; paste: TreeCommand; duplicate: TreeCommand };
+  /**
+   * Cut, Copy, Paste and Duplicate (useTreeEdit): buttons in the header on the
+   * selected part, and their shortcuts on the focused row (`at`).
+   */
+  edit?: TreeCommands & { at?: (id: string) => TreeCommands };
 }) {
   const { t } = useTranslation();
   // Ids of collapsed (folded) branches: ephemeral view state per node id.
@@ -387,11 +395,15 @@ export function ComponentTree({
     // Only the row itself navigates: arrows pressed inside a row's export menu
     // belong to that menu.
     if (e.target !== rowEl) return;
-    // Desktop's Edit shortcuts, on the selected part, while a row has focus.
-    // Scoped to the tree so text fields keep their own copy and paste, and
-    // Ctrl+D here duplicates rather than bookmarking the page.
+    // Desktop's Edit shortcuts, on the focused row. The arrow keys move focus
+    // without selecting, and desktop's selection follows them, so the command
+    // acts on the row the keys reached, not on an earlier selection. Scoped to
+    // the tree so text fields keep their own copy and paste, and Ctrl+D here
+    // duplicates rather than bookmarking the page.
     if (edit && (e.ctrlKey || e.metaKey) && !e.altKey && !e.shiftKey) {
-      const command = { x: edit.cut, c: edit.copy, v: edit.paste, d: edit.duplicate }[e.key.toLowerCase()];
+      const focusedId = rowEl.getAttribute('data-id');
+      const on = (focusedId && edit.at?.(focusedId)) || edit;
+      const command = { x: on.cut, c: on.copy, v: on.paste, d: on.duplicate }[e.key.toLowerCase()];
       if (command) {
         e.preventDefault();
         if (command.enabled) command.run();
@@ -441,17 +453,13 @@ export function ComponentTree({
     }
   };
 
-  // Fold the whole list away (header stays) so the property editor gets the room
-  // once a part is picked. Collapsed, the header names the selected part.
+  // Fold the whole list away (header stays). Collapsed, the header names the
+  // selected part.
   const [listOpen, setListOpen] = useState(true);
   // One lookup serves both the collapsed header's name and the Add menu's parent
   // type.
   const selectedNode = selectedId ? findNode(tree, selectedId) : null;
-  const selectedName = selectedNode
-    ? typeof selectedNode.name === 'string' && selectedNode.name
-      ? selectedNode.name
-      : typeLabel(selectedNode.type, t)
-    : null;
+  const selectedName = selectedNode ? partLabel(t, selectedNode) : null;
 
   // The Add menu is contextual: it offers only the child types valid for the
   // selected part (the stage when nothing is selected). A leaf part: no menu.

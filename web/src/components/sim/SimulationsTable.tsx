@@ -1,10 +1,11 @@
 import { useTranslation } from 'react-i18next';
 import type { Simulation, SimPrefs, SimStatus, SimRun } from '../../services/flight/simulations';
-import { isOutdated, simStatus } from '../../services/flight/simulations';
+import { isOutdated, simStatus, simStatusLabel } from '../../services/flight/simulations';
 import type { RocketTree } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import { warningText } from '../../services/app/warningText';
 import { loadoutLabel, type FlightConfig } from '../../services/flight/flightConfigs';
 import { configOf } from '../../state/store';
@@ -92,16 +93,6 @@ export function SimulationsTable({
   const allTicked = sims.length > 0 && selectedIds.length === sims.length;
   const someTicked = selectedIds.length > 0 && !allTicked;
 
-  const statusLabel: Record<SimStatus, string> = {
-    upToDate: t('sims.statusUpToDate'),
-    outdated: t('sims.statusOutdated'),
-    queued: t('sims.statusQueued'),
-    running: t('sims.statusRunning'),
-    failed: t('sims.statusFailed'),
-    notRun: t('sims.notRun'),
-    fromFile: t('sims.statusFromFile'),
-  };
-
   return (
     <table className="w-full border-collapse text-sm">
       <thead>
@@ -184,7 +175,7 @@ export function SimulationsTable({
               <Td>
                 <span className="flex items-center gap-1.5">
                   <span className={`size-2 shrink-0 rounded-full ${TONE[status]}`} aria-hidden />
-                  <span className="text-[11px] text-ink-muted">{statusLabel[status]}</span>
+                  <span className="text-[11px] text-ink-muted">{simStatusLabel(status, t)}</span>
                   {/* A run can be current and have flagged something, which the
                       status dot on its own cannot say. The detail is on the
                       Results tab; this is the pointer to it. */}
@@ -315,7 +306,7 @@ function Td({ children, wide }: { children: React.ReactNode; wide?: boolean }) {
 function Num({ children, wide, className }: { children: React.ReactNode; wide?: boolean; className?: string }) {
   return (
     <td className={`${wide ? 'hidden lg:table-cell' : ''} px-2 py-2 text-right tabular-nums ${className ?? ''}`}>
-      {children ?? <span className="text-ink-dim">–</span>}
+      {children ?? <span className="text-ink-dim">{NO_VALUE}</span>}
     </td>
   );
 }

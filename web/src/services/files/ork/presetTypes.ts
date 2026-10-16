@@ -42,7 +42,7 @@ export const kernelPresetType = (type: string | undefined): string => (type ? (T
  * The row type for an enum constant.
  *
  * Falls back to the lowercased original, so a file that already carried our
- * spelling (or a constant added upstream after this map was written) still reads
+ * spelling (or a constant this map does not list) still reads
  * as something rather than as nothing.
  */
 export const appPresetType = (type: string | undefined): string =>

@@ -114,32 +114,57 @@ export async function saveBlob(blob: Blob, filename: string): Promise<void> {
   anchorDownload(blob, filename);
 }
 
+const BOM = String.fromCharCode(0xfeff);
+
+/**
+ * The text a file of type `mime` is saved with. A CSV starts with a UTF-8
+ * byte-order mark, because Excel on Windows opens a CSV without one in the
+ * ANSI code page and garbles every degree sign, superscript and accented name.
+ * The mark is added here, at the download, so every CSV builder's string (and
+ * anything that reads one back) stays free of it; the wind-profile reader
+ * strips one when a file brings it.
+ */
+function textForSave(text: string, mime: string): string {
+  const isCsv = mime.trim().toLowerCase().startsWith('text/csv');
+  return isCsv && !text.startsWith(BOM) ? BOM + text : text;
+}
+
 /** Save text as a file. */
 export async function saveText(text: string, filename: string, mime = 'text/plain;charset=utf-8'): Promise<void> {
-  await saveBlob(new Blob([text], { type: mime }), filename);
+  await saveBlob(new Blob([textForSave(text, mime)], { type: mime }), filename);
 }
 
 /**
- * Hand the user a file and don't wait for it: the one entry point every
- * export button uses.
+ * Hand the user a file and don't wait for it. One of the entry points; every
+ * export ends in `saveBlob`.
  *
  * Filename first, matching `safeFilename` beside it. A `string` payload
  * type-checks in either position, so one shared argument order is what keeps a
  * caller from downloading a file named after its own contents.
  */
 export function download(filename: string, data: BlobPart, mime = 'text/plain;charset=utf-8'): void {
-  void saveBlob(data instanceof Blob ? data : new Blob([data], { type: mime }), filename);
+  const part = typeof data === 'string' ? textForSave(data, mime) : data;
+  void saveBlob(part instanceof Blob ? part : new Blob([part], { type: mime }), filename);
 }
 
 /**
  * Strip characters a filesystem will not take, keeping a usable fallback.
  *
- * Requires something alphanumeric to survive: a name made only of separators
+ * Letters and digits of any script survive, so a Cyrillic or Japanese design
+ * name still names its file. Everything else but `.`, `_` and `-` becomes `_`:
+ * whitespace, path separators, the characters Windows reserves (`<>:"/\|?*`)
+ * and controls. Leading dots go, so a name never makes a hidden file or a `..`
+ * segment.
+ *
+ * Requires a letter or digit to survive: a name made only of separators
  * ("///") collapses to "_", which is truthy but a useless filename.
  */
 export function safeFilename(name: string, fallback = 'rocket'): string {
-  const cleaned = (name ?? '').trim().replace(/[^a-z0-9._-]+/gi, '_');
-  return /[a-z0-9]/i.test(cleaned) ? cleaned : fallback;
+  const cleaned = (name ?? '')
+    .trim()
+    .replace(/[^\p{L}\p{M}\p{N}._-]+/gu, '_')
+    .replace(/^\.+/, '');
+  return /[\p{L}\p{N}]/u.test(cleaned) ? cleaned : fallback;
 }
 
 /**
@@ -152,8 +177,8 @@ export function safeFilename(name: string, fallback = 'rocket'): string {
  *
  *   about the rocket    rocket + what it is             Bertha-design.ork
  *                                                       Bertha-aero-table.csv
- *   about a simulation  rocket + sim + what it is       Bertha-C6 flight-flight-events.csv
- *   a printable part    rocket + component              Bertha-Nose cone.stl
+ *   about a simulation  rocket + sim + what it is       Bertha-C6_flight-flight-events.csv
+ *   a printable part    rocket + component              Bertha-Nose_cone.stl
  *
  * A design document is not an exception to the first line: `.ork`, `.rkt` and
  * `.CDX1` are "-design", the way the report is "-report". A name says which

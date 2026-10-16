@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useWorkspaceStore, selectActive, selectDesignName } from '../../state/store';
+import { useWorkspaceStore, selectDesignName, selectShownSim } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
 import { useSettings } from '../../state/SettingsProvider';
 import { StabilityBadge } from './StabilityBadge';
@@ -43,9 +43,11 @@ export function CenterView() {
   };
   const view = useWorkspaceStore((s) => s.view);
   const info = useWorkspaceStore((s) => s.info);
-  const result = useWorkspaceStore((s) => selectActive(s).result);
+  // The flight the Results tab shows, the one the charts draw: the numbers above
+  // them must describe the same run.
+  const result = useWorkspaceStore((s) => selectShownSim(s).result ?? null);
   const designName = useWorkspaceStore(selectDesignName);
-  const simName = useWorkspaceStore((s) => selectActive(s).name);
+  const simName = useWorkspaceStore((s) => selectShownSim(s).name);
   const { flight, pathResult } = useResultFlight();
   const { recoveryWeight, recoveryEstimated } = useRecoveryMass();
   const { settings, update } = useSettings();
@@ -86,7 +88,7 @@ export function CenterView() {
         <div className="max-h-[45%] shrink-0 space-y-3 overflow-y-auto px-3 pt-3 lg:hidden">
           {!desktop && <FlightWarnings sim={result} />}
           <SimSummary sim={result} />
-          <FlightEventsTable sim={result} simName={flight?.name ?? simName} designName={designName} />
+          <FlightEventsTable sim={result} simName={simName} designName={designName} />
         </div>
       )}
       {/* Everything from here to the stats strip is the drawing half: the view
@@ -103,12 +105,7 @@ export function CenterView() {
         className={`${showDrawing ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
       >
         <div className={sideways ? 'sketch-rotate flex flex-col' : 'flex min-h-0 flex-1 flex-col'}>
-          <CenterToolbar
-            resultName={flight?.name ?? simName}
-            onCtrlSlot={setCtrlSlot}
-            maxed={maxed}
-            onToggleMaxed={toggleMaxed}
-          />
+          <CenterToolbar resultName={simName} onCtrlSlot={setCtrlSlot} maxed={maxed} onToggleMaxed={toggleMaxed} />
           <CenterCanvas flight={flight} pathResult={pathResult} ctrlSlot={ctrlSlot} />
         </div>
       </div>

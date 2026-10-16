@@ -1,6 +1,7 @@
 import type { ComponentNode } from '../engine/openRocketEngine';
 import { ASSEMBLY_TYPES, isChainType, type AssemblyType } from './componentKinds';
-import { chainOuterRadius, num } from './nodeProps';
+import { kernelLength } from './kernelDefaults';
+import { bodyTubeRadius, chainOuterRadius, num } from './nodeProps';
 
 /**
  * Geometry helpers for off-axis assemblies (PodSet / ParallelStage), shared
@@ -13,10 +14,14 @@ import { chainOuterRadius, num } from './nodeProps';
 /**
  * Total axial length of the assembly's own body chain (m): its chain members
  * (a mini nose→body→transition stack), per the one `CHAIN_TYPES` table in
- * componentKinds.ts rather than a local copy of it.
+ * componentKinds.ts rather than a local copy of it. A member with no `length`
+ * counts at the kernel's default for its type, as `partLength` reads it
+ * (position.ts imports this module, so the rule is repeated here).
  */
 export function assemblyChainLength(pod: ComponentNode): number {
-  return (pod.children ?? []).filter((c) => isChainType(c.type)).reduce((s, c) => s + num(c, 'length', 0), 0);
+  return (pod.children ?? [])
+    .filter((c) => isChainType(c.type))
+    .reduce((s, c) => s + num(c, 'length', kernelLength(c.type) ?? 0), 0);
 }
 
 /** Largest outer radius among the assembly's own body chain (m). */
@@ -27,17 +32,36 @@ export function assemblyBoundingRadius(pod: ComponentNode): number {
 }
 
 /**
- * Distance (m) from the parent centerline to the assembly's centerline.
+ * Distance (m) from the parent centerline to the assembly's centerline,
+ * `RadiusMethod.getRadius`:
  * - `relative` (default): `radiusOffset` is a gap from the parent surface, so
  *   the resolved radius = offset + parentOuterRadius + assemblyBoundingRadius
  *   (offset 0 ⇒ the pod just touches the airframe).
+ * - `surface`: touching the parent surface, whatever the offset:
+ *   parentOuterRadius + assemblyBoundingRadius.
  * - `free`: `radiusOffset` is measured straight from the parent centerline.
+ * - `coaxial`: on the parent's axis, 0.
+ *
+ * `parentOuterRadius` is the parent's radius when the parent is a body tube
+ * and 0 for any other parent: the kernel adds a parent's radius only for a
+ * `BodyTube` ({@link assemblyParentRadius}).
  */
 export function resolveAssemblyRadius(pod: ComponentNode, parentOuterRadius: number): number {
   const offset = num(pod, 'radiusOffset', 0);
   const method = typeof pod['radiusMethod'] === 'string' ? pod['radiusMethod'] : 'relative';
   if (method === 'free') return offset;
+  if (method === 'coaxial') return 0;
+  if (method === 'surface') return parentOuterRadius + assemblyBoundingRadius(pod);
   return offset + parentOuterRadius + assemblyBoundingRadius(pod);
+}
+
+/**
+ * The parent radius an assembly is placed against: a body tube's outer
+ * radius, and 0 for a stage, nose cone, transition or anything else, which
+ * `RadiusMethod` does not add (it reads `BodyTube.getOuterRadius` only).
+ */
+export function assemblyParentRadius(parent: ComponentNode | null | undefined): number {
+  return parent?.type === 'bodytube' ? bodyTubeRadius(parent) : 0;
 }
 
 export interface RingInstance {

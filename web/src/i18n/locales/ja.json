@@ -19,12 +19,168 @@
     "shrink": "このダイアログを元の大きさに戻す"
   },
   "errors": {
+    "material": {
+      "nameRequired": "材料名を入力してください。",
+      "densityPositive": "密度は正の数にしてください。"
+    },
+    "savedPart": {
+      "partNoRequired": "部品番号を入力してください。",
+      "missingDimensions": "この部品には、ピッカーが部品を並べるのに使う寸法がありません。",
+      "gone": "その部品はもう保存されていません。",
+      "nameTaken": "この種類の別の保存済み部品が、すでにそのメーカーと名前を使っています。"
+    },
+    "file": {
+      "notDesign": "ロケット設計ファイルではありません。OpenRocket (.ork) または RockSim (.rkt) のファイルを選んでください。",
+      "notOrk": ".ork ファイルではありません（<rocket> がありません）。",
+      "notRkt": ".rkt ファイルではありません（<RocketDesign> がありません）。",
+      "noStage": "この .ork には段がありません。",
+      "noComponents": "この設計には対応している部品がありません。",
+      "xmlInvalid": "有効な {{format}} ファイルではありません（XML の解析エラー）。",
+      "archiveTooManyEntries": ".ork アーカイブの項目が多すぎます。",
+      "archiveTooLarge": ".ork アーカイブが大きすぎます（zip 爆弾の可能性があります）。",
+      "archiveEmpty": ".ork アーカイブが空です。",
+      "archiveCorrupt": ".ork アーカイブが破損しているか、読み取れません。",
+      "tooManyComponents": "この {{format}} は部品数が多すぎるため開けません（壊れている可能性があります）。",
+      "tooManySimulations": "この .ork はシミュレーション数が多すぎるため開けません（壊れている可能性があります）。",
+      "tooManyUnknownElements": "この .ork は認識できない要素が多すぎるため開けません（壊れている可能性があります）。",
+      "tooManyConfigs": "この .ork は飛行構成の数が多すぎるため開けません（壊れている可能性があります）。",
+      "tooDeep": "この {{format}} は入れ子が深すぎるため開けません（壊れている可能性があります）。",
+      "tooLarge": "ファイルが大きすぎるため開けません（{{size}} MiB 超）。"
+    },
+    "rasaero": {
+      "tooManyStages": "RASAero が扱える段は最大 {{max}} 段です。",
+      "boosterNoTube": "段「{{stage}}」にはボディチューブがありませんが、RASAero のブースターには必要です。",
+      "boosterTransitions": "RASAero のブースターはショルダーとボートテールしか扱えません。段「{{stage}}」にはほかのトランジションがあります。.ork でエクスポートしてください。",
+      "boosterFins": "RASAero ではブースター 1 つにつきフィンセットは 1 つだけです。段「{{stage}}」には複数あります。.ork でエクスポートしてください。",
+      "tubeFins": "RASAero ではチューブ 1 本につきフィンセットは 1 つだけです。余分なものを削除するか、.ork でエクスポートしてください。",
+      "freeformFins": "RASAero のフィンは台形ですが、「{{name}}」の自由形状の輪郭は 3 点または 4 点の単純な台形ではありません。形を単純にするか、.ork でエクスポートしてください。",
+      "ellipticalFins": "RASAero には楕円フィンがないため、「{{name}}」はエクスポートできません。台形フィンを使うか、.ork でエクスポートしてください。",
+      "tubeFinsUnsupported": "RASAero にはチューブフィンがないため、「{{name}}」はエクスポートできません。台形フィンを使うか、.ork でエクスポートしてください。",
+      "finCount": "RASAero ではフィンセットあたり 3〜8 枚のフィンが必要です（現在 {{found}} 枚）。「{{name}}」を調整してください。",
+      "noseShape": "RASAero には「{{shape}}」のノーズ形状がありません。円錐、オジーブ、楕円体、Haack、べき乗のいずれかを使うか、.ork でエクスポートしてください。",
+      "transitionShape": "RASAero のトランジションは円錐形でなければなりません。形状を変えるか、.ork でエクスポートしてください。",
+      "noPods": "RASAero にはポッドがないため、「{{name}}」はエクスポートできません。削除するか、.ork でエクスポートしてください。",
+      "noParallel": "RASAero には並列（ストラップオン）段がないため、「{{name}}」はエクスポートできません。削除するか、.ork でエクスポートしてください。",
+      "noseFirst": "RASAero の設計はノーズコーンから始まりますが、サステナーの最初の部品は「{{name}}」です。ノーズコーンを先頭に置くか、.ork でエクスポートしてください。",
+      "secondPart": "RASAero ではノーズコーンの直後にボディチューブ、または最後の部品としてボートテールが必要なため、「{{name}}」をそこに置けません。順序を変えるか、.ork でエクスポートしてください。",
+      "noseNotFirst": "RASAero ではノーズコーンは最初の部品にしか置けないため、「{{name}}」はエクスポートできません。トランジションを使うか、.ork でエクスポートしてください。",
+      "noseFlipped": "RASAero には反転したノーズコーンがないため、「{{name}}」はエクスポートできません。トランジションを使うか、.ork でエクスポートしてください。",
+      "noseOgiveParameter": "RASAero のオジャイブ形ノーズコーンは形状パラメーター 1 のみに対応しているため、「{{name}}」（形状パラメーター {{value}}）はエクスポートできません。形状パラメーターを変更するか、.ork でエクスポートしてください。",
+      "noseHaackParameter": "RASAero のハーク形ノーズコーンは形状パラメーター 0（フォン・カルマン）または 0.33（LV-ハーク）のみに対応しているため、「{{name}}」（形状パラメーター {{value}}）はエクスポートできません。形状パラメーターを変更するか、.ork でエクスポートしてください。",
+      "chuteEvent": "RASAero ではパラシュートを最高点または指定高度でしか開けないため、「{{name}}」（{{event}}）はエクスポートできません。展開設定を変更するか、.ork でエクスポートしてください。"
+    },
+    "motorFile": {
+      "engNoData": "有効な .eng ファイルではありません（モーターのデータがありません）。",
+      "engHeader": ".eng のヘッダーが不正です。必要な項目：名称 直径 長さ 遅延 推進剤質量 全質量 メーカー。",
+      "engHeaderNumbers": ".eng のヘッダーが不正です：直径、長さ、または質量が数値ではありません。",
+      "engHeaderSize": ".eng のヘッダーが不正です：直径と長さは正の値にしてください。",
+      "engHeaderMass": ".eng のヘッダーが不正です：推進剤質量は 0 から全質量までの値にしてください。",
+      "engDataLine": ".eng の {{line}} 行目のデータが不正です：時間と推力が必要ですが、「{{text}}」でした。",
+      "engNoCurve": ".eng ファイルに推力曲線のデータ点がありません。",
+      "engTooManyPoints": ".eng ファイルのモーター {{motor}} のデータ点が {{max}} を超えています。",
+      "engNegativeThrust": ".eng ファイルのモーター {{motor}} は {{line}} 行目の推力が負です。",
+      "engNegativeTime": ".eng ファイルのモーター {{motor}} は {{line}} 行目の時間が負です。",
+      "attrDiameter": "直径",
+      "attrLength": "長さ",
+      "attrInitialMass": "初期質量",
+      "attrPropellantMass": "推進剤質量",
+      "rseMissing": ".rse ファイルのモーターに値がありません：{{what}}。",
+      "rseInvalid": ".rse ファイルのモーターの値が不正です：{{what}}（{{raw}}）。",
+      "rseNoMaker": ".rse ファイルのモーターにメーカー (mfg) がありません。",
+      "rseNoCode": ".rse ファイルのモーターに名称 (code) がありません。",
+      "rseSize": ".rse ファイルのモーター {{motor}} の直径または長さが正の値ではありません。",
+      "rseMass": ".rse ファイルのモーター {{motor}} は、推進剤が全質量より多くなっています。",
+      "rseTooManyPoints": ".rse ファイルのモーター {{motor}} のデータ点が {{max}} を超えています。",
+      "rseBadPoint": ".rse ファイルのモーター {{motor}} に、時間または推力のないデータ点があります。",
+      "rseNoCurve": ".rse ファイルのモーター {{motor}} に推力曲線のデータがありません。",
+      "rseNegativeMass": ".rse ファイルのモーター {{motor}} のデータに負の質量があります。",
+      "rseNegativeThrust": ".rse ファイルのモーター {{motor}} のデータに負の推力があります。",
+      "rseNegativeTime": ".rse ファイルのモーター {{motor}} のデータに負の時間があります。",
+      "rseCgOutside": ".rse ファイルのモーター {{motor}} の重心がモーターの外にあります（0〜{{length}} mm）。",
+      "rseNoEngine": "有効な .rse ファイルではありません（<engine> がありません）。",
+      "rseTooManyMotors": "この .rse は {{max}} 個を超えるモーターを宣言しています（壊れている可能性があります）。"
+    },
+    "thrustcurve": {
+      "http": "thrustcurve.org が {{path}} に対して HTTP {{status}} を返しました。",
+      "tooLarge": "{{path}} に対する thrustcurve.org の応答が大きすぎます。",
+      "timeout": "thrustcurve.org からの応答がありませんでした。通信を確認して、もう一度お試しください。",
+      "noSamples": "{{motor}} の推力データがありません。",
+      "noWeight": "thrustcurve.org には {{motor}} の装填質量も推進剤質量も公開されていないため、シミュレーションできません。別のモーターを選んでください。",
+      "propOverTotal": "{{motor}} はカタログ上、推進剤 ({{prop}} g) が装填質量 ({{total}} g) より多いため、燃焼の終わりに質量が負になります。別のモーターを選んでください。",
+      "badSize": "thrustcurve.org にある {{motor}} の寸法が不正です（直径 {{diameter}} mm、長さ {{length}} mm）。シミュレーションできないので、別のモーターを選んでください。",
+      "negativeThrust": "{{motor}} の推力曲線データに負の推力があります。シミュレーションできないので、別のモーターを選んでください。",
+      "badCg": "{{motor}} の重心がモーターの外にあります（0〜{{length}} mm）。シミュレーションできないので、別のモーターを選んでください。",
+      "notFound": "thrustcurve.org に {{maker}} {{motor}} が見つかりませんでした。",
+      "noData": "{{motor}} の推力曲線データがありません。",
+      "badData": "{{motor}} の推力曲線データが不正です。",
+      "importGone": "インポートしたモーター {{motor}} はもう保存されていません。モーターファイルをもう一度インポートしてください。"
+    },
+    "motorCurve": {
+      "notFinite": "モーター {{motor}}: {{what}}が有限の数値ではありません（カタログのデータが不完全です）。",
+      "whatDiameter": "直径",
+      "whatLength": "長さ",
+      "whatCg": "重心",
+      "whatDelay": "放出遅延",
+      "size": "モーター {{motor}}: 直径と長さは正の値でなければなりません（カタログのデータが不完全です）。",
+      "nonFinite": "モーター {{motor}}: 推力曲線に有限でない値が含まれています（公表重量の欠落、または不正な .rse / .eng ファイル）。",
+      "lengths": "モーター {{motor}}: 推力曲線の各リストの長さが一致しません（時間 {{times}}、推力 {{thrusts}}、質量 {{masses}}）。",
+      "backwards": "モーター {{motor}}: 推力曲線の時間がサンプル {{sample}} で逆行しています（{{before}} の次が {{after}}）。",
+      "negativeMass": "モーター {{motor}}: 推力曲線の終わりで質量が負になります（推進剤質量が装填質量を超えています）。",
+      "noMass": "モーター {{motor}}: 推力曲線のどの点にも質量がありません（モーターファイルにサンプルごとの質量がありません）。"
+    },
+    "remote": {
+      "motors": "モーターカタログを読み込めませんでした（{{reason}}）。",
+      "components": "部品カタログを読み込めませんでした（{{reason}}）。",
+      "materials": "材料カタログを読み込めませんでした（{{reason}}）。",
+      "contributors": "貢献者の一覧を読み込めませんでした（{{reason}}）。",
+      "tooLarge": "応答が大きすぎます",
+      "badShape": "カタログの形式が想定と異なります",
+      "http": "サーバーから HTTP {{status}}",
+      "timeout": "サーバーが時間内に応答しませんでした",
+      "network": "サーバーに接続できません",
+      "noExamples": "サンプルの索引にサンプルがありません"
+    },
+    "export": {
+      "noPrintable": "印刷できる部品が選択されていません。",
+      "openSolid": "この立体を閉じられませんでした：ふさいだ後も {{edges}} 本の開いた辺が残っています。",
+      "imageEncode": "ブラウザーが画像をエンコードできませんでした。",
+      "imageTooLarge": "画像がこのブラウザーには大きすぎます。より小さい幅を選んでください。",
+      "svgRasterize": "ブラウザーが SVG を描画できませんでした。",
+      "nothing": "エクスポートするものがありません。"
+    },
+    "engine": {
+      "notReady": "OpenRocket の物理エンジンの読み込みがまだ終わっていません。読み込みが終わってから、もう一度お試しください。",
+      "staleDesign": "この設計は物理エンジンのリセット前に構築されたものです。使う前に構築し直してください。"
+    },
+    "sim": {
+      "engineLoad": "シミュレーションエンジンを読み込めませんでした（{{reason}}）。",
+      "unknownMethod": "シミュレーションワーカーが不明な要求を受け取りました（{{method}}）。",
+      "workerCrashed": "シミュレーションワーカーが予期せず停止しました。",
+      "workerCrashedReason": "シミュレーションワーカーが予期せず停止しました（{{reason}}）。",
+      "replyUnreadable": "シミュレーションワーカーの応答を読み取れませんでした。"
+    },
+    "design": {
+      "cannotAdd": "{{part}}はここに追加できません。選択中の部品にもステージにも入れられません。"
+    },
+    "rktSkip": {
+      "airfoilMass": "翼型フィンの質量（{{name}}）",
+      "autoValue": "自動の値（{{name}}）",
+      "cdOverride": "Cd の上書き（{{name}}）",
+      "cgOverride": "CG の上書き（{{name}}）",
+      "extraStages": "{{from}} 段目以降",
+      "instanceCount": "配置数（{{name}}）",
+      "massOverride": "質量の上書き（{{name}}）",
+      "stageOnlyOverride": "段のみの上書き（{{name}}）",
+      "subtreeOverride": "下位部品の上書き（{{name}}）"
+    },
     "viewFailed": "このビューを読み込めませんでした。",
     "staleBuild": "このタブを開いている間にアプリが更新されたため、一部がサーバー上にありません。再読み込みして新しいビルドを取得してください。",
     "openOrk": ".ork を開けませんでした：{{reason}}",
     "openExample": "そのサンプルを開けませんでした：{{reason}}",
     "saveOrk": ".ork を保存できませんでした：{{reason}}",
+    "saveOrkNoDesignInfo": ".ork は設計情報なしで保存されました。設計を構築できなかったため、含める統計がありませんでした。",
     "exportRasaero": "RASAero をエクスポートできませんでした：{{reason}}",
+    "exportRasaeroSurface": "RASAero ファイルは保存されましたが、RASAero にはこの設計の表面仕上げに対応する表面がないため、平滑（粗さゼロ）として書き出しました。",
     "exportUnsupported": "この部品は {{format}} としてエクスポートできません。",
     "exportFailed": "{{format}} をエクスポートできませんでした：{{reason}}",
     "exportRkt": ".rkt を書き出せませんでした：{{reason}}",
@@ -37,6 +193,8 @@
     "noDesign": "エクスポートできる有効な設計がありません。",
     "stages": "段数",
     "length": "全長",
+    "dimLength": "長さ {{value}}",
+    "dimWall": "肉厚 {{value}}",
     "maxDiameter": "最大直径",
     "massEmpty": "質量（空）",
     "massLoaded": "質量（搭載時）",
@@ -80,6 +238,9 @@
     "noseCone": "ノーズコーン",
     "transition": "トランジション",
     "tooLarge": "{{w}}×{{h}} mm、1 ページに 1:1 で印刷するには大きすぎます。",
+    "fontFallback": "レポート用フォントを読み込めなかったため、この PDF の一部の文字は「?」として印刷されています。オンラインになってから再度エクスポートしてください。",
+    "scriptUncovered": "この PDF の一部の文字はレポート用フォントが対応していない文字体系のため、「?」として印刷されています。",
+    "outdatedFlight": "古い結果: この結果は設計またはシミュレーション設定が最後に変更される前のものです。最新の値を得るにはシミュレーションを再実行してください。",
     "bodyTube": "ボディチューブ",
     "markingGuide": "フィン位置の記入ガイド（1:1）",
     "markingGuideHint": "100% / 実寸（ページの拡大縮小なし）で印刷し、定規で確認したうえで各帯を切り取り、端どうしを突き合わせて（重ねずに）ボディチューブに巻き付け、矢印の位置に印を付けます。各組の印を通る線をチューブに沿って引いてください。そこが部品の位置です。",
@@ -90,6 +251,17 @@
     "markingOmitted_noFins": "記入対象外（{{names}}）：このチューブにはフィンセットがないため、印の基準にできるものがありません。"
   },
   "export": {
+    "dxf": {
+      "trapezoidfinset": "台形フィン",
+      "ellipticalfinset": "楕円フィン",
+      "freeformfinset": "自由形状フィン",
+      "bulkhead": "バルクヘッド",
+      "centeringring": "センタリングリング",
+      "cutCount": "{{name}}（{{qty}} 枚切り出し）",
+      "finDims": "翼根 {{root}} mm | 翼幅 {{span}} mm | 板厚 {{stock}} mm",
+      "discDims": "Ø{{diameter}} mm",
+      "discBoreDims": "Ø{{diameter}} mm | 穴 Ø{{bore}} mm"
+    },
     "title": "設計レポート",
     "select": "含める項目を選択：",
     "designReport": "設計レポート",
@@ -129,17 +301,27 @@
     "fitFrame": "ロケットを画面に合わせる",
     "fitFrameHint": "ロケットがエクスポート画像いっぱいになるまでカメラを寄せます。視点の角度はそのままで、構図だけが変わります",
     "simFailed": "シミュレーションが失敗したため、PDF は作成されませんでした：{{message}}",
+    "simDropped": "シミュレーション中に設計が変更されたため、PDF は作成されませんでした。現在の設計で飛行させるには、もう一度 PDF を保存してください。",
     "pdfFailed": "PDF をエクスポートできませんでした：{{message}}",
     "csvFailed": "CSV をエクスポートできませんでした：{{message}}",
     "reportFailed": "設計レポートを組み立てられませんでした：{{message}}",
-    "finMarkingGuide": "フィン位置の記入ガイド"
+    "finMarkingGuide": "フィン位置の記入ガイド",
+    "headerLength": "全長 {{value}}",
+    "headerMaxDiameter": "最大直径 {{value}}",
+    "headerSpan": "スパン {{value}}",
+    "headerLaunchMass": "発射時質量 {{mass}}（空 {{dry}}）",
+    "headerDryMass": "空質量 {{dry}}、モーター未搭載",
+    "headerBalance": "CG {{cg}}、CP {{cp}}（ノーズ先端から）、安定余裕 {{margin}} cal",
+    "headerCg": "CG {{cg}}（ノーズ先端から）",
+    "imageOption": "{{format}} {{size}}、幅 {{width}} px"
   },
   "engine": {
     "wasmTip": "物理エンジン：WebAssembly（高速版）",
     "jsTip": "物理エンジン：JavaScript（代替版）",
     "slow": "物理エンジンの読み込みにいつもより時間がかかっています。",
     "needsIt": "設計ツールはエンジンなしでも使えます。数値とシミュレーションには必要です。",
-    "retry": "再試行"
+    "retry": "再試行",
+    "reload": "ページを再読み込み"
   },
   "about": {
     "open": "このアプリについて",
@@ -343,6 +525,7 @@
       "daylight": "デイライト（高コントラスト）"
     },
     "resetTab": "{{name}} をリセット",
+    "resetTabConfirm": "{{name}} を既定値に戻しますか？入力した内容は置き換えられ、元に戻せません。",
     "resetAll": "すべてリセット",
     "resetAllConfirm": "すべてのタブのすべての設定を既定値に戻しますか？打ち上げの既定値、単位、シミュレーション設定も含まれ、元に戻せません。",
     "resetOneFor": "{{name}} を既定の色に戻す",
@@ -377,7 +560,8 @@
       "streamer_surface": "ストリーマー",
       "shockcord_line": "ショックコード"
     },
-    "materialNoDefault": "既定なし：部品を未設定のままにする"
+    "materialNoDefault": "既定なし：部品を未設定のままにする",
+    "timeStepScale": "時間刻み（粗いから細かいへ）"
   },
   "config": {
     "title": "ロケットの構成",
@@ -431,7 +615,8 @@
     "grounded": "地上に残す",
     "groundedHint": "地上に残します。質量も抗力もモーターもありません。ロケットの残りはこの段なしで飛びます。",
     "lastFlyingStage": "各構成で少なくとも1つの段が飛行する必要があります。",
-    "stageGrounded": "地上に残す構成:"
+    "stageGrounded": "地上に残す構成:",
+    "partNumbered": "{{part}} {{n}}"
   },
   "tabs": {
     "rocket": "ロケット",
@@ -537,6 +722,7 @@
     "timeout": "シミュレーションに時間がかかりすぎたため停止しました。もう一度試すか、設計を簡単にしてください。",
     "busy": "すでにシミュレーションを実行中です。終了を待つか、キャンセルしてから、もう一度試してください。",
     "warnings": "飛行の警告（{{count}}）",
+    "warningHigh": "重大：",
     "runMany": "{{count}} 件のシミュレーションを実行",
     "safetyTitle": "飛ばす前に",
     "safetyLead": "これはモデルによる推定値で、飛行カードではありません。",
@@ -592,7 +778,6 @@
     "FILE_INVALID_PARAMETER": "ファイル内のパラメーターが不正です",
     "LISTENERS_AFFECTED": "シミュレーションリスナーが結果を変更しました",
     "OBJ_ZERO_THICKNESS": "エクスポートに厚みのない形状があります",
-    "LargeAOA": "迎角が大きすぎます",
     "LargeAOA.str1": "迎角が大きすぎます",
     "LargeAOA.str2": "迎角が大きすぎます"
   },
@@ -652,7 +837,15 @@
     "rodDirectionName_rail": "発射レールの方向",
     "rodDirectionName_rod": "発射ロッドの方向",
     "windDirectionName": "風向",
-    "angleLimit": "NAR と Tripoli の安全規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitModel": "モデルロケットとして NAR モデルロケット安全規定に従います。同規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitModel_rail": "モデルロケットとして NAR モデルロケット安全規定に従います。同規定では、発射レールを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitModel_rod": "モデルロケットとして NAR モデルロケット安全規定に従います。同規定では、発射ロッドを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitHighPower": "ハイパワーロケットとして NAR と Tripoli のハイパワー安全規定に従います。同規定では、発射装置を鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitHighPower_rail": "ハイパワーロケットとして NAR と Tripoli のハイパワー安全規定に従います。同規定では、発射レールを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitHighPower_rod": "ハイパワーロケットとして NAR と Tripoli のハイパワー安全規定に従います。同規定では、発射ロッドを鉛直から {{limit}} 以内にすることが求められています。",
+    "angleLimitEither": "NAR モデルロケット安全規定では発射装置を鉛直から {{model}} 以内に、NAR と Tripoli のハイパワー規定では {{highPower}} 以内にすることが求められています。",
+    "angleLimitEither_rail": "NAR モデルロケット安全規定では発射レールを鉛直から {{model}} 以内に、NAR と Tripoli のハイパワー規定では {{highPower}} 以内にすることが求められています。",
+    "angleLimitEither_rod": "NAR モデルロケット安全規定では発射ロッドを鉛直から {{model}} 以内に、NAR と Tripoli のハイパワー規定では {{highPower}} 以内にすることが求められています。",
     "windLimit": "NAR と Tripoli の安全規定では、風速が {{limit}} を超えるときは飛ばさないよう求められています。",
     "field": {
       "launchRodLengthM": "ランチャーの長さ",
@@ -691,7 +884,40 @@
     "flightEvents": "飛行イベントを含める",
     "commentChar": "コメント文字",
     "stage": "エクスポートする段",
-    "export": "エクスポート"
+    "export": "エクスポート",
+    "head": {
+      "simulationLine": "シミュレーション: {{name}}",
+      "time": "時間",
+      "event": "イベント",
+      "source": "発生元",
+      "stage": "段",
+      "altitude": "高度",
+      "velocity": "速度",
+      "stability": "安定性",
+      "thrustWeight": "推力重量比",
+      "aoa": "迎角",
+      "mach": "マッハ数",
+      "dynamicPressure": "動圧",
+      "simulation": "シミュレーション",
+      "configuration": "構成",
+      "motors": "モーター",
+      "status": "状態",
+      "apogee": "アポジー",
+      "maxVelocity": "最大速度",
+      "maxAcceleration": "最大加速度",
+      "maxMach": "最大マッハ数",
+      "exitVelocity": "ランチャー離脱時の速度",
+      "exitVelocity_rail": "レール離脱時の速度",
+      "exitVelocity_rod": "ロッド離脱時の速度",
+      "timeToApogee": "アポジーまでの時間",
+      "flightTime": "飛行時間",
+      "deploymentVelocity": "展開時の速度",
+      "landingVelocity": "着地速度",
+      "optimumDelay": "最適な遅延",
+      "maxQ": "最大動圧",
+      "maxQAlpha": "最大 q·alpha",
+      "maxRollRate": "最大ロールレート"
+    }
   },
   "flightVar": {
     "ha": "海面からの高度",
@@ -730,6 +956,7 @@
     "Cdb": "底面抗力係数（CD_base）",
     "Cda": "軸方向抗力係数（CA）",
     "Cn": "法線力係数（CN）",
+    "CNα": "法線力係数の微分（CNα）",
     "Cθ": "ピッチモーメント係数（Cm）",
     "CτΨ": "ヨーモーメント係数",
     "Cτs": "横力係数",
@@ -824,12 +1051,14 @@
     "zoomOut": "縮小",
     "zoomReset": "拡大率をリセット",
     "stages": "段",
+    "lastStageShown": "少なくとも1つの段はグラフに残ります。",
     "stageN": "第 {{n}} 段",
     "crosshairHint": "飛行グラフ。フォーカスして矢印キーで十字線を動かします。Shift で大きく移動、Home と End で両端へ、Esc で解除します。",
     "events": "飛行イベント",
     "event": "イベント",
     "twr": "推力重量比",
-    "eventsCsv": "飛行イベントをダウンロード（.csv）"
+    "eventsCsv": "飛行イベントをダウンロード（.csv）",
+    "peakTag": "ピーク"
   },
   "pathExport": {
     "open": "飛行経路をエクスポート（KML / GPX / CSV）",
@@ -929,8 +1158,9 @@
       "device": "装置",
       "flightPath": "飛行経路",
       "groundTrack": "地上軌跡",
-      "distanceBearing": "{{distance}} {{unit}}、方位 {{bearing}}°",
-      "stageLanding": "{{stage}} の着地"
+      "distanceBearing": "{{distance}} {{unit}}、方位 {{bearing}}",
+      "stageLanding": "{{stage}} の着地",
+      "flight": "飛行"
     },
     "mission": "ミッション",
     "missionPlaceholder": "例：Sod Blaster L1",
@@ -943,7 +1173,11 @@
     "cancel": "キャンセル",
     "colorRolePath": "経路",
     "colorRoleGround": "地上",
-    "colorRolePin": "ピン"
+    "colorRolePin": "ピン",
+    "importSaveError": "このブラウザーにテンプレートを保存できませんでした。",
+    "deleteError": "テンプレートを削除できませんでした。",
+    "deleteConfirm": "このブラウザーからテンプレート「{{name}}」を削除しますか？",
+    "stageColorLabel": "{{stage}}の{{role}}"
   },
   "aero": {
     "unattributed": "特定の部品に割り当てられないもの",
@@ -1011,9 +1245,8 @@
     "versionUnsupported": "サポートされていないドキュメントバージョン {{version}} です。それでもファイルの読み込みを試みます。",
     "versionMissingBy": "サポートされていないドキュメントバージョンです（'{{creator}}' で作成）。それでもファイルの読み込みを試みます。",
     "versionMissing": "サポートされていないドキュメントバージョンです。それでもファイルの読み込みを試みます。",
-    "ignored": "未対応の部品を無視しました：{{names}}。",
     "skippedUnsupported": "未対応のためスキップ：{{name}}",
-    "instanced": "複数のインスタンスとして繰り返される部品：{{names}}。ファイルにはすべてのインスタンスが残りますが、図面とシミュレーションには現在 1 つだけ表示されます。",
+    "instanced": "複数のインスタンスとして繰り返される部品：{{names}}。シミュレーションはすべてのインスタンスを計算に含めますが、図面には現在 1 つだけ表示されます。",
     "configsNoMotors": "ファイルには {{total}} 個の飛行構成が宣言されていますが、インポートできるモーターは含まれていませんでした。",
     "strayConfigs": "ファイルには {{total}} 個の飛行構成があります。インポートしたのは最初の 1 つだけです。",
     "appearances": "ファイル内の部品の外観設定：{{total}} 件。このアプリは部品の色だけを描くため使いませんが、保持されるので保存しても残ります。",
@@ -1027,6 +1260,7 @@
     "rktEjectedPod": "この設計には、RockSim ですでに切り離されたポッドが含まれています（作動中のブースターとしてインポートしました）。",
     "rktSubassembly": "この設計にはサブアセンブリが含まれています（その部品は設計に統合しました）。",
     "rktEllipticalOnBody": "この設計には、ノーズコーンまたはトランジションに付いた楕円フィンセットが含まれていますが、そこには取り付けられません。",
+    "rktIncompatible": "ファイルが指定する位置に取り付けられない部品を除外しました: {{parent}} 上の {{part}}。",
     "rocksimNoMotors": "RockSim のモーター選択と打ち上げ条件はインポートしません。この設計を飛ばすにはモーターを選んでください。",
     "embeddedCurveUnreadable": "ファイルに格納された推力曲線を読み込めなかったため、スキップしました。",
     "unbuildable": "{{reason}} 修正できるように設計を開いています。修正されるまでシミュレーションはできません。",
@@ -1039,7 +1273,12 @@
     "motorFetchFailed": "モーター「{{motor}}」を読み込めませんでした（{{reason}}）。そのマウントのモーターを選んでください（既定のモーターでは飛ばしません）。",
     "motorTooWide": "モーター「{{motor}}」は {{diameter}} mm ですが、マウント「{{mount}}」は {{bore}} mm までなので収まりません。ファイルの指定どおりに取り付けました。飛行前に確認してください。",
     "motorTooLong": "モーター「{{motor}}」は長さ {{length}} mm ですが、マウント「{{mount}}」は {{maxLength}} mm までなので収まりません。ファイルの指定どおりに取り付けました。飛行前に確認してください。",
-    "mountsWithoutMotor": "このファイルにモーターがないモーターマウント：{{mounts}}。飛行前にモーターを選んでください（既定のモーターでは飛ばしません）。"
+    "mountsWithoutMotor": "このファイルにモーターがないモーターマウント：{{mounts}}。飛行前にモーターを選んでください（既定のモーターでは飛ばしません）。",
+    "extensionName": {
+      "airStart": "空中スタート",
+      "javaCode": "Java コード",
+      "script": "{{language}} スクリプト"
+    }
   },
   "part": {
     "stage": "段",
@@ -1098,8 +1337,6 @@
     "motorTag": "モーター",
     "noComponents": "部品がありません。",
     "add": "＋ 追加",
-    "addTo": "＋ {{parent}} に追加…",
-    "nothingToAdd": "＋ ここに追加できるものはありません",
     "canHost": "{{parent}} の下に部品を追加",
     "cantHost": "{{parent}} には下位部品を入れられません",
     "fins": "フィン {{count}} 枚",
@@ -1274,7 +1511,7 @@
       "conical": "円錐形ノーズコーンは三角形の断面をしている",
       "ogive": "オジーブのノーズコーンは円の一部分の輪郭をしている。形状係数が1では<b>接線オジーブ</b>が作られ、これはボディチューブとなめらかに接続される。1以下では<b>割線オジーブ</b>が作られる",
       "ellipsoid": "楕円体のノーズコーンは楕円を半分にした輪郭をしていて軸の長さは2×<i>長さ</i>と<i>直径</i>",
-      "power": "Power seriesのノーズコーンは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> ここで<i>k</i>は形状係数。 <i>k</i>",
+      "power": "べき乗シリーズのノーズコーンは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> の輪郭をしている。ここで<i>k</i>は形状係数。<i>k</i>=0.5では<b>½乗</b>または<b>放物線</b>ノーズコーン、<i>k</i>=0.75では<b>¾乗</b>、<i>k</i>=1では<b>円錐形</b>ノーズコーンになる。",
       "parabolic": "Parabolic seriesのノーズコーンは放物線の輪郭をしている。形状係数は放物線の一部分を利用して定義している。形状係数1.0では<b>放物線の全部</b>でこれはボディチューブになめらかに繋がる、0.75では<b>放物線の3/4</b>、0.5では<b>放物線の1/2</b>そして0では <b>円錐形</b>ノーズコーンになる。",
       "haack": "Haack seriesのノーズコーンは抗力が最小になるように設計されている。形状係数0では<b>LD-Haack</b>または<b>Von Karman</b>と呼ばれるノーズコーンになる、これは一定の長さと直径においては最小の抗力になる。形状係数0.333では<b>LV-Haack</b>ノーズコーンになる。これは一定の長さと容積では最小の抗力になる。"
     },
@@ -1282,7 +1519,7 @@
       "conical": "円錐形トランジションの側面は直線的",
       "ogive": "オジーブのタンジェントは円の一部分の輪郭をしている。形状係数が1では<b>接線オジーブ</b>が作られ、これはボディチューブとなめらかに接続される。1以下では<b>割線オジーブ</b>が作られる",
       "ellipsoid": "楕円体のトランジションは楕円を半分にした輪郭をしていて軸の長さは2×<i>長さ</i>と<i>直径</i>。トランジションがクリップされていなかったら一致する半径まで拡張される",
-      "power": "Power seriesのトランジションは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> ここで<i>k</i>は形状係数。 <i>k</i>",
+      "power": "べき乗シリーズのトランジションは <i>半径</i> × (<i>x</i> / <i>長さ</i>)<sup><i>k</i></sup> の輪郭をしている。ここで<i>k</i>は形状係数。<i>k</i>=0.5では<b>½乗</b>または<b>放物線</b>、<i>k</i>=0.75では<b>¾乗</b>、<i>k</i>=1では<b>円錐形</b>のトランジションになる。",
       "parabolic": "Parabolic seriesのトランジションは放物線の輪郭をしている。形状係数は放物線の一部分を利用して定義している。形状係数1.0では<b>放物線の全部</b>でこれはボディチューブになめらかに繋がる、0.75では<b>放物線の3/4</b>、0.5では<b>放物線の1/2</b>そして0では <b>円錐形</b>トランジションになる。",
       "haack": "Haack seriesのノーズコーンは抗力が最小になるように設計されている。トランジションでも形状は同等であるが、必ずしもトランジションの最適な抗力になるとは限らない。形状係数0では<b>LD-Haack</b>または<b>Von Karman</b>と呼ばれる形状になる。形状係数0.333では<b>LV-Haack</b>形状になる。"
     }
@@ -1333,6 +1570,7 @@
     "fit": "画面に合わせる",
     "aftAria": "後方からの表示：ロケットを後ろから見た図。ドラッグで回転、ホイールで拡大縮小します",
     "sideAria": "CG と CP のマーカー付きのロケット側面図。ホイールで拡大縮小、背景をドラッグで移動します",
+    "panHint": "矢印キーで拡大表示を移動します。Shift で大きく移動します",
     "caliperH": "横キャリパーのつまみ {{end}}",
     "caliperV": "縦キャリパーのつまみ {{end}}"
   },
@@ -1386,6 +1624,8 @@
     "select": "{{name}} を選択",
     "combine": "合成（{{n}}）",
     "compareN": "比較（{{n}}）",
+    "combineChartAria": "{{names}} の合成推力曲線（各モーターの曲線付き）",
+    "compareChartAria": "{{names}} の推力曲線",
     "compareTitle": "比較",
     "back": "一覧に戻る",
     "clear": "クリア",
@@ -1394,7 +1634,6 @@
     "noCurveTip": "推力曲線がないため、比較も合成もできません。",
     "compareDesc": "推力曲線を重ねて表示し、仕様を並べて比べます。",
     "combineDesc": "1 つのクラスターとして合算します：合成した推力曲線と総インパルスを表示します。",
-    "clearSel": "選択を解除",
     "combined": "合成クラスター",
     "cluster": "{{n}} 基クラスター",
     "total": "合成した合計",
@@ -1442,6 +1681,7 @@
     "canopy": "キャノピーの材料",
     "strip": "ストリーマーの材料",
     "lines": "シュラウドラインの材料",
+    "cord": "ショックコードの材料",
     "default": "自動",
     "defaultOption": "指定なし",
     "loadFailed": "材料の一覧を読み込めませんでした。通信を確認して、このパネルをもう一度開いてください。",
@@ -1455,7 +1695,24 @@
     "cancel": "キャンセル",
     "deleteCustom": "追加した材料を削除",
     "deleteConfirm": "カスタム材料 {{name}} を削除しますか？どの設計でも選べなくなります。",
-    "fillet": "フィレットの材料"
+    "fillet": "フィレットの材料",
+    "groups": {
+      "Metals": "金属",
+      "Woods": "木材",
+      "Plastics": "プラスチック",
+      "Fabrics": "布",
+      "Paper": "紙",
+      "PaperProducts": "紙製品",
+      "Foams": "発泡材",
+      "Composites": "複合材",
+      "Fibers": "繊維",
+      "Elastics": "弾性材",
+      "Kevlars": "ケブラー",
+      "Nylons": "ナイロン",
+      "Other": "その他",
+      "Custom": "カスタム",
+      "Adhesives": "接着剤"
+    }
   },
   "recovery": {
     "title": "降下速度の設計",
@@ -1521,6 +1778,7 @@
     "missingField": "この項目は必須ですが空です。入力するまでシミュレーションは実行できません。",
     "resetToDefault": "既定値に戻す",
     "saveAsDefault": "既定値として保存",
+    "saveAsDefaultMixed": "チェックしたシミュレーションはオプションが異なるため、保存する設定を 1 つに決められません。1 つだけチェックすると、そのオプションを既定値として保存できます。",
     "optionsHint": "空欄のときは全体の設定（設定 › シミュレーション）に従います。",
     "selectAll": "すべてのシミュレーションを選択",
     "selectOne": "{{name}} を選択",
@@ -1537,7 +1795,6 @@
   },
   "motorDlg": {
     "title": "モーターを選択",
-    "manufacturer": "メーカー",
     "allManufacturers": "すべてのメーカー",
     "mfrCount": "メーカー {{n}} 社",
     "diameter": "直径",
@@ -1589,7 +1846,10 @@
     "chartThrust": "推力曲線",
     "chartAvg": "平均推力",
     "chartBurn": "燃焼時間",
-    "calcNote": "* 初期推力、Isp、質量比は推力曲線と重量から計算した値です。"
+    "chartAria": "時間に対する推力。最大 {{peak}}、平均 {{avg}}、燃焼時間 {{burn}} 秒。",
+    "calcNote": "* 初期推力、Isp、質量比は推力曲線と重量から計算した値です。",
+    "rangeMin": "{{label}}（最小）",
+    "rangeMax": "{{label}}（最大）"
   },
   "lang": {
     "label": "言語"
@@ -1625,6 +1885,7 @@
   },
   "storage": {
     "full": "作業内容を保存できませんでした。ブラウザーの保存領域がいっぱいです。設計をエクスポートして残してください。",
+    "writeRefused": "保存できませんでした。ブラウザーが保存を拒否しました。保存領域がいっぱいか、ブロックされている可能性があります。",
     "degraded": "ブラウザーがデータベースを遮断しているため、はるかに小さい保存領域（約 5 MB）に切り替えました。設計が大きくなると保存に失敗することがあります。多くの場合はプライベートブラウジングが原因です。残したいものはエクスポートしてください。",
     "loadFailed": "保存されていた設計を読み込めませんでした。新規の状態から始めます。これ以降の作業は保存されます。",
     "conflict": "この設計は別のタブで変更されたため、ここでの編集は保存されていません。残すにはエクスポートするか、マイロケットから設計を開き直して別のタブの版を読み込んでください。"
@@ -1669,9 +1930,12 @@
     "RECOVERY_LAUNCH_ROD_rod": "ロッド上にいるうちに回収装置が展開しました。放出の遅延と展開の設定を確認してください。このシミュレーションのままでは、飛行は発射台で終わります。",
     "RECOVERY_DROGUE_NO_MAIN": "ドローグは開きますがメインが続かないため、ロケットは最後までドローグだけで降ります。ドローグがそれを前提に設計されていない限り、着地は速くなります。",
     "NO_RECOVERY_DEVICE": "何も展開しないため、ロケットは弾道飛行で落下します。下に表示される着地速度が、そのまま地面に当たる速度です。",
-    "LargeAOA": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ランチャーをゆっくり離れた直後によく起こります。",
     "LargeAOA.str1": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ランチャーをゆっくり離れた直後によく起こります。",
     "LargeAOA.str2": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ランチャーをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str1_rail": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、レールをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str1_rod": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ロッドをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str2_rail": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、レールをゆっくり離れた直後によく起こります。",
+    "LargeAOA.str2_rod": "バロウマン法が成り立つ範囲を超えた迎角で飛行したため、その付近の空力の数値は近似です。強風のときや、ロッドをゆっくり離れた直後によく起こります。",
     "SUPERSONIC": "飛行の一部が超音速で、その領域では拡張バロウマン法は近似になります。その区間の抗力と安定性の数値は目安として扱ってください。"
   },
   "windProfile": {
@@ -1701,16 +1965,23 @@
       "badNumber": "{{line}} 行目に数値でない値があります。",
       "noData": "そのファイルに風の層が見つかりませんでした。",
       "unreadable": "そのファイルを読み込めませんでした。"
-    }
+    },
+    "levelField": "{{field}}（層 {{n}}）",
+    "removeLevelN": "層 {{n}} を削除"
   },
   "limits": {
+    "sentenceJoin": "{{first}}{{next}}",
     "belowMin": "最小値未満",
     "aboveMax": "上限超過",
     "tooFast": "速すぎます",
+    "tooSlow": "遅すぎます",
     "overRail": "レールより長い",
-    "rodAngle": "ランチャーの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
-    "rodAngle_rail": "発射レールの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
-    "rodAngle_rod": "発射ロッドの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
+    "rodAngleModel": "ランチャーの角度は鉛直から {{value}} で、NAR モデルロケット安全規定が認める {{limit}} を超えています。",
+    "rodAngleModel_rail": "発射レールの角度は鉛直から {{value}} で、NAR モデルロケット安全規定が認める {{limit}} を超えています。",
+    "rodAngleModel_rod": "発射ロッドの角度は鉛直から {{value}} で、NAR モデルロケット安全規定が認める {{limit}} を超えています。",
+    "rodAngleHighPower": "ランチャーの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定がハイパワーロケットに認める {{limit}} を超えています。",
+    "rodAngleHighPower_rail": "発射レールの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定がハイパワーロケットに認める {{limit}} を超えています。",
+    "rodAngleHighPower_rod": "発射ロッドの角度は鉛直から {{value}} で、NAR と Tripoli の安全規定がハイパワーロケットに認める {{limit}} を超えています。",
     "wind": "風速が {{value}} で、NAR と Tripoli の安全規定が認める {{limit}} を超えています。",
     "refused": "「{{name}}」は実行しませんでした。打ち上げ条件が安全規定の範囲外です。"
   },
@@ -1742,8 +2013,9 @@
     "shortLink": "これは短縮リンクで、場所がリダイレクトの先に隠れています。リンクを開き、ブラウザの完全なアドレスか座標を貼り付けてください。",
     "coords": "座標",
     "elevationLooking": "標高を取得中…",
-    "elevationUnknown": "標高が見つかりません。発射場の標高はそのままです",
-    "credit": "GeoNames の地名（Open-Meteo.com 経由）"
+    "elevationUnknown": "標高が見つかりません。発射場の標高は空欄になります",
+    "credit": "GeoNames の地名（Open-Meteo.com 経由）",
+    "regionCountry": "{{country}} {{region}}"
   },
   "location": {
     "label": "保存した場所",
@@ -1766,6 +2038,7 @@
     "applyNeedsSave": "この場所を使う前に、変更を保存するか破棄してください。"
   },
   "map": {
+    "cardTitle": "地図画像",
     "label": "打ち上げ場所の地図",
     "title": "打ち上げ場所",
     "show": "地図に表示",
@@ -1780,7 +2053,17 @@
     "keysView": "矢印キーで地図を移動、プラスとマイナスでズームします。",
     "noCoords": "場所を置くには緯度と経度を入力してください。",
     "tooClose": "この拡大率の画像はありません",
-    "offline": "オフラインでは画像を表示できません"
+    "offline": "オフラインでは画像を表示できません",
+    "hemisphereN": "北",
+    "hemisphereS": "南",
+    "hemisphereE": "東",
+    "hemisphereW": "西",
+    "keyLabel": "Esri 地図キー",
+    "keyPlaceholder": "なし",
+    "keyNote": "任意。ご自身の無料 ArcGIS Location Platform アカウントの API キーで、地図タイルと一緒に送信されます。キーがなくても地図は読み込まれます。キーはこのブラウザーにのみ保存されます。取得方法はヘルプの「設定」で説明しています。",
+    "keyNotSaved": "このブラウザーにキーを保存できませんでした。",
+    "keyNag": "「設定」の「打ち上げ」で、ご自身の無料の Esri キーを追加できます。",
+    "keyHelp": "取得方法"
   },
   "sweep": {
     "button": "ドリフト",
@@ -1798,9 +2081,10 @@
     "clear": "クリア",
     "progress": "{{done}} / {{total}}",
     "landed": "{{asked}} 回のうち {{flown}} 回が着地しました。",
-    "stale": "このスイープを実行したあとで設計が変わっています。",
+    "stale": "このスイープを実行したあとで設計またはシミュレーション設定が変わっています。",
     "noLandings": "この風のスイープでは着地が発生しませんでした。",
-    "spread": "{{from}}–{{to}}"
+    "spread": "{{from}}–{{to}}",
+    "flown": "スイープ実行済み"
   },
   "crossSection": {
     "square": "角型",
@@ -1825,6 +2109,7 @@
     "fetching": "取得中…",
     "apply": "適用",
     "needSite": "先に発射地点の緯度と経度を入力してください。",
+    "needElevation": "先に発射地点の標高を入力してください。",
     "siteLine": "地点 {{lat}}, {{lon}} 標高 {{alt}}",
     "noHour": "その時刻のデータがありません。",
     "validForecast": "{{time}} の予報",
@@ -1836,8 +2121,9 @@
     "cloudCoverLow": "下層雲量",
     "visibility": "視程",
     "forecastNote": "予報はモデルによる推定であり、測定値ではありません。",
+    "otherSitesNote": "この場所と標高にある選択中のシミュレーションだけが変更されます。ほかのシミュレーションは条件をそのまま保ちます。",
     "credit": "気象データ:Open-Meteo.com",
-    "windValue": "{{speed}}、{{from}}° から、突風 {{gust}}、{{top}} までのプロファイル",
+    "windValue": "{{speed}}、{{from}} から、突風 {{gust}}、{{top}} までのプロファイル",
     "atmosphereValue": "{{top}} までのプロファイル",
     "group": {
       "temperature": "気温",
@@ -1859,8 +2145,8 @@
       "badKey": "Open-Meteo は「設定、打ち上げ」の API キーを受け付けませんでした。 打ち上げ条件は変更されていません。",
       "quota": "Open-Meteo の無料枠を使い切りました。後でもう一度試すか、「設定、打ち上げ」で API キーを追加してください。 打ち上げ条件は変更されていません。",
       "http": "Open-Meteo がエラーを返しました({{detail}})。 打ち上げ条件は変更されていません。",
-      "shape": "Open-Meteo の応答を読み取れませんでした({{detail}})。 打ち上げ条件は変更されていません。",
-      "units": "Open-Meteo がアプリの読めない単位で応答しました({{detail}})。 打ち上げ条件は変更されていません。",
+      "shape": "Open-Meteo の応答を読み取れませんでした。 打ち上げ条件は変更されていません。",
+      "units": "Open-Meteo がアプリの読めない単位で応答しました。 打ち上げ条件は変更されていません。",
       "noData": "Open-Meteo にはこの場所のその日付のデータがありません。 打ち上げ条件は変更されていません。"
     },
     "keyLabel": "Open-Meteo API キー",
@@ -1905,6 +2191,7 @@
       "flyHoursNote": "2 時間前から 2 時間後までの各時刻の予報で、この設計を飛行させます。予報は現時点のものを使います。",
       "outdated": "この結果は古くなっています。現在のロケットと発射場で予報時刻を飛ばすには、シミュレーションを再実行してください。",
       "hour": "時刻",
+      "flownHour": "（このフライト）",
       "noForecast": "「天気を取得…」で打ち上げ条件を設定すると、予報の前後の時刻で着地点がどう動くかを表示できます。",
       "overWind": "未飛行: 風速が安全上限を超えています",
       "overRodAngle": "未飛行: 発射角度が安全上限を超えています",
@@ -1942,6 +2229,7 @@
     "estimateNote": "入力した降下速度による推定です。範囲は {{descents}} 回の降下を含みます:予報 {{hours}} 時間分、風速 ±20%、風向 ±15°、降下速度 ±10%。",
     "flatGround": "地形の形状を取得できなかったため、発射台と同じ高さの平らな地面に着地するものとしています。",
     "surfaceWindOnly": "この日付の Open-Meteo の記録には地表付近の風しかないため、降下全体がその風で流されます。",
+    "outdated": "この推定の後に発射地点、日付、時刻、最高到達点または降下速度が変更されました。更新するには「着地点を推定」を押してください。",
     "mapLabel": "上から見た着地点の推定。発射台から {{distance}} の地点に着地"
   },
   "tools": {
@@ -1992,10 +2280,10 @@
     "railNeeded": "{{speed}}に必要なレール長",
     "weathercock": "ウェザーコック角",
     "weathercockGust": "突風時のウェザーコック角",
-    "maxWind": "{{angle}}° 以下に収まる最大風速",
+    "maxWind": "{{angle}} 以下に収まる最大風速",
     "maxDryMass": "モーターを除く最大のロケット質量",
     "none": "なし",
-    "rules": "黄色の表示：平均推力重量比が {{ratio}} : 1 未満、レール離脱速度が {{speed}}（設定の最小値）未満、またはウェザーコック角が {{angle}}° を超える場合。最大のロケット質量は最初の 2 つを満たします。",
+    "rules": "黄色の表示：平均推力重量比が {{ratio}} : 1 未満、レール離脱速度が {{speed}}（設定の最小値）未満、またはウェザーコック角が {{angle}} を超える場合。最大のロケット質量は最初の 2 つを満たします。",
     "estimateNote": "推定値：空気抵抗とレールの摩擦を含まず、レールは垂直とみなすため、実際の離脱はやや遅くなります。"
   },
   "stageName": {

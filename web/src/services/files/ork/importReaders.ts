@@ -2,7 +2,9 @@ import type { ComponentNode, ComponentType } from '../../../engine/openRocketEng
 import { defaultStageName, freshId } from '../../design/orkTree';
 import { shapeParamDefault } from '../../../tree/shapeProfile';
 import { xmlText as text } from '../xmlUtil';
+import { keyedNote } from '../importNote';
 import { COMPONENT_DEFAULTS } from '../../design/componentDefaults';
+import { RAIL_BUTTON_FALLBACK, settleRailButtonLoad, settleRingOuterLoad } from '../../design/linkedDimensions';
 import { clampCount, finiteNum } from './numbers';
 import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_POINTS, MAX_LINE_COUNT, checkDepth, countComponent } from './importLimits';
 import {
@@ -13,6 +15,7 @@ import {
   numTag,
   readAirfoil,
   readAngleAroundBody,
+  readAutoPackedRadius,
   readCommon,
   readDeployment,
   readFinRotation,
@@ -32,6 +35,7 @@ import {
   type OrkImportContext,
 } from './importConfigs';
 import { degToRad } from '../../../prefs/units';
+import { KERNEL_DEFAULTS } from '../../../tree/kernelDefaults';
 
 /**
  * One reader per .ork element tag: the node the element becomes, before its
@@ -40,7 +44,7 @@ import { degToRad } from '../../../prefs/units';
  */
 
 /** Builds the node for one element (its children are read by the caller). */
-export type NodeReader = (ctx: OrkImportContext, el: Element) => ComponentNode;
+type NodeReader = (ctx: OrkImportContext, el: Element) => ComponentNode;
 
 const base = (el: Element, type: ComponentType, withPosition: boolean): ComponentNode => {
   const node: ComponentNode = { type, id: freshId() };
@@ -155,6 +159,15 @@ const readBodytube: NodeReader = (ctx, el) => {
   return n;
 };
 
+/** What every planar fin set has after its outline: wall, cant, section, tab and rotation. */
+function readPlanarFin(el: Element, n: ComponentNode): void {
+  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
+  readCant(el, n);
+  readAirfoil(el, n);
+  readFinTabs(el, n);
+  readFinRotation(el, n);
+}
+
 const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   const n = base(el, 'trapezoidfinset', true);
   n['finCount'] = finCountTag(el);
@@ -164,22 +177,14 @@ const readTrapezoidFinset: NodeReader = (_ctx, el) => {
   // forward-swept fin, which is a real shape the desktop draws.
   n['sweep'] = numTag(el, 'sweeplength', 0.02);
   n['height'] = nonNegTag(el, 'height', 0.03);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
-  readAirfoil(el, n);
-  readFinTabs(el, n);
-  readFinRotation(el, n);
+  readPlanarFin(el, n);
   return n;
 };
 
-const readFreeformFinset: NodeReader = (_ctx, el) => {
+const readFreeformFinset: NodeReader = (ctx, el) => {
   const n = base(el, 'freeformfinset', true);
   n['finCount'] = finCountTag(el);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
-  readAirfoil(el, n);
-  readFinTabs(el, n);
-  readFinRotation(el, n);
+  readPlanarFin(el, n);
   // Capped: every renderer walks the outline per fin, so a crafted file
   // with a million <point>s is a frozen tab. A real freeform fin has tens.
   // Walked by sibling links and stopped at the cap, rather than selecting the
@@ -192,12 +197,21 @@ const readFreeformFinset: NodeReader = (_ctx, el) => {
   const finpoints = el.querySelector(':scope > finpoints');
   if (finpoints) {
     let seen = 0;
-    for (let pt = finpoints.firstElementChild; pt && seen < MAX_FIN_POINTS; pt = pt.nextElementSibling) {
+    let pt = finpoints.firstElementChild;
+    for (; pt && seen < MAX_FIN_POINTS; pt = pt.nextElementSibling) {
       if (pt.tagName !== 'point') continue;
       seen++;
       const x = finiteNum(pt.getAttribute('x'));
       const y = finiteNum(pt.getAttribute('y'));
       if (x !== undefined && y !== undefined) pts.push([x, y]);
+    }
+    // A point past the cap is a dropped vertex, and the outline the user sees
+    // is not the file's, so the import says so.
+    for (; pt; pt = pt.nextElementSibling) {
+      if (pt.tagName === 'point') {
+        ctx.notes.push(keyedNote('importNote.finPointsCapped', { max: MAX_FIN_POINTS }));
+        break;
+      }
     }
   }
   if (pts.length >= 3) n['points'] = pts;
@@ -209,11 +223,7 @@ const readEllipticalFinset: NodeReader = (_ctx, el) => {
   n['finCount'] = finCountTag(el);
   n['rootChord'] = nonNegTag(el, 'rootchord', 0.05);
   n['height'] = nonNegTag(el, 'height', 0.03);
-  n['thickness'] = nonNegTag(el, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
-  readCant(el, n);
-  readAirfoil(el, n);
-  readFinTabs(el, n);
-  readFinRotation(el, n);
+  readPlanarFin(el, n);
   return n;
 };
 
@@ -273,10 +283,12 @@ const readCenteringring: NodeReader = (_ctx, el) => {
   readRadial(el, n);
   const cor = autoRadiusTag(el, 'outerradius');
   if (cor === undefined) n['outerRadiusAuto'] = true;
-  if (cor !== undefined) n['outerRadius'] = cor;
   const cir = autoRadiusTag(el, 'innerradius');
   if (cir === undefined) n['innerRadiusAuto'] = true;
   if (cir !== undefined) n['innerRadius'] = cir;
+  // The inner radius's setter raises the outer to meet it, as the desktop
+  // loader runs it.
+  if (cor !== undefined) n['outerRadius'] = cir === undefined ? cor : settleRingOuterLoad(cor, cir);
   readInstances(el, n);
   return n;
 };
@@ -318,13 +330,17 @@ const readLaunchlug: NodeReader = (_ctx, el) => {
 const readRailbutton: NodeReader = (_ctx, el) => {
   const n = base(el, 'railbutton', true);
   const rb = COMPONENT_DEFAULTS.railbutton;
-  n['outerDiameter'] = nonNegTag(el, 'outerdiameter', rb.outerDiameter);
   // The rest of the button's geometry (RailButtonSaver.java writes all six)
-  // and its material, passed through like fillets: the app neither draws nor
-  // simulates them, so hard-writing the desktop's constructor constants and a
-  // Delrin material would bring a 1010 button sized by hand on the desktop
-  // back from a save as the stock one. Only carried when they differ from the
-  // defaults the writer falls back to, so an untouched design stays clean.
+  // and its material. The kernel bridge flies them; the writer falls back to
+  // the desktop's constructor constants only when the node carries none, so
+  // hard-writing those constants and a Delrin material would bring a 1010
+  // button sized by hand on the desktop back from a save as the stock one. The setters clamp the heights and bore
+  // against each other as they load, so a pair that disagrees arrives as the
+  // desktop holds it. Only carried when they differ from the defaults the
+  // writer falls back to, so an untouched design stays clean.
+  const read: Partial<Record<keyof typeof RAIL_BUTTON_FALLBACK, number>> = {
+    outerDiameter: nonNegTag(el, 'outerdiameter', rb.outerDiameter),
+  };
   for (const [tag, key] of [
     ['innerdiameter', 'innerDiameter'],
     ['height', 'height'],
@@ -333,7 +349,12 @@ const readRailbutton: NodeReader = (_ctx, el) => {
     ['screwheight', 'screwHeight'],
   ] as const) {
     const v = numTag(el, tag, NaN);
-    if (v >= 0 && v !== rb[key]) n[key] = v;
+    if (v >= 0) read[key] = v;
+  }
+  const settled = settleRailButtonLoad(read);
+  n['outerDiameter'] = settled.outerDiameter;
+  for (const key of ['innerDiameter', 'height', 'baseHeight', 'flangeHeight', 'screwHeight'] as const) {
+    if (settled[key] !== rb[key]) n[key] = settled[key];
   }
   readMaterialGroup(el, n);
   n['angleOffset'] = readAngleAroundBody(el);
@@ -356,17 +377,8 @@ const readFairing: NodeReader = (_ctx, el) => {
   return n;
 };
 
-const readParachute: NodeReader = (ctx, el) => {
-  const n = base(el, 'parachute', true);
-  readPackedSize(el, n);
-  readRadial(el, n);
-  n['diameter'] = nonNegTag(el, 'diameter', 0.3);
-  readCd(el, n);
-  // Bounded: the kernel sums line mass per line, and a file can say anything.
-  n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 1, MAX_LINE_COUNT);
-  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = nonNegTag(el, 'linelength', 0.3);
-  readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
-  readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
+/** A recovery device's role and when it comes out. */
+function readRecoveryDeployment(ctx: OrkImportContext, el: Element, n: ComponentNode): void {
   // Drogue or main. The desktop writes <isdrogue> only when it is true, and
   // the kernel needs it to tell dual deployment from single: without it every
   // flight takes the single-deployment branch.
@@ -376,6 +388,21 @@ const readParachute: NodeReader = (ctx, el) => {
   // block in an undeclared file is not read.
   readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
   captureDeployments(ctx, el, n);
+}
+
+const readParachute: NodeReader = (ctx, el) => {
+  const n = base(el, 'parachute', true);
+  readPackedSize(el, n);
+  readRadial(el, n);
+  n['diameter'] = nonNegTag(el, 'diameter', 0.3);
+  readCd(el, n);
+  // Bounded: the kernel sums line mass per line, and a file can say anything.
+  // From 0: a parachute may have no lines (`Parachute.setLineCount`).
+  n['lineCount'] = clampCount(numTag(el, 'linecount', 6), 0, MAX_LINE_COUNT);
+  if (!readAutoValue(el, n, 'linelength', 'lineLengthAuto')) n['lineLength'] = nonNegTag(el, 'linelength', 0.3);
+  readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
+  readSoftMaterial(el, n, 'line', 'lineDensity', 'lineMaterialName', ':scope > linematerial');
+  readRecoveryDeployment(ctx, el, n);
   // Our extension tag (desktop warns-and-ignores): spill hole diameter.
   const spill = numTag(el, 'spillholediameter', 0);
   if (spill > 0) n['spillHoleDiameter'] = spill;
@@ -390,9 +417,7 @@ const readStreamer: NodeReader = (ctx, el) => {
   n['stripWidth'] = nonNegTag(el, 'stripwidth', 0.05);
   readCd(el, n);
   readSoftMaterial(el, n, 'surface', 'surfaceDensity', 'surfaceMaterialName');
-  if (isDrogueTag(el)) n['drogue'] = true;
-  readDeployment(el, n, ctx.chosenConfigId === null ? null : configScoped(ctx, el, 'deploymentconfiguration'));
-  captureDeployments(ctx, el, n);
+  readRecoveryDeployment(ctx, el, n);
   return n;
 };
 
@@ -409,7 +434,9 @@ const readMasscomponent: NodeReader = (_ctx, el) => {
   const n = base(el, 'masscomponent', true);
   n['mass'] = nonNegTag(el, 'mass', 0.01);
   n['length'] = nonNegTag(el, 'packedlength', 0.02);
-  n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
+  n['radius'] = COMPONENT_DEFAULTS.masscomponent.radius;
+  if (!readAutoPackedRadius(el, n))
+    n['radius'] = nonNegTag(el, 'packedradius', COMPONENT_DEFAULTS.masscomponent.radius);
   // Preserve-through: what kind of mass this is (altimeter, payload…).
   // No mass/CG effect, but the desktop shows it and users set it there.
   const mct = text(el, ':scope > masscomponenttype');
@@ -429,7 +456,8 @@ const readAssembly =
   (ctx, el) => {
     const n = base(el, asmType, true); // name + overrides + axialoffset/position
     n['instanceCount'] = clampCount(
-      numTag(el, 'instancecount', asmType === 'podset' ? 1 : 2),
+      // Absent, the count `new PodSet()` and `new ParallelStage()` start with.
+      numTag(el, 'instancecount', KERNEL_DEFAULTS[asmType].instanceCount),
       1,
       MAX_ASSEMBLY_INSTANCES,
     );
@@ -448,8 +476,8 @@ const readAssembly =
     }
     if (asmType === 'parallelstage') {
       // Same separation read as a booster <stage>: the chosen config's
-      // block wins over the bare defaults.
-      readSeparation(configScoped(ctx, el, 'separationconfiguration') ?? el, n);
+      // block overrides the bare defaults field by field.
+      readSeparation(el, n, configScoped(ctx, el, 'separationconfiguration'));
       captureSeparations(ctx, el, n);
     }
     return n;
@@ -526,8 +554,9 @@ export function readStages(ctx: OrkImportContext, stages: Element[]): ComponentN
     if (!Number.isNaN(nozzle) && nozzle > 0) stage['nozzleExitDiameter'] = nozzle;
     if (i > 0) {
       // Like ignition: the chosen config's block overrides the bare defaults
-      // (24.12 writes a <separationconfiguration> for every config id).
-      readSeparation(configScoped(ctx, stageEl, 'separationconfiguration') ?? stageEl, stage);
+      // field by field (24.12 writes a <separationconfiguration> for each
+      // configuration that overrides the default).
+      readSeparation(stageEl, stage, configScoped(ctx, stageEl, 'separationconfiguration'));
       captureSeparations(ctx, stageEl, stage);
     }
     const kids = convertChildren(ctx, stageEl);

@@ -13,6 +13,7 @@ import { stableJson } from '../app/stableJson';
 import { padLevelWind } from './windLevels';
 import { walkNodes } from '../../tree/treeWalk';
 import { isRecoveryDevice } from '../design/treeEdit';
+import { settleLinkedDimensions } from '../design/linkedDimensions';
 
 /**
  * The default compass heading (degrees) for the launch rod and the wind: due
@@ -21,6 +22,17 @@ import { isRecoveryDevice } from '../design/treeEdit';
  * fallback heading reads the same value.
  */
 export const DEFAULT_HEADING_DEG = 90;
+
+/**
+ * The maximum angle step the kernel flies, in radians: 1 to 20 degrees, the
+ * clamp in `SimulationOptions.setMaximumStepAngle`. The bridge sets the step on
+ * `SimulationConditions`, which has no clamp, so the range is applied here.
+ */
+export const MAX_ANGLE_STEP_RANGE = { min: Math.PI / 180, max: (20 * Math.PI) / 180 } as const;
+
+/** A maximum angle step brought into {@link MAX_ANGLE_STEP_RANGE}. */
+export const clampMaxAngleStep = (rad: number): number =>
+  Math.min(MAX_ANGLE_STEP_RANGE.max, Math.max(MAX_ANGLE_STEP_RANGE.min, rad));
 
 export interface Simulation {
   id: string;
@@ -66,13 +78,23 @@ export interface Simulation {
    */
   resultKey?: string;
   /**
+   * The launch conditions `result` was flown under, as they stood at dispatch.
+   *
+   * `launch` is the row's current conditions, which an edit moves while the
+   * result stays readable. Whatever describes the flight (the launch site under
+   * the ground track, the air the flight met) reads this. When unset, readers
+   * fall back to `launch`.
+   */
+  resultLaunch?: LaunchConditions;
+  /**
    * Per-simulation overrides of the global run preferences (Settings ›
    * Simulation). Unset keys fall through to the global value, so a workspace
    * that never sets one flies on the globals.
    *
-   * These ride on the workspace autosave, not the `.ork`: the `.ork` reader and
-   * writer (`ork/importSimulations.ts`, `ork/exportSimulation.ts`) do not carry
-   * them, so a round trip through `.ork` drops them.
+   * The `.ork` carries the ones desktop keeps per simulation (time step, maximum
+   * time and the four recovery warnings): the writer puts the simulation's own
+   * settings in its conditions, and the reader brings a file's back as overrides
+   * where they differ from the globals. The rest ride on the workspace autosave.
    */
   prefs?: Partial<SimPrefs>;
 }
@@ -147,7 +169,9 @@ export function flightKey(tree: RocketTree): string {
   let key = treeKeys.get(tree);
   if (key === undefined) {
     const deviceNames = [...walkNodes(tree.components)].filter((n) => isRecoveryDevice(n.type)).map((n) => n.name);
-    key = stableJson([tree.components, deviceNames], PART_NAME);
+    // Linked dimensions as the kernel builds them: a stored rail button or ring
+    // the load path settles flies the same before and after, so it keys the same.
+    key = stableJson([settleLinkedDimensions(tree).components, deviceNames], PART_NAME);
     treeKeys.set(tree, key);
   }
   return key;
@@ -230,7 +254,9 @@ export function resultFlight(
 ): ResultFlight | null {
   const pick = (id: string | null): ResultFlight | null => {
     const sim = id == null ? undefined : sims.find((x) => x.id === id);
-    return sim?.result ? { id: sim.id, name: sim.name, result: sim.result, launch: sim.launch } : null;
+    return sim?.result
+      ? { id: sim.id, name: sim.name, result: sim.result, launch: sim.resultLaunch ?? sim.launch }
+      : null;
   };
   return pick(chosen) ?? pick(activeId);
 }
@@ -272,12 +298,32 @@ export function simStatus(
   return outdated ? 'outdated' : 'upToDate';
 }
 
+/** The i18n key each status reads as. */
+const SIM_STATUS_KEY: Record<SimStatus, string> = {
+  upToDate: 'sims.statusUpToDate',
+  outdated: 'sims.statusOutdated',
+  queued: 'sims.statusQueued',
+  running: 'sims.statusRunning',
+  failed: 'sims.statusFailed',
+  notRun: 'sims.notRun',
+  fromFile: 'sims.statusFromFile',
+};
+
+/**
+ * A status as the reader sees it: the one wording the simulations table and
+ * the run-table CSV share, so the file and the table cannot disagree.
+ */
+export function simStatusLabel(status: SimStatus, t: (key: string) => string): string {
+  return t(SIM_STATUS_KEY[status]);
+}
+
 /**
  * The simulations with their flight results dropped. A result is tens of
  * thousands of samples, so the undo history and the persisted design hold the
  * inputs only.
  */
-export const withoutResults = (sims: readonly Simulation[]): Simulation[] => sims.map((s) => ({ ...s, result: null }));
+export const withoutResults = (sims: readonly Simulation[]): Simulation[] =>
+  sims.map((s) => ({ ...s, result: null, resultLaunch: undefined }));
 
 /** Globally-unique id for a new simulation: a UUID (like OpenRocket's own ids),
  *  so ids minted after a reload can't collide with persisted ones. */
@@ -314,6 +360,14 @@ export interface SimPrefs {
    * control for it, and a design does not carry one.
    */
   guideAwareRodClearance: boolean;
+  /**
+   * The user's length unit. The kernel decides its airframe diameter-step, gap
+   * and overlap warnings by comparing lengths as text in this unit, and those
+   * warnings land in the flight, so a unit switch changes what a run records.
+   * Optional because `settings.simulation` does not hold it; the store's copy
+   * always does (`simPrefsOf`).
+   */
+  lengthUnit?: string;
 }
 
 /**
@@ -340,6 +394,7 @@ export const SIM_PREF_KEYS = [
   'mainLowSpeedWarn',
   'drogueLowSpeedWarn',
   'guideAwareRodClearance',
+  'lengthUnit',
 ] as const satisfies readonly (keyof SimPrefs)[];
 
 /** Compile-time proof that {@link SIM_PREF_KEYS} names every `SimPrefs` key. */
@@ -355,7 +410,7 @@ void _exhaustive;
  *
  * Compared key by key rather than by identity, because the settings object is
  * rebuilt on every unrelated change in the same store: switching a unit or a
- * part color hands out a new `simulation` object holding the same nine numbers,
+ * part color hands out a new `simulation` object holding the same values,
  * and treating that as an edit would age every result on screen.
  */
 export function changedPrefKeys(before: SimPrefs, after: SimPrefs): (keyof SimPrefs)[] {
@@ -420,7 +475,8 @@ export function simConditions(launch: CompleteLaunch, prefs?: SimPrefs) {
     geodetic: launch.geodetic,
     gravityModel: launch.gravityModel,
     constantGravity: launch.constantGravity,
-    maxAngleStep: prefs?.maxAngleStep,
+    // A stored value can hold a step outside the range the kernel flies.
+    maxAngleStep: prefs?.maxAngleStep == null ? undefined : clampMaxAngleStep(prefs.maxAngleStep),
     launchAltitude: launch.launchAltitudeM,
     launchLatitude: launch.latitudeDeg,
     launchLongitude: launch.longitudeDeg,

@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useSettings } from '../../state/SettingsProvider';
 import { fmtNum } from '../../i18n/format';
+import { NO_VALUE } from '../../i18n/noValue';
 import type { ComponentMass, AeroSweep } from '../../engine/openRocketEngine';
 import {
   columnMax,
@@ -45,7 +46,7 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
   // which: the row set's own largest, or OpenRocket's fixed full-red-at-1.5.
   const top = style === 'openrocket' ? 1.5 : max;
   return (
-    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-dim">
+    <div className="flex flex-wrap items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-faint">
       <span>{style === 'openrocket' ? t('aero.absolute') : t('aero.share')}</span>
       <HeatRamp top={top} style={style} />
       <span className="tabular-nums">
@@ -74,8 +75,9 @@ function HeatLegend({ max, unit, style }: { max: number; unit: string; style: He
 /**
  * The sampled Mach nearest the crosshair. The tables quote a real sample rather
  * than interpolating between two, so their numbers match the CSV exactly; with
- * no pointer on a chart they settle at Mach 0.3, the speed the stats strip
- * quotes its drag coefficient at.
+ * no pointer on a chart they show the sample nearest the Mach slider's value,
+ * which starts at 0.3 (the speed the stats strip quotes its drag coefficient
+ * at) and keeps the last Mach a chart was hovered at.
  */
 function useSampleAt(machs: number[], mach: number): number {
   return useMemo(() => nearestSampleIndex(machs, mach), [machs, mach]);
@@ -92,6 +94,57 @@ function TableHead({ title, mach }: { title: string; mach: number }) {
   );
 }
 
+/** What every table reads: the sweep, its Mach samples, and the Mach to show. */
+interface SweepTableProps {
+  sweep: AeroSweep;
+  machs: number[];
+  mach: number;
+}
+
+const CELL = 'px-2 py-1 text-right tabular-nums';
+const HEAD = 'px-2 py-1 text-right font-medium';
+const NAME_CELL = 'px-2 py-1 text-left';
+
+/** The table every pane shares: a component column, then `head`'s columns, over `children`'s rows. */
+function SweepTable({ head, children }: { head: React.ReactNode; children: React.ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-[11px] text-ink-soft">
+        <thead className="text-ink-faint">
+          <tr className="border-b border-line/10">
+            <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
+            {head}
+          </tr>
+        </thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  );
+}
+
+/** One part's row: its name, then `children`'s cells. */
+function PartRow({ name, children }: { name: string; children: React.ReactNode }) {
+  return (
+    <tr className="border-b border-line/5 last:border-0">
+      <td className={NAME_CELL}>{name}</td>
+      {children}
+    </tr>
+  );
+}
+
+/** The whole rocket's row: its name, `children`'s cells, and its full share. */
+function WholeRocketRow({ children }: { children: React.ReactNode }) {
+  const { t } = useTranslation();
+  return (
+    <tr className="border-b border-line/10 font-semibold text-ink-strong">
+      <td className={NAME_CELL}>{t('aero.wholeRocket')}</td>
+      {children}
+      <td className={CELL}>100%</td>
+    </tr>
+  );
+}
+
 /**
  * Per-component drag at one Mach: the table behind OpenRocket's Component
  * Analysis "Drag characteristics" tab.
@@ -99,14 +152,14 @@ function TableHead({ title, mach }: { title: string; mach: number }) {
  * Where the desktop makes you type a Mach number into a spinner, this follows
  * the charts' hover crosshair: scrub along the Cd curve and the split updates
  * under it. Every Mach in the sweep is already in hand, so it costs nothing.
- * With no pointer on a chart it settles at Mach 0.3, the same speed the stats
- * strip quotes its drag coefficient at.
+ * With no pointer on a chart it shows the Mach slider's sample (0.3 until
+ * moved or hovered).
  *
  * The friction / pressure / base columns appear only when the kernel supplies
  * them: they come from the same `getForceAnalysis` call as `cd`, and a kernel
  * build that does not report them omits them rather than reporting zeros.
  */
-export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: number[]; mach: number }) {
+export function ComponentTable({ sweep, machs, mach }: SweepTableProps) {
   const { t } = useTranslation();
   const heatStyle = useSettings().settings.aeroHeat;
   const i = useSampleAt(machs, mach);
@@ -117,107 +170,96 @@ export function ComponentTable({ sweep, machs, mach }: { sweep: AeroSweep; machs
   // column is only worth having when something actually has more than one of
   // itself -- usually the fin set, and nothing else.
   const { totalCd, unattributed, hasSplit, hasInstances } = useMemo(() => dragTotals(sweep, i), [sweep, i]);
-  const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : '—');
+  const pct = (v: number) => (totalCd ? `${fmtNum((v / totalCd) * 100, 0)}%` : NO_VALUE);
   const rows = useMemo(() => dragRows(sweep, i, t), [sweep, i, t]);
 
   // `number | null`: a null cell is the kernel saying this reading was not
-  // finite, which must read as an em dash and not as a fabricated 0; a
+  // finite, which must read as the no-value glyph and not as a fabricated 0; a
   // component that genuinely makes no drag reports 0 and means it. `v == null`
   // catches both null and undefined.
-  const num = (v: number | null | undefined, digits = 3) => (v == null ? '—' : fmtNum(v, digits));
-  const cell = 'px-2 py-1 text-right tabular-nums';
-  const head = 'px-2 py-1 text-right font-medium';
+  const num = (v: number | null | undefined, digits = 3) => (v == null ? NO_VALUE : fmtNum(v, digits));
 
   return (
     <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/10">
       <TableHead title={t('aero.dragByComponent')} mach={machs[i] ?? 0} />
       {!!sweep.nonFinite && (
         // The kernel met a reading it could not compute. Those cells come back
-        // null and print as an em dash, but a column sum coerces null to 0, so
+        // null and print as the no-value glyph, but a column sum coerces null to 0, so
         // without this notice the breakdown would silently stop adding up to
         // the rocket totals above it.
         <p className="px-2 pb-1 text-[11px] text-warn-400">{t('aero.nonFinite', { count: sweep.nonFinite })}</p>
       )}
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-ink-soft">
-          <thead className="text-ink-faint">
-            <tr className="border-b border-line/10">
-              <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
-              {hasSplit && <th className={head}>{t('aero.pressure')}</th>}
-              {hasSplit && <th className={head}>{t('aero.base')}</th>}
-              {hasSplit && <th className={head}>{t('aero.friction')}</th>}
-              {hasInstances && <th className={head}>{t('aero.perInstance')}</th>}
-              <th className={head}>Cd</th>
-              <th className={head}>%</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-line/10 font-semibold text-ink-strong">
-              <td className="px-2 py-1 text-left">{t('aero.wholeRocket')}</td>
-              {hasSplit && (
-                <td className={cell} style={heat(sweep.powerOff.pressure[i] ?? 0, totalCd, heatStyle)}>
-                  {num(sweep.powerOff.pressure[i])}
-                </td>
-              )}
-              {hasSplit && (
-                <td className={cell} style={heat(sweep.powerOff.base[i] ?? 0, totalCd, heatStyle)}>
-                  {num(sweep.powerOff.base[i])}
-                </td>
-              )}
-              {hasSplit && (
-                <td className={cell} style={heat(sweep.powerOff.friction[i] ?? 0, totalCd, heatStyle)}>
-                  {num(sweep.powerOff.friction[i])}
-                </td>
-              )}
-              {hasInstances && <td className={cell}>—</td>}
-              <td className={cell} style={heat(totalCd, totalCd, heatStyle)}>
-                {num(totalCd)}
+      <SweepTable
+        head={
+          <>
+            {hasSplit && <th className={HEAD}>{t('aero.pressure')}</th>}
+            {hasSplit && <th className={HEAD}>{t('aero.base')}</th>}
+            {hasSplit && <th className={HEAD}>{t('aero.friction')}</th>}
+            {hasInstances && <th className={HEAD}>{t('aero.perInstance')}</th>}
+            <th className={HEAD}>Cd</th>
+            <th className={HEAD}>%</th>
+          </>
+        }
+      >
+        <WholeRocketRow>
+          {hasSplit && (
+            <td className={CELL} style={heat(sweep.powerOff.pressure[i] ?? 0, totalCd, heatStyle)}>
+              {num(sweep.powerOff.pressure[i])}
+            </td>
+          )}
+          {hasSplit && (
+            <td className={CELL} style={heat(sweep.powerOff.base[i] ?? 0, totalCd, heatStyle)}>
+              {num(sweep.powerOff.base[i])}
+            </td>
+          )}
+          {hasSplit && (
+            <td className={CELL} style={heat(sweep.powerOff.friction[i] ?? 0, totalCd, heatStyle)}>
+              {num(sweep.powerOff.friction[i])}
+            </td>
+          )}
+          {hasInstances && <td className={CELL}>{NO_VALUE}</td>}
+          <td className={CELL} style={heat(totalCd, totalCd, heatStyle)}>
+            {num(totalCd)}
+          </td>
+        </WholeRocketRow>
+        {rows.map((r) => (
+          <PartRow key={r.key} name={r.name}>
+            {hasSplit && (
+              <td className={CELL} style={heat(r.pressure ?? 0, totalCd, heatStyle)}>
+                {num(r.pressure)}
               </td>
-              <td className={cell}>100%</td>
-            </tr>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-b border-line/5 last:border-0">
-                <td className="px-2 py-1 text-left">{r.name}</td>
-                {hasSplit && (
-                  <td className={cell} style={heat(r.pressure ?? 0, totalCd, heatStyle)}>
-                    {num(r.pressure)}
-                  </td>
-                )}
-                {hasSplit && (
-                  <td className={cell} style={heat(r.base ?? 0, totalCd, heatStyle)}>
-                    {num(r.base)}
-                  </td>
-                )}
-                {hasSplit && (
-                  <td className={cell} style={heat(r.friction ?? 0, totalCd, heatStyle)}>
-                    {num(r.friction)}
-                  </td>
-                )}
-                {hasInstances && (
-                  <td className={cell}>
-                    {r.instances > 1 ? `${num(r.cdInstance)} × ${r.instances}` : num(r.cdInstance)}
-                  </td>
-                )}
-                <td className={cell} style={heat(r.cd, totalCd, heatStyle)}>
-                  {num(r.cd)}
-                </td>
-                <td className={`${cell} text-ink-faint`}>{pct(r.cd)}</td>
-              </tr>
-            ))}
-            {unattributed > 1e-6 && (
-              <tr className="border-t border-line/10 text-ink-faint">
-                <td className="px-2 py-1 text-left italic">{t('aero.unattributed')}</td>
-                {hasSplit && <td className={cell}>—</td>}
-                {hasSplit && <td className={cell}>—</td>}
-                {hasSplit && <td className={cell}>—</td>}
-                {hasInstances && <td className={cell}>—</td>}
-                <td className={cell}>{num(unattributed)}</td>
-                <td className={cell}>{pct(unattributed)}</td>
-              </tr>
             )}
-          </tbody>
-        </table>
-      </div>
+            {hasSplit && (
+              <td className={CELL} style={heat(r.base ?? 0, totalCd, heatStyle)}>
+                {num(r.base)}
+              </td>
+            )}
+            {hasSplit && (
+              <td className={CELL} style={heat(r.friction ?? 0, totalCd, heatStyle)}>
+                {num(r.friction)}
+              </td>
+            )}
+            {hasInstances && (
+              <td className={CELL}>{r.instances > 1 ? `${num(r.cdInstance)} × ${r.instances}` : num(r.cdInstance)}</td>
+            )}
+            <td className={CELL} style={heat(r.cd, totalCd, heatStyle)}>
+              {num(r.cd)}
+            </td>
+            <td className={`${CELL} text-ink-faint`}>{pct(r.cd)}</td>
+          </PartRow>
+        ))}
+        {unattributed > 1e-6 && (
+          <tr className="border-t border-line/10 text-ink-faint">
+            <td className="px-2 py-1 text-left italic">{t('aero.unattributed')}</td>
+            {hasSplit && <td className={CELL}>{NO_VALUE}</td>}
+            {hasSplit && <td className={CELL}>{NO_VALUE}</td>}
+            {hasSplit && <td className={CELL}>{NO_VALUE}</td>}
+            {hasInstances && <td className={CELL}>{NO_VALUE}</td>}
+            <td className={CELL}>{num(unattributed)}</td>
+            <td className={CELL}>{pct(unattributed)}</td>
+          </tr>
+        )}
+      </SweepTable>
       <HeatLegend max={totalCd} unit="Cd" style={heatStyle} />
       {unattributed > 1e-6 && (
         <p className="px-1 pt-1.5 text-[10px] leading-snug text-ink-dim">{t('aero.unattributedNote')}</p>
@@ -247,10 +289,7 @@ export function StabilityTable({
   massFactor,
   bodyLen,
   aeroLen,
-}: {
-  sweep: AeroSweep;
-  machs: number[];
-  mach: number;
+}: SweepTableProps & {
   masses: ComponentMass[];
   lengthUnit: string;
   lengthFactor: number;
@@ -289,9 +328,7 @@ export function StabilityTable({
   const rows = useMemo(() => stabilityRows(sweep, i, massOf, t), [sweep, i, massOf, t]);
   if (!hasCna) return null;
 
-  const cell = 'px-2 py-1 text-right tabular-nums';
-  const head = 'px-2 py-1 text-right font-medium';
-  const pct = (v: number) => (totalCna ? `${fmtNum((v / totalCna) * 100, 0)}%` : '—');
+  const pct = (v: number) => (totalCna ? `${fmtNum((v / totalCna) * 100, 0)}%` : NO_VALUE);
   // CP as a percentage, over either length, the same two the CP vs Mach chart
   // offers. `% body` is the whole airframe ("how far along the rocket in front
   // of me"); `% length` is the AERODYNAMIC length, which is what the desktop's
@@ -310,53 +347,48 @@ export function StabilityTable({
   return (
     <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/10">
       <TableHead title={t('aero.stabilityContribution')} mach={machs[i] ?? 0} />
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-ink-soft">
-          <thead className="text-ink-faint">
-            <tr className="border-b border-line/10">
-              <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
-              {hasMass && <th className={head}>{t('aero.eachMass', { unit: massUnit })}</th>}
-              {hasMass && <th className={head}>{t('aero.totalMass', { unit: massUnit })}</th>}
-              {hasMass && <th className={head}>{t('aero.cg', { unit: lengthUnit })}</th>}
-              <th className={head}>CP ({lengthUnit})</th>
-              {hasBodyLen && <th className={head}>CP ({t('aero.pctBody')})</th>}
-              {hasAeroLen && <th className={head}>CP ({t('aero.pctLength')})</th>}
-              <th className={head}>CNα</th>
-              <th className={head}>%</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr className="border-b border-line/10 font-semibold text-ink-strong">
-              <td className="px-2 py-1 text-left">{t('aero.wholeRocket')}</td>
-              {hasMass && <td className={cell}>&mdash;</td>}
-              {hasMass && <td className={cell}>&mdash;</td>}
-              {hasMass && <td className={cell}>&mdash;</td>}
-              <td className={cell}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, lenDigits)}</td>
-              {hasBodyLen && <td className={cell}>{cpPctBody(sweep.cp[i] ?? 0)}</td>}
-              {hasAeroLen && <td className={cell}>{cpPctAero(sweep.cp[i] ?? 0)}</td>}
-              <td className={cell} style={cnaShaded ? heat(totalCna, totalCna, 'sky') : undefined}>
-                {fmtNum(totalCna, 2)}
-              </td>
-              <td className={cell}>100%</td>
-            </tr>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-b border-line/5 last:border-0">
-                <td className="px-2 py-1 text-left">{r.name}</td>
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, massDigits) : '—'}</td>}
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.mass * massFactor, massDigits) : '—'}</td>}
-                {hasMass && <td className={cell}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, lenDigits) : '—'}</td>}
-                <td className={cell}>{fmtNum(r.cp * lengthFactor, lenDigits)}</td>
-                {hasBodyLen && <td className={cell}>{cpPctBody(r.cp)}</td>}
-                {hasAeroLen && <td className={cell}>{cpPctAero(r.cp)}</td>}
-                <td className={cell} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
-                  {fmtNum(r.cna, 2)}
-                </td>
-                <td className={`${cell} text-ink-faint`}>{pct(r.cna)}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SweepTable
+        head={
+          <>
+            {hasMass && <th className={HEAD}>{t('aero.eachMass', { unit: massUnit })}</th>}
+            {hasMass && <th className={HEAD}>{t('aero.totalMass', { unit: massUnit })}</th>}
+            {hasMass && <th className={HEAD}>{t('aero.cg', { unit: lengthUnit })}</th>}
+            <th className={HEAD}>CP ({lengthUnit})</th>
+            {hasBodyLen && <th className={HEAD}>CP ({t('aero.pctBody')})</th>}
+            {hasAeroLen && <th className={HEAD}>CP ({t('aero.pctLength')})</th>}
+            <th className={HEAD}>CNα</th>
+            <th className={HEAD}>%</th>
+          </>
+        }
+      >
+        <WholeRocketRow>
+          {hasMass && <td className={CELL}>{NO_VALUE}</td>}
+          {hasMass && <td className={CELL}>{NO_VALUE}</td>}
+          {hasMass && <td className={CELL}>{NO_VALUE}</td>}
+          <td className={CELL}>{fmtNum((sweep.cp[i] ?? 0) * lengthFactor, lenDigits)}</td>
+          {hasBodyLen && <td className={CELL}>{cpPctBody(sweep.cp[i] ?? 0)}</td>}
+          {hasAeroLen && <td className={CELL}>{cpPctAero(sweep.cp[i] ?? 0)}</td>}
+          <td className={CELL} style={cnaShaded ? heat(totalCna, totalCna, 'sky') : undefined}>
+            {fmtNum(totalCna, 2)}
+          </td>
+        </WholeRocketRow>
+        {rows.map((r) => (
+          <PartRow key={r.key} name={r.name}>
+            {hasMass && (
+              <td className={CELL}>{r.mass ? fmtNum(r.mass.eachMass * massFactor, massDigits) : NO_VALUE}</td>
+            )}
+            {hasMass && <td className={CELL}>{r.mass ? fmtNum(r.mass.mass * massFactor, massDigits) : NO_VALUE}</td>}
+            {hasMass && <td className={CELL}>{r.mass ? fmtNum(r.mass.cg * lengthFactor, lenDigits) : NO_VALUE}</td>}
+            <td className={CELL}>{fmtNum(r.cp * lengthFactor, lenDigits)}</td>
+            {hasBodyLen && <td className={CELL}>{cpPctBody(r.cp)}</td>}
+            {hasAeroLen && <td className={CELL}>{cpPctAero(r.cp)}</td>}
+            <td className={CELL} style={cnaShaded ? heat(r.cna, totalCna, 'sky') : undefined}>
+              {fmtNum(r.cna, 2)}
+            </td>
+            <td className={`${CELL} text-ink-faint`}>{pct(r.cna)}</td>
+          </PartRow>
+        ))}
+      </SweepTable>
     </div>
   );
 }
@@ -373,7 +405,7 @@ export function StabilityTable({
  * Fin sets are picked out by the kernel's class name, because their numbers at
  * rest are indistinguishable from a body tube's.
  */
-export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: number[]; mach: number }) {
+export function RollTable({ sweep, machs, mach }: SweepTableProps) {
   const { t } = useTranslation();
   const heatStyle = useSettings().settings.aeroHeat;
   const i = useSampleAt(machs, mach);
@@ -390,35 +422,28 @@ export function RollTable({ sweep, machs, mach }: { sweep: AeroSweep; machs: num
   const maxForce = columnMax(rows.map((r) => r.force));
   const maxDamp = columnMax(rows.map((r) => r.damp));
 
-  const cell = 'px-2 py-1 text-right tabular-nums';
-  const head = 'px-2 py-1 text-right font-medium';
   return (
     <div className="rounded-lg bg-canvas/40 p-2 ring-1 ring-line/10">
       <TableHead title={t('aero.rollDynamics')} mach={machs[i] ?? 0} />
-      <div className="overflow-x-auto">
-        <table className="w-full text-[11px] text-ink-soft">
-          <thead className="text-ink-faint">
-            <tr className="border-b border-line/10">
-              <th className="px-2 py-1 text-left font-medium">{t('aero.component')}</th>
-              <th className={head}>{t('aero.rollForcing')}</th>
-              <th className={head}>{t('aero.rollDamping')}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.key} className="border-b border-line/5 last:border-0">
-                <td className="px-2 py-1 text-left">{r.name}</td>
-                <td className={cell} style={shaded ? heat(Math.abs(r.force), maxForce, 'sky') : undefined}>
-                  {fmtNum(r.force, 4)}
-                </td>
-                <td className={cell} style={shaded ? heat(Math.abs(r.damp), maxDamp, 'sky') : undefined}>
-                  {fmtNum(r.damp, 4)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      <SweepTable
+        head={
+          <>
+            <th className={HEAD}>{t('aero.rollForcing')}</th>
+            <th className={HEAD}>{t('aero.rollDamping')}</th>
+          </>
+        }
+      >
+        {rows.map((r) => (
+          <PartRow key={r.key} name={r.name}>
+            <td className={CELL} style={shaded ? heat(Math.abs(r.force), maxForce, 'sky') : undefined}>
+              {fmtNum(r.force, 4)}
+            </td>
+            <td className={CELL} style={shaded ? heat(Math.abs(r.damp), maxDamp, 'sky') : undefined}>
+              {fmtNum(r.damp, 4)}
+            </td>
+          </PartRow>
+        ))}
+      </SweepTable>
       {shaded && (
         <div className="flex items-center gap-1.5 px-1 pt-1.5 text-[10px] text-ink-dim">
           <span>{t('aero.columnShare')}</span>

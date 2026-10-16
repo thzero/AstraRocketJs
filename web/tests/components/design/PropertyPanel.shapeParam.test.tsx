@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { serveData } from '../../testing/serveData';
 import { PropertyPanel } from '../../../src/components/design/PropertyPanel';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
+import { shapeSelect } from '../../../src/tree/shapeProfile';
 
 /**
  * The Shape parameter field.
@@ -120,5 +121,46 @@ describe('the ceiling is the shape-dependent one the kernel enforces', () => {
     // onto, say, Length, which would silently cap a 2 m airframe at 1 m.
     panel({ type: 'nosecone', shape: 'ogive', length: 0.1, aftRadius: 0.012 });
     expect((screen.getByRole('spinbutton', { name: 'Length' }) as HTMLInputElement).max).toBe('');
+  });
+});
+
+/**
+ * The shape select writes what `shapeSelect` returns, so the new shape brings
+ * its own parameter and clip. `shapePick.kernel.test.ts` checks those values
+ * against the kernel's profile; what is tested here is that the panel sends
+ * them.
+ */
+describe('choosing a shape', () => {
+  const shapeBox = () => screen.getByRole('combobox', { name: 'Shape' });
+
+  it('sends the new shape with its own parameter and clip', () => {
+    const node = {
+      type: 'transition',
+      shape: 'ogive',
+      shapeParameter: 0.4,
+      clipped: false,
+      length: 0.05,
+      foreRadius: 0.012,
+      aftRadius: 0.02,
+    } as ComponentNode;
+    const onChange = panel(node);
+    fireEvent.change(shapeBox(), { target: { value: 'power' } });
+    const sent = onChange.mock.calls.at(-1)![0] as Partial<ComponentNode>;
+    expect(sent).toEqual(shapeSelect(node, 'power'));
+    expect(Object.keys(sent).sort()).toEqual(['clipped', 'shape', 'shapeParameter']);
+  });
+
+  it('sends a nose cone the new shape and its parameter', () => {
+    const node = {
+      type: 'nosecone',
+      shape: 'ogive',
+      shapeParameter: 0.4,
+      length: 0.1,
+      aftRadius: 0.012,
+    } as ComponentNode;
+    const onChange = panel(node);
+    fireEvent.change(shapeBox(), { target: { value: 'haack' } });
+    expect(onChange.mock.calls.at(-1)![0]).toEqual(shapeSelect(node, 'haack'));
+    expect(onChange.mock.calls.at(-1)![0]).toHaveProperty('shapeParameter');
   });
 });

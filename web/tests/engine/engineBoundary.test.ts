@@ -7,13 +7,13 @@ import {
   type RocketTree,
 } from '../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
-import { MAX_FIN_POINTS, MAX_NESTING_DEPTH } from '../../src/services/files/ork/importLimits';
+import { MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from '../../src/services/files/ork/importLimits';
 
 /**
  * The real kernel, not a stub.
  *
  * A test that stubs the engine asserts what the facade hands it: the right seam
- * for marshalling, and useless for the thing these tests cover, which is what
+ * for marshaling, and useless for the thing these tests cover, which is what
  * the Java does when handed something bad. The `parsed.error` checks on the JS
  * side only work if the kernel answers with an `{"error": ...}` envelope rather
  * than throwing out of TeaVM as an opaque JS exception from inside a 2.9 MB
@@ -169,7 +169,7 @@ describe('the stability margin comes from the kernel, in both units', () => {
     expect(info.stabilityPercent).toBeCloseTo((margin / info.lengthAerodynamic) * 100, 6);
   });
 
-  it('is NOT the old figure, which divided by the whole rocket', () => {
+  it('is NOT the margin over the whole length, which overhang inflates', () => {
     // Dividing by 0.34 m instead of 0.30 m understates the margin by about 12%
     // on a design as ordinary as a motor with overhang.
     const info = OpenRocketDesign.buildTree(OVERHANG).staticInfo();
@@ -411,7 +411,7 @@ describe('every enum name is read, and an unknown one is refused', () => {
     expect(() => builds('nose', { finish: 'glossy' })).toThrow(/surface finish/);
   });
 
-  it('reads the upstream names it used to drop', () => {
+  it('reads the upstream names a desktop file can carry', () => {
     // A desktop file's lower-stage-separation chute, OpenRocket's mirror and
     // optimum finishes, and the after position all build.
     // Mapped, not just accepted: a mirror finish is smoother than a normal one,
@@ -481,6 +481,19 @@ describe('the import ceilings match the kernel', () => {
     const points = Array.from({ length: MAX_FIN_POINTS + 1 }, (_, i) => [i * 1e-5, i === 0 ? 0 : 0.01]);
     tube['children'] = [{ id: 'ff', type: 'freeformfinset', finCount: 3, thickness: 0.002, points }];
     expect(() => OpenRocketDesign.buildTree(tree as unknown as RocketTree).staticInfo()).toThrow(/points/);
+  });
+
+  // The editor and both importers hold a shroud line count to this one ceiling,
+  // so a count any of them admits must build, and one more must not.
+  it('builds a parachute at the line count ceiling, and refuses one line more', () => {
+    const withLines = (lineCount: number) => {
+      const tree = structuredClone(TREE) as unknown as { components: Record<string, unknown>[] };
+      const tube = (tree.components[0]!['children'] as Record<string, unknown>[])[1]!;
+      tube['children'] = [{ id: 'p', type: 'parachute', diameter: 0.3, cd: 0.8, lineCount }];
+      return tree as unknown as RocketTree;
+    };
+    expect(() => OpenRocketDesign.buildTree(withLines(MAX_LINE_COUNT)).staticInfo()).not.toThrow();
+    expect(() => OpenRocketDesign.buildTree(withLines(MAX_LINE_COUNT + 1)).staticInfo()).toThrow(/lineCount/);
   });
 });
 
@@ -604,7 +617,7 @@ describe('the aero sweep does not fabricate zeros', () => {
     }
   });
 
-  it('sums the component CDs back to the rocket total — the invariant a swallowed NaN broke', () => {
+  it('sums the component CDs back to the rocket total, with no NaN swallowed', () => {
     const sweep = build().aeroSweep({ machMin: 0.2, machMax: 0.2, machStep: 0.1 });
     const parts = sweep.components.reduce((a, c) => a + (c.cd[0] ?? 0), 0);
     expect(parts).toBeCloseTo(sweep.powerOff.total[0]!, 6);
@@ -653,7 +666,7 @@ describe('component masses are ordered, not shuffled', () => {
 
 /**
  * Three options the bridge could hardcode, proved against the real kernel rather
- * than at the marshalling seam. An option the Java ignores looks exactly like a
+ * than at the marshaling seam. An option the Java ignores looks exactly like a
  * working one from the JS side, so each case asserts the flight actually moved.
  */
 describe('the bridge passes these options through to the physics', () => {
@@ -1082,18 +1095,18 @@ describe("a transition's shoulders weigh what they are built from", () => {
     expect(bothCapped).toBeGreaterThan(foreCapped);
   });
 
-  it('falls back to the part wall when the shoulder carries no thickness', () => {
-    // An absent shoulder thickness is not a zero one. OpenRocket fills the
-    // shoulder's wall (and radius) from the part when the shoulder length goes
-    // from zero to something (Transition.setForeShoulderLength), so a cap
-    // still has material to be made of. It is also why the panel showing 0 for
-    // that absent key states a number the kernel is not using.
-    const open = massOf(withTransition({}));
-    const capped = massOf(withTransition({ foreShoulderCapped: true, aftShoulderCapped: true }));
-    expect(capped).toBeGreaterThan(open);
+  it('flies an absent shoulder wall as the 0 the panel and the .ork state', () => {
+    // Transition.setForeShoulderLength seeds a shoulder that grows from length 0
+    // with the part's own wall. The panel shows an absent wall as 0 and the
+    // .ork writes 0, which desktop flies, so the bridge sets it after the
+    // length rather than leave the seeded wall in place.
+    const caps = { foreShoulderCapped: true, aftShoulderCapped: true };
+    const absent = massOf(withTransition(caps));
+    const stated = massOf(withTransition({ ...caps, foreShoulderThickness: 0, aftShoulderThickness: 0 }));
+    expect(absent).toBe(stated);
   });
 
-  it('lets an explicit wall override the one the kernel would fill in', () => {
+  it('flies a stated wall', () => {
     const auto = massOf(withTransition({ foreShoulderCapped: true, aftShoulderCapped: true }));
     const thick = massOf(
       withTransition({
@@ -1135,7 +1148,7 @@ const withPart = (part: Record<string, unknown>) =>
 
 const dryMass = (tree: RocketTree) => OpenRocketDesign.buildTree(tree).staticInfo().massEmpty;
 
-describe('the audit gaps reach the kernel', () => {
+describe('part fields the bridge forwards reach the kernel', () => {
   it('weighs a rail button at its own geometry, not the kernel default', () => {
     const stock = dryMass(withPart({ id: 'rb', type: 'railbutton', outerDiameter: 0.0097 }));
     const tall = dryMass(

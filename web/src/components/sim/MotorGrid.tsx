@@ -9,6 +9,7 @@ import type { MotorSort } from './useMotorSort';
 import { SortHeader } from '../common/SortHeader';
 import { CheckMenu } from '../common/CheckMenu';
 import { isTextEntry } from '../common/isTextEntry';
+import { ImportedStar } from './ImportedStar';
 
 /**
  * The motor dashboard's grid: the sortable header, one row per motor (check
@@ -90,7 +91,14 @@ export function MotorGrid({
 
   useEffect(() => {
     if (!selected) return;
-    bodyRef.current?.querySelector(`[data-key="${CSS.escape(keyOf(selected))}"]`)?.scrollIntoView({ block: 'nearest' });
+    const row = bodyRef.current?.querySelector(`[data-key="${CSS.escape(keyOf(selected))}"]`);
+    row?.scrollIntoView({ block: 'nearest' });
+    // Focus follows the selection while it is in the grid, so stepping with
+    // the arrow keys is heard as well as seen. Focus elsewhere (the search box,
+    // the detail rail) is left where the user put it.
+    if (bodyRef.current?.contains(document.activeElement)) {
+      row?.querySelector<HTMLElement>('[data-row-handle]')?.focus({ preventScroll: true });
+    }
   }, [selected]);
 
   return (
@@ -154,10 +162,29 @@ export function MotorGrid({
                       key={c.id}
                       className={`px-2 py-1.5 ${ALIGN[c.align]} ${c.always ? 'font-medium text-ink-strong' : 'text-ink-soft'}`}
                     >
-                      {c.always && m.custom && <span className="mr-1 text-warn-400">★</span>}
-                      {c.cell(m, u)}
+                      {c.always ? (
+                        // The row's focusable handle. The row itself takes the
+                        // mouse, but a <tr> is no stop for a keyboard or a
+                        // screen reader, and the arrow keys move focus here so
+                        // the newly selected motor is announced.
+                        <button
+                          type="button"
+                          data-row-handle
+                          aria-current={isSel || undefined}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onSelect(m);
+                          }}
+                          className="rounded-sm text-left font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500"
+                        >
+                          {m.custom && <ImportedStar />}
+                          {c.cell(m, u, t)}
+                        </button>
+                      ) : (
+                        c.cell(m, u, t)
+                      )}
                       {c.always && !hasCurve(m) && (
-                        <span className="ml-1.5 rounded bg-elevated px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-ink-muted">
+                        <span className="ml-1.5 rounded bg-elevated px-1 py-0.5 text-[9px] font-normal uppercase tracking-wide text-ink-soft">
                           {t('dash.noCurve')}
                         </span>
                       )}

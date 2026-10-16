@@ -103,6 +103,13 @@ describe('groundMapLayout', () => {
     expect(street.refs.some((r) => r.url.includes('openstreetmap.org'))).toBe(false);
   });
 
+  it('sends the user’s own key with every tile, and none without one', () => {
+    expect(layout().refs.every((r) => !r.url.includes('token='))).toBe(true);
+    const keyed = groundMapLayout(HOME.lat, HOME.lon, RADIUS, UNITS_PER_METER, 'satellite', 'test-key');
+    expect(keyed.refs.length).toBeGreaterThan(0);
+    expect(keyed.refs.every((r) => r.url.endsWith('?token=test-key'))).toBe(true);
+  });
+
   /**
    * A bigger flight covers more ground at a coarser zoom rather than fetching
    * more tiles: the ground is covered in about the same number of texture

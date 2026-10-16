@@ -8,6 +8,8 @@ vi.mock('../../src/engine/simClient', async (orig) => ({
 }));
 
 import { useWorkspaceStore } from '../../src/state/store';
+import i18n from '../../src/i18n';
+import { KeyedError } from '../../src/i18n/keyedError';
 import { seatMotor, CURVELESS } from '../testing/seatMotor';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import type { SimPrefs } from '../../src/services/flight/simulations';
@@ -85,6 +87,21 @@ describe('a batch where rows FAIL', () => {
     expect(err).toContain('Alpha'); // the failure survived the skip line...
     expect(err).toContain('boom alpha');
     expect(err).toContain('Charlie'); // ...and the skip is still reported
+  });
+
+  it("gives a keyed failure from the worker in the app's language", async () => {
+    await i18n.changeLanguage('de');
+    try {
+      simulateMock.mockImplementation(() =>
+        Promise.reject(new KeyedError('errors.motorCurve.noMass', { motor: 'F67' })),
+      );
+      await st().runSims([st().sims[0]!.id]);
+      const err = st().err ?? '';
+      expect(err).toContain(i18n.t('errors.motorCurve.noMass', { motor: 'F67' }));
+      expect(err).not.toContain('thrust curve');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 
   it('says nothing when every row flies', async () => {

@@ -11,18 +11,23 @@ export function freshId(): string {
 
 /**
  * Tree components as a stage-node list. A flat tree (no explicit stages) is
- * wrapped into one implicit Sustainer stage; already-staged trees pass through.
+ * wrapped into one implicit first stage, named by {@link defaultStageName};
+ * already-staged trees pass through.
  */
 export function asStageNodes(tree: RocketTree): ComponentNode[] {
   return tree.components.every((c) => c.type === 'stage')
     ? tree.components
-    : [{ type: 'stage', name: 'Sustainer', children: tree.components }];
+    : [{ type: 'stage', name: defaultStageName(0), children: tree.components }];
 }
 
 /**
  * The name a file gives an unnamed stage: "Sustainer" for the first, "Booster n"
- * after it, as the `.ork` and `.rkt` readers and the `.ork` writer name them.
- * File text, not a display label (that is `stageLabel` in i18n/format.ts).
+ * after it, as the `.ork` and `.rkt` readers, the writers and a new design name
+ * them. File text, not a display label (that is `stageLabel` in
+ * i18n/format.ts), but in the UI language: desktop OpenRocket names a new
+ * design's stage from its own translations (`BasicFrame.StageName.Sustainer`)
+ * and writes that name into the file, so a design made in German says so in
+ * German either way.
  */
 export const defaultStageName = (i: number): string =>
   i === 0 ? i18n.t('stageName.sustainer') : i18n.t('stageName.booster', { n: i });
@@ -56,6 +61,20 @@ export interface AtmosphereLevel {
   /** Relative humidity as a fraction (0..1). */
   relativeHumidity: number;
 }
+
+/**
+ * An edit to launch conditions: a patch, or a function that makes one from a
+ * row's own conditions and its id. An edit of several simulations at once
+ * applies it to each, so a value worked out from the row (a deviation recomputed
+ * to keep its turbulence, a profile seeded from its wind) is worked out from
+ * that row rather than copied from the one on screen.
+ */
+export type LaunchPatch =
+  Partial<LaunchConditions> | ((launch: LaunchConditions, rowId: string) => Partial<LaunchConditions>);
+
+/** `p` as the patch it makes for one row. */
+export const launchPatchFor = (p: LaunchPatch, launch: LaunchConditions, rowId: string): Partial<LaunchConditions> =>
+  typeof p === 'function' ? p(launch, rowId) : p;
 
 /** Launch conditions, in the shape a .ork's `<simulation>` `<conditions>` is parsed into. */
 export interface LaunchConditions {

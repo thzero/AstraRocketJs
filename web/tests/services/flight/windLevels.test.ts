@@ -18,7 +18,7 @@ describe('duplicateAltitudeRows', () => {
     expect(duplicateAltitudeRows([lvl(0), lvl(300), lvl(0)])).toEqual([2]);
   });
 
-  it('does not need the profile sorted — the kernel does not keep it sorted either', () => {
+  it('does not need the profile sorted: the kernel does not keep it sorted either', () => {
     expect(duplicateAltitudeRows([lvl(600), lvl(0), lvl(600), lvl(600)])).toEqual([2, 3]);
   });
 

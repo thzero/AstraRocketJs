@@ -2,12 +2,13 @@
  * The warning palette and row shell, shared by everything in the results column
  * that has to say "look at this".
  *
- * Shared rather than copied into each reader (FlightWarnings, the safety card's
- * "not modeled" row): a copied class string is a palette that drifts, so retuning
+ * Shared rather than copied into each reader (the FlightWarnings rows, and the
+ * safety card as a whole): a copied class string is a palette that drifts, so retuning
  * the amber in one place leaves the other row on the previous value.
  *
  * HIGH reads as a problem, the rest as a note. Never color alone: every row
- * that wears these also carries the ⚠ glyph and says in words what it is about.
+ * that wears these also carries the ⚠ glyph and says in words what it is about,
+ * and a HIGH row names its priority in words before the message.
  */
 export const WARNING_TONE: Record<string, string> = {
   HIGH: 'bg-danger-500/10 text-danger-300 ring-danger-400/30',

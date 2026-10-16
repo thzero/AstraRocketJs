@@ -22,7 +22,7 @@ import { C6 } from '../../src/engine/api';
 import { setDesignLibrary } from '../../src/services/storage/designLibrary';
 import { useConfirmStore } from '../../src/state/confirmStore';
 import { usePromptStore } from '../../src/state/promptStore';
-import { getWorkspaceStore } from '../../src/services/storage/workspaceStore';
+import { getWorkspaceStore, type Workspace } from '../../src/services/storage/workspaceStore';
 import {
   findMounts,
   findNode,
@@ -204,6 +204,27 @@ describe('simulation undo/redo', () => {
   it('records no step for a motor change on a configuration that is not there', () => {
     s().setMountMotor('no-such-config', mountId(), { ...C6, designation: 'Z99' });
     expect(s().past).toHaveLength(0);
+  });
+
+  it('records no step and keeps redo when the same motor is seated again', () => {
+    s().setMountMotor(config().id, mountId(), { ...C6, designation: 'Z99' });
+    s().undo();
+    expect(s().future).toHaveLength(1);
+    const again = seated();
+    s().setMountMotor(config().id, mountId(), { ...again, times: [...again.times] });
+    expect(s().past).toHaveLength(0);
+    expect(s().future).toHaveLength(1);
+  });
+
+  it('records no step for ignition timing the mount already has', () => {
+    s().setMountIgnition(config().id, mountId(), 'automatic', 0);
+    s().commitEdit();
+    expect(s().past).toHaveLength(0);
+    s().setMountIgnition(config().id, mountId(), 'burnout', 1);
+    s().commitEdit();
+    s().setMountIgnition(config().id, mountId(), 'burnout', 1);
+    s().commitEdit();
+    expect(s().past).toHaveLength(1);
   });
 
   // An edit still in flight is folded into history first, as undo does, so redo
@@ -484,6 +505,30 @@ describe('managing configurations', () => {
     expect(s().selectedConfigId).toBe(s().configs[1]!.id);
   });
 
+  it('copies the deployment, separation and grounded overrides with the motors', () => {
+    // Desktop's copy runs copyFlightConfiguration on every configurable
+    // component, so recovery and staging come along with the motors.
+    const src = config();
+    useWorkspaceStore.setState({
+      configs: [
+        {
+          ...src,
+          deployments: { chute: { deployAltitude: 150 } },
+          separations: { booster: { separationDelay: 1 } },
+          grounded: ['booster'],
+        },
+      ],
+    });
+    s().copyConfig(src.id);
+    const copy = s().configs[1]!;
+    expect(copy.deployments).toEqual({ chute: { deployAltitude: 150 } });
+    expect(copy.separations).toEqual({ booster: { separationDelay: 1 } });
+    expect(copy.grounded).toEqual(['booster']);
+    // Copies, not shared references: editing one must not edit the other.
+    expect(copy.grounded).not.toBe(s().configs[0]!.grounded);
+    expect(copy.deployments).not.toBe(s().configs[0]!.deployments);
+  });
+
   it('names a copy after a NAMED source, and leaves an unnamed one unnamed', () => {
     // An unnamed configuration is labeled by its motors, so "Estes C6 copy"
     // would name a thing nobody named.
@@ -498,7 +543,25 @@ describe('managing configurations', () => {
     s().renameConfig(config().id, 'Contest');
     expect(config().name).toBe('Contest');
     s().renameConfig(config().id, '   ');
+    s().commitConfigName(config().id);
     expect(config().name).toBeNull();
+  });
+
+  it('keeps a typed name as typed until the edit commits, then trims it', () => {
+    s().renameConfig(config().id, 'Two ');
+    expect(config().name).toBe('Two ');
+    s().renameConfig(config().id, '  Two stage ');
+    s().commitConfigName(config().id);
+    expect(config().name).toBe('Two stage');
+  });
+
+  it('records no undo step for a name keystroke that changes nothing', () => {
+    s().renameConfig(config().id, 'Contest');
+    s().commitConfigName(config().id);
+    const steps = s().past.length;
+    s().renameConfig(config().id, 'Contest');
+    s().commitConfigName(config().id);
+    expect(s().past.length).toBe(steps);
   });
 
   it('refuses to delete the only configuration', () => {
@@ -523,7 +586,7 @@ describe('managing configurations', () => {
     expect(s().sims.every((x) => isStale(x))).toBe(true); // they fly something else now
   });
 
-  it('points one row at another configuration, ageing only that row', () => {
+  it('points one row at another configuration, aging only that row', () => {
     s().addSim();
     const second = s().activeId;
     s().addConfig();
@@ -1156,7 +1219,7 @@ describe('openDesign is race-safe', () => {
     });
 
     // A is slow, B is instant - so B lands first and A's continuation arrives
-    // afterwards, which is the interleaving that has to lose.
+    // afterward, which is the interleaving that has to lose.
     let releaseA!: () => void;
     const slowA = new Promise<void>((r) => (releaseA = r));
     const active: string[] = [];
@@ -1168,6 +1231,7 @@ describe('openDesign is race-safe', () => {
         if (id === 'A') await slowA;
         return wsFor(id) as never;
       },
+      readResults: async () => ({}),
       write: async () => true,
       writeIfUnchanged: async () => ({ status: 'ok', updatedAt: 1 }),
       create: async () => ({ id: 'X', name: 'X', updatedAt: 0 }),
@@ -1215,7 +1279,7 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
 
   it('a slow import does not overwrite the fast one the user opened after it', async () => {
     // Import a large .ork then a small one: the small one lands first, and the
-    // large one must not arrive afterwards and replace it.
+    // large one must not arrive afterward and replace it.
     let releaseSlow!: () => void;
     const slow = new Promise<void>((r) => (releaseSlow = r));
     vi.doMock('../../src/services/files/loadOrk', () => ({
@@ -1235,6 +1299,29 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     await big;
 
     expect((s().tree as unknown as { name: string }).name).toBe('SMALL');
+  });
+
+  // The run gate judges every simulation on its own launch, so the banner on
+  // open has to warn about a later simulation too, not only the first.
+  it("warns on open about any of the file's simulations launched outside the codes", async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'TWO',
+        notes: [],
+        tree: { name: 'TWO', components: [] },
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+        simulations: [
+          { name: 'Calm', configId: 'cfg-1', launch: { launchRodAngleDeg: 5 } },
+          { name: 'Tilted', configId: 'cfg-1', launch: { launchRodAngleDeg: 45 } },
+        ],
+      }),
+    }));
+    await s().openOrkFile(orkFile('TWO'));
+    expect(s().sims.map((x) => x.name)).toEqual(['Calm', 'Tilted']);
+    const notes = s().loadedMeta?.notes ?? [];
+    expect(notes.some((n) => typeof n === 'string' && /45/.test(n))).toBe(true);
   });
 
   it('a superseded import does not post its error over the design that replaced it', async () => {
@@ -1282,6 +1369,20 @@ describe('replacing the workspace is race-safe across actions, not just openDesi
     await pending;
 
     expect((s().tree as unknown as { name?: string }).name).not.toBe('IMPORTED');
+  });
+});
+
+describe('openOrkFile refuses an oversized file before reading it', () => {
+  it('posts the size error without loading the bytes', async () => {
+    s().resetWorkspace();
+    const arrayBuffer = vi.fn(async () => new ArrayBuffer(0));
+    // 4 GiB: past any design file the app reads, and more than a tab can hold.
+    const huge = { name: 'huge.ork', size: 2 ** 32, arrayBuffer } as unknown as File;
+
+    await s().openOrkFile(huge);
+
+    expect(arrayBuffer).not.toHaveBeenCalled();
+    expect(s().err).toMatch(/too large/);
   });
 });
 
@@ -1482,17 +1583,49 @@ describe('replacing the workspace resets the transient run state', () => {
     expect(s().activeId).toBe(snapshot.activeId); // and it did install the snapshot
   });
 
-  it('hydrate keeps a stored result the old flag called outdated reading outdated', () => {
+  it('hydrate keeps a stored result marked `outdated: true` reading outdated', () => {
     s().resetWorkspace();
     const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: true }));
     s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
     expect(isStale(active())).toBe(true);
   });
 
-  it('hydrate keys a stored result the old flag called current to the inputs it loads with', () => {
+  it('hydrate keys a stored result marked `outdated: false` to the inputs it loads with', () => {
     s().resetWorkspace();
     const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false }));
     s().hydrate({ tree: s().tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
+    expect(isStale(active())).toBe(false);
+  });
+
+  /**
+   * A stored design can carry a transition end with no
+   * radius. The bridge flies it automatic, so the drawings that read the tree
+   * as given (the report side view, the templates, the printable solids) need
+   * it resolved; and since the flight is the same, a result current against the
+   * stored tree stays current.
+   */
+  it('hydrate resolves a transition end with no radius, and keeps a current result current', () => {
+    s().resetWorkspace();
+    const tree = {
+      name: 'Bare',
+      components: [
+        {
+          type: 'stage',
+          id: 'st',
+          name: 'S',
+          children: [
+            { type: 'bodytube', id: 'fore', length: 0.2, outerRadius: 0.03, thickness: 0.001 },
+            { type: 'transition', id: 'tr', length: 0.05, thickness: 0.001, shape: 'conical' },
+            { type: 'bodytube', id: 'aft', length: 0.2, outerRadius: 0.02, thickness: 0.001 },
+          ],
+        },
+      ],
+    };
+    const sims = s().sims.map((x) => ({ ...x, result: { summary: {} } as never, outdated: false }));
+    s().hydrate({ tree, sims, configs: s().configs, activeId: s().activeId, loadedMeta: null } as never);
+    const tr = s().tree.components[0]!.children!.find((c) => c.id === 'tr')!;
+    expect(tr['foreRadius']).toBeCloseTo(0.03, 12);
+    expect(tr['aftRadius']).toBeCloseTo(0.02, 12);
     expect(isStale(active())).toBe(false);
   });
 
@@ -1653,6 +1786,41 @@ describe('importing a rocket whose name is already saved', () => {
     expect(calls.created).toEqual(['Big Bertha (3)']);
   });
 
+  // The import replaces the workspace, which cancels the debounced autosave of
+  // the design being left, so the edit inside that window is written first,
+  // as openDesign writes it.
+  it('writes the outgoing design before the import replaces it', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    const written: Workspace[] = [];
+    const lib = Object.assign(libWith(['Something else'], calls) as object, {
+      create: async (name: string, w: Workspace) => {
+        calls.created.push(name);
+        written.push(w);
+        return { id: 'fresh', name, updatedAt: 0 };
+      },
+    });
+    setDesignLibrary(lib as never);
+    stop.push(autoConfirm(true));
+    s().addPartToTree('bodytube');
+    const edited = s().tree;
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+
+    expect(written).toHaveLength(1);
+    expect(written[0]!.tree).toBe(edited);
+    expect(s().tree.name).toBe('Big Bertha');
+  });
+
+  it('writes nothing for an untouched New before the import', async () => {
+    const calls = { active: [] as string[], created: [] as string[] };
+    setDesignLibrary(libWith(['Something else'], calls));
+    stop.push(autoConfirm(true));
+
+    await s().openOrkFile(orkFile('Big Bertha'));
+
+    expect(calls.created).toEqual([]);
+  });
+
   it('abandons the import rather than switching on a refused active-pointer write', async () => {
     const calls = { active: [] as string[], created: [] as string[] };
     const lib = Object.assign(libWith(['Big Bertha'], calls) as object, { setActive: async () => false });
@@ -1729,5 +1897,89 @@ describe('the configuration the tab edits', () => {
     s().undo();
     expect(s().configs.some((c) => c.id === s().selectedConfigId)).toBe(false);
     expect(selectEditedConfig(s()).id).toBe(flown);
+  });
+});
+
+/**
+ * `loadOrk` resets the engine before it builds the imported design, which voids
+ * the open design's live handle. An import that then fails, or that the user
+ * abandons, leaves that design on screen, so the store asks for it to be built
+ * again (`rebuildSeq`, read by the rebuild effect).
+ */
+describe('an import that does not replace the design', () => {
+  const orkFile = (name: string): File =>
+    ({
+      name: `${name}.ork`,
+      arrayBuffer: async () => new TextEncoder().encode(name).buffer,
+    }) as unknown as File;
+
+  beforeEach(() => {
+    s().resetWorkspace();
+  });
+  afterEach(() => {
+    vi.doUnmock('../../src/services/files/loadOrk');
+  });
+
+  it('asks for a rebuild when the import fails', async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => {
+        throw new Error('corrupt zip');
+      },
+    }));
+    const tree = s().tree;
+    const before = s().rebuildSeq;
+    await s().openOrkFile(orkFile('BAD'));
+    expect(s().tree).toBe(tree);
+    expect(s().rebuildSeq).toBe(before + 1);
+  });
+
+  it('asks for a rebuild when the import is abandoned', async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'Taken',
+        notes: [],
+        tree: { name: 'Taken', components: [] },
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+      }),
+    }));
+    // A name clash, overwrite chosen, and the library refuses the pointer
+    // write: the import stops with the previous design still open.
+    setDesignLibrary({
+      list: async () => [{ id: 'd0', name: 'Taken', updatedAt: 0 }],
+      activeId: async () => null,
+      setActive: async () => false,
+    } as never);
+    const stop = useConfirmStore.subscribe((st) => {
+      if (st.request) useConfirmStore.getState().settle(true);
+    });
+    try {
+      const tree = s().tree;
+      const before = s().rebuildSeq;
+      await s().openOrkFile(orkFile('Taken'));
+      expect(s().tree).toBe(tree);
+      expect(s().rebuildSeq).toBe(before + 1);
+    } finally {
+      stop();
+    }
+  });
+
+  it('does not ask for one when the import lands: the new design builds itself', async () => {
+    vi.doMock('../../src/services/files/loadOrk', () => ({
+      loadOrk: async () => ({
+        name: 'Fresh',
+        notes: [],
+        tree: { name: 'Fresh', components: [] },
+        motors: {},
+        configs: [{ id: 'cfg-1', name: null, motors: {} }],
+        chosenConfigId: 'cfg-1',
+      }),
+    }));
+    setDesignLibrary({ list: async () => [], activeId: async () => null } as never);
+    const before = s().rebuildSeq;
+    await s().openOrkFile(orkFile('Fresh'));
+    expect((s().tree as unknown as { name: string }).name).toBe('Fresh');
+    expect(s().rebuildSeq).toBe(before);
   });
 });

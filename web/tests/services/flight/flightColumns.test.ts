@@ -1,8 +1,12 @@
 import { describe, it, expect } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import en from '../../../src/i18n/locales/en.json';
 import es from '../../../src/i18n/locales/es.json';
 import { DEFAULT_CSV_COLUMNS, flightBranches, flightColumns } from '../../../src/services/flight/flightColumns';
 import type { FlightResult } from '../../../src/engine/openRocketEngine';
+import { flightDataCsv } from '../../../src/services/exports/csvExport';
+import { METRIC_UNITS } from '../../../src/prefs/units';
 
 /** A result carrying exactly these series keys. */
 const withKeys = (keys: string[]) =>
@@ -67,11 +71,84 @@ describe('flightColumns', () => {
     expect(flightColumns(withKeys(['mass', 'mp'])).map((c) => c.quantity)).toEqual(['mass', 'mass']);
   });
 
+  /**
+   * The kernel records the body rates and the natural frequency in rad/s, and
+   * `r/s` in OpenRocket's unit list is revolutions per second, so the column
+   * takes the roll-rate unit group and is converted with it.
+   */
+  it('puts the angular rates in the reader roll-rate unit, converted from rad/s', () => {
+    const keys = ['dΦ', 'dθ', 'dΨ', 'ωn'];
+    expect(flightColumns(withKeys(keys)).map((c) => c.quantity)).toEqual(keys.map(() => 'rollRate'));
+
+    const r = { series: { time: [0, 1], dΦ: [0, 2 * Math.PI] } } as unknown as FlightResult;
+    const bare = { fieldDescriptions: true, simDescription: false, flightEvents: false, decimals: 3 };
+    const name = (c: { key: string }) => c.key;
+    const revs = flightDataCsv(r, METRIC_UNITS, { ...bare, columns: ['time', 'dΦ'], columnName: name }).split('\r\n');
+    expect(revs[0]).toBe('# time (s),dΦ (r/s)');
+    expect(revs[2]).toBe('1.000,1.000');
+
+    const rads = flightDataCsv(
+      r,
+      { ...METRIC_UNITS, rollRate: 'rad/s' },
+      { ...bare, columns: ['time', 'dΦ'], columnName: name },
+    ).split('\r\n');
+    expect(rads[0]).toBe('# time (s),dΦ (rad/s)');
+    expect(rads[2]).toBe(`1.000,${(2 * Math.PI).toFixed(3)}`);
+  });
+
   it('gives every column a unit or an explicit blank, never undefined both ways', () => {
     // Mach and the coefficients are genuinely unitless; a missing unit and a
     // missing quantity would render as the string "undefined".
     for (const c of flightColumns(withKeys(['time', 'Cd', 'M', 'Px', 'ρ']))) {
       expect(c.quantity ?? c.unit, `${c.key} has neither`).toBeDefined();
+    }
+  });
+});
+
+/**
+ * Every series the kernel can record has a column with a name and a unit, so
+ * none exports as a bare symbol. The symbols are read from `FlightDataType.java`
+ * itself; the app's dozen arrive under its own names, and the bridge never
+ * sends the computation time.
+ */
+describe('flightColumns against FlightDataType', () => {
+  const SENT_AS_APP_NAME: Record<string, string> = {
+    t: 'time',
+    h: 'altitude',
+    Vt: 'velocity',
+    At: 'acceleration',
+    m: 'mass',
+    Ft: 'thrust',
+    Fd: 'drag',
+    M: 'mach',
+    S: 'stability',
+    Cp: 'cpLocation',
+    Cg: 'cgLocation',
+    α: 'aoa',
+  };
+  const NOT_SENT = new Set(['tc']);
+  const java = readFileSync(
+    resolve(process.cwd(), '../engine-java/src/java/info/openrocket/core/simulation/FlightDataType.java'),
+    'utf8',
+  );
+  const unescape = (x: string) =>
+    x.replace(/\\u([0-9a-fA-F]{4})/g, (_, h: string) => String.fromCharCode(parseInt(h, 16)));
+  const symbols = [
+    ...java.matchAll(/newType\(\s*"[^"]*",\s*trans\.get\("[^"]*"\),\s*"([^"]*)"(\s*\+\s*Chars\.ALPHA)?/g),
+  ].map((m) => unescape(m[1]!) + (m[2] ? 'α' : ''));
+
+  it('finds the kernel table', () => {
+    expect(symbols.length).toBeGreaterThan(60);
+    expect(symbols).toContain('CNα');
+  });
+
+  it('labels every recorded series', () => {
+    const keys = symbols.filter((s) => !NOT_SENT.has(s)).map((s) => SENT_AS_APP_NAME[s] ?? s);
+    const cols = flightColumns(withKeys(keys));
+    for (const k of keys) {
+      const col = cols.find((c) => c.key === k);
+      expect(col?.labelKey, `${k} has no label`).toBeTruthy();
+      expect(col!.quantity ?? col!.unit, `${k} has no unit`).not.toBeUndefined();
     }
   });
 });
@@ -96,5 +173,19 @@ describe('flightBranches', () => {
     ];
     const r = { series: { time: [0] }, events: [], branches } as unknown as FlightResult;
     expect(flightBranches(r)).toBe(branches);
+  });
+});
+
+describe('flightColumns units', () => {
+  it('names the stability unit in the UI language', async () => {
+    const i18n = (await import('../../../src/i18n')).default;
+    await i18n.changeLanguage('ru');
+    try {
+      const stability = flightColumns(withKeys(['stability'])).find((c) => c.key === 'stability')!;
+      expect(stability.unit).toBe(i18n.t('stability.caliber'));
+      expect(stability.unit).not.toBe('cal');
+    } finally {
+      await i18n.changeLanguage('en');
+    }
   });
 });

@@ -26,7 +26,7 @@ const CORRECTED_MATERIALS = CATALOG.filter((m) => m.kind === 'corrected');
  *
  * The invariant these hold is deliberately blunt: **if `hasMaterial(type)` is
  * true, that type's material name and density survive a `.ork` round trip.**
- * `fairing` is not offered a material (see `treeEdit.MATERIAL_TYPES`): its
+ * `fairing` is not offered a material (see `hasMaterial` in `treeEdit.ts`): its
  * material does not reach the kernel and the writer has no element for it.
  */
 
@@ -249,8 +249,41 @@ describe('a material the editor offers survives a .ork round trip', () => {
     } as unknown as RocketTree;
 
     const xml = exportOrk({ name: 'RT', tree });
-    expect(xml).toContain(
-      `<material type="bulk" density="${adhesive.density}" group="Adhesives">${adhesive.name}</material>`,
+    // No group: desktop has no adhesives group, and an unknown one raises
+    // "Illegal material group specified, ignoring." on every open.
+    expect(xml).toContain(`<material type="bulk" density="${adhesive.density}">${adhesive.name}</material>`);
+  });
+
+  /**
+   * The catalog files paper products under "Paper"; desktop writes and reads
+   * them as `PaperProducts` (`MaterialGroup.getDatabaseString`), and warns on
+   * the other spelling.
+   */
+  it("writes a group in desktop's own words", () => {
+    const tree = {
+      name: 'RT',
+      components: [
+        node({
+          type: 'stage',
+          id: 's',
+          name: 'S',
+          children: [
+            node({
+              type: 'bodytube',
+              id: 'b',
+              name: 'B',
+              length: 0.3,
+              outerRadius: 0.013,
+              materialName: 'Kraft phenolic',
+              density: 950,
+              materialGroup: 'Paper',
+            }),
+          ],
+        }),
+      ],
+    } as unknown as RocketTree;
+    expect(exportOrk({ name: 'RT', tree })).toContain(
+      '<material type="bulk" density="950" group="PaperProducts">Kraft phenolic</material>',
     );
   });
 });

@@ -10,11 +10,8 @@ import { writeSustainerChain } from './rasaero/sustainer';
 import { writeBoosters } from './rasaero/booster';
 import { writeRecovery } from './rasaero/recovery';
 import { writeLaunchSite } from './rasaero/launchSite';
+import { KeyedError, type Keyed } from '../../i18n/keyedError';
 import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/simulation';
-
-export { rasaeroSurface, RASAERO_SURFACE_DEFAULT } from './rasaero/surface';
-export type { Cdx1ExportEngine } from './rasaero/engines';
-export type { MachAltTable } from './rasaero/simulation';
 
 /**
  * RASAero II (.CDX1) design export. Format knowledge mirrors the desktop's
@@ -49,10 +46,10 @@ export interface Cdx1ExportInput {
   engineExport?: boolean;
   /**
    * Collects the non-fatal notes the desktop exporter would raise as warnings
-   * (a finish with no RASAero surface, say). Optional; without it the notes
-   * are not kept.
+   * (a finish with no RASAero surface, say), keyed for the banner. Optional;
+   * without it the notes are not kept.
    */
-  warnings?: string[];
+  warnings?: Keyed[];
 }
 
 export function exportCdx1({
@@ -67,7 +64,7 @@ export function exportCdx1({
   warnings,
 }: Cdx1ExportInput): string {
   const stagesIn = asStageNodes(tree);
-  if (stagesIn.length > 3) throw new Error('RASAero supports at most 3 stages.');
+  if (stagesIn.length > 3) throw new KeyedError('errors.rasaero.tooManyStages', { max: 3 });
 
   const slots = stageEngineSlots(stagesIn, motors, engineExport ?? CDX1_ENGINE_EXPORT);
   const w = createCdx1Writer();
@@ -76,7 +73,7 @@ export function exportCdx1({
   emit('<RASAeroDocument>');
   emit('<FileVersion>2</FileVersion>');
   emit('<RocketDesign>');
-  writeSustainerChain(w, stagesIn[0]!);
+  writeSustainerChain(w, stagesIn[0]!, stagesIn.length);
   writeBoosters(w, stagesIn);
   emit(`<Surface>${designSurface(stagesIn, warnings)}</Surface>`);
   emit('<CD>0</CD>');

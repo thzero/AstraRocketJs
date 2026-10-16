@@ -1,8 +1,10 @@
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
+import { fireAction } from '../../state/fireAction';
 import { Dialog } from '../common/Dialog';
 import { loadExampleIndex, type ExampleMeta } from '../../services/storage/exampleLibrary';
 import { useAsyncLoad } from '../common/useAsyncLoad';
+import { CatalogError } from '../common/CatalogLoading';
 
 /**
  * The bundled OpenRocket examples, in two places because they answer two
@@ -10,7 +12,7 @@ import { useAsyncLoad } from '../common/useAsyncLoad';
  *
  * Menu → Import → Examples is the primary one, and the semantically exact one:
  * opening an example is an import. It goes through `openOrkFile`, it lands as
- * an unsaved copy with no library entry, and it raises the same notes banner a
+ * its own design, saved to the library by the next autosave, and it raises the same notes banner a
  * picked `.ork` would. Anything that behaves like an import belongs beside the
  * import that reads a file.
  *
@@ -34,8 +36,9 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
   const loaded = useAsyncLoad(loadExampleIndex, 'examples');
   const examples: ExampleMeta[] | null = loaded.data ?? null;
 
-  if (loaded.error !== null)
-    return <p className="px-4 py-8 text-center text-sm text-ink-muted">{t('library.examplesFailed')}</p>;
+  // With a retry: offline at first open, the list would otherwise stay dead
+  // until the dialog is closed and opened again.
+  if (loaded.error !== null) return <CatalogError message={t('library.examplesFailed')} onRetry={loaded.retry} />;
   if (!examples) return <p className="px-4 py-8 text-center text-sm text-ink-muted">{t('common.loading')}</p>;
 
   return (
@@ -44,7 +47,7 @@ export function ExampleList({ onClose }: { onClose: () => void }) {
         <li key={e.id}>
           <button
             onClick={() => {
-              void openExample(e.file);
+              fireAction(openExample(e.file));
               onClose();
             }}
             className="w-full px-4 py-2.5 text-left hover:bg-line/5"

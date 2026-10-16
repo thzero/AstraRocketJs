@@ -21,6 +21,12 @@ describe('component mesh export', () => {
     expect(obj).toMatch(/^f /m);
   });
 
+  it('OBJ is scaled to millimeters, as the STL is', () => {
+    const xs = [...solidToObj(nose).matchAll(/^v (\S+)/gm)].map((m) => Number(m[1]));
+    // A 0.1 m nose lies along the X axis: 100 mm in the file.
+    expect(Math.max(...xs) - Math.min(...xs)).toBeCloseTo(100, 1);
+  });
+
   it('STL is a valid binary blob with a matching triangle count', () => {
     const buf = solidToStl(nose);
     const count = new DataView(buf).getUint32(80, true);
@@ -62,5 +68,33 @@ describe('component mesh export', () => {
   it('GLB starts with the glTF magic', async () => {
     const buf = await solidToGlb(nose);
     expect(new DataView(buf).getUint32(0, true)).toBe(0x46546c67); // 'glTF'
+  });
+
+  /**
+   * glTF's unit is the meter (glTF 2.0, 3.6.1), so a 0.1 m nose cone is 0.1
+   * long in the file once its node scale is applied, or it opens 1000 times too
+   * large in Blender, three.js and AR viewers.
+   */
+  it('GLB is in meters, as glTF requires', async () => {
+    const dv = new DataView(await solidToGlb(nose));
+    // The first chunk after the 12-byte header is the JSON one.
+    const length = dv.getUint32(12, true);
+    const json = JSON.parse(new TextDecoder().decode(new Uint8Array(dv.buffer, dv.byteOffset + 20, length))) as {
+      nodes: { scale?: number[]; matrix?: number[]; mesh?: number; children?: number[] }[];
+      meshes: { primitives: { attributes: { POSITION: number } }[] }[];
+      accessors: { min: number[]; max: number[] }[];
+    };
+    // Every scale on the way down to the mesh, from the root. GLTFExporter writes
+    // a node's transform as `scale` or, when it has more than one part, as a
+    // `matrix`, whose first entry is the x scale here (no rotation).
+    let scale = 1;
+    let node = json.nodes[0]!;
+    for (;;) {
+      scale *= node.scale?.[0] ?? node.matrix?.[0] ?? 1;
+      if (node.mesh !== undefined) break;
+      node = json.nodes[node.children![0]!]!;
+    }
+    const pos = json.accessors[json.meshes[node.mesh]!.primitives[0]!.attributes.POSITION]!;
+    expect((pos.max[0]! - pos.min[0]!) * scale).toBeCloseTo(0.1, 3);
   });
 });

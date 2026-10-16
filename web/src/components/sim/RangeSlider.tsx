@@ -64,7 +64,7 @@ export function RangeSlider({
         max={count - 1}
         step={1}
         value={low}
-        aria-label={`${label} ${t('motorDlg.min')}`}
+        aria-label={t('motorDlg.rangeMin', { label })}
         onChange={(e) => onChange(Math.min(Number(e.target.value), high), high)}
         className={THUMB}
         style={{ zIndex: low >= high ? 5 : 3 }}
@@ -75,7 +75,7 @@ export function RangeSlider({
         max={count - 1}
         step={1}
         value={high}
-        aria-label={`${label} ${t('motorDlg.max')}`}
+        aria-label={t('motorDlg.rangeMax', { label })}
         onChange={(e) => onChange(low, Math.max(Number(e.target.value), low))}
         className={THUMB}
         style={{ zIndex: 4 }}

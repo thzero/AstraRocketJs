@@ -2,13 +2,14 @@
 // for every displayed number (decimal separator + grouping differ per locale:
 // "1,234.5" en-US vs "1.234,5" es-ES). Number <input> values stay canonical;
 // the browser handles their locale separator, so inputs don't use this.
+import { NO_VALUE } from './noValue';
 import i18n from './index';
 
 const cache = new Map<string, Intl.NumberFormat>();
 
 /** Format `n` with a fixed number of fraction digits in the current locale. */
 export function fmtNum(n: number, digits = 0): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return NO_VALUE;
   const lng = i18n.resolvedLanguage || 'en';
   const key = `${lng}:${digits}`;
   let f = cache.get(key);
@@ -25,7 +26,7 @@ export function fmtNum(n: number, digits = 0): string {
  * fixed digits would be all leading zeros.
  */
 export function fmtSig(n: number, sig: number): string {
-  if (!Number.isFinite(n)) return '—';
+  if (!Number.isFinite(n)) return NO_VALUE;
   if (n === 0) return '0';
   const lng = i18n.resolvedLanguage || 'en';
   const tiny = Math.abs(n) < 1e-4;
@@ -54,7 +55,7 @@ export function ladderDigits(v: number): number {
  * "4.6-6.1 m/s", and a fixed decimal count gets one of those two wrong.
  */
 export function fmtUpTo(v: number, digits: number): string {
-  if (!Number.isFinite(v)) return '—';
+  if (!Number.isFinite(v)) return NO_VALUE;
   const rounded = Number(v.toFixed(digits));
   return fmtNum(rounded, (String(rounded).split('.')[1] ?? '').length);
 }
@@ -99,7 +100,9 @@ export function partLabel(
  * read as the viewer's. `year: false` drops the year; `timeOnly` gives just the
  * hour and minute (a table of hours on one known day). A zone the browser does
  * not know (it comes from Open-Meteo and from a saved weather source) falls back
- * to the viewer's clock rather than throwing in the middle of a render.
+ * to the viewer's clock rather than throwing in the middle of a render. An
+ * instant that is not a date (a malformed stored value) reads as no value, for
+ * the same reason.
  */
 export function fmtSiteTime(
   at: string | number | Date,
@@ -119,6 +122,7 @@ export function fmtSiteTime(
         timeZoneName: 'short',
       };
   const date = new Date(at);
+  if (Number.isNaN(date.getTime())) return NO_VALUE;
   try {
     return new Intl.DateTimeFormat(lng, { ...fields, timeZone }).format(date);
   } catch {
@@ -129,10 +133,19 @@ export function fmtSiteTime(
 const MB = 1024 * 1024;
 
 /**
- * Bytes as megabytes, for the two download progress readouts (the boot splash
- * and the catalog loader), in the user's locale like every other displayed
+ * Bytes as megabytes, for the two download progress readouts (the engine-load
+ * banner and the catalog loader), in the user's locale like every other displayed
  * number.
  */
 export function fmtMb(bytes: number): string {
   return fmtNum(bytes / MB, 1);
+}
+
+/**
+ * Items as one list in the current locale ("A, B, and C"; "A、B、C"), so a
+ * sentence that names several things does not join them with English
+ * punctuation.
+ */
+export function fmtList(items: readonly string[]): string {
+  return new Intl.ListFormat(i18n.resolvedLanguage || 'en', { type: 'conjunction' }).format(items);
 }

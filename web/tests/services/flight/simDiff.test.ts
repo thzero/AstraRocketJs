@@ -43,7 +43,7 @@ describe('launchDiffKeys', () => {
   });
 
   it('treats null and undefined alike, since both mean not set', () => {
-    // temperatureC is null for ISA; an older workspace may lack the key.
+    // temperatureC is null for ISA; a stored workspace may lack the key.
     const a = sim({ launch: { ...launch, temperatureC: null } });
     const { temperatureC: _drop, ...noKey } = launch;
     const b = sim({ launch: noKey as LaunchConditions });

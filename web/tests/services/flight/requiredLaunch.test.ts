@@ -47,6 +47,26 @@ describe('missingRequired', () => {
     expect(isComplete(l)).toBe(false);
   });
 
+  it('does not require the single wind under a multilevel profile', () => {
+    // SimulationOptions.getWindModel flies MultiLevelPinkNoiseWindModel and
+    // never reads the average model while the profile is selected.
+    const l = {
+      ...full,
+      windAverage: null,
+      windStdDev: null,
+      windLevels: [{ altitudeM: 0, speed: 3, directionDeg: 90, stddev: 0.3 }],
+    };
+    expect(missingRequired(l)).toEqual([]);
+    expect(isComplete(l)).toBe(true);
+    // The other required fields still count.
+    expect(missingRequired({ ...l, latitudeDeg: null })).toEqual(['latitudeDeg']);
+  });
+
+  it('requires the single wind again once the profile is empty', () => {
+    const l = { ...full, windAverage: null, windStdDev: null, windLevels: [] };
+    expect(missingRequired(l)).toEqual(['windAverage', 'windStdDev']);
+  });
+
   it('reports in panel order however the object was built', () => {
     const l = { ...full, latitudeDeg: null, launchRodAngleDeg: null };
     expect(missingRequired(l)).toEqual(['launchRodAngleDeg', 'latitudeDeg']);

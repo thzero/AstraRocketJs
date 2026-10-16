@@ -1,7 +1,8 @@
-// Open a `.ork` we wrote in a real OpenRocket, and report what it made of it.
+// Open a `.ork` or `.rkt` we wrote in a real OpenRocket, and report what it
+// made of it. The desktop's GeneralRocketLoader reads both formats.
 //
-//   npm run check:ork -- <file.ork> [...]
-//   npm run check:ork -- --jar <OpenRocket.jar> <file.ork>
+//   npm run check:ork -- <file.ork|file.rkt> [...]
+//   npm run check:ork -- --jar <OpenRocket.jar> <file.ork|file.rkt>
 //
 // The only check that asks the thing we are trying to satisfy. Our own tests can
 // prove the writer puts a part link or a motor digest into the file; they cannot
@@ -10,15 +11,59 @@
 // failures are invisible from this side of the boundary: they show up
 // as a warning dialog on somebody's screen.
 //
-// Prints every component that came back carrying a catalog part, every motor
-// that resolved, and the loader's own warnings. Exits non-zero if there are any.
+// Prints how many components came back, every component carrying a catalog
+// part, every motor that resolved, and the loader's own warnings. Exits non-zero
+// if there are any warnings or no components.
 //
-// Not part of the app build or `npm run verify`, because it needs a JDK and an
-// installed OpenRocket. Run it after changing anything the `.ork` writer emits.
-import { existsSync } from 'node:fs';
-import { resolve } from 'node:path';
+// Not part of the app build or `npm run verify`, because it needs a JDK and the
+// OpenRocket release jar (`--jar`, or an installed OpenRocket). Run it after
+// changing anything the `.ork` or `.rkt` writer emits. To get the files the app
+// saves, run tests/services/files/orkDesktopSamples.test.ts with ORK_SAMPLES_DIR
+// set:
+//
+//   ORK_SAMPLES_DIR=<dir> npx vitest run tests/services/files/orkDesktopSamples.test.ts
+//   npm run check:ork -- <dir>/*.ork <dir>/*.rkt
+//
+// `npm run audit` (scripts/audit.mjs) does both against the pinned release; CI
+// does not run it.
+//
+// KNOWN lists the loader warnings expected, by file and warning text, each
+// with its reason: an open finding in docs/AUDIT.md, or a tag the app writes
+// for itself that desktop ignores. Anything else fails, and so does a KNOWN entry that no file
+// it names produced, so a fix has to remove its entry.
+import { execFileSync } from 'node:child_process';
+import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { basename, delimiter, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { chooseBuild, runJava } from './lib/openrocketJava.mjs';
+import { chooseBuild } from './lib/openrocketJava.mjs';
+
+/** Accepted warnings: the file they come from, the text they contain, and the finding. */
+const KNOWN = [
+  // The bundled example's nose cones carry part digests from the OpenRocket 26
+  // build that wrote it, which the 24.12 release does not have; the app keeps a
+  // loaded part link as it found it, so desktop warns on the source file too.
+  {
+    file: 'pods-powered-with-recovery-deployment.ork',
+    warning: 'found matching Estes PNC-50YR',
+    reason: 'the source file names a part 24.12 does not hold',
+  },
+  {
+    file: 'pods-powered-with-recovery-deployment.ork',
+    warning: 'found matching Estes PNC-20,',
+    reason: 'the source file names a part 24.12 does not hold',
+  },
+  {
+    file: 'every-part.ork',
+    warning: "Unknown parameter type 'linelengthauto' for Parachute, ignoring.",
+    reason: 'the app keeps its automatic line length in its own tag; desktop flies the number written beside it',
+  },
+  {
+    file: 'every-part.ork',
+    warning: "Unknown parameter type 'cordlengthauto' for Shock Cord, ignoring.",
+    reason: 'the app keeps its automatic cord length in its own tag; desktop flies the number written beside it',
+  },
+];
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const JAVA_SRC = resolve(HERE, 'ork-check/OrkCheck.java');
@@ -29,7 +74,7 @@ const files = process.argv.slice(2).filter((a, i, all) => {
 });
 
 if (!files.length) {
-  console.error('usage: npm run check:ork -- <file.ork> [...]');
+  console.error('usage: npm run check:ork -- <file.ork|file.rkt> [...]');
   process.exit(2);
 }
 for (const f of files) {
@@ -41,4 +86,40 @@ for (const f of files) {
 
 const { cp, label } = chooseBuild();
 console.log(`opening in ${label}`);
-process.exit(runJava({ cp, javaSrc: JAVA_SRC, className: 'OrkCheck', args: files.map((f) => resolve(f)) }));
+const work = mkdtempSync(join(tmpdir(), 'or-check-'));
+let out;
+try {
+  execFileSync('javac', ['-cp', cp, '-d', work, JAVA_SRC], { stdio: 'inherit' });
+  try {
+    out = execFileSync('java', ['-cp', `${cp}${delimiter}${work}`, 'OrkCheck', ...files.map((f) => resolve(f))], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+      maxBuffer: 64 * 1024 * 1024,
+    });
+  } catch (e) {
+    // OrkCheck exits 1 on any warning; its report is still on stdout.
+    if (typeof e.stdout !== 'string') throw e;
+    out = e.stdout;
+  }
+} finally {
+  rmSync(work, { recursive: true, force: true });
+}
+process.stdout.write(out);
+
+const opened = new Set(files.map((f) => basename(f)));
+const seen = new Set();
+const unknown = [];
+let file = '';
+for (const line of out.split(/\r?\n/)) {
+  if (line.startsWith('== ')) file = basename(line.slice(3).trim());
+  const warning = line.match(/^\s+(WARNING: .*|FAILED: .*)$/)?.[1];
+  if (!warning) continue;
+  const known = KNOWN.find((k) => k.file === file && warning.includes(k.warning));
+  if (known) seen.add(known);
+  else unknown.push(`${file}: ${warning}`);
+}
+const stale = KNOWN.filter((k) => opened.has(k.file) && !seen.has(k));
+for (const u of unknown) console.log(`NEW ${u}`);
+for (const k of stale) console.log(`NO LONGER WARNS ${k.file}: ${k.warning} (${k.reason}): remove it from KNOWN`);
+console.log(`${unknown.length} new warnings, ${seen.size} known, ${stale.length} stale entries`);
+process.exit(unknown.length || stale.length ? 1 : 0);

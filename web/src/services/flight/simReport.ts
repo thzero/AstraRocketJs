@@ -16,11 +16,33 @@ export function stabilityToneOf(state: StabilityState): string {
   return state === 'ok' ? 'text-ok-400' : state === 'over' ? 'text-warn-400' : 'text-danger-400';
 }
 
-/** Tailwind text tone by margin sign (stable ≥1, marginal ≥0, else unstable).
+/** The rail-exit margin's bands by sign: stable at 1 cal and up, marginal from
+ *  0, unstable below. The tone and the word both read from here, so a retune
+ *  moves the color and the verdict together. */
+type RailBand = 'stable' | 'marginal' | 'unstable';
+const railBand = (cal: number): RailBand => (cal >= 1 ? 'stable' : cal >= 0 ? 'marginal' : 'unstable');
+const RAIL_TONE: Record<RailBand, string> = {
+  stable: 'text-ok-400',
+  marginal: 'text-warn-400',
+  unstable: 'text-danger-400',
+};
+const RAIL_VERDICT: Record<RailBand, string> = {
+  stable: 'stability.stable',
+  marginal: 'stability.marginal',
+  unstable: 'stability.unstable',
+};
+
+/** Tailwind text tone by margin sign ({@link railBand}).
  *  For the rail-exit margin, a different quantity with no over-stable reading;
  *  an on-pad margin is colored by its band ({@link stabilityToneOf}). */
 export function stabilityTone(cal: number): string {
-  return cal >= 1 ? 'text-ok-400' : cal >= 0 ? 'text-warn-400' : 'text-danger-400';
+  return RAIL_TONE[railBand(cal)];
+}
+
+/** i18n key for the rail-exit margin's one-word verdict, in the bands its
+ *  tone ({@link stabilityTone}) uses. */
+export function railVerdictKey(cal: number): string {
+  return RAIL_VERDICT[railBand(cal)];
 }
 
 /** i18n key for the one-word on-pad verdict: the bands of {@link stabilityState},

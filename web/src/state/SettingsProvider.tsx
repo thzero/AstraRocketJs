@@ -1,6 +1,14 @@
 import { createContext, useCallback, useContext, useMemo, useState, type ReactNode, useEffect } from 'react';
-import { DEFAULT_SETTINGS, loadSettings, saveSettings, type Settings } from '../services/storage/settings';
+import {
+  DEFAULT_SETTINGS,
+  isSettingsStorageKey,
+  loadSettings,
+  loadStoredSettings,
+  saveSettings,
+  type Settings,
+} from '../services/storage/settings';
 import { applyTheme, followSystemTheme } from '../services/app/theme';
+import { useWorkspaceStore } from './store';
 
 /**
  * Surface a refused settings write, out of the React updater it is detected in.
@@ -9,17 +17,9 @@ import { applyTheme, followSystemTheme } from '../services/app/theme';
  * the state it is actually storing - and a zustand write from there is a store
  * write during render. The microtask puts it after the render pass. Same banner
  * the design library and the workspace use for the same cause.
- *
- * The store is imported lazily, and not for weight: a static edge from here would
- * construct the workspace store as a side effect of loading this provider, and the
- * store's initial state reads `loadSettings()` at construction. A test that mocks
- * the settings module then builds the store against the mock before it has set one
- * up. Nothing about a settings write needs the store until a write is refused.
  */
 const reportRefused = () => {
-  queueMicrotask(() => {
-    void import('./store').then(({ useWorkspaceStore }) => useWorkspaceStore.getState().warnStorageFull());
-  });
+  queueMicrotask(() => useWorkspaceStore.getState().warnStorageFull());
 };
 
 interface SettingsCtx {
@@ -40,6 +40,18 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     return followSystemTheme(settings.theme);
   }, [settings.theme]);
 
+  // Another tab's write lands here too. Without it this tab keeps the copy it
+  // loaded, and its next change would write that stale copy back over the
+  // other tab's units and launch defaults. Only read, never written, so two
+  // tabs cannot echo one change between them.
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (isSettingsStorageKey(e.key)) setSettings(loadSettings());
+    };
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
+  }, []);
+
   // Persist from the two events that change settings, never from an effect on
   // `settings`. An effect writes loadSettings()' own output straight back on
   // mount, and `loadSettings` normalizes by dropping keys it does not recognize,
@@ -49,12 +61,16 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // second run sees the flag set and writes anyway. Writing from the event has no
   // first run to skip.
   //
+  // A change is laid over what storage holds now, not over this tab's copy,
+  // so it writes only the keys it changes even when another tab's write has
+  // not reached this one yet.
+  //
   // Stable identities, so a consumer can list `update` in an effect's deps
   // (or leave it out) without the effect re-running on every settings change.
   const update = useCallback(
     (patch: Partial<Settings>) =>
       setSettings((s) => {
-        const next = { ...s, ...patch };
+        const next = { ...(loadStoredSettings() ?? s), ...patch };
         if (!saveSettings(next)) reportRefused();
         return next;
       }),

@@ -1,13 +1,14 @@
 import type { FlightBranch, FlightResult, FlightSeries } from '../../engine/openRocketEngine';
 import type { Quantity } from '../../prefs/units';
+import i18n from '../../i18n';
 
 /**
  * What a flight CSV can carry: one entry per series the run actually recorded.
  *
  * The list is built from the result rather than hard-coded, because which series
  * are present depends on how the simulation was run (`SimulationOptions.series`:
- * the default `summary` set, or `full`). A column the file cannot fill is not
- * offered.
+ * `full` for a simulation row, the smaller `summary` set for a wind sweep's or
+ * forecast hour's flights). A column the file cannot fill is not offered.
  *
  * The friendly dozen come first and in a fixed order, because that is the order
  * anyone reading a flight expects; the rest follow in the kernel table's order,
@@ -24,6 +25,11 @@ export interface FlightColumn {
   quantity?: Quantity;
   /** Fixed unit symbol, for series with no user-selectable unit. */
   unit?: string;
+  /**
+   * i18n key for a fixed unit that is a word in the reader's language rather
+   * than a symbol (calibers). `flightColumns` fills `unit` from it.
+   */
+  unitKey?: string;
   /** SI → display multiplier for a fixed-unit series (kg→g, m→cm, rad→deg). */
   scale?: number;
 }
@@ -44,7 +50,7 @@ const KNOWN: FlightColumn[] = [
   { key: 'thrust', labelKey: 'flight.thrust', quantity: 'force' },
   { key: 'drag', labelKey: 'flight.drag', quantity: 'force' },
   { key: 'mach', labelKey: 'flight.mach', unit: '' },
-  { key: 'stability', labelKey: 'flight.stability', unit: 'cal' },
+  { key: 'stability', labelKey: 'flight.stability', unitKey: 'stability.caliber' },
   { key: 'cpLocation', labelKey: 'flight.cp', quantity: 'length' },
   { key: 'cgLocation', labelKey: 'flight.cg', quantity: 'length' },
   { key: 'aoa', labelKey: 'flight.aoa', quantity: 'angle' },
@@ -85,9 +91,9 @@ const KERNEL: FlightColumn[] = [
   { key: 'Al', labelKey: 'flightVar.Al', quantity: 'acceleration' },
   { key: 'φ', labelKey: 'flightVar.φ', unit: '° N' },
   { key: 'λ', labelKey: 'flightVar.λ', unit: '° E' },
-  { key: 'dΦ', labelKey: 'flightVar.dΦ', unit: 'r/s' },
-  { key: 'dθ', labelKey: 'flightVar.dθ', unit: 'r/s' },
-  { key: 'dΨ', labelKey: 'flightVar.dΨ', unit: 'r/s' },
+  { key: 'dΦ', labelKey: 'flightVar.dΦ', quantity: 'rollRate' },
+  { key: 'dθ', labelKey: 'flightVar.dθ', quantity: 'rollRate' },
+  { key: 'dΨ', labelKey: 'flightVar.dΨ', quantity: 'rollRate' },
   { key: 'Θ', labelKey: 'flightVar.Θ', quantity: 'angle' },
   { key: 'Φ', labelKey: 'flightVar.Φ', quantity: 'angle' },
   { key: 'mp', labelKey: 'flightVar.mp', quantity: 'mass' },
@@ -95,7 +101,7 @@ const KERNEL: FlightColumn[] = [
   { key: 'Ir', labelKey: 'flightVar.Ir', unit: 'kg·m²' },
   { key: 'g', labelKey: 'flightVar.g', quantity: 'acceleration' },
   { key: 'ζ', labelKey: 'flightVar.ζ', unit: '' },
-  { key: 'ωn', labelKey: 'flightVar.ωn', unit: 'r/s' },
+  { key: 'ωn', labelKey: 'flightVar.ωn', quantity: 'rollRate' },
   { key: 'R', labelKey: 'flightVar.R', unit: '' },
   { key: 'Fta', labelKey: 'flightVar.Fta', quantity: 'force' },
   { key: 'Twr', labelKey: 'flightVar.Twr', unit: '' },
@@ -105,6 +111,7 @@ const KERNEL: FlightColumn[] = [
   { key: 'Cdb', labelKey: 'flightVar.Cdb', unit: '' },
   { key: 'Cda', labelKey: 'flightVar.Cda', unit: '' },
   { key: 'Cn', labelKey: 'flightVar.Cn', unit: '' },
+  { key: 'CNα', labelKey: 'flightVar.CNα', unit: '' },
   { key: 'Cθ', labelKey: 'flightVar.Cθ', unit: '' },
   { key: 'CτΨ', labelKey: 'flightVar.CτΨ', unit: '' },
   { key: 'Cτs', labelKey: 'flightVar.Cτs', unit: '' },
@@ -162,7 +169,7 @@ export function flightColumns(result: FlightResult, branchIndex = 0): FlightColu
   const series = branchSeries(result, branchIndex);
   if (!series) return [];
   const has = (k: string) => Array.isArray((series as Record<string, unknown>)[k]);
-  const out = ALL.filter((c) => has(c.key));
+  const out = ALL.filter((c) => has(c.key)).map((c) => (c.unitKey ? { ...c, unit: i18n.t(c.unitKey) } : c));
   for (const k of Object.keys(series)) {
     if (KNOWN_KEYS.has(k) || !has(k)) continue;
     out.push({ key: k, labelKey: null, unit: '' });

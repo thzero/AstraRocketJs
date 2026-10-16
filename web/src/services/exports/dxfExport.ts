@@ -1,6 +1,6 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { num } from '../../tree/nodeProps';
-import { finCutContour, finRootChord } from '../../tree/finPlanform';
+import { finCutContour, finMountOf, finRootPoints, type FinParent } from '../../tree/finPlanform';
 // Shared with the .ork reader and writer, so a part that lost a tag is cut at the
 // size it was read and saved as.
 import { COMPONENT_DEFAULTS } from '../design/componentDefaults';
@@ -8,6 +8,7 @@ import { COMPONENT_DEFAULTS } from '../design/componentDefaults';
 // module, shared with the 3D view and the 2D schematic: importing them from
 // here would pull the R12 serializer into the first-paint bundle.
 import { mountBore, nodeContext, plateOuter, type Tube } from '../design/discGeometry';
+import { englishText, type Translate } from '../../i18n/keyedError';
 
 /**
  * DXF export: the 2D CNC/laser boundary for a rocket's flat, plate-cut parts:
@@ -20,9 +21,8 @@ import { mountBore, nodeContext, plateOuter, type Tube } from '../design/discGeo
  * LightBurn, Carbide Create, Easel and Fusion 360's DXF sketch import all read.
  * Units are millimeters (`$INSUNITS = 4`); the meters→mm conversion lives only
  * in the writer. Geometry sits on a CUT layer; center cross-hairs and root-chord
- * marks sit on a REFERENCE layer the operator does not cut. Parts are laid out
- * left-to-right so none overlap, and `$EXTMIN`/`$EXTMAX` are written so "zoom
- * extents" frames the sheet.
+ * marks sit on a REFERENCE layer the operator does not cut. `$EXTMIN`/`$EXTMAX`
+ * are written so "zoom extents" frames the sheet.
  *
  * DXF Y grows upward, so a fin's span points up and its root sits on y = 0.
  */
@@ -50,8 +50,24 @@ type Ent =
   | { kind: 'text'; layer: Layer; at: Pt; h: number; s: string };
 
 interface Part {
-  label: string;
   ents: Ent[];
+}
+
+/** One text-layer line by its i18n key. */
+type LabelText = (key: string, values?: Record<string, string | number>) => string;
+
+/**
+ * The cut sheet's text layer in the caller's language, falling back to English
+ * line by line. R12 text is 7-bit ASCII (see {@link ascii}): accents fold to
+ * their base letter, but a line in a script with no ASCII form (Cyrillic,
+ * Japanese) would reach the operator as a row of question marks, and English is
+ * the more useful label at the machine.
+ */
+function labelText(t: Translate): LabelText {
+  return (key, values) => {
+    const s = t(key, values);
+    return NON_ASCII.test(asciiFold(s)) ? englishText(key, values) : s;
+  };
 }
 
 // --- geometry (all in meters; the writer alone knows millimeters) ----------
@@ -74,41 +90,49 @@ function dedupe(pts: Pt[]): Pt[] {
   return out;
 }
 
-function finPart(node: ComponentNode, pRadius: number): Part | null {
+function finPart(node: ComponentNode, parent: FinParent, l: LabelText): Part | null {
   // Outline and tab both come from the one fin-geometry module
   // (tree/finPlanform.ts), so the DXF, the STL and the 1:1 PDF template are
   // guaranteed to be the same part. `root` in particular is the kernel's root
   // chord (last.x - first.x for a freeform), not the furthest-aft point: the
   // furthest-aft point would put the tab of an overhanging freeform fin up to
   // 20 mm out of place against the airframe slot.
-  const contour = finCutContour(node, pRadius > 0 ? pRadius : null);
+  const contour = finCutContour(node, parent);
   if (!contour) return null;
-  const root = finRootChord(node);
   const outline = dedupe(contour.map(([x, y]) => ({ x, y })));
   if (outline.length < 3) return null;
   const ents: Ent[] = [{ kind: 'poly', layer: 'CUT', pts: outline }];
-  // Root-chord reference mark on y = 0.
-  ents.push({ kind: 'line', layer: 'REFERENCE', a: { x: 0, y: 0 }, b: { x: root, y: 0 } });
-  const label =
+  // Root-chord reference mark from the root's front to its trailing end: on
+  // y = 0 on a body tube, and across the taper on a nose cone or transition.
+  const rootPts = finRootPoints(node, parent);
+  const rootEnd = rootPts[rootPts.length - 1]!;
+  const root = rootEnd[0] - rootPts[0]![0];
+  ents.push({
+    kind: 'line',
+    layer: 'REFERENCE',
+    a: { x: rootPts[0]![0], y: rootPts[0]![1] },
+    b: { x: rootEnd[0], y: rootEnd[1] },
+  });
+  const label = l(
     node.type === 'trapezoidfinset'
-      ? 'Trapezoidal fin'
+      ? 'export.dxf.trapezoidfinset'
       : node.type === 'ellipticalfinset'
-        ? 'Elliptical fin'
-        : 'Freeform fin';
-  // `reduce`, not a spread: the .ork reader puts no cap on <finpoints><point>
-  // count, and spreading a >100k-point freeform fin into Math.max dies with an
-  // opaque "Maximum call stack size exceeded" instead of exporting.
+        ? 'export.dxf.ellipticalfinset'
+        : 'export.dxf.freeformfinset',
+  );
+  // `reduce`, not a spread: a long freeform outline spread into Math.max can
+  // die with an opaque "Maximum call stack size exceeded" instead of exporting.
   const span = outline.reduce((m, p) => (p.y > m ? p.y : m), -Infinity);
   const count = Math.round(num(node, 'finCount', COMPONENT_DEFAULTS.finset.finCount));
   const thickness = num(node, 'thickness', COMPONENT_DEFAULTS.finset.thickness);
   const labels = [
-    `${node.name || label}${count ? ` (cut ${count})` : ''}`,
-    `root ${dim(root)} mm | span ${dim(span)} mm | stock ${dim(thickness)} mm`,
+    count ? l('export.dxf.cutCount', { name: node.name || label, qty: count }) : node.name || label,
+    l('export.dxf.finDims', { root: dim(root), span: dim(span), stock: dim(thickness) }),
   ];
-  return { label, ents: [...ents, ...textBlock(ents, labels)] };
+  return { ents: [...ents, ...textBlock(ents, labels)] };
 }
 
-function discPart(node: ComponentNode, outerR: number, boreR: number | null, label: string): Part {
+function discPart(node: ComponentNode, outerR: number, boreR: number | null, label: string, l: LabelText): Part {
   const ents: Ent[] = [{ kind: 'circle', layer: 'CUT', c: { x: 0, y: 0 }, r: outerR }];
   if (boreR !== null && boreR > EPS && boreR < outerR - EPS) {
     ents.push({ kind: 'circle', layer: 'CUT', c: { x: 0, y: 0 }, r: boreR });
@@ -118,26 +142,39 @@ function discPart(node: ComponentNode, outerR: number, boreR: number | null, lab
     { kind: 'line', layer: 'REFERENCE', a: { x: -arm, y: 0 }, b: { x: arm, y: 0 } },
     { kind: 'line', layer: 'REFERENCE', a: { x: 0, y: -arm }, b: { x: 0, y: arm } },
   );
-  const bore = boreR !== null && boreR > EPS && boreR < outerR - EPS ? ` | bore Ø${dim(boreR * 2)} mm` : '';
-  const labels = [node.name || label, `Ø${dim(outerR * 2)} mm${bore}`];
-  return { label, ents: [...ents, ...textBlock(ents, labels)] };
+  const dims =
+    boreR !== null && boreR > EPS && boreR < outerR - EPS
+      ? l('export.dxf.discBoreDims', { diameter: dim(outerR * 2), bore: dim(boreR * 2) })
+      : l('export.dxf.discDims', { diameter: dim(outerR * 2) });
+  const labels = [node.name || label, dims];
+  return { ents: [...ents, ...textBlock(ents, labels)] };
 }
 
-/** The flat cut part for one cuttable node, given its enclosing-tube context. */
-function partForNode(node: ComponentNode, enclosing: Tube | null, siblings: ComponentNode[]): Part | null {
+/**
+ * The flat cut part for one cuttable node, given its enclosing-tube context and,
+ * for a fin set, the part it is mounted on.
+ */
+function partForNode(
+  node: ComponentNode,
+  enclosing: Tube | null,
+  siblings: ComponentNode[],
+  finParent: FinParent,
+  l: LabelText,
+): Part | null {
   switch (node.type) {
     case 'trapezoidfinset':
     case 'ellipticalfinset':
     case 'freeformfinset':
-      // The kernel clamps tab height to the parent's outer radius
-      // (FinSet.getMaxTabHeight); the bore is not the limit a tab breaks through.
-      return finPart(node, enclosing ? enclosing.outerR : 0);
+      // The kernel clamps tab height to the parent's outer radius at the tab's
+      // two ends (FinSet.getMaxTabHeight); the bore is not the limit a tab
+      // breaks through.
+      return finPart(node, finParent, l);
     case 'bulkhead':
-      return discPart(node, plateOuter(node, enclosing), null, 'Bulkhead');
+      return discPart(node, plateOuter(node, enclosing), null, l('export.dxf.bulkhead'), l);
     case 'centeringring': {
       const outer = plateOuter(node, enclosing);
       const bore = num(node, 'innerRadius', NaN);
-      return discPart(node, outer, Number.isNaN(bore) ? mountBore(siblings) : bore, 'Centering ring');
+      return discPart(node, outer, Number.isNaN(bore) ? mountBore(siblings) : bore, l('export.dxf.centeringring'), l);
     }
     // Tube couplers and engine blocks are tubes, not plate; they export as 3D
     // solids, not a DXF cut.
@@ -201,9 +238,18 @@ function translate(ents: Ent[], dx: number, dy: number): Ent[] {
   );
 }
 
-/** R12 needs 7-bit ASCII on a single line for every text value. */
-function ascii(s: string): string {
+/** A character R12 text cannot hold. */
+const NON_ASCII = /[^\x20-\x7e]/;
+
+/**
+ * A text value with accents folded to their base letter and the typographic
+ * characters spelled in ASCII. Whatever is still outside ASCII has no ASCII
+ * form.
+ */
+function asciiFold(s: string): string {
   return s
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
     .replace(/[‐-―]/g, '-')
     .replace(/[‘’]/g, "'")
     .replace(/[“”]/g, '"')
@@ -211,7 +257,12 @@ function ascii(s: string): string {
     .replace(/×/g, 'x')
     .replace(/Ø/g, 'dia ')
     .replace(/°/g, ' deg')
-    .replace(/\s+/g, ' ')
+    .replace(/\s+/g, ' ');
+}
+
+/** R12 needs 7-bit ASCII on a single line for every text value. */
+function ascii(s: string): string {
+  return asciiFold(s)
     .replace(/[^\x20-\x7e]/g, '?')
     .trim();
 }
@@ -301,12 +352,13 @@ function serialize(ents: Ent[]): string {
 /**
  * DXF cut sheet for one component (fin, centering ring or bulkhead),
  * normalized to the origin. Returns null when the node isn't a flat plate part
- * or can't be found.
+ * or can't be found. `t` writes the text layer's labels; without one they are
+ * in English.
  */
-export function componentToDxf(tree: RocketTree, nodeId: string): string | null {
+export function componentToDxf(tree: RocketTree, nodeId: string, t: Translate = englishText): string | null {
   const ctx = nodeContext(tree, nodeId);
   if (!ctx) return null;
-  const part = partForNode(ctx.node, ctx.enclosing, ctx.siblings);
+  const part = partForNode(ctx.node, ctx.enclosing, ctx.siblings, finMountOf(tree, nodeId), labelText(t));
   if (!part) return null;
   const b = bounds(part.ents);
   return serialize(translate(part.ents, -b.minX, -b.minY));

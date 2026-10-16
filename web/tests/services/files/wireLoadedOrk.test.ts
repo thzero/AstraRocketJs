@@ -5,6 +5,7 @@ import type { LoadedOrk } from '../../../src/services/files/loadOrk';
 import { primaryMotor, type MountMotor } from '../../../src/services/flight/flightConfigs';
 import { hasThrustCurve, unflyable } from '../../../src/services/flight/runnability';
 import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
+import { axialFrameOf } from '../../../src/tree/axialRebase';
 
 const node = (o: object) => o as unknown as ComponentNode;
 const spec = (designation: string): MotorSpec => ({ designation }) as unknown as MotorSpec;
@@ -131,7 +132,7 @@ describe('wireLoadedOrk', () => {
   it('is blocked by the run gate until a motor is picked', () => {
     const empty = { spec: spec('') };
     const w = wireLoadedOrk(loaded({ configs: [config({ motors: { primary: empty, pod: empty } })] }), launchDefaults);
-    expect(unflyable(w.sims[0]!, primaryMotor(w.tree, w.configs[0]!))).toEqual({ kind: 'noMotor' });
+    expect(unflyable(w.sims[0]!, primaryMotor(w.tree, w.configs[0]!), 'model')).toEqual({ kind: 'noMotor' });
   });
 
   it('drops a motor whose mount no longer exists in the tree', () => {
@@ -147,11 +148,10 @@ describe('wireLoadedOrk', () => {
   });
 });
 
-describe('wireLoadedOrk — absolute positions', () => {
-  // `.ork` positions a component with method="absolute" in the rocket frame,
-  // but the editor works entirely in the parent frame. Left as is, the
-  // schematic, 3D view, drag handles and PDF would draw the part at
-  // parentStart + offset while the engine flies it at offset.
+describe('wireLoadedOrk: absolute positions', () => {
+  // `.ork` positions a component with method="absolute" in the rocket frame.
+  // It stays that way: every reader measures it from the nose tip, as the
+  // engine does, and the part keeps its station when its parent moves.
   const absoluteTree = () =>
     ({
       components: [
@@ -180,24 +180,12 @@ describe('wireLoadedOrk — absolute positions', () => {
       ork?: { method: string; offset: number; resolved: number };
     };
 
-  it('resolves an absolute offset into the parent frame the editor works in', () => {
+  it('keeps an absolute offset as the file wrote it, at its station from the nose tip', () => {
     const out = wireLoadedOrk(loaded({ tree: absoluteTree() }), launchDefaults);
-    const p = fins(out.tree);
-    // The body tube starts 0.3 m back (behind the nose cone), so a part at an
-    // absolute 0.35 m is 0.05 m from the tube's own leading edge.
-    expect(p.method).toBe('top');
-    expect(p.offset).toBeCloseTo(0.05, 9);
-  });
-
-  it('keeps what the file said, so the .ork round-trip stays byte-stable', () => {
-    const out = wireLoadedOrk(loaded({ tree: absoluteTree() }), launchDefaults);
-    const p = fins(out.tree);
-    expect(p.ork!.method).toBe('absolute');
-    expect(p.ork!.offset).toBe(0.35); // verbatim, so the exporter can write it back
-    // `resolved` is the computed parent-relative value (0.35 - 0.3, float noise
-    // and all). It is compared with === at export time, so it must be the same
-    // value that landed in `offset`, not a rounded one.
-    expect(p.ork!.resolved).toBe(p.offset);
+    expect(fins(out.tree)).toEqual({ method: 'absolute', offset: 0.35 });
+    // The body tube starts 0.3 m back (behind the nose cone); the fins are
+    // 0.05 m along it, 0.35 m from the tip.
+    expect(axialFrameOf(out.tree, 'fins')!.start).toBeCloseTo(0.35, 12);
   });
 
   it('leaves an ordinary parent-relative position completely alone', () => {

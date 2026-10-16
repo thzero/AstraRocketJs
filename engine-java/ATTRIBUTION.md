@@ -65,8 +65,8 @@ The `.CDX1` design exporter in `web/` was **ported from the mmrocket-sim project
 and is incorporated here **under GPL-3.0** like the rest of their work above. It is the app-side
 writer only: no engine code and no aerodynamics, just the file format.
 
-**Modified:** the single module was split into an orchestrator, `web/src/services/rasaeroExport.ts`,
-and the per-block writers under `web/src/services/rasaero/` (sustainer, booster, recovery, launch
+**Modified:** the single module was split into an orchestrator, `web/src/services/files/rasaeroExport.ts`,
+and the per-block writers under `web/src/services/files/rasaero/` (sustainer, booster, recovery, launch
 site, engines, simulation, surface, units). The output was checked against real RASAero II on
 2026-08-25.
 
@@ -85,3 +85,24 @@ upstream's adjacent 6 mm and 12 mm entries. The wrong upstream entries are kept 
 design that names one still reads back the density it was saved with.
 
 `extract/MMROCKET-SIM` records the commit these were last reviewed against.
+
+## Report fonts: Noto
+
+`web/public/fonts/` holds the fonts the PDF report draws text outside WinAnsi in (Cyrillic,
+Polish, Greek, Japanese, arrows). They are fetched only by a report that needs them. All are
+under the **SIL Open Font License 1.1**, whose text and copyright lines are in
+`web/public/fonts/OFL.txt`.
+
+- `NotoSans-Regular.ttf`, `NotoSans-Bold.ttf`: Noto Sans (The Noto Project Authors,
+  https://github.com/notofonts/latin-greek-cyrillic), with the arrows and mathematical
+  operators of Noto Sans Math (https://github.com/notofonts/math) merged in.
+- `NotoSansJP-Regular.ttf`, `NotoSansJP-Bold.ttf`: Noto Sans JP (Adobe, with Reserved Font
+  Name "Source"; https://github.com/notofonts/noto-cjk), from the Google Fonts variable font
+  instanced at weights 400 and 700, with the Noto Sans glyphs above merged in.
+
+**Modified:** subset with fontTools. Noto Sans keeps Latin (through Latin Extended-B and
+Latin Extended Additional), IPA, combining marks, Greek, Cyrillic, general punctuation,
+super- and subscripts, currency, letterlike symbols and number forms. Noto Sans JP keeps
+JIS X 0208 rows 1 to 47 (symbols, kana, Greek, Cyrillic and the level 1 kanji), CJK
+punctuation, kana, halfwidth and fullwidth forms, and every CJK character of the app's locale
+files. Layout tables and hinting are dropped. No outline is changed.

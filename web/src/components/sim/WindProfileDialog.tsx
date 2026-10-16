@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { LaunchConditions, WindLevel } from '../../services/design/orkTree';
+import type { LaunchConditions, LaunchPatch, WindLevel } from '../../services/design/orkTree';
 import { NumberInput } from '../common/NumberInput';
 import { markRing } from '../common/FieldMark';
 import { Dialog } from '../common/Dialog';
@@ -122,12 +122,19 @@ function ProfileChart({ levels, u, showVectors }: { levels: WindLevel[]; u: Unit
 
 export function WindProfileDialog({
   launch,
+  diff,
   onChange,
   onCommit,
   onClose,
 }: {
   launch: LaunchConditions;
-  onChange: (patch: Partial<LaunchConditions>) => void;
+  /**
+   * Launch keys the simulations being edited together disagree on. The
+   * profile is edited as one, so an edit sets every simulation's to it; the
+   * dialog says so when they differ.
+   */
+  diff?: ReadonlySet<keyof LaunchConditions>;
+  onChange: (patch: LaunchPatch) => void;
   onCommit?: () => void;
   onClose: () => void;
 }) {
@@ -208,11 +215,22 @@ export function WindProfileDialog({
     ]);
   };
 
+  // The edited level's speed and deviation as they stood before its speed box
+  // was edited, cleared on blur. The box reports every keystroke, and desktop's
+  // `setAverage` only sees the committed value, so the turbulence is carried
+  // from where the edit started: retuning from the previous keystroke would
+  // pass through the "0" of "0.5" and leave the layer with no turbulence.
+  const [speedEditBase, setSpeedEditBase] = useState<{ row: number; speed: number; stddev: number } | null>(null);
   const setSpeed = (i: number, speed: number) => {
     const l = levels[i]!;
+    let base = speedEditBase;
+    if (base?.row !== i) {
+      base = { row: i, speed: l.speed, stddev: l.stddev };
+      setSpeedEditBase(base);
+    }
     // As `LevelWindModel.setSpeed` does (it delegates to `setAverage`): the
     // layer's turbulence stays the fraction it was rather than the m/s it was.
-    patchLevel(i, { speed, stddev: retuneStdDev(l.speed, l.stddev, speed) });
+    patchLevel(i, { speed, stddev: retuneStdDev(base.speed, base.stddev, speed) });
   };
 
   const importCsv = async (file: File) => {
@@ -253,7 +271,20 @@ export function WindProfileDialog({
       {/* The commit-on-blur sits on a wrapper rather than the panel the shell
           owns. Blur bubbles (React's onBlur is focusout), so every field inside
           still commits when it is left. */}
-      <div onBlur={onCommit}>
+      <div
+        onBlur={() => {
+          setSpeedEditBase(null);
+          onCommit?.();
+        }}
+      >
+        {(diff?.has('windLevels') || diff?.has('windAltitudeReference')) && (
+          <p
+            role="note"
+            className="mb-3 rounded-md bg-warn-500/15 px-3 py-2 text-xs text-warn-200 ring-1 ring-warn-500/40"
+          >
+            {t('sims.mixedField')}
+          </p>
+        )}
         <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_280px]">
           <div className="min-w-0">
             <div className="flex gap-1 px-1 pb-1 text-[10px] uppercase tracking-wide text-ink-faint">
@@ -285,9 +316,9 @@ export function WindProfileDialog({
                     <NumberInput
                       step={u.step('distance', 50)}
                       min={0}
-                      ariaLabel={`${t('windProfile.altitude')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('windProfile.altitude'), n: i + 1 })}
                       value={u.toUi('distance', l.altitudeM)}
-                      // No `?? 0`, unlike the columns beside it: an altitude is
+                      // No `?? 0`, unlike the direction and deviation columns: an altitude is
                       // the level's identity to the kernel, not a quantity with
                       // a harmless zero, so an emptied box writes nothing
                       // rather than moving the layer down onto the pad.
@@ -303,14 +334,17 @@ export function WindProfileDialog({
                       step={u.step('windspeed', 0.5)}
                       min={0}
                       max={i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined}
-                      ariaLabel={`${t('launch.speed')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('launch.speed'), n: i + 1 })}
                       value={u.toUi('windspeed', l.speed)}
-                      onChange={onSi(u.plain('windspeed'), (si) => setSpeed(i, si ?? 0))}
+                      // A cleared box writes nothing, as the altitude column:
+                      // the next keystroke sets the speed, and a 0 here would
+                      // read as still air rather than an edit in progress.
+                      onChange={onSi(u.plain('windspeed'), (si) => si !== null && setSpeed(i, si))}
                       className={`${cell} w-16`}
                     />
                     <NumberInput
                       step={u.step('angle', (5 * Math.PI) / 180)}
-                      ariaLabel={`${t('launch.direction')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('launch.direction'), n: i + 1 })}
                       value={u.toUi('angle', degToRad(l.directionDeg))}
                       onChange={onSi(
                         u.plain('angle'),
@@ -324,7 +358,7 @@ export function WindProfileDialog({
                       step={u.step('windspeed', 0.5)}
                       min={0}
                       max={u.toUi('windspeed', MAX_WIND_SPEED_MS)}
-                      ariaLabel={`${t('windProfile.deviation')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('windProfile.deviation'), n: i + 1 })}
                       value={u.toUi('windspeed', l.stddev)}
                       onChange={onSi(u.plain('windspeed'), (si) => patchLevel(i, { stddev: si ?? 0 }))}
                       className={`${cell} w-16`}
@@ -333,7 +367,7 @@ export function WindProfileDialog({
                       step={1}
                       min={0}
                       max={MAX_TURBULENCE_PERCENT}
-                      ariaLabel={`${t('windProfile.turbulence')} ${i + 1}`}
+                      ariaLabel={t('windProfile.levelField', { field: t('windProfile.turbulence'), n: i + 1 })}
                       value={Math.round(intensity * 100)}
                       onChange={(v) => patchLevel(i, { stddev: stdDevForIntensity(l.speed, (v ?? 0) / 100) })}
                       className={`${cell} w-14`}
@@ -347,7 +381,7 @@ export function WindProfileDialog({
                         onCommit?.();
                       }}
                       title={t('launch.removeLevel')}
-                      aria-label={`${t('launch.removeLevel')} ${i + 1}`}
+                      aria-label={t('windProfile.removeLevelN', { n: i + 1 })}
                       className="w-6 rounded bg-danger-500/15 py-1 text-xs text-danger-300 ring-1 ring-danger-500/30"
                     >
                       ×
@@ -438,7 +472,7 @@ export function WindProfileDialog({
         <div className="mt-5 flex justify-end">
           <button
             onClick={onClose}
-            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-500"
+            className="rounded-lg bg-accent-600 px-3 py-1.5 text-sm font-medium text-on-accent hover:bg-accent-700"
           >
             {t('common.close')}
           </button>

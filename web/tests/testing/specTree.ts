@@ -1,6 +1,55 @@
-import type { ComponentNode, RocketSpec, RocketTree } from '../../src/engine/openRocketEngine';
+import type { ComponentNode, NoseShape, RocketTree } from '../../src/engine/openRocketEngine';
 import { defaultMaterialPatch } from '../../src/services/design/materialSlots';
 import { defaultDesignName } from '../../src/services/app/appInfo';
+
+/**
+ * A fixed-layout design: nose, body, fins, motor mount and an optional chute,
+ * lengths in m. Test fixtures only; the editor builds no designs this way.
+ */
+export interface RocketSpec {
+  noseCone: {
+    length: number;
+    aftRadius: number;
+    thickness: number;
+    shape?: NoseShape;
+    /** Bulk density kg/m^3; omit for OpenRocket's default material. */
+    materialDensity?: number;
+    /** Selected material name (display / .ork round-trip only; density drives physics). */
+    material?: string;
+    /** The material's `.ork` group, as `MaterialGroup.getDatabaseString()` spells
+     *  it. Written to the file beside the name, so a design saved here files the
+     *  material under the same category the desktop would. */
+    materialGroup?: string;
+  };
+  bodyTube: {
+    length: number;
+    outerRadius: number;
+    thickness: number;
+    materialDensity?: number;
+    material?: string;
+    materialGroup?: string;
+  };
+  fins: {
+    count: number;
+    rootChord: number;
+    tipChord: number;
+    sweep: number;
+    height: number;
+    thickness: number;
+    materialDensity?: number;
+    material?: string;
+    materialGroup?: string;
+  };
+  motorMount: {
+    length: number;
+    outerRadius: number;
+    thickness: number;
+  };
+  parachute?: {
+    diameter: number;
+    dragCoefficient?: number;
+  };
+}
 
 /**
  * Test fixture: a fixed-layout `RocketSpec` as a component tree: nose, body, fins,

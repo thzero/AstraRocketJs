@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { maxFlightTime } from '../../../src/components/canvas/FlightChart';
+import { maxFlightTime } from '../../../src/components/canvas/flightChartAxis';
 import type { FlightSeries } from '../../../src/engine/openRocketEngine';
 
 const branch = (time: number[]) => ({ series: { time } as unknown as FlightSeries });

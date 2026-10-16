@@ -1,8 +1,9 @@
-import { useMemo } from 'react';
+import { useId, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore, selectActive, selectConfig } from '../../state/store';
 import { launchDiffKeys, prefDiffKeys } from '../../services/flight/simDiff';
-import { loadoutLabel } from '../../services/flight/flightConfigs';
+import { configFor, loadoutLabel } from '../../services/flight/flightConfigs';
+import { configPowerClass } from '../../services/flight/powerClass';
 import { useSettings } from '../../state/SettingsProvider';
 import { SIM_BOUNDS } from '../../services/storage/settings';
 import { RunButton } from './RunButton';
@@ -12,9 +13,10 @@ import { useLauncherKind } from '../common/useLauncher';
 import { useUnits } from '../../prefs/useUnits';
 import { onSi } from '../../prefs/entryValue';
 import { unitScope } from '../../prefs/units';
-import type { SimPrefs } from '../../services/flight/simulations';
-import { seedFromInput } from '../../services/flight/simulations';
+import type { SimPrefs, Simulation } from '../../services/flight/simulations';
+import { clampMaxAngleStep, seedFromInput } from '../../services/flight/simulations';
 import { NumberRow } from '../common/NumberRow';
+import { fmtUpTo } from '../../i18n/format';
 import { SPEED_WARNINGS } from './speedWarnings';
 
 /**
@@ -63,6 +65,14 @@ export function SimEditor() {
   // that is not on screen. Only meaningful for a real multi-selection.
   const launchDiff = useMemo(() => launchDiffKeys(targets), [targets]);
   const prefDiff = useMemo(() => prefDiffKeys(targets), [targets]);
+
+  // The class of rocket the targets fly, which sets the launcher angle the
+  // codes allow; null when the targets fly both classes.
+  const dryMass = useWorkspaceStore((s) => s.info?.massEmpty);
+  const powerClass = useMemo(() => {
+    const classes = new Set(targets.map((x) => configPowerClass(tree, configFor(configs, x.configId), dryMass)));
+    return classes.size === 1 ? [...classes][0]! : null;
+  }, [targets, tree, configs, dryMass]);
 
   /**
    * A multi-target edit is never silent: the same tick that means "fly these"
@@ -169,8 +179,9 @@ export function SimEditor() {
           diff={launchDiff}
           weather
           launcher={launcher}
+          powerClass={powerClass}
         />
-        <SimOptions diff={prefDiff} />
+        <SimOptions diff={prefDiff} targets={targets} />
       </div>
     </div>
   );
@@ -198,7 +209,7 @@ const nearestStepIndex = (v: number): number =>
  * too; ours additionally fall through, rather than being copied at creation, so
  * changing a global still moves every simulation that never overrode it.
  */
-function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
+function SimOptions({ diff, targets }: { diff?: ReadonlySet<keyof SimPrefs>; targets: readonly Simulation[] }) {
   const { t } = useTranslation();
   const { settings, update } = useSettings();
   const u = useUnits();
@@ -206,6 +217,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   const setSimPref = useWorkspaceStore((s) => s.setSimPref);
   const clearSimPrefs = useWorkspaceStore((s) => s.clearSimPrefs);
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
+  const mixedHintId = useId();
   const g = settings.simulation;
   // The same FieldUnit the global setting resolves, under the same scope key, so
   // the two surfaces for this one stored value cannot disagree about its unit.
@@ -216,7 +228,13 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
   /** What this simulation actually runs with: its overrides over the globals. */
   const eff = { ...g, ...(prefs ?? {}) };
   const mixed = (k: keyof SimPrefs) => diff?.has(k) ?? false;
-  const overridden = Object.keys(prefs ?? {}).length > 0;
+  // Across every row the buttons act on, not the active one alone: Reset clears
+  // the overrides of all of them, so it is available when any of them has one.
+  const overridden = targets.some((x) => Object.keys(x.prefs ?? {}).length > 0);
+  // "Save as default" saves one set of values. Rows that run with different
+  // options have no one set to save, and saving the active row's would clear
+  // the others' overrides in favor of values they never had.
+  const mixedOptions = (diff?.size ?? 0) > 0;
 
   // The four deployment thresholds are speeds, so they follow the user's
   // velocity unit both ways; the stored value stays SI. `fmt` for the
@@ -252,7 +270,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           unit="s"
           mixed={mixed('timeStep')}
           value={prefs?.timeStep ?? null}
-          placeholder={String(g.timeStep)}
+          placeholder={fmtUpTo(g.timeStep, 4)}
           step={0.01}
           min={SIM_BOUNDS.timeStep.min}
           max={SIM_BOUNDS.timeStep.max}
@@ -264,7 +282,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           unit="s"
           mixed={mixed('maxTime')}
           value={prefs?.maxTime ?? null}
-          placeholder={String(g.maxTime)}
+          placeholder={fmtUpTo(g.maxTime, 1)}
           step={60}
           min={SIM_BOUNDS.maxTime.min}
           max={SIM_BOUNDS.maxTime.max}
@@ -278,8 +296,10 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           // Stored in radians like the kernel's field, edited in the user's angle
           // unit through `angle` above, not in degrees by assumption.
           mixed={mixed('maxAngleStep')}
-          value={prefs?.maxAngleStep == null ? null : angle.toUi(prefs.maxAngleStep)}
-          placeholder={String(angle.toUi(g.maxAngleStep))}
+          // Shown as flown: an override saved outside the kernel's range reads
+          // as the value the run is clamped to.
+          value={prefs?.maxAngleStep == null ? null : angle.toUi(clampMaxAngleStep(prefs.maxAngleStep))}
+          placeholder={fmtUpTo(angle.toUi(g.maxAngleStep), 3)}
           step={angle.step((0.5 * Math.PI) / 180)}
           min={angle.toUi(SIM_BOUNDS.maxAngleStep.min)}
           max={angle.toUi(SIM_BOUNDS.maxAngleStep.max)}
@@ -294,7 +314,7 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
           min={0}
           max={TIME_STEPS.length - 1}
           step={1}
-          aria-label={t('settings.timeStep')}
+          aria-label={t('settings.timeStepScale')}
           value={nearestStepIndex(eff.timeStep)}
           onChange={(e) => setSimPref('timeStep', TIME_STEPS[Number(e.target.value)]!)}
           // Pointer, not mouse: a touch drag sends no mouseup, and an undo entry
@@ -332,6 +352,8 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
         </button>
         <button
           type="button"
+          disabled={mixedOptions}
+          aria-describedby={mixedOptions ? mixedHintId : undefined}
           onClick={() => {
             // Saved as the globals and dropped as overrides: leaving them behind
             // would pin this simulation to today's numbers, so a later change to
@@ -340,11 +362,16 @@ function SimOptions({ diff }: { diff?: ReadonlySet<keyof SimPrefs> }) {
             clearSimPrefs();
             onCommit();
           }}
-          className="flex-1 rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated"
+          className="flex-1 rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40"
         >
           {t('sims.saveAsDefault')}
         </button>
       </div>
+      {mixedOptions && (
+        <p id={mixedHintId} className="mt-1 text-[11px] text-ink-faint">
+          {t('sims.saveAsDefaultMixed')}
+        </p>
+      )}
 
       {/* The deployment-speed thresholds, per simulation. Which one a flight uses
           depends on the stage's recovery layout: no drogue is single-deployment

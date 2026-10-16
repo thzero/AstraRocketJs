@@ -7,7 +7,8 @@ written, and are left alone rather than restated. For what is true now, read the
 non-dated sections and `extract/DIVERGENCE.txt`.
 
 Labels in entries dated 2026-09-19 and earlier come from an earlier audit whose report
-was never committed; later entries cite `docs/AUDIT_ENGINE.md` by name.
+was never committed; later entries cite the engine audit of 2026-10-01, which is in git
+history as `docs/AUDIT_ENGINE.md`.
 
 ## How the pieces fit
 
@@ -113,7 +114,7 @@ byte-for-byte what it was:
 
 - **4 superseded patches deleted.** `BarrowmanCalculator`, `FlightConditions`,
   `AxialStage`, `AbstractSimulationStepper` were byte-identical to upstream in
-  `src/java`: the override had already been retired in favour of the RASAero
+  `src/java`: the override had already been retired in favor of the RASAero
   shims and upstream's own `MotorConfiguration.nozzleExitDiameter`. Keeping the
   patch file meant a re-extraction would have reintroduced the superseded
   design.
@@ -1094,7 +1095,7 @@ outlines are indistinguishable from having sent no outline.
   repeated point, the unnamed fallback, a valid outline still building at its own
   length, a good outline building after a refused one, and the table above as an
   assertion: a refused outline must NOT return the default fin's length.
-  `web/tests/services/loadOrk.unbuildable.test.ts` covers the import, including
+  `web/tests/services/files/loadOrk.unbuildable.test.ts` covers the import, including
   that a failure the repair cannot reach rethrows the original error.
 - **Divergence:** `extract/DIVERGENCE.txt` 39 → 66 lines for this file.
 - **Artifact:** both targets rebuilt, JS and WASM-GC, which are a matched pair
@@ -1111,7 +1112,7 @@ outlines are indistinguishable from having sent no outline.
 
 ## `BoundingBox.toString()` without `%g` - 2026-10-04
 
-`PATCH(teavm-format-g)` in `util/BoundingBox.java` (`docs/AUDIT_ENGINE.md` P9).
+`PATCH(teavm-format-g)` in `util/BoundingBox.java` (engine audit P9).
 `toString()` used six `%g` conversions, which TeaVM's `Formatter` does not have,
 so the first log line or message that printed a bounding box would have thrown
 inside the kernel, an uncatchable trap on the WASM-GC target. Nothing calls it
@@ -1186,7 +1187,7 @@ and do not move. CG, CP, margin and trajectory do not move: every existing
 golden value, including the three-tube `flight.cluster.ring3`, is unchanged, and
 both aero scorecards are unchanged (9/135 and 61/135).
 
-**Follow-up, 2026-10-04 (`docs/AUDIT_ENGINE.md` P4, P5, P6).**
+**Follow-up, 2026-10-04 (engine audit P4, P5, P6).**
 
 - **P4.** The motor loop sums `y*y + z*z` instead of `Math.pow(Math.hypot(y, z), 2)`.
   JVM `hypot` (FDLIBM) and TeaVM's disagree by 1 ULP on about 12% of inputs (see

@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
-import { errorMessage } from '../../services/app/errorMessage';
+import i18n from '../../i18n';
+import { errorText } from '../../i18n/keyedError';
 
-type Landed<T> = { key: string; attempt: number } & ({ ok: true; data: T } | { ok: false; error: string });
+type Landed<T> = { key: string; attempt: number } & ({ ok: true; data: T } | { ok: false; error: unknown });
 
 /**
  * Data loaded asynchronously, with its loading, error and retry state.
@@ -12,6 +13,8 @@ type Landed<T> = { key: string; attempt: number } & ({ ok: true; data: T } | { o
  *   until the new result replaces it, so a list does not flash back to
  *   "Loading" for a change the user just made.
  * - `onLoaded` fires with each successful result.
+ * - `error` is the failure as text, rendered on every call in the language
+ *   showing then, so a keyed error follows a language switch.
  *
  * `loading` is derived from what landed rather than set at the top of the
  * effect, which would be a synchronous setState in an effect: a cascading
@@ -40,7 +43,7 @@ export function useAsyncLoad<T>(
         latest.current.onLoaded?.(data);
       })
       .catch((e: unknown) => {
-        if (live) setLanded({ key, attempt, ok: false, error: errorMessage(e) });
+        if (live) setLanded({ key, attempt, ok: false, error: e });
       });
     return () => {
       live = false;
@@ -49,7 +52,7 @@ export function useAsyncLoad<T>(
   const current = landed !== null && landed.key === key && landed.attempt === attempt ? landed : null;
   return {
     data: current?.ok ? current.data : undefined,
-    error: current && !current.ok ? current.error : null,
+    error: current && !current.ok ? errorText(current.error, i18n.t) : null,
     loading: current === null,
     retry: () => setAttempt((n) => n + 1),
   };

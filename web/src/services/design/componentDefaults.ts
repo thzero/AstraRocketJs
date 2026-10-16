@@ -12,8 +12,8 @@ import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
  *
  * Where the kernel has a default for the field (`kernelDefaults.ts`, verified
  * against the real engine) it is the authority and is re-exported here rather
- * than copied. The rest are values the kernel never reads (a rail button's
- * flange, a chute's packed radius), taken from the desktop's own constructors
+ * than copied. The rest are fields `kernelDefaults.ts` does not carry (a rail
+ * button's flange, a chute's packed radius), taken from the desktop's own constructors
  * and cited at each entry, so a file the desktop wrote without the tag reads
  * as the desktop would have built it.
  *
@@ -81,9 +81,9 @@ export const COMPONENT_DEFAULTS = {
   },
   // A recovery device's packed size. The length is the kernel's; the radius
   // is MassObject()'s 0.0125 (rocketcomponent/MassObject.java:37), which the
-  // kernel never reads but the desktop draws.
+  // desktop draws and the kernel keeps the packed volume from.
   recovery: {
     packedLength: KERNEL_DEFAULTS.parachute.length,
-    packedRadius: 0.0125,
+    packedRadius: KERNEL_DEFAULTS.parachute.radius,
   },
 } as const;

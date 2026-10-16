@@ -5,6 +5,8 @@ import { PLUGGED_DELAY, type MotorSpec } from '../../engine/openRocketEngine';
 import { ThrustChart, SpecItem } from './MotorDetail';
 import { initialThrust } from '../../services/motors/motorPicker';
 import { curveStats } from '../../services/motors/motorMath';
+import { motorStatistics } from '../../engine/openRocketEngine';
+import { useEngineStore } from '../../state/engineStore';
 import { Dialog } from '../common/Dialog';
 import { inUserUnit, withFixedUnit } from './motorFormat';
 import { motorName } from '../../services/motors/motorName';
@@ -22,7 +24,15 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
   const u = useUnits();
 
   const samples: [number, number][] = motor.times.map((tt, i) => [tt, motor.thrusts[i] ?? 0]);
-  const { impulse, burn, avg, max } = curveStats(samples);
+  // The burn and average are the kernel's (ThrustCurveMotor.computeStatistics:
+  // between the crossings of 5% of peak), as desktop's motor table shows them,
+  // and unknown until it has loaded rather than worked out another way. The
+  // impulse and peak are the curve's own either way.
+  const engineReady = useEngineStore((s) => s.phase) === 'ready';
+  const { impulse, max } = curveStats(samples);
+  const kernel = engineReady ? motorStatistics(samples) : null;
+  const burn = kernel?.burnTime ?? null;
+  const avg = kernel?.averageThrust ?? null;
   const init = initialThrust(samples);
   const g = withFixedUnit;
   // MotorSpec is SI; `q` converts to the user's unit and appends its symbol.

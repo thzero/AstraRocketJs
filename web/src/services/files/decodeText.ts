@@ -1,4 +1,5 @@
 import { MAX_ARCHIVE_ENTRY_BYTES } from './ork/importLimits';
+import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * The largest imported file the app decodes, the same ceiling a zipped `.ork`
@@ -10,12 +11,14 @@ export const MAX_IMPORT_FILE_BYTES = MAX_ARCHIVE_ENTRY_BYTES;
 /** Throws when an imported file is over {@link MAX_IMPORT_FILE_BYTES}. */
 export function assertImportSize(size: number): void {
   if (size > MAX_IMPORT_FILE_BYTES) {
-    throw new Error(`File is too large to open (over ${MAX_IMPORT_FILE_BYTES / (1024 * 1024)} MiB).`);
+    throw new KeyedError('errors.file.tooLarge', { size: MAX_IMPORT_FILE_BYTES / (1024 * 1024) });
   }
 }
 
 /**
- * An imported file's bytes as text, in whatever encoding it was written in.
+ * The encoding to read an imported file in: UTF-16 by its byte order mark or
+ * by the shape of a leading '<', else the encoding an XML declaration names
+ * when `TextDecoder` knows it, else UTF-8.
  *
  * Every design format the app reads is XML, and `new TextDecoder()` alone reads
  * all of them as UTF-8. A UTF-16 file then comes out as the right characters
@@ -35,10 +38,35 @@ function encodingOf(bytes: Uint8Array): string {
     if (bytes[0] === 0x3c && bytes[1] === 0x00) return 'utf-16le';
     if (bytes[0] === 0x00 && bytes[1] === 0x3c) return 'utf-16be';
   }
-  return 'utf-8';
+  return declaredEncoding(bytes) ?? 'utf-8';
 }
 
-/** Decode an imported file, honoring a UTF-16 mark or shape. */
+/** An XML declaration's `encoding`, read from the first bytes as ASCII. */
+const DECLARED = /^\s*<\?xml(?=\s)[^>]*?\sencoding\s*=\s*["']([A-Za-z0-9._:-]+)["']/;
+
+/**
+ * The encoding an XML declaration names, when `TextDecoder` knows it.
+ *
+ * Desktop's XML parser honors the declaration, so a file written as
+ * ISO-8859-1 or windows-1252 reads there with its accented names intact; read
+ * as UTF-8 here, each one would become U+FFFD and be saved that way. The
+ * declaration is ASCII in every encoding that reaches this point (UTF-16 has
+ * been handled above), so a UTF-16 label here contradicts the bytes and is
+ * ignored, as is a label `TextDecoder` does not recognize.
+ */
+function declaredEncoding(bytes: Uint8Array): string | undefined {
+  const head = String.fromCharCode(...bytes.subarray(0, 256));
+  const label = DECLARED.exec(head)?.[1];
+  if (!label) return undefined;
+  try {
+    const encoding = new TextDecoder(label).encoding;
+    return encoding.startsWith('utf-16') ? undefined : encoding;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Decode an imported file, honoring a UTF-16 mark or shape, or a declared encoding. */
 export function decodeFileText(bytes: Uint8Array): string {
   assertImportSize(bytes.byteLength);
   return new TextDecoder(encodingOf(bytes)).decode(bytes);

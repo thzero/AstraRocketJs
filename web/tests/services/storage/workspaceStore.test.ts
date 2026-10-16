@@ -1,8 +1,8 @@
 import { nsKey } from '../../../src/services/storage/storageKeys';
 // @vitest-environment jsdom
 import { describe, it, expect, beforeEach } from 'vitest';
-import { LibraryWorkspaceStore, type Workspace } from '../../../src/services/storage/workspaceStore';
-import { DesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
+import { LibraryWorkspaceStore, lean, resultsOf, type Workspace } from '../../../src/services/storage/workspaceStore';
+import { DesignLibrary, getDesignLibrary, setDesignLibrary } from '../../../src/services/storage/designLibrary';
 import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 import { defaultDesignName } from '../../../src/services/app/appInfo';
 
@@ -203,7 +203,11 @@ describe('LibraryWorkspaceStore', () => {
       await other.save({ ...workspace(), activeId: 'theirs' });
       await store.save({ ...workspace(), activeId: 'mine' }).catch(() => {});
       store.saveSync({ ...workspace(), activeId: 'mine' });
-      expect(localStorage.getItem(nsKey('designs:unload'))).toBeNull();
+      const unload = nsKey('designs:unload');
+      const journals = Array.from({ length: localStorage.length }, (_, i) => localStorage.key(i)!).filter(
+        (k) => k === unload || k.startsWith(`${unload}:`),
+      );
+      expect(journals).toEqual([]);
       expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
     });
 
@@ -212,6 +216,54 @@ describe('LibraryWorkspaceStore', () => {
     it('does not refuse two overlapping saves from the same tab', async () => {
       await store.save(workspace());
       await expect(Promise.all([store.save(workspace()), store.save(workspace())])).resolves.toBeDefined();
+    });
+
+    // A save made before a switch, still waiting its turn when the switch
+    // lands, runs under the claim it was made with. Read after the switch, the
+    // claim is gone and the save writes over the other tab's work.
+    it('keeps the claim of a save queued before a switch', async () => {
+      const other = await twoTabs();
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      const queued = [
+        store.save({ ...workspace(), activeId: 'mine' }),
+        store.save({ ...workspace(), activeId: 'mine2' }),
+      ];
+      store.setActiveId(null);
+      await Promise.allSettled(queued);
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
+    });
+
+    it('still writes a queued save to its own design after a switch', async () => {
+      await store.save(workspace());
+      await store.load();
+      const queued = [store.save({ ...workspace(), activeId: 'one' }), store.save({ ...workspace(), activeId: 'two' })];
+      store.setActiveId(null);
+      await Promise.all(queued);
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('two');
+    });
+
+    // The save claims the entry's stamp before it writes the blob. A tab that
+    // opens the design in between reads the old blob; the stamp moves again
+    // after the blob, so that tab's next save is refused instead of writing the
+    // old design back.
+    it('refuses a tab that read the old blob while a save was writing', async () => {
+      const other = await twoTabs();
+      const lib = new DesignLibrary(kv);
+      const id = (await lib.activeId())!;
+      const realSet = kv.set.bind(kv);
+      let reader: LibraryWorkspaceStore | null = null;
+      kv.set = async (k: string, v: string) => {
+        if (k.endsWith(id) && !reader) {
+          // Between the claim and the blob: another tab opens the design.
+          reader = new LibraryWorkspaceStore();
+          await reader.load();
+        }
+        return await realSet(k, v);
+      };
+      await other.save({ ...workspace(), activeId: 'theirs' });
+      kv.set = realSet;
+      await expect(reader!.save({ ...workspace(), activeId: 'stale' })).rejects.toThrow('conflict');
+      expect((await new LibraryWorkspaceStore().load())!.activeId).toBe('theirs');
     });
 
     it('does not refuse after switching to a different design', async () => {
@@ -335,6 +387,12 @@ describe('LibraryWorkspaceStore', () => {
     ['no tree', JSON.stringify({ version: 1, sims: [{ id: 'x' }] })],
     ['a non-array tree.components', JSON.stringify({ version: 1, tree: {}, sims: [{ id: 's1' }] })],
     ['no sims', JSON.stringify({ version: 1, tree: { components: [] }, sims: [] })],
+    ['a null simulation', JSON.stringify({ version: 1, tree: { components: [] }, sims: [{ id: 's1' }, null] })],
+    [
+      'a null configuration',
+      JSON.stringify({ version: 2, tree: { components: [] }, sims: [{ id: 's1' }], configs: [null] }),
+    ],
+    ['a null component', JSON.stringify({ version: 1, tree: { components: [null] }, sims: [{ id: 's1' }] })],
   ])('throws rather than silently starting fresh over a design that is %s', async (_what, blob) => {
     await store.save(workspace());
     kv.map.set(designKey(kv), blob);
@@ -362,6 +420,23 @@ describe('LibraryWorkspaceStore', () => {
     expect(keys).toHaveLength(2);
   });
 
+  // The claim on the entry is taken only once the read has fully succeeded. A
+  // read that fails after the blob parsed (the flights, here) must leave the
+  // store detached too, or the next save writes over the design with a stamp
+  // that matches.
+  it('detaches when the read fails after the blob has parsed', async () => {
+    await store.save(workspace());
+    const originalKey = designKey(kv);
+    const original = kv.map.get(originalKey);
+    const lib = getDesignLibrary();
+    lib.readResults = () => Promise.reject(new Error('results unreadable'));
+
+    const fresh = new LibraryWorkspaceStore();
+    await expect(fresh.load()).rejects.toThrow(/results unreadable/);
+    await fresh.save({ ...workspace(), tree: { components: [{ type: 'nosecone', id: 'other' }] } } as Workspace);
+    expect(kv.map.get(originalKey)).toBe(original);
+  });
+
   it('returns null, without throwing, when there is genuinely nothing saved', async () => {
     expect(await store.load()).toBeNull();
   });
@@ -370,5 +445,47 @@ describe('LibraryWorkspaceStore', () => {
     await store.save(workspace()); // establish the design first
     kv.full = true;
     await expect(store.save(workspace())).rejects.toThrow(/storage-full/);
+  });
+});
+
+/**
+ * Opening a design from the library reads it the way boot does. A design is
+ * stored lean, with its flights beside it; opened without them, every row reads
+ * not run and the first save writes an empty results map over the stored one.
+ * The claim is what the next save is checked against, so another tab's save in
+ * between is caught rather than overwritten.
+ */
+describe('openActive', () => {
+  const seed = async () => {
+    const lib = getDesignLibrary();
+    const flown = workspace();
+    const meta = await lib.create('B', lean(flown));
+    await lib.writeResults(meta.id, resultsOf(flown));
+    return meta.id;
+  };
+
+  it('puts the stored flights back on their simulations', async () => {
+    const id = await seed();
+    const w = await store.openActive(id);
+    expect(w?.sims[0]?.result).toEqual(flight());
+  });
+
+  it('keeps the stored flights through the first save after opening', async () => {
+    const id = await seed();
+    const w = (await store.openActive(id))!;
+    await store.save({ ...w, tree: { components: [] } as unknown as Workspace['tree'] });
+    expect((await getDesignLibrary().readResults(id))['s1']).toEqual(flight());
+  });
+
+  it("holds the claim, so another tab's save in between is not overwritten", async () => {
+    const id = await seed();
+    const w = (await store.openActive(id))!;
+    const other = { ...w, sims: [{ ...w.sims[0]!, name: 'From the other tab' }] } as Workspace;
+    await new Promise((r) => setTimeout(r, 5));
+    await getDesignLibrary().write(id, 'B', lean(other), 'other-tab');
+    await expect(store.save({ ...w, sims: [{ ...w.sims[0]!, name: 'From this tab' }] } as Workspace)).rejects.toThrow(
+      'conflict',
+    );
+    expect((await getDesignLibrary().read(id))?.sims[0]?.name).toBe('From the other tab');
   });
 });

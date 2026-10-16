@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, afterEach } from 'vitest';
+import { useState } from 'react';
 import { screen, fireEvent } from '@testing-library/react';
 import { LaunchPanel } from '../../../src/components/sim/LaunchPanel';
 import { renderWithProviders } from '../../testing/renderWithProviders';
-import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import { launchPatchFor, type LaunchConditions } from '../../../src/services/design/orkTree';
 import { __setEngineForTests } from '../../../src/engine/openRocketEngine';
 import { useEngineStore } from '../../../src/state/engineStore';
 
@@ -42,10 +43,15 @@ afterEach(() => {
  * render, and be the same element once the message lands.
  */
 describe('the geolocation status region', () => {
+  // The site's region sits under its buttons; the saved-location picker above
+  // them has a status region of its own.
+  const geoRegion = () => screen.getByRole('button', { name: 'Show on map' }).nextElementSibling as HTMLElement;
+
   it('is mounted and empty before anything has been said', () => {
     refuseGeolocation();
     renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={() => {}} />);
-    const region = screen.getByRole('status');
+    const region = geoRegion();
+    expect(region.getAttribute('role')).toBe('status');
     expect(region.getAttribute('aria-live')).toBe('polite');
     expect(region.textContent).toBe('');
   });
@@ -53,14 +59,53 @@ describe('the geolocation status region', () => {
   it('is the same element once the refusal arrives, carrying the message', () => {
     refuseGeolocation();
     renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={() => {}} />);
-    const before = screen.getByRole('status');
+    const before = geoRegion();
 
     fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
 
-    const after = screen.getByRole('status');
+    const after = geoRegion();
     expect(after).toBe(before);
     expect(after.textContent).toContain('Could not get your location');
   });
+});
+
+/**
+ * A new place takes its own elevation or none, never the last site's: a 1,600 m
+ * field picked with the old sea-level elevation would fly sea-level air with no
+ * marker. The browser's altitude is above the ellipsoid, not sea level, so a
+ * located site's elevation is blank, and the simulation asks for it.
+ */
+describe('a site found by "Use my location"', () => {
+  it('clears the previous elevation', () => {
+    const getCurrentPosition = vi.fn((ok: PositionCallback) => {
+      ok({ coords: { latitude: 39.5, longitude: -105.1, altitude: 1650 } } as GeolocationPosition);
+    });
+    Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+    const onChange = vi.fn();
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} />);
+    fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
+    expect(onChange).toHaveBeenCalledWith({ latitudeDeg: 39.5, longitudeDeg: -105.1, launchAltitudeM: null });
+  });
+});
+
+/**
+ * Settings opens its own launch panel over the simulation editor's. Radios that
+ * share a name are one group to the browser, so an arrow key in one panel's
+ * wind model would check the other's and change the flight behind the dialog.
+ */
+it('gives each panel its own wind model group', () => {
+  renderWithProviders(
+    <>
+      <LaunchPanel launch={LAUNCH} onChange={() => {}} />
+      <LaunchPanel launch={LAUNCH} onChange={() => {}} />
+    </>,
+  );
+  const names = new Set(
+    [...document.querySelectorAll<HTMLInputElement>('input[type="radio"]')]
+      .filter((r) => r.closest('fieldset')?.querySelector('legend')?.textContent === 'Wind model to use')
+      .map((r) => r.name),
+  );
+  expect(names.size).toBe(2);
 });
 
 /**
@@ -105,6 +150,40 @@ describe('launch site bounds', () => {
 });
 
 /**
+ * The launcher angle the codes allow depends on the class of rocket: 30 degrees
+ * under the NAR Model Rocket Safety Code, 20 under the high power codes.
+ */
+describe('the launcher angle limit', () => {
+  const angle = () => screen.getByLabelText('Angle', { exact: true }) as HTMLInputElement;
+
+  it('stops a model rocket at 30 degrees, and lets 25 through', () => {
+    const onChange = vi.fn();
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} powerClass="model" />);
+    expect(Number(angle().max)).toBeCloseTo(30, 9);
+    expect(screen.getByText(/NAR Model Rocket Safety Code, which asks for a launcher within 30°/)).toBeTruthy();
+    fireEvent.change(angle(), { target: { value: '25' } });
+    expect(onChange).toHaveBeenLastCalledWith({ launchRodAngleDeg: 25 });
+  });
+
+  it('stops a high power rocket at 20 degrees, so 25 lands on the limit', () => {
+    const onChange = vi.fn();
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} powerClass="highPower" />);
+    expect(Number(angle().max)).toBeCloseTo(20, 9);
+    expect(screen.getByText(/high power safety codes, which ask for a launcher within 20°/)).toBeTruthy();
+    fireEvent.change(angle(), { target: { value: '25' } });
+    expect(onChange).toHaveBeenLastCalledWith({ launchRodAngleDeg: 20 });
+  });
+
+  it('states both limits where no one class applies', () => {
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={() => {}} />);
+    expect(Number(angle().max)).toBeCloseTo(30, 9);
+    expect(
+      screen.getByText(/within 30° of vertical, and the NAR and Tripoli high power codes within 20°/),
+    ).toBeTruthy();
+  });
+});
+
+/**
  * The two direction fields display 90 when unset, so clearing one must not write
  * 0: that is a real heading (north), and would silently replace the east the
  * blank stood for. Like `longitudeDeg`, an emptied box goes back to unset.
@@ -117,6 +196,42 @@ describe('direction fields', () => {
     fireEvent.change(screen.getAllByRole('spinbutton', { name: 'Direction' }).at(-1)!, { target: { value: '' } });
     expect(onChange).toHaveBeenCalledWith({ windDirectionDeg: undefined });
     expect(onChange).not.toHaveBeenCalledWith({ windDirectionDeg: 0 });
+  });
+});
+
+/**
+ * The speed box reports every keystroke and the deviation follows the speed as a
+ * fraction. Typing "0.5" over "5" passes through "0", where a ratio carried from
+ * the previous keystroke would become 0 and stay there.
+ */
+describe('wind speed edits keep the turbulence', () => {
+  function Host({ onLaunch }: { onLaunch: (l: LaunchConditions) => void }) {
+    const [launch, setLaunch] = useState<LaunchConditions>({ ...LAUNCH, windAverage: 5, windStdDev: 0.75 });
+    return (
+      <LaunchPanel
+        launch={launch}
+        onChange={(p) =>
+          setLaunch((l) => {
+            const next = { ...l, ...launchPatchFor(p, l, 'row') };
+            onLaunch(next);
+            return next;
+          })
+        }
+      />
+    );
+  }
+
+  it('keeps 15% when "0.5" is typed over a 5 m/s, 15% wind', () => {
+    let last = LAUNCH;
+    renderWithProviders(<Host onLaunch={(l) => (last = l)} />);
+    const speed = screen.getByRole('spinbutton', { name: 'Speed' });
+    fireEvent.focus(speed);
+    for (const text of ['', '0', '0.', '0.5']) fireEvent.change(speed, { target: { value: text } });
+    fireEvent.blur(speed);
+
+    expect(last.windAverage).toBe(0.5);
+    expect(last.windStdDev).toBeCloseTo(0.075, 9);
+    expect((screen.getByRole('spinbutton', { name: /turbulence intensity/i }) as HTMLInputElement).value).toBe('15');
   });
 });
 
@@ -237,5 +352,14 @@ describe('the sea-level pressure check', () => {
       <LaunchPanel launch={{ ...LAUNCH, launchAltitudeM: 1500, pressureHPa: 1013 }} onChange={() => {}} />,
     );
     expect(screen.queryByText(/reduced to sea level/)).toBeNull();
+  });
+});
+
+describe('the site buttons', () => {
+  it('are named by their words, not their decorative glyphs', () => {
+    refuseGeolocation();
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={() => {}} />);
+    expect(screen.getByRole('button', { name: 'Use my location' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Show on map' })).toBeTruthy();
   });
 });

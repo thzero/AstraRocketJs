@@ -2,7 +2,7 @@
 //
 //   npm run sync:motor-digests                      the installed OpenRocket
 //   npm run sync:motor-digests -- --jar <path.jar>   a particular release
-//   npm run sync:motor-digests -- --or <checkout>    a built source tree
+//   npm run sync:motor-digests -- --or <checkout>    a built source tree, with OPENROCKET_UNPINNED=1
 //
 // What the digest is for. A `.ork` names a motor by manufacturer, designation,
 // diameter and length, and the desktop's database holds several entries behind
@@ -39,10 +39,17 @@
 // Nothing here is part of the app build; this is a data step, run when the motor
 // catalog is refreshed. It never regenerates the catalog, only adds `digests` to
 // rows already in it.
-import { readFileSync, writeFileSync } from 'node:fs';
+//
+// It reads the catalog sync-motors staged (lib/catalogStaging.mjs), or, with
+// none staged, the catalog in public/data, and writes the finished catalog to
+// public/data.
+import { appendFileSync, existsSync, readFileSync, rmSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { STAGED_MOTORS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
+import { digestChanges, goneSection, motorProblems } from './lib/digestCoverage.mjs';
+import { motorRowKey } from './lib/motorRowKey.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -146,14 +153,25 @@ function entriesFor(index, row) {
     }));
 }
 
+/** A motor's row key and whether it carries a digest, for `digestChanges`. */
+const digestState = (m) => ({ key: motorRowKey(m), digested: Boolean(m.digests?.length) });
+
 function main() {
   const { cp, label } = chooseBuild();
   console.log(`reading motors from ${label}`);
   console.log('dumping motors:');
   const index = dump(cp);
 
-  const catalog = JSON.parse(readFileSync(CATALOG, 'utf8'));
-  const before = catalog.filter((m) => m.digests).length;
+  // The finished catalog now in public/data is the one this run is held to.
+  const previous = existsSync(CATALOG) ? JSON.parse(readFileSync(CATALOG, 'utf8')) : null;
+  const staged = existsSync(STAGED_MOTORS);
+  const catalog = staged ? JSON.parse(readFileSync(STAGED_MOTORS, 'utf8')) : previous;
+  if (!catalog) throw new Error(`nothing to add digests to: no ${STAGED_MOTORS} and no ${CATALOG}`);
+  console.log(`catalog: ${staged ? 'staged by sync-motors' : CATALOG}`);
+  // Taken before the loop below, which edits `catalog`, and `catalog` is
+  // `previous` itself when nothing is staged.
+  const baseline = (Array.isArray(previous) ? previous : catalog).map(digestState);
+  const before = baseline.filter((m) => m.digested).length;
   let hit = 0;
   let ambiguous = 0;
   for (const row of catalog) {
@@ -166,16 +184,29 @@ function main() {
       delete row.digests;
     }
   }
-  // The same guard the other sync steps have, for the same reason: a run that
-  // silently loses coverage is a broken classpath, not a smaller database.
-  if (hit < before) {
-    throw new Error(`refusing to write: motors with digests fell from ${before} to ${hit}. Nothing written.`);
+  // A motor that kept its row and lost its digest is a broken classpath or a
+  // changed matcher: refuse it, and a catalog under the floor however it got
+  // there. A motor thrustcurve.org deleted or merged took its digest with it,
+  // which is reported and not refused.
+  const { lost, gone } = digestChanges(baseline, catalog.map(digestState));
+  const goneText = goneSection('Motors', gone);
+  if (goneText) {
+    console.log(goneText);
+    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${goneText}\n`);
   }
+  if (lost.length) {
+    throw new Error(
+      `refusing to write: ${lost.length} motors still in the catalog lost their digests (${lost.join(', ')}). Nothing written.`,
+    );
+  }
+  const problems = motorProblems(catalog);
+  if (problems.length) throw new Error(`refusing to write: ${problems.join('; ')}. Nothing written.`);
   // Compact, as sync-motors writes it: browsers download this file and keep it
   // for offline use, and indentation would triple its size.
-  writeFileSync(CATALOG, `${JSON.stringify(catalog)}\n`);
+  writeFileAtomic(CATALOG, `${JSON.stringify(catalog)}\n`);
   // The catalog changed, so its cache-bust hash has to as well.
   writeDataManifest(dirname(CATALOG));
+  rmSync(STAGED_MOTORS, { force: true });
   console.log(
     `digests: ${hit} of ${catalog.length} catalog motors (was ${before}), ${ambiguous} needing the delay to choose`,
   );

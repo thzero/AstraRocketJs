@@ -155,6 +155,15 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
     expect(await survives(good())).toBe(1);
   });
 
+  it('drops a row whose delay list, type or source is malformed', async () => {
+    // `parseDelays` splits `delayList`; one bad row would take down the picker.
+    expect(await survives({ ...good(), delayList: 5 })).toBe(0);
+    expect(await survives({ ...good(), delayList: ['5'] })).toBe(0);
+    expect(await survives({ ...good(), type: 'solid' })).toBe(0);
+    expect(await survives({ ...good(), source: 7 })).toBe(0);
+    expect(await survives({ ...good(), delayList: '3,5,P', type: 'reload' })).toBe(1);
+  });
+
   it('drops a sample that is not a {time, thrust} pair', async () => {
     // `samples: [{}]` would become `times: [undefined]` and NaN masses in the kernel.
     expect(await survives({ ...good(), samples: [{}] })).toBe(0);
@@ -172,7 +181,22 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
     expect(await survives({ ...good(), samples: [{ time: 0 }] })).toBe(0);
   });
 
-  it('drops a row with no class — motorDb sorts on it and would throw', async () => {
+  it('drops a negative thrust and a launch CG outside the motor, which ThrustCurveMotor refuses', async () => {
+    expect(
+      await survives({
+        ...good(),
+        samples: [
+          { time: 0, thrust: 0 },
+          { time: 1, thrust: -1 },
+        ],
+      }),
+    ).toBe(0);
+    expect(await survives({ ...good(), cgMm: -1 })).toBe(0);
+    expect(await survives({ ...good(), cgMm: 71 })).toBe(0);
+    expect(await survives({ ...good(), cgMm: 70 })).toBe(1);
+  });
+
+  it('drops a row with no class: motorDb sorts on it and would throw', async () => {
     const { class: _drop, ...noClass } = good();
     expect(await survives(noClass)).toBe(0);
   });

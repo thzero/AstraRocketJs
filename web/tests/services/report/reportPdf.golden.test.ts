@@ -13,12 +13,21 @@ import type { UnitSelection } from '../../../src/prefs/units';
 const calls: string[] = [];
 class FakeDoc {
   internal = { pageSize: { getWidth: () => 210, getHeight: () => 297 } };
+  fontSize = 16;
   constructor(opts: unknown) {
     calls.push(`new jsPDF ${JSON.stringify(opts)}`);
   }
   splitTextToSize(text: string, w: number): string[] {
     calls.push(`splitTextToSize ${JSON.stringify([text, w])}`);
     return [text.slice(0, 40), text.slice(40)];
+  }
+  /**
+   * Helvetica Bold capitals average about 0.65 em, so a column title wraps or
+   * shrinks here roughly where it does in the real document. Not logged:
+   * where the text lands is what the pin is for.
+   */
+  getTextWidth(text: string): number {
+    return text.length * 0.65 * this.fontSize * (25.4 / 72);
   }
   output(kind: string): Blob {
     calls.push(`output ${kind}`);
@@ -40,6 +49,7 @@ for (const m of [
 ]) {
   Object.defineProperty(FakeDoc.prototype, m, {
     value: function (this: FakeDoc, ...args: unknown[]) {
+      if (m === 'setFontSize') this.fontSize = args[0] as number;
       calls.push(`${m} ${JSON.stringify(args)}`);
       return this;
     },
@@ -122,9 +132,26 @@ const stages = [
               [0.09, 0.06],
               [0.1, 0],
             ],
+            position: { method: 'top', offset: 0 },
           }),
-          node({ type: 'tubefinset', id: 'tfins', name: 'Tube fins', finCount: 6, outerRadius: 0.019, length: 0.1 }),
-          node({ type: 'ellipticalfinset', id: 'efins', name: 'Ellipse', finCount: 3, rootChord: 0.09, height: 0.05 }),
+          node({
+            type: 'tubefinset',
+            id: 'tfins',
+            name: 'Tube fins',
+            finCount: 6,
+            outerRadius: 0.019,
+            length: 0.1,
+            position: { method: 'top', offset: 0 },
+          }),
+          node({
+            type: 'ellipticalfinset',
+            id: 'efins',
+            name: 'Ellipse',
+            finCount: 3,
+            rootChord: 0.09,
+            height: 0.05,
+            position: { method: 'top', offset: 0 },
+          }),
         ],
       }),
       node({ type: 'transition', id: 'tr', name: 'Boat tail', length: 0.05, foreRadius: 0.038, aftRadius: 0.025 }),
@@ -152,6 +179,7 @@ const stages = [
             sweep: 0.1,
             height: 0.3,
             thickness: 0.005,
+            position: { method: 'top', offset: 0 },
           }),
         ],
       }),
@@ -162,7 +190,7 @@ const stages = [
 
 const tree = { name: 'Golden Report', components: stages } as unknown as RocketTree;
 
-const motor = (designation: string, avg: number) => ({
+const motor = (designation: string, avg: number, loadedMass: number) => ({
   designation,
   manufacturer: designation.startsWith('J') ? 'AeroTech' : undefined,
   avgThrust: avg,
@@ -173,6 +201,7 @@ const motor = (designation: string, avg: number) => ({
   weight: 0.42,
   diameter: 0.038,
   length: 0.2,
+  loadedMass,
 });
 
 const model = {
@@ -186,8 +215,7 @@ const model = {
   configs: [
     {
       name: 'Two stage',
-      motors: [motor('J350W', 350), motor('H128', 128)],
-      loadedMass: 2.1,
+      motors: [motor('J350W', 350, 2.1), motor('H128', 128, 2.1)],
       flight: {
         maxAltitude: 1234.5,
         flightTime: 98.7,
@@ -198,12 +226,11 @@ const model = {
         groundHitVelocity: 5.1,
       },
     },
-    { name: 'No flight', motors: [motor('H128', 128)], loadedMass: 1.7, flight: null },
-    { name: 'Empty', motors: [], loadedMass: 1.1, flight: null },
+    { name: 'No flight', motors: [motor('H128', 128, 1.7)], flight: null },
+    { name: 'Empty', motors: [], flight: null },
     {
       name: 'No deploy',
-      motors: [motor('J350W', 350)],
-      loadedMass: 2.0,
+      motors: [motor('J350W', 350, 2.0)],
       flight: {
         maxAltitude: 900,
         flightTime: 60,
@@ -373,7 +400,7 @@ const markingModel = {
 } as unknown as ReportModel;
 
 describe('golden PDF report', () => {
-  it('draws every section, by stage, with filled templates exactly as before', async () => {
+  it('pins every section, by stage, with filled templates', async () => {
     calls.length = 0;
     await downloadReportPdf(model, tree, t, everything, units);
     expect(calls.join('\n')).toMatchSnapshot();

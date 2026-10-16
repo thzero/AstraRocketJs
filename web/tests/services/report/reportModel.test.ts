@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { ComponentNode, StaticInfo } from '../../../src/engine/openRocketEngine';
-import { stageParts, finSetPositions, multiStageSummaries } from '../../../src/services/report/reportModel';
+import { stageParts, finSetPositions, restoringEngine } from '../../../src/services/report/reportModel';
 import { motorSpecs, newFlightConfig } from '../../../src/services/flight/flightConfigs';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
@@ -59,6 +59,26 @@ describe('stageParts', () => {
     expect(nose!.outerR).toBeCloseTo(0.02, 12);
     expect([transition!.foreR, transition!.aftR]).toEqual([0.02, 0.015]);
     expect(tube!.innerR).toBeCloseTo(0.014, 12);
+  });
+  it('lists no bore or wall for a filled tube, which flies solid', () => {
+    const s = node({
+      type: 'stage',
+      children: [node({ type: 'bodytube', name: 'Rod', outerRadius: 0.01, thickness: 0.001, filled: true })],
+    });
+    const [rod] = stageParts(s, rocket);
+    expect(rod!.outerR).toBeCloseTo(0.01, 12);
+    expect(rod!.innerR).toBeUndefined();
+    expect(rod!.thickness).toBeUndefined();
+  });
+  it('gives a fin set its root chord as its length, and its span', () => {
+    const fins = rows.find((r) => r.type === 'trapezoidfinset')!;
+    expect(fins.length).toBeCloseTo(0.05, 12);
+    // No height on record: the span is the bridge's 0.03 m default.
+    expect(fins.span).toBeCloseTo(0.03, 12);
+  });
+  it('gives a part with no length the length the bridge builds it with, not 0', () => {
+    const s = node({ type: 'stage', children: [node({ type: 'bodytube', name: 'B', outerRadius: 0.012 })] });
+    expect(stageParts(s, rocket)[0]!.length).toBeCloseTo(0.3, 12);
   });
   it('leaves mass 0 for a part the engine cannot weigh (no id / throw)', () => {
     const s = node({ type: 'stage', children: [node({ type: 'masscomponent', name: 'Ballast' })] }); // no id
@@ -142,9 +162,8 @@ describe('finSetPositions', () => {
   });
 });
 
-describe('multiStageSummaries', () => {
+describe('restoringEngine', () => {
   const stages = [node({ type: 'stage', name: 'A' }), node({ type: 'stage', name: 'B' })];
-  const stageName = (st: ComponentNode, i: number) => (st.name as string) || `Stage ${i + 1}`;
   const info = (mass: number) => ({ mass }) as unknown as StaticInfo;
   // The rebuilt whole-rocket handle the app should end up holding after the report.
   const whole = { info: info(99), handle: {} as never };
@@ -154,13 +173,15 @@ describe('multiStageSummaries', () => {
   beforeEach(() => {
     failures = [];
   });
+  /** Per-stage work that builds, the way the report's stage summaries do. */
+  const perStage = (buildStage: (st: ComponentNode) => StaticInfo) => () =>
+    stages.map((st) => ({ label: st.name as string, info: buildStage(st) }));
 
-  it('returns one summary per stage and restores the whole-rocket handle once', () => {
+  it('returns the work and restores the whole-rocket handle once', () => {
     const restored: unknown[] = [];
-    const out = multiStageSummaries(
-      stages,
-      stageName,
-      (st) => info(st.name === 'A' ? 1 : 2),
+    const out = restoringEngine(
+      perStage((st) => info(st.name === 'A' ? 1 : 2)),
+      () => true,
       () => whole,
       (b) => restored.push(b),
       failed,
@@ -170,23 +191,40 @@ describe('multiStageSummaries', () => {
     expect(restored).toEqual([whole]); // live handle restored exactly once
   });
 
-  it('still restores the live handle when a stage build throws (finally)', () => {
+  it('leaves the live handle alone when the work built nothing', () => {
+    const restored: unknown[] = [];
+    let wholeBuilds = 0;
+    const out = restoringEngine(
+      () => 'no builds',
+      () => false,
+      () => {
+        wholeBuilds++;
+        return whole;
+      },
+      (b) => restored.push(b),
+      failed,
+    );
+    expect(out).toBe('no builds');
+    expect(wholeBuilds).toBe(0);
+    expect(restored).toEqual([]);
+  });
+
+  it('still restores the live handle when a build throws (finally)', () => {
     const restored: unknown[] = [];
     expect(() =>
-      multiStageSummaries(
-        stages,
-        stageName,
-        (st) => {
+      restoringEngine(
+        perStage((st) => {
           if (st.name === 'B') throw new Error('bad stage');
           return info(1);
-        },
+        }),
+        () => true,
         () => whole,
         (b) => restored.push(b),
         failed,
       ),
     ).toThrow(/bad stage/);
-    // Without the finally, a throwing stage build would leave the app's live
-    // handle stranded on the last stage.
+    // Without the finally, a throwing build would leave the app's live handle
+    // stranded on the last rocket built.
     expect(restored).toEqual([whole]);
     expect(failures).toEqual([]);
   });
@@ -194,17 +232,16 @@ describe('multiStageSummaries', () => {
   /**
    * The case a `finally` alone does not cover: `buildWhole()` itself throwing.
    *
-   * If `restore` never runs, the store keeps the last per-stage handle (one
-   * stage standing in for the rocket) and nothing re-triggers the rebuild
-   * effect, because its dependencies have not moved. The aero pane stays dead
-   * until an unrelated edit.
+   * If `restore` never runs, the store keeps the last report build (one stage
+   * standing in for the rocket) and nothing re-triggers the rebuild effect,
+   * because its dependencies have not moved. The aero pane stays dead until an
+   * unrelated edit.
    */
   it('reports a failing whole-rocket rebuild instead of silently not restoring', () => {
     const restored: unknown[] = [];
-    const out = multiStageSummaries(
-      stages,
-      stageName,
-      () => info(1),
+    const out = restoringEngine(
+      perStage(() => info(1)),
+      () => true,
       () => {
         throw new Error('whole rebuild failed');
       },
@@ -219,16 +256,15 @@ describe('multiStageSummaries', () => {
     expect((failures[0] as Error).message).toMatch(/whole rebuild failed/);
   });
 
-  it('keeps the stage failure when BOTH throw, rather than replacing it', () => {
+  it('keeps the build failure when BOTH throw, rather than replacing it', () => {
     // A rethrow from a `finally` replaces whatever the try block threw. The
     // stage failure names a part; the rebuild failure does not.
     expect(() =>
-      multiStageSummaries(
-        stages,
-        stageName,
-        () => {
+      restoringEngine(
+        perStage(() => {
           throw new Error('bad stage');
-        },
+        }),
+        () => true,
         () => {
           throw new Error('whole rebuild failed');
         },
@@ -247,7 +283,7 @@ describe('multiStageSummaries', () => {
  * beside FinSet, and where a tube sits along the airframe is exactly as useful
  * to mark. What is not theirs is a root chord: the span is the tube's length.
  */
-describe('finSetPositions — tube fins', () => {
+describe('finSetPositions: tube fins', () => {
   const rocket = { componentInfo: () => ({ positionX: 0.42 }) };
   const withTubes = (over: Record<string, unknown> = {}) =>
     node({
