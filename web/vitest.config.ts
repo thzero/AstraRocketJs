@@ -21,6 +21,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
+    __APP_CHANNEL__: JSON.stringify(''),
     __HELP_URL__: JSON.stringify('https://example.test/docs'),
     __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
     // A stand-in pin, like the version above. The real one is checked straight

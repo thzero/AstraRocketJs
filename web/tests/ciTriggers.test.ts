@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
  * The two gate workflows divide the work by trigger, and between them they have
  * to leave no branch push unchecked: `ci.yml` is `pull_request`-only and master
  * is reached through a pull request, so `dev.yml` has to cover a push to every
- * other branch. With
+ * other branch but `beta`, which carries only work already gated on dev. With
  * a branch allowlist there, a push to an unlisted branch runs no format, spell,
  * typecheck, lint, knip or unit-test gate at all.
  *
@@ -22,11 +22,11 @@ const wf = (name: string) =>
   readFileSync(fileURLToPath(new URL(`../../.github/workflows/${name}`, import.meta.url)), 'utf8');
 
 describe('CI trigger coverage', () => {
-  it('checks a push to every branch except master', () => {
+  it('checks a push to every branch except master and beta', () => {
     const dev = wf('dev.yml');
     // `branches-ignore`, not `branches`: an allowlist leaves every unlisted branch
     // unchecked.
-    expect(dev).toMatch(/push:\s*\n\s*branches-ignore:\s*\[master\]/);
+    expect(dev).toMatch(/push:\s*\n\s*branches-ignore:\s*\[master, beta\]/);
     expect(dev).not.toMatch(/push:\s*\n\s*branches:/);
   });
 

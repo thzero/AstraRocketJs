@@ -11,8 +11,18 @@
  * a key, which is this prefix followed by a colon. The bare project name is free
  * to appear anywhere - it is the package name and the product name - and only the
  * `prefix:` form is a storage key.
+ *
+ * The beta site is served from the same origin as production, so it shares
+ * localStorage and IndexedDB with it. A beta build therefore takes its own
+ * prefix (`astrarocketjs-beta`): its designs and settings never reach
+ * production's, and a beta schema version can never be one production's
+ * `indexedDB.open` refuses.
+ *
+ * `typeof` because the Playwright specs import this in Node, where no build
+ * defines the channel; they test the production build.
  */
-export const STORAGE_PREFIX = 'astrarocketjs';
+const channel = typeof __APP_CHANNEL__ === 'string' ? __APP_CHANNEL__ : '';
+export const STORAGE_PREFIX = channel ? `astrarocketjs-${channel}` : 'astrarocketjs';
 
 /**
  * A namespaced key: `nsKey('designs:index')` is `astrarocketjs:designs:index`.

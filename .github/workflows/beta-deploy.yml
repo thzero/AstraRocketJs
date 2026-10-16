@@ -1,0 +1,111 @@
+name: Beta deploy
+
+# Builds the `beta` branch and publishes it to the beta site,
+# https://thzero.github.io/AstraRocketJs-beta/.
+#
+# Pages publishes to the repository a run belongs to, and each repository has
+# one site, so the beta site is its own repository (thzero/AstraRocketJs-beta).
+# That repository's workflow calls this one from a "Run workflow" button:
+#
+#   on:
+#     workflow_dispatch:
+#   permissions:
+#     contents: read
+#     pages: write
+#     id-token: write
+#   jobs:
+#     deploy:
+#       uses: thzero/AstraRocketJs/.github/workflows/beta-deploy.yml@beta
+#
+# A called workflow runs as the caller, so the run, its Pages deployment and
+# github.token all belong to the beta repository; this public repository is only
+# read, which needs no token. `workflow_call` is the only trigger, so nothing in
+# this repository can start it and publish over the production site.
+#
+# The build matches deploy.yml's, with three differences: the source is this
+# repository's `beta` branch, the base paths name the beta site, and
+# APP_CHANNEL=beta gives the app its own storage prefix and labels
+# (vite.config.ts). The beta site shares the thzero.github.io origin with
+# production, which is what the storage prefix is for.
+
+on:
+  workflow_call:
+    inputs:
+      ref:
+        description: The branch, tag or SHA of thzero/AstraRocketJs to build.
+        type: string
+        default: beta
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: beta-pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    # The web build plus both Docusaurus locales. Without a cap a hung webpack
+    # compile holds the Pages deployment for the 360-minute default.
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: thzero/AstraRocketJs
+          ref: ${{ inputs.ref }}
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            web/package-lock.json
+            website/package-lock.json
+
+      - run: npm ci
+
+      # The committed public/data/contributors.generated.json is used as is: the
+      # production deploy keeps it current, and a beta build has no reason to
+      # credit anyone differently.
+
+      # Docs are built BEFORE the app and into web/public, so the service worker
+      # precaches them and Help works offline.
+      - name: Install docs deps
+        working-directory: website
+        run: npm ci
+
+      - name: Build docs into the app
+        working-directory: website
+        run: npx docusaurus build --out-dir "$GITHUB_WORKSPACE/web/public/docs"
+        env:
+          DOCS_BASE_URL: /AstraRocketJs-beta/docs/
+
+      - run: npm run build
+        env:
+          PAGES_BASE: /AstraRocketJs-beta/
+          APP_CHANNEL: beta
+          # The same published catalogs as production (see deploy.yml).
+          VITE_DATA_BASE: https://cdn.jsdelivr.net/gh/thzero/AstraRocketJs@data/
+
+      - uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0
+
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5.0.1

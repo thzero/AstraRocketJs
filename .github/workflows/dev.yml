@@ -1,6 +1,6 @@
 name: Dev
 
-# The push gate for day-to-day work on EVERY branch but master.
+# The push gate for day-to-day work on EVERY branch but master and beta.
 #
 # ci.yml is `pull_request`-only, so without
 # this a push with no PR open is checked by nothing until someone opens the PR.
@@ -10,6 +10,8 @@ name: Dev
 # does, and a named list leaves every unnamed branch unchecked.
 #
 # master is excluded because it is reached through a PR, which ci.yml gates.
+# beta is excluded because it only carries work already gated on dev, and its
+# deploy is started by hand (beta-deploy.yml).
 # A branch with a PR open runs both this and ci.yml.
 #
 # Tag pushes do not trigger this: a branch filter of either kind confines the
@@ -24,7 +26,7 @@ name: Dev
 
 on:
   push:
-    branches-ignore: [master]
+    branches-ignore: [master, beta]
 
 permissions:
   contents: read

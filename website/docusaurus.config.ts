@@ -76,6 +76,13 @@ const upstream = {
 // the Pages deploy, so both live on the one GitHub Pages site:
 //   /AstraRocketJs/        the app
 //   /AstraRocketJs/docs/   these docs (…/docs/es/ for Spanish)
+// The app these docs belong to: the docs are built into the app at <app>/docs/,
+// so a deploy's DOCS_BASE_URL names it (the beta site's is /AstraRocketJs-beta/docs/).
+// A local build has no deploy, and links to the production app.
+const appUrl = process.env.DOCS_BASE_URL
+  ? `https://thzero.github.io${process.env.DOCS_BASE_URL.replace(/docs\/$/, '')}`
+  : 'https://thzero.github.io/AstraRocketJs/';
+
 const config: Config = {
   title: 'AstraRocketJs',
   tagline: 'Design and simulate model rockets in your browser',
@@ -196,7 +203,7 @@ const config: Config = {
       title: 'AstraRocketJs',
       items: [
         { type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Documentation' },
-        { href: 'https://thzero.github.io/AstraRocketJs/', label: 'Launch the app', position: 'right' },
+        { href: appUrl, label: 'Launch the app', position: 'right' },
         { type: 'localeDropdown', position: 'right' },
         { href: 'https://github.com/thzero/AstraRocketJs', label: 'GitHub', position: 'right' },
       ],

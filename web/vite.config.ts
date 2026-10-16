@@ -13,10 +13,24 @@ interface PackageInfo {
   contributorsPage?: { url?: string };
 }
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as PackageInfo;
+
+/**
+ * The release channel: '' for the production site, 'beta' for the beta site
+ * (.github/workflows/beta-deploy.yml). The beta site shares the
+ * thzero.github.io origin with production, so the channel names its storage
+ * (services/storage/storageKeys.ts) and labels the app, the version and the
+ * installed PWA, so a person can tell the two apart.
+ */
+const channel: string = process.env.APP_CHANNEL?.trim() ?? '';
+if (channel !== '' && channel !== 'beta') throw new Error(`APP_CHANNEL must be '' or 'beta', not '${channel}'`);
+
 // The version the app reports. Overridable so scripts/check-update-flow.mjs can
 // build two distinguishable versions from one checkout and watch the service
-// worker hand one over to the other; nothing else sets it.
-const version: string = process.env.APP_VERSION_OVERRIDE || pkg.version;
+// worker hand one over to the other. A channel build carries the channel and,
+// in CI, the run number, so a beta bug report names the build it came from.
+const baseVersion: string = process.env.APP_VERSION_OVERRIDE || pkg.version;
+const runNumber = process.env.GITHUB_RUN_NUMBER;
+const version: string = channel ? `${baseVersion}-${channel}${runNumber ? `.${runNumber}` : ''}` : baseVersion;
 
 /**
  * This build's id: the time it was built, so a later build always has a higher
@@ -107,6 +121,19 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // index.html runs before any module, so it cannot import the storage prefix
+    // or the channel; it takes both from here. The prefix rule is the one in
+    // services/storage/storageKeys.ts.
+    {
+      name: 'html-channel',
+      transformIndexHtml: {
+        order: 'pre' as const,
+        handler: (html: string) =>
+          html
+            .replaceAll('%APP_TITLE%', channel ? 'AstraRocketJs Beta' : 'AstraRocketJs')
+            .replaceAll('%STORAGE_PREFIX%', channel ? `astrarocketjs-${channel}` : 'astrarocketjs'),
+      },
+    },
     // The service worker's build-id script (see buildId above).
     {
       name: 'sw-build-id',
@@ -139,8 +166,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'AstraRocketJs',
-        short_name: 'AstraRocket',
+        name: channel ? 'AstraRocketJs Beta' : 'AstraRocketJs',
+        short_name: channel ? 'AstraRocket Beta' : 'AstraRocket',
         description: 'Design and simulate model rockets in your browser.',
         theme_color: '#0b1020',
         background_color: '#0b1020',
@@ -438,6 +465,7 @@ export default defineConfig({
   // Expose the package version to the app (shown in the header).
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __APP_CHANNEL__: JSON.stringify(channel),
     __HELP_URL__: JSON.stringify(helpUrl),
     __CONTRIBUTORS_URL__: JSON.stringify(contributorsUrl),
     __UPSTREAM__: JSON.stringify(upstream),

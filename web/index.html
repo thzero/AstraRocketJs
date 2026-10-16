@@ -9,14 +9,15 @@
     <link rel="icon" type="image/svg+xml" href="%BASE_URL%favicon.svg" />
     <!-- iOS ignores the web app manifest's icons and uses this instead. -->
     <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png" />
-    <title>AstraRocketJs</title>
+    <title>%APP_TITLE%</title>
     <script>
       /* The saved theme on <html> before the first paint, so a light user never
          sees a dark frame. Mirrors services/app/theme.ts applyTheme and the
-         settings key (services/storage/settings.ts); main.tsx applies it again
-         once the modules load, so a stale copy here costs one frame, not more. */
+         settings key (services/storage/settings.ts, prefixed per channel by
+         vite.config.ts); main.tsx applies it again once the modules load, so a
+         stale copy here costs one frame, not more. */
       try {
-        var pref = JSON.parse(localStorage.getItem('astrarocketjs:settings:v1') || '{}').theme;
+        var pref = JSON.parse(localStorage.getItem('%STORAGE_PREFIX%:settings:v1') || '{}').theme;
         if (pref === 'system') pref = matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
         if (pref === 'light' || pref === 'daylight') document.documentElement.setAttribute('data-theme', pref);
       } catch (e) {}
