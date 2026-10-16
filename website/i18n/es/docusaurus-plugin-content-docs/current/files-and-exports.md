@@ -59,6 +59,29 @@ RASAero modela únicamente la **forma aerodinámica exterior**, así que la expo
 
 Como RASAero no puede representar todas las formas, la exportación **se detiene con un mensaje claro** en lugar de escribir un archivo que RASAero rechazaría: por ejemplo, aletas tubulares o elípticas, una transición no cónica, más de un juego de aletas en un tubo, una aleta de forma libre que no sea un trapecio simple, una ojiva ojival con un parámetro de forma distinto de 1, una ojiva Haack que no sea Von Kármán (0) ni LV-Haack (0,33), o un paracaídas que se despliegue en algo que no sea el apogeo o una altitud (un paracaídas nuevo se despliega con la carga de eyección del motor, así que ajusta antes su despliegue). En esos casos, cambia el diseño o usa `.ork`.
 
+## Exportar JSON para Onshape (`.json`) {#exporting-json-for-onshape-json}
+
+**Menú → Exportar → JSON** escribe el diseño como un archivo `.json` para la función personalizada **AstraRocketOnshapeImport** de Onshape, que construye el cohete como piezas en un Part Studio. La función lee el formato de archivo del proyecto **[OpenRocket-Onshape](https://github.com/thzero/openrocket-onshape)**.
+
+Para construir el cohete en Onshape:
+
+1. Exporta el diseño con **Menú → Exportar → JSON**.
+2. En Onshape, crea un documento nuevo o abre uno existente.
+3. Crea un Part Studio nuevo.
+4. Si el documento aún no tiene la función, añade una función personalizada y busca **AstraRocketOnshapeImport**.
+5. Importa al documento el archivo `.json` descargado.
+6. Abre la función **AstraRocketOnshapeImport** en el Part Studio y selecciona el archivo JSON.
+
+El archivo lleva todas las piezas que la función construye: ojivas, transiciones, tubos, los cuatro tipos de aletas con sus pestañas, tubos internos, acopladores, anillos de centrado, mamparos, topes de motor, guías de lanzamiento, botones de riel, piezas de recuperación y componentes de masa (como cilindros plegados), pods y propulsores laterales, y los motores de la configuración de vuelo que tengas seleccionada. Los valores vienen del motor de cálculo:
+
+- Los tamaños automáticos son los que vuela el diseño, y cada pieza está donde el motor de cálculo la pone.
+- Las paredes de ojivas y transiciones se cortan como las pesa el motor de cálculo, así que en Onshape cada una de esas piezas tiene el volumen que usa la simulación.
+- Un paracaídas, una serpentina, un cordón de choque o un componente de masa plegado recibe una densidad que da a su cilindro plegado la masa que usa la simulación. Su propio material sigue en el archivo.
+- Un grupo de tubos internos se escribe como un tubo por motor, cada uno donde lo pone el motor de cálculo.
+- El centro de presión es el estático del motor de cálculo, el valor que muestra la pestaña Diseño.
+
+El carenado de cámara es la única pieza que la función no sabe construir. Se deja fuera, y una nota lo indica.
+
 ## Exportar el cohete entero para impresión 3D (`.3mf`) {#exporting-the-whole-rocket-for-3d-printing-3mf}
 
 **Menú → Exportar → Impresión 3D (.3mf)** escribe de una vez todas las piezas imprimibles del diseño. El diálogo lista lo que el diseño realmente puede imprimir, todo marcado; desmarca lo que no quieras. Los paracaídas, las cintas, los cordones de choque, los componentes de masa y los botones de riel ni siquiera aparecen, porque no tienen un cuerpo sólido que imprimir.
@@ -140,7 +163,7 @@ Todas las exportaciones nombran su archivo igual, porque la carpeta de descargas
 
 | El archivo trata de | Se llama | Por ejemplo |
 | --- | --- | --- |
-| el cohete | el cohete y luego qué es el archivo | `Bertha-design.ork`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
+| el cohete | el cohete y luego qué es el archivo | `Bertha-design.ork`, `Bertha-design.json`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
 | una simulación | el cohete, la simulación y qué es el archivo | `Bertha-C6_flight-flight-data.csv`, `Bertha-C6_flight-flight-events.csv`, `Bertha-C6_flight-flight-path.kml` |
 | una pieza imprimible | el cohete y luego el componente | `Bertha-Nose_cone.stl` |
 

@@ -59,6 +59,29 @@ RASAero models only the **external aerodynamic shape**, so the export carries th
 
 Because RASAero can't represent every shape, the export **stops with a clear message** rather than write a file RASAero would reject, for example tube or elliptical fins, a non-conical transition, more than one fin set on a tube, a freeform fin that isn't a simple trapezoid, an ogive nose cone with a shape parameter other than 1, a Haack nose cone other than Von Kármán (0) or LV-Haack (0.33), or a parachute that deploys on anything but apogee or an altitude (a new parachute deploys on the motor's ejection charge, so set its deployment first). In those cases, change the design or use `.ork` instead.
 
+## Exporting JSON for Onshape (`.json`)
+
+**Menu → Export → JSON** writes the design as a `.json` file for the **AstraRocketOnshapeImport** custom feature in Onshape, which builds the rocket as parts in a Part Studio. The feature reads the file format of the **[OpenRocket-Onshape](https://github.com/thzero/openrocket-onshape)** project.
+
+To build the rocket in Onshape:
+
+1. Export the design with **Menu → Export → JSON**.
+2. In Onshape, create a new document or open an existing one.
+3. Create a new Part Studio.
+4. If the document does not have the feature yet, add a custom feature and search for **AstraRocketOnshapeImport**.
+5. Import the downloaded `.json` file into the document.
+6. Open the **AstraRocketOnshapeImport** feature in the Part Studio and select the JSON file.
+
+The file holds every part the feature builds: nose cones, transitions, body tubes, all four fin types with tabs, inner tubes, couplers, centering rings, bulkheads, engine blocks, launch lugs, rail buttons, recovery parts and mass components (as packed cylinders), pod sets and boosters, and the motors of the flight configuration you have selected. The values come from the engine:
+
+- Automatic sizes are the ones the design flies, and every part sits where the engine puts it.
+- Nose cone and transition walls are cut the way the engine weighs them, so in Onshape each of those parts has the volume the simulation uses.
+- A packed parachute, streamer, shock cord or mass component gets a density that gives its packed cylinder the mass the simulation uses. Its own material is still in the file.
+- An inner tube cluster is written as one tube per motor, each where the engine puts it.
+- The center of pressure is the engine's static one, the figure the Design tab shows.
+
+The camera shroud is the one part the feature has no builder for. It is left out, and a note says so.
+
 ## Exporting the whole rocket for 3D printing (`.3mf`)
 
 **Menu → Export → 3D print (.3mf)** writes every printable part of the design in one go. The dialog lists what the design can actually print, all ticked; untick anything you do not want. Parachutes, streamers, shock cords, mass components and rail buttons are not listed at all, because they have no solid body to print.
@@ -140,7 +163,7 @@ Every export names its file the same way, because a downloads folder is a flat l
 
 | The file is | Named | For example |
 | --- | --- | --- |
-| about the rocket | rocket, then what the file is | `Bertha-design.ork`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
+| about the rocket | rocket, then what the file is | `Bertha-design.ork`, `Bertha-design.json`, `Bertha-report.pdf`, `Bertha-aero-table.csv`, `Bertha-2d.svg` |
 | about a simulation | rocket, then the run, then what the file is | `Bertha-C6_flight-flight-data.csv`, `Bertha-C6_flight-flight-events.csv`, `Bertha-C6_flight-flight-path.kml` |
 | a printable part | rocket, then the component | `Bertha-Nose_cone.stl` |
 

@@ -32,6 +32,7 @@ export interface FileMenuActions {
   onExportRkt: () => void;
   onExportPrint: () => void;
   onExportRasaero: () => void;
+  onExportJson: () => void;
   onReport: () => void;
   onMotors: () => void;
   onLaunchLocations: () => void;
@@ -219,6 +220,11 @@ function FileMenu({
       {exportOpen && (
         <MenuItem sub disabled={!canSave} onClick={run(actions.onExportRasaero)}>
           {t('file.rasaero')}
+        </MenuItem>
+      )}
+      {exportOpen && (
+        <MenuItem sub label={t('file.exportJsonLabel')} disabled={!canSave} onClick={run(actions.onExportJson)}>
+          {t('file.exportJson')}
         </MenuItem>
       )}
       <MenuItem disabled={!canSave} onClick={run(actions.onReport)}>

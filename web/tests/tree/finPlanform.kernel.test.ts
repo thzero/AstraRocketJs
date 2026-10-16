@@ -634,6 +634,7 @@ describe('no module grows its own fin sampler', () => {
     'services/report/templatesSection.ts',
     'services/exports/solidMesh.ts',
     'services/exports/dxfExport.ts',
+    'services/files/onshapeExport.ts',
     'services/design/componentActions.ts',
   ];
 

@@ -27,6 +27,7 @@ export function AppHeader() {
   const onSave = useWorkspaceStore((s) => s.saveOrk);
   const refreshDesigns = useWorkspaceStore((s) => s.refreshDesigns);
   const onSaveRasaero = useWorkspaceStore((s) => s.saveRasaero);
+  const onExportJson = useWorkspaceStore((s) => s.exportJson);
   const onSaveRkt = useWorkspaceStore((s) => s.saveRkt);
   const openFile = (f: File) => fireAction(onOpenFile(f));
   const ork = useFilePick({ accept: '.ork', onFile: openFile });
@@ -110,6 +111,7 @@ export function AppHeader() {
             onExportRkt: () => fireAction(onSaveRkt()),
             onExportPrint: () => open('print'),
             onExportRasaero: () => fireAction(onSaveRasaero()),
+            onExportJson: () => fireAction(onExportJson()),
             onReport: () => open('report'),
             onMotors: () => open('motors'),
             onLaunchLocations: () => open('locations'),

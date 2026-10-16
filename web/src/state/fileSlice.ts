@@ -4,10 +4,10 @@ import { confirm } from './confirmStore';
 import { prompt } from './promptStore';
 import { defaultRocketTree } from '../services/design/defaultRocket';
 import { launcherKind } from '../services/design/launcher';
+import { mergePalette } from '../services/design/partColors';
 import type { DesignInfo } from '../services/files/orkTypes';
-import type { ComponentFigures } from '../services/files/rktExport';
 import type { buildRocketTree } from '../engine/api';
-import type { RocketTree } from '../engine/openRocketEngine';
+import type { ComponentInfo, RocketTree } from '../engine/openRocketEngine';
 import type { StageLaunch } from '../services/files/rasaero/stageLaunch';
 import { buildDesignInfo } from '../services/report/designInfo';
 import { buildExportMotorMap, fillMotorDigests } from '../services/motors/exportMotors';
@@ -100,6 +100,8 @@ export interface FileSlice {
   /** Write the design's printable parts as 3MF (one file, or a zip of files). */
   exportPrint: (opts: import('../services/exports/rocketPrintExport').PrintExportOptions) => Promise<void>;
   saveRasaero: () => Promise<void>;
+  /** Write the design as JSON, the payload the AstraRocketOnshapeImport feature builds a Part Studio from. */
+  exportJson: () => Promise<void>;
   /** Export a single component as a 3D mesh (stl/obj/glb) or a 2D cut sheet (dxf). */
   exportComponent: (nodeId: string, format: import('../services/files/componentFormats').ExportFormat) => Promise<void>;
 }
@@ -149,6 +151,9 @@ const observeWorkspace = (): (() => boolean) => {
   return () => mine !== workspaceGen;
 };
 
+/** Each part's kernel figures by id; undefined for a part the build does not hold. */
+type KernelFigures = (id: string) => ComponentInfo | undefined;
+
 /**
  * A build's figures for every part of `tree`, for the writers' values the
  * kernel works out itself; a part the build does not hold has none, and the
@@ -157,8 +162,8 @@ const observeWorkspace = (): (() => boolean) => {
  * Read now rather than on demand: the next build frees this handle
  * (`buildRocketTree`), and a save awaits before it writes.
  */
-function figuresOf(rocket: ReturnType<typeof buildRocketTree>, tree: RocketTree): ComponentFigures {
-  const figures = new Map<string, ReturnType<ComponentFigures>>();
+function figuresOf(rocket: ReturnType<typeof buildRocketTree>, tree: RocketTree): KernelFigures {
+  const figures = new Map<string, ComponentInfo>();
   for (const node of walkNodes(tree.components)) {
     if (typeof node.id !== 'string') continue;
     try {
@@ -245,7 +250,7 @@ export const createFileSlice =
      * still inside the rebuild debounce describes an earlier design, so the
      * design is built now instead. Undefined when it does not build.
      */
-    const figuresFor = (tree: RocketTree): ComponentFigures | undefined => {
+    const figuresFor = (tree: RocketTree): KernelFigures | undefined => {
       const { rocket } = get();
       if (rocket && builtFrom(rocket) === tree.components) return figuresOf(rocket, tree);
       const built = computeStaticInfo(tree, selectConfig(get()));
@@ -798,6 +803,34 @@ export const createFileSlice =
           if (warnings.length) set({ err: warnings.map((k) => keyedText(k, i18n.t)).join(' ') });
         } catch (e) {
           set({ err: i18n.t('errors.exportRasaero', { reason: errorText(e, i18n.t) }) });
+        }
+      },
+      exportJson: async () => {
+        try {
+          const { tree, loadedMeta } = get();
+          const config = selectConfig(get());
+          // The build the figures come from is the one `info` describes, so the
+          // center of pressure is read only after it.
+          const figures = figuresFor(tree);
+          const cp = figures ? get().info?.cp : undefined;
+          const motors = await fillMotorDigests(buildExportMotorMap(tree, config, loadedMeta?.exportMotors ?? {}));
+          // The writer is a lazily-imported chunk, only needed on export.
+          const { downloadOnshapeJson } = await import('../services/files/onshapeExport');
+          const { skipped } = await downloadOnshapeJson({
+            name: designNameOf(tree, loadedMeta),
+            tree,
+            figures,
+            cp,
+            motors,
+            configId: config.id,
+            palette: mergePalette(loadSettings().partColors),
+          });
+          if (skipped.length) {
+            const parts = fmtList(skipped.map((p) => p.name || i18n.t(`part.${p.type}`)));
+            set({ err: i18n.t('errors.exportJsonPartial', { parts }) });
+          }
+        } catch (e) {
+          set({ err: i18n.t('errors.exportJson', { reason: errorText(e, i18n.t) }) });
         }
       },
       exportComponent: async (nodeId, format) => {
