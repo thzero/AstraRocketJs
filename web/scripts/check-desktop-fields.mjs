@@ -102,6 +102,16 @@ const KNOWN = [
     when: (a, d) => d === 0.001,
   },
   {
+    rule: 'rkt:*.ignitionEvent',
+    why: "RockSim has no mount ignition, and desktop's RockSim importer reads none, so the mount keeps the automatic default",
+    when: (a, d) => d === 'automatic',
+  },
+  {
+    rule: 'rkt:*.ignitionDelay',
+    why: "RockSim has no mount ignition, and desktop's RockSim importer reads none, so the mount keeps no delay",
+    when: (a, d) => d === 0,
+  },
+  {
     rule: 'rkt:masscomponent.massComponentType',
     why: 'RockSim has no mass component type',
     when: (a, d) => d === 'masscomponent',

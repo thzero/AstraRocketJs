@@ -87,8 +87,9 @@ describe('an emptied required dimension', () => {
 
   it('does not guard an OPTIONAL dimension, where clearing means zero', () => {
     // Motor overhang 0 is flush, and clearing it is a reasonable way to say so.
+    // The box is there only on a motor mount.
     const onChange = vi.fn();
-    render(onChange, tube());
+    render(onChange, { ...tube(), motorMount: true } as ComponentNode);
     const overhang = screen.getByLabelText('Motor overhang') as HTMLInputElement;
 
     fireEvent.focus(overhang);

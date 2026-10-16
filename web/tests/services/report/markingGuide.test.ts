@@ -330,6 +330,94 @@ describe('markingGuides', () => {
   });
 });
 
+describe('tab slots', () => {
+  /**
+   * The slot is the kernel's tab (`FinSet.getTabFrontEdge()`, which is
+   * `AxialMethod.getAsPosition(tabOffset, tabLength, rootChord)`, to that plus
+   * the tab length), turned round to be measured forward from the root's aft
+   * end. The expected numbers below are that arithmetic done by hand.
+   */
+  const slotOf = (fin: object, tubeProps: object = {}) =>
+    markingGuides(
+      tree(
+        node({
+          type: 'stage',
+          id: 's',
+          children: [
+            node({
+              type: 'bodytube',
+              id: 'body',
+              outerRadius: 0.02,
+              ...tubeProps,
+              children: [node({ type: 'trapezoidfinset', id: 'f', finCount: 3, rootChord: 0.1, ...fin })],
+            }),
+          ],
+        }),
+      ),
+    ).guides[0]!.marks[0]!.slot;
+  const tab = { tabHeight: 0.01, tabLength: 0.06, thickness: 0.003 };
+
+  it('centers a middle tab on the root', () => {
+    // Front edge (0.1 - 0.06) / 2 = 0.02 from the root front: 20 to 80 mm from the aft end.
+    const slot = slotOf({ ...tab, tabOffsetMethod: 'middle', tabOffset: 0 })!;
+    expect(slot.aftMm).toBeCloseTo(20, 9);
+    expect(slot.foreMm).toBeCloseTo(80, 9);
+    expect(slot.widthMm).toBeCloseTo(3, 9);
+  });
+
+  it('measures a tab placed from the root front or back by its own method', () => {
+    // top, offset 5 mm: front edge 0.005, trailing 0.065, so 35 to 95 mm from the aft end.
+    const top = slotOf({ ...tab, tabOffsetMethod: 'top', tabOffset: 0.005 })!;
+    expect(top.aftMm).toBeCloseTo(35, 9);
+    expect(top.foreMm).toBeCloseTo(95, 9);
+    // bottom, offset -5 mm: front edge -0.005 + (0.1 - 0.06) = 0.035, trailing 0.095: 5 to 65 mm.
+    const bottom = slotOf({ ...tab, tabOffsetMethod: 'bottom', tabOffset: -0.005 })!;
+    expect(bottom.aftMm).toBeCloseTo(5, 9);
+    expect(bottom.foreMm).toBeCloseTo(65, 9);
+  });
+
+  it('is as wide as the kernel default fin when the design states no thickness', () => {
+    const slot = slotOf({ tabHeight: 0.01, tabLength: 0.06 })!;
+    expect(slot.widthMm).toBeCloseTo(KERNEL_DEFAULTS.trapezoidfinset.thickness * 1000, 9);
+  });
+
+  it('has none without a tab, on a canted fin, or through a filled tube', () => {
+    expect(slotOf({ thickness: 0.003 })).toBeNull();
+    expect(slotOf({ ...tab, cant: deg(2) })).toBeNull();
+    expect(slotOf(tab, { filled: true })).toBeNull();
+  });
+
+  it('gives tube fins, lugs and rail buttons none', () => {
+    const { guides } = markingGuides(
+      tree(
+        node({
+          type: 'stage',
+          id: 's',
+          children: [
+            node({
+              type: 'bodytube',
+              id: 'body',
+              outerRadius: 0.02,
+              children: [
+                node({ type: 'trapezoidfinset', id: 'f', finCount: 3, rootChord: 0.1, ...tab }),
+                node({ type: 'tubefinset', id: 'tf', finCount: 6, ...tab }),
+                node({ type: 'launchlug', id: 'l', angleOffset: deg(60) }),
+                node({ type: 'railbutton', id: 'rb', angleOffset: deg(90) }),
+              ],
+            }),
+          ],
+        }),
+      ),
+    );
+    const marks = guides[0]!.marks;
+    expect(marks.filter((m) => m.slot).map((m) => m.type)).toEqual([
+      'trapezoidfinset',
+      'trapezoidfinset',
+      'trapezoidfinset',
+    ]);
+  });
+});
+
 describe('GUIDE_WIDTH_MM', () => {
   it('is upstream 3 inches, and two strips still fit a portrait page', () => {
     expect(GUIDE_WIDTH_MM).toBeCloseTo(76.2, 9);

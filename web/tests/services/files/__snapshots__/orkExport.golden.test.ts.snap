@@ -592,7 +592,7 @@ exports[`golden .ork export > falls back to the FIRST configuration as default w
                 <clusterscale>1</clusterscale>
                 <clusterrotation>0</clusterrotation>
                 <motormount>
-                  <ignitionevent>launch</ignitionevent>
+                  <ignitionevent>automatic</ignitionevent>
                   <ignitiondelay>0</ignitiondelay>
                   <overhang>0</overhang>
                   <motor configid="cfg-a">
@@ -1798,7 +1798,7 @@ exports[`golden .ork export > pins every configuration, block and component type
                 <clusterscale>1</clusterscale>
                 <clusterrotation>0</clusterrotation>
                 <motormount>
-                  <ignitionevent>launch</ignitionevent>
+                  <ignitionevent>automatic</ignitionevent>
                   <ignitiondelay>0</ignitiondelay>
                   <overhang>0</overhang>
                   <motor configid="cfg-a">

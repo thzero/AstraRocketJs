@@ -6,6 +6,7 @@ import { MAX_MOTOR_CONFIGS } from './importLimits';
 import { finiteNum } from './numbers';
 import { keyedNote, notePartName, type ImportNote } from '../importNote';
 import { KeyedError } from '../../../i18n/keyedError';
+import { IGNITION_EVENTS } from '../../design/componentFields';
 
 /**
  * Flight configurations on the way in: the rocket-level declaration table,
@@ -166,7 +167,7 @@ function readDelay(motorEl: Element): number {
   return t.trim() !== '' && Number.isFinite(v) ? Math.max(0, v) : PLUGGED_DELAY;
 }
 
-/** A mount's <motormount>: the mount flag, its overhang, and every configuration's motor. */
+/** A mount's <motormount>: the mount flag, its overhang, its own ignition, and every configuration's motor. */
 export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNode): void {
   const mountEl = el.querySelector(':scope > motormount');
   if (!mountEl) return;
@@ -177,6 +178,16 @@ export function readMotor(ctx: OrkImportContext, el: Element, node: ComponentNod
   // Motor overhang (m): aft protrusion past the mount (min-diameter practice).
   const overhang = numTag(mountEl, 'overhang', 0);
   if (overhang !== 0) node['motorOverhang'] = overhang;
+  // The mount's own ignition, the bare tags (RocketComponentSaver writes
+  // `getDefaultMotorConfig()` there). Kept on the mount whether or not any
+  // configuration has a motor in it; an event desktop does not know is dropped,
+  // as MotorMountHandler drops it.
+  const bareEvent = text(mountEl, ':scope > ignitionevent')?.trim();
+  if (bareEvent && bareEvent !== 'automatic' && IGNITION_EVENTS.some((ev) => ev === bareEvent)) {
+    node['ignitionEvent'] = bareEvent;
+  }
+  const bareDelay = nonNegTag(mountEl, 'ignitiondelay', 0);
+  if (bareDelay !== 0) node['ignitionDelay'] = bareDelay;
   // One configuration's motor+ignition off this mount. Plugged motors (no
   // ejection charge): the desktop writes the literal string "none"
   // (Motor.PLUGGED_DELAY). Represent as the JSON-safe PLUGGED_DELAY sentinel,

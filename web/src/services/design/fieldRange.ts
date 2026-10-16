@@ -63,6 +63,17 @@ export function fieldApplies(node: ComponentNode, f: Field): boolean {
    * stays on the node, so it is back when the event is.
    */
   if (f.key === 'deployAltitude') return str(node, 'deployEvent', KERNEL_DEPLOYMENT.deployEvent) === 'altitude';
+  /**
+   * What the tube does for a motor needs it to be a mount: desktop's Motor tab
+   * grays these out until the box is ticked, and `<motormount>`, which carries
+   * them in the file, is written only for a mount (`motorMountParams`). A motor
+   * that never ignites has no time to count a delay from, so the delay goes
+   * there too, as on the configuration's ignition control.
+   */
+  if (f.key === 'motorOverhang' || f.key === 'ignitionEvent' || f.key === 'ignitionDelay') {
+    if (node['motorMount'] !== true) return false;
+    return f.key !== 'ignitionDelay' || str(node, 'ignitionEvent', 'automatic') !== 'never';
+  }
   if (f.key === 'separationAltitude') {
     return str(node, 'separationEvent', KERNEL_SEPARATION.separationEvent).startsWith('altitude');
   }

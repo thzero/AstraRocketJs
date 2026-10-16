@@ -35,7 +35,11 @@ import {
   carryToCopies,
   reconcileConfigs,
   ensureConfig,
+  followMountIgnition,
+  mountIgnition,
+  sameIgnition,
   type FlightConfig,
+  type MountMotor,
 } from '../services/flight/flightConfigs';
 import {
   launchPatchFor,
@@ -145,6 +149,9 @@ type HistoryEntry = {
 };
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
+
+/** Which configurations an ignition change reaches; see `setMountIgnition`. */
+export type IgnitionScope = 'config' | 'all';
 
 export interface WorkspaceState extends ViewSlice, FileSlice {
   // --- design ---
@@ -429,8 +436,19 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * that configuration is aged, because all of them now fly a different motor.
    */
   setMountMotor: (configId: string, mountId: string, m: MotorSpec) => void;
-  /** Set when one mount's motor ignites, in one configuration. */
-  setMountIgnition: (configId: string, mountId: string, event: IgnitionEvent, delay: number) => void;
+  /**
+   * Set when one mount's motor ignites. `config` changes the one configuration;
+   * `all` changes that mount's motor in every configuration and the mount's own
+   * ignition too, which is desktop's "Change all configurations using the
+   * default ignition event" (IgnitionSelectionDialog).
+   */
+  setMountIgnition: (
+    configId: string,
+    mountId: string,
+    event: IgnitionEvent,
+    delay: number,
+    scope?: IgnitionScope,
+  ) => void;
   /**
    * Override one deployment field of one recovery device, in one configuration;
    * null clears that field so the device's own value on the design applies again.
@@ -1125,7 +1143,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // name/length/color/slider patch can't, so skip the full tree walk on the
       // hot per-keystroke edit path.
       const touchesMounts = 'motorMount' in patch;
-      set({ tree: next, configs: touchesMounts ? reconcileConfigs(next, configs) : configs });
+      const reconciled = touchesMounts ? reconcileConfigs(next, configs) : configs;
+      // The mount's own ignition reaches the motors still on its old one.
+      const touchesIgnition = 'ignitionEvent' in patch || 'ignitionDelay' in patch;
+      set({
+        tree: next,
+        configs: touchesIgnition
+          ? followMountIgnition(reconciled, selectedId, findNode(tree, selectedId)!, findNode(next, selectedId)!)
+          : reconciled,
+      });
     },
     // Splitting a cluster duplicates the tube it is on, mounts included, so the
     // mount topology really can change here, unlike a field edit.
@@ -1237,16 +1263,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       recordStep();
       patchConfig(configId, (c) => ({ ...c, motors: { ...c.motors, [mountId]: { ...c.motors[mountId], spec: m } } }));
     },
-    setMountIgnition: (configId, mountId, event, delay) => {
+    setMountIgnition: (configId, mountId, event, delay, scope = 'config') => {
+      const target = { ignitionEvent: event, ignitionDelay: delay };
+      const timed = (seated: MountMotor | undefined) => !!seated && sameIgnition(seated, target);
+      if (scope === 'all') {
+        // Every motor on the mount, whatever it had, as the desktop dialog's OK
+        // does (MotorMount.getMotorIterator), plus the mount itself. The mount
+        // is compared as it flies, so absent keys read as automatic with no delay.
+        const { tree, configs } = get();
+        const mount = findNode(tree, mountId);
+        const nodeMoves = !!mount && !sameIgnition(mountIgnition(mount), target);
+        const next = configs.map((c) => {
+          const seated = c.motors[mountId];
+          if (!seated || timed(seated)) return c;
+          return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ...target } } };
+        });
+        if (!nodeMoves && next.every((c, i) => c === configs[i])) return;
+        beginEdit();
+        set({ tree: nodeMoves ? updateNode(tree, mountId, target) : tree, configs: next });
+        return;
+      }
       // No motor in that mount, or the timing it already has: nothing to
       // record, so no transaction is opened.
       const seated = get().configs.find((c) => c.id === configId)?.motors[mountId];
-      if (!seated || ((seated.ignitionEvent ?? 'automatic') === event && (seated.ignitionDelay ?? 0) === delay)) return;
+      if (!seated || timed(seated)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         const seated = c.motors[mountId];
         if (!seated) return c; // no motor in that mount: nothing to time
-        return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ignitionEvent: event, ignitionDelay: delay } } };
+        return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ...target } } };
       });
     },
     setDeployment: (configId, deviceId, key, value) => {

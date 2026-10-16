@@ -120,6 +120,64 @@ export function designSeparation(stage: ComponentNode): Required<SepOverride> {
   };
 }
 
+/**
+ * The mount's own ignition (`MotorMount.getDefaultMotorConfig()`), as a motor's
+ * ignition keys: nothing when it is automatic with no delay, which is what a
+ * motor with neither key flies, and otherwise both keys, so an automatic event
+ * with a delay still carries the delay to the kernel.
+ */
+export function mountIgnition(
+  mount: ComponentNode | null | undefined,
+): Pick<MountMotor, 'ignitionEvent' | 'ignitionDelay'> {
+  if (!mount) return {};
+  const ignitionEvent = designString(mount, 'ignitionEvent', 'automatic') as IgnitionEvent;
+  const ignitionDelay = designNumber(mount, 'ignitionDelay', 0);
+  return ignitionEvent === 'automatic' && ignitionDelay === 0 ? {} : { ignitionEvent, ignitionDelay };
+}
+
+/** Whether two ignitions fly the same, an absent event being automatic and an absent delay 0. */
+export function sameIgnition(
+  a: Pick<MountMotor, 'ignitionEvent' | 'ignitionDelay'>,
+  b: Pick<MountMotor, 'ignitionEvent' | 'ignitionDelay'>,
+): boolean {
+  return (
+    (a.ignitionEvent ?? 'automatic') === (b.ignitionEvent ?? 'automatic') &&
+    (a.ignitionDelay ?? 0) === (b.ignitionDelay ?? 0)
+  );
+}
+
+/**
+ * Carry a change to a mount's own ignition into every configuration whose motor
+ * there is still on the mount's previous ignition.
+ *
+ * Desktop leaves a configuration's slot empty until a motor is chosen and then
+ * copies the mount's ignition into it (`new MotorConfiguration(mount, fcid,
+ * mount.getMotorConfig(fcid))` in MotorConfigurationPanel.selectMotor). Here
+ * every slot always holds a motor, seeded with the mount's ignition when it was
+ * filled, so a motor still on that ignition stands where desktop's empty slot
+ * would and follows the mount. A motor whose ignition was set to something
+ * else keeps its own. Returns the same array when nothing moves.
+ */
+export function followMountIgnition(
+  configs: FlightConfig[],
+  mountId: string,
+  before: ComponentNode,
+  after: ComponentNode,
+): FlightConfig[] {
+  const was = mountIgnition(before);
+  const now = mountIgnition(after);
+  if (sameIgnition(was, now)) return configs;
+  let changed = false;
+  const next = configs.map((c) => {
+    const seated = c.motors[mountId];
+    if (!seated || !sameIgnition(seated, was)) return c;
+    changed = true;
+    const { ignitionEvent: _event, ignitionDelay: _delay, ...rest } = seated;
+    return { ...c, motors: { ...c.motors, [mountId]: { ...rest, ...now } } };
+  });
+  return changed ? next : configs;
+}
+
 /** What a device does under one configuration: its override over the design. */
 export function effectiveDeployment(config: FlightConfig, device: ComponentNode): Required<DeployOverride> {
   return { ...designDeployment(device), ...deployOverride(config, device.id as string) };
@@ -194,7 +252,8 @@ export function motorSpecs(tree: RocketTree, config: FlightConfig): MotorSpec[] 
  *
  * Drops entries whose mount is gone (a stale entry would linger in the file and
  * misrender), and seeds a default C6 into a mount with no motor at all, so every
- * mount is loaded and a fresh mount does not silently block the run.
+ * mount is loaded and a fresh mount does not silently block the run. The seeded
+ * motor takes the mount's own ignition, as a motor chosen for it would.
  *
  * A mount the entry says is empty keeps that entry. An imported `.ork` seats a
  * curve-less placeholder in a mount the file left empty (`loadOrk`), and the
@@ -205,7 +264,8 @@ export function motorSpecs(tree: RocketTree, config: FlightConfig): MotorSpec[] 
  * allocates nothing and the autosave does not see a change that isn't one.
  */
 export function reconcileConfig(tree: RocketTree, config: FlightConfig): FlightConfig {
-  const ids = findMounts(tree).map((m) => m.id as string);
+  const mounts = findMounts(tree);
+  const ids = mounts.map((m) => m.id as string);
   const present = new Set(ids);
   let changed = false;
   const next: Record<string, MountMotor> = {};
@@ -213,9 +273,11 @@ export function reconcileConfig(tree: RocketTree, config: FlightConfig): FlightC
     if (present.has(id)) next[id] = m;
     else changed = true;
   }
-  for (const id of ids) {
+  for (const mount of mounts) {
+    const id = mount.id as string;
     if (!next[id]) {
-      next[id] = { spec: C6 };
+      // Lit the way the mount says a new motor is (see `mountIgnition`).
+      next[id] = { spec: C6, ...mountIgnition(mount) };
       changed = true;
     }
   }

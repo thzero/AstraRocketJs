@@ -169,7 +169,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
 // configuration loads a motor into it.
 const mountXml: NodeWriter = (w, node, d) => {
   if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
-    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
+    motorMountXml(w, d, node);
   }
 };
 

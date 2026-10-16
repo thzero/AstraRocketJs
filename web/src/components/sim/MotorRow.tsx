@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { NumberInput } from '../common/NumberInput';
 import { PLUGGED_DELAY, type MotorSpec, type IgnitionEvent } from '../../engine/openRocketEngine';
@@ -8,17 +8,8 @@ import { MotorSpecDialog } from './MotorSpecDialog';
 import { fmtNum } from '../../i18n/format';
 import { useUnits } from '../../prefs/useUnits';
 import { motorName } from '../../services/motors/motorName';
-
-/**
- * Every ignition event, on every mount, as desktop offers `IgnitionEvent.values()`
- * (IgnitionSelectionDialog, MotorConfig). The two stage-below triggers fire
- * from the stage under the mount's own, which a strap-on booster is as well as
- * an axial stage (AxialStage.getUpperStage), so the bottom axial stage can
- * light at its boosters' burnout. On a mount with nothing below, they never
- * fire and the motor stays unlit, as on "never", which is how a spare mount
- * is flown.
- */
-const IGNITION_EVENTS: IgnitionEvent[] = ['automatic', 'launch', 'ejectioncharge', 'burnout', 'never'];
+import { IGNITION_EVENTS } from '../../services/design/componentFields';
+import type { IgnitionScope } from '../../state/store';
 
 /**
  * A motor-mount summary card: the seated motor (designation, dims, delay, curve)
@@ -33,6 +24,7 @@ export function MotorRow({
   title,
   ignition,
   onIgnitionChange,
+  ignitionEverywhere,
   onCommit,
   soloEdit,
   used,
@@ -47,7 +39,9 @@ export function MotorRow({
   title?: string;
   /** When this mount's motor ignites (defaults to automatic). */
   ignition?: { event: IgnitionEvent; delay: number };
-  onIgnitionChange?: (event: IgnitionEvent, delay: number) => void;
+  onIgnitionChange?: (event: IgnitionEvent, delay: number, scope: IgnitionScope) => void;
+  /** Every configuration's motor in this mount, and the mount itself, already ignite as this one does. */
+  ignitionEverywhere?: boolean;
   /** Close the ignition edit's undo entry (event change: immediate; delay: on blur). */
   onCommit?: () => void;
   /**
@@ -130,6 +124,7 @@ export function MotorRow({
           event={ignition.event}
           delay={ignition.delay}
           onChange={onIgnitionChange}
+          everywhere={ignitionEverywhere ?? false}
           onCommit={onCommit}
         />
       )}
@@ -155,58 +150,121 @@ export function MotorRow({
 /** When this mount's motor ignites: the OpenRocket event set plus a delay (s)
  *  after that event. "Automatic" lights launch-stage motors at launch and upper
  *  stages on the stage-below's ejection; the others (+ delay) drive air-starts
- *  and electronically-lit sustainers. */
+ *  and electronically-lit sustainers.
+ *
+ *  The scope and the reset are desktop's (IgnitionSelectionDialog,
+ *  MotorConfigurationPanel's Reset ignition). The scope starts on this
+ *  configuration, as the dialog does for a mount with a motor in it, and holds
+ *  for the edits that follow until it is switched back or the card is shown
+ *  for another configuration. Reset is
+ *  `MotorConfiguration.useDefaultIgnition`: Automatic with no delay, not the
+ *  mount's own ignition. */
 function IgnitionControl({
   event,
   delay,
   onChange,
+  everywhere,
   onCommit,
 }: {
   event: IgnitionEvent;
   delay: number;
-  onChange: (event: IgnitionEvent, delay: number) => void;
+  onChange: (event: IgnitionEvent, delay: number, scope: IgnitionScope) => void;
+  everywhere: boolean;
   onCommit?: () => void;
 }) {
   const { t } = useTranslation();
+  const [scope, setScope] = useState<IgnitionScope>('config');
+  // One radio group per card: several mounts render side by side.
+  const group = useId();
+  const isReset = event === 'automatic' && delay === 0;
   return (
-    <div className="mt-2 flex flex-wrap items-center gap-2 border-t border-line/5 pt-2 text-xs">
-      <span className="text-ink-faint">{t('sims.ignition')}</span>
-      <select
-        value={event}
-        aria-label={t('sims.ignition')}
-        onChange={(e) => {
-          onChange(e.target.value as IgnitionEvent, delay);
-          onCommit?.();
-        }}
-        className="min-w-0 flex-1 rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-      >
-        {IGNITION_EVENTS.map((ev) => (
-          <option key={ev} value={ev}>
-            {t(`ignition.${ev}`)}
-          </option>
-        ))}
-      </select>
-      {event !== 'never' && (
-        <label className="flex shrink-0 items-center gap-1 text-ink-faint">
-          +
-          {/* `NumberInput` for the same reason the ejection delay in MotorDialog
-              is one: a raw box with `?? 0` would commit a zero ignition delay the
-              moment the field is cleared to retype, which on an air-start is the
-              upper stage lighting at separation. The draft buffer holds the empty
-              string instead, and a blank box means "no change". */}
-          <NumberInput
-            min={0}
-            step={0.5}
-            value={delay}
-            ariaLabel={t('sims.ignitionDelay')}
-            onChange={(v) => {
-              if (v !== null) onChange(event, v);
+    <div className="mt-2 space-y-2 border-t border-line/5 pt-2 text-xs">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-ink-faint">{t('sims.ignition')}</span>
+        <select
+          value={event}
+          aria-label={t('sims.ignition')}
+          onChange={(e) => {
+            onChange(e.target.value as IgnitionEvent, delay, scope);
+            onCommit?.();
+          }}
+          className="min-w-0 flex-1 rounded-md bg-canvas px-2 py-1 text-xs text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
+        >
+          {IGNITION_EVENTS.map((ev) => (
+            <option key={ev} value={ev}>
+              {t(`ignition.${ev}`)}
+            </option>
+          ))}
+        </select>
+        {event !== 'never' && (
+          <label className="flex shrink-0 items-center gap-1 text-ink-faint">
+            +
+            {/* `NumberInput` for the same reason the ejection delay in MotorDialog
+                is one: a raw box with `?? 0` would commit a zero ignition delay the
+                moment the field is cleared to retype, which on an air-start is the
+                upper stage lighting at separation. The draft buffer holds the empty
+                string instead, and a blank box means "no change". */}
+            <NumberInput
+              min={0}
+              step={0.5}
+              value={delay}
+              ariaLabel={t('sims.ignitionDelay')}
+              onChange={(v) => {
+                if (v !== null) onChange(event, v, scope);
+              }}
+              onCommit={onCommit}
+              className="w-14 rounded bg-canvas px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
+            />
+            {t('units.second')}
+          </label>
+        )}
+      </div>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <fieldset className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <legend className="sr-only">{t('sims.ignitionScope')}</legend>
+          {(['config', 'all'] as const).map((s) => (
+            <label key={s} className="flex items-center gap-1 text-ink-soft">
+              <input
+                type="radio"
+                name={group}
+                checked={scope === s}
+                onChange={() => setScope(s)}
+                className="accent-accent-500"
+              />
+              {t(s === 'all' ? 'sims.ignitionAll' : 'sims.ignitionThis')}
+            </label>
+          ))}
+        </fieldset>
+        <button
+          type="button"
+          disabled={isReset}
+          title={t('sims.resetIgnitionHint')}
+          onClick={() => {
+            onChange('automatic', 0, 'config');
+            onCommit?.();
+          }}
+          className="rounded-md bg-raised px-2 py-1 text-xs text-ink hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-raised"
+        >
+          {t('sims.resetIgnition')}
+        </button>
+      </div>
+      {scope === 'all' && (
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p className="min-w-0 flex-1 text-[11px] leading-snug text-ink-faint">{t('sims.ignitionAllHint')}</p>
+          {/* Desktop's OK applies the dialog's values whether or not they were
+              edited; this is that, for an ignition already set here. */}
+          <button
+            type="button"
+            disabled={everywhere}
+            onClick={() => {
+              onChange(event, delay, 'all');
+              onCommit?.();
             }}
-            onCommit={onCommit}
-            className="w-14 rounded bg-canvas px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
-          />
-          {t('units.second')}
-        </label>
+            className="rounded-md bg-raised px-2 py-1 text-xs text-ink hover:bg-elevated disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:bg-raised"
+          >
+            {t('sims.ignitionApplyAll')}
+          </button>
+        </div>
       )}
     </div>
   );

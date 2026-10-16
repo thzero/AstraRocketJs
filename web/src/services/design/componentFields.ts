@@ -2,6 +2,7 @@ import type { TFunction } from 'i18next';
 import { REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
+import type { IgnitionEvent } from '../../engine/openRocketEngine';
 import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
 import { RAIL_BUTTON_BOUNDS, RAIL_BUTTON_FALLBACK, RING_BOUNDS, type DimensionBounds } from './linkedDimensions';
 import { num } from '../../tree/nodeProps';
@@ -353,9 +354,35 @@ const OUTER_DIAMETER: Field = {
 // A straight tube with a wall: length, outside, bore and wall, in that order.
 const TUBE_WALL: Field[] = [LENGTH, OUTER_DIAMETER, TUBE_BORE, TUBE_WALL_THICKNESS];
 
+/**
+ * Every ignition event, on every mount, as desktop offers `IgnitionEvent.values()`
+ * (IgnitionSelectionDialog, MotorConfig). The two stage-below triggers fire
+ * from the stage under the mount's own, which a strap-on booster is as well as
+ * an axial stage (AxialStage.getUpperStage), so the bottom axial stage can
+ * light at its boosters' burnout. On a mount with nothing below, they never
+ * fire and the motor stays unlit, as on "never", which is how a spare mount
+ * is flown. The names are the kernel's (OpenRocketEngine.ignitionEventOf) in
+ * the .ork's spelling.
+ */
+export const IGNITION_EVENTS: IgnitionEvent[] = ['automatic', 'launch', 'ejectioncharge', 'burnout', 'never'];
+
+// The mount's own ignition is the desktop Motor tab's "Ignition at"
+// (`MotorMount.getDefaultMotorConfig()`). It flies nothing itself: a motor put
+// in the mount starts from it, a motor still on it follows a change to it
+// (`followMountIgnition`), and a motor set to something else on the
+// Configurations tab keeps its own.
 const MOTOR_MOUNT: Field[] = [
   { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
   { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor', signed: true },
+  {
+    key: 'ignitionEvent',
+    label: 'ignitionEvent',
+    kind: 'select',
+    options: IGNITION_EVENTS,
+    optI18n: 'ignition',
+    section: 'motor',
+  },
+  { key: 'ignitionDelay', label: 'ignitionDelay', kind: 'number', unit: 's', step: 0.5, section: 'motor' },
 ];
 
 // `rotation` is a fin set's base rotation: where its first fin sits around the

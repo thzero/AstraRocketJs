@@ -58,8 +58,10 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
     // then reports "no motor" instead of the app failing to draw the rocket.
     if (!hasUsableCurve(m.spec)) continue;
     r.setMotorById(id, m.spec);
-    // Skip "automatic": it is the engine's own default and needs no call.
-    if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
+    // Automatic with no delay is the engine's own default and needs no call; a
+    // delay alone still does.
+    if (m.ignitionEvent || m.ignitionDelay)
+      r.setMotorIgnitionById(id, m.ignitionEvent ?? 'automatic', m.ignitionDelay ?? 0);
   }
   // After the motors: grounding a stage refreshes the configuration's active
   // motor list, and a motor seated later would put a grounded stage's engine

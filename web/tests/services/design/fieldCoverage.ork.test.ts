@@ -9,14 +9,16 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
  *
  * Driven by FIELDS, not a hand-picked list: a field added to the panel with no
  * reader or writer behind it fails here. Some fields are only written beside a
- * partner (a fin tab needs all of its dimensions, an overhang needs the mount
- * flag), so the partner is set too.
+ * partner (a fin tab needs all of its dimensions, an overhang or a mount's own
+ * ignition needs the mount flag), so the partner is set too.
  */
 
 const TOP = new Set(['nosecone', 'transition', 'bodytube']);
 const TAB = { tabLength: 0.02, tabHeight: 0.005, tabOffset: 0.001, tabOffsetMethod: 'top' };
 const PARTNER: Record<string, Record<string, unknown>> = {
   motorOverhang: { motorMount: true },
+  ignitionEvent: { motorMount: true },
+  ignitionDelay: { motorMount: true },
   tabLength: TAB,
   tabHeight: TAB,
   tabOffset: TAB,

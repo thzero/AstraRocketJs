@@ -40,7 +40,16 @@ vi.mock('../../../src/services/files/designFile', () => ({
           id: 's',
           children: [
             { type: 'bodytube', id: 'body', length: 0.3, outerRadius: 0.012, motorMount: true, name: 'Body' },
-            { type: 'innertube', id: 'pod', length: 0.07, outerRadius: 0.0095, motorMount: true, name: 'Pod mount' },
+            {
+              type: 'innertube',
+              id: 'pod',
+              length: 0.07,
+              outerRadius: 0.0095,
+              motorMount: true,
+              name: 'Pod mount',
+              ignitionEvent: 'burnout',
+              ignitionDelay: 1,
+            },
           ],
         },
       ],
@@ -69,6 +78,16 @@ describe('loadOrk with mounts the file gave no motor', () => {
       expect(m.spec.designation).toBe('');
     }
     expect(design.setMotorById).not.toHaveBeenCalled();
+  });
+
+  // A motor chosen for the slot keeps what the placeholder carries, and desktop
+  // gives a motor chosen for an empty slot the mount's own ignition
+  // (MotorConfigurationPanel.selectMotor copies mount.getMotorConfig(fcid), the
+  // default for an empty slot).
+  it("carries each mount's own ignition into its placeholder", async () => {
+    const loaded = await loadOrk(new ArrayBuffer(0));
+    expect(loaded.configs[0]!.motors['pod']).toMatchObject({ ignitionEvent: 'burnout', ignitionDelay: 1 });
+    expect(loaded.configs[0]!.motors['body']!.ignitionEvent).toBeUndefined();
   });
 
   it('names the empty mounts in one note that says no default will fly', async () => {

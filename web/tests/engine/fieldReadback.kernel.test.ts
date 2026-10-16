@@ -85,7 +85,11 @@ const SEEDS: Record<string, Record<string, Partial<ComponentNode>>> = {
     'parabolic shape': { shape: 'parabolic' },
     'haack shape': { shape: 'haack' },
   },
-  innertube: { '3-ring cluster': { cluster: '3-ring' } },
+  innertube: {
+    '3-ring cluster': { cluster: '3-ring' },
+    'own ignition': { motorMount: true, ignitionEvent: 'burnout', ignitionDelay: 2.5 },
+  },
+  bodytube: { 'own ignition': { motorMount: true, ignitionEvent: 'ejectioncharge', ignitionDelay: 1 } },
   trapezoidfinset: { 'with a tab': TAB },
   ellipticalfinset: { 'with a tab': TAB },
   freeformfinset: { 'with a tab': TAB },

@@ -18,10 +18,11 @@ import { parseRse, removeDelay } from '../motors/rseParser';
 import type { CustomMotor } from '../motors/motorStore';
 import type { OrkMotorRef } from './orkTypes';
 import { findMounts } from '../design/treeEdit';
+import { IGNITION_EVENTS } from '../design/componentFields';
 import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
-import { type FlightConfig, type MountMotor } from '../flight/flightConfigs';
+import { mountIgnition, type FlightConfig, type MountMotor } from '../flight/flightConfigs';
 import { errorReason } from '../../i18n/keyedError';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
@@ -77,7 +78,7 @@ export interface LoadedOrk {
   unbuildable?: ImportNote;
 }
 
-const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
+const IGNITION_EVENT_NAMES: ReadonlySet<string> = new Set(IGNITION_EVENTS);
 
 /**
  * A placeholder for a .ork motor we couldn't resolve. It keeps the designation
@@ -140,7 +141,7 @@ export function emptyMountMotor(): MotorSpec {
  */
 function mountMotor(ref: OrkMotorRef, spec: MotorSpec): MountMotor {
   const entry: MountMotor = { spec };
-  if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
+  if (ref.ignitionEvent && IGNITION_EVENT_NAMES.has(ref.ignitionEvent)) {
     entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
     entry.ignitionDelay = ref.ignitionDelay ?? 0;
   }
@@ -385,7 +386,6 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const chosenConfigId = declared.some((c) => c.id === res.chosenConfigId) ? res.chosenConfigId! : declared[0]!.id;
 
   const mountNodes = findMounts(res.tree);
-  const mounts = mountNodes.map((m) => m.id as string);
   const byId = new Map(mountNodes.map((m) => [m.id as string, m]));
   // One complaint per mount and motor, however many configurations fly it.
   const misfits = new Set<string>();
@@ -438,7 +438,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     }
     // Every mount this configuration named no motor for gets the empty
     // placeholder (see emptyMountMotor), so nothing seeds it a default later.
-    for (const id of mounts) if (!motors[id]) motors[id] = { spec: emptyMountMotor() };
+    // It carries the mount's own ignition, which a motor chosen for it keeps,
+    // as desktop copies the mount's into a motor chosen for an empty slot.
+    for (const node of mountNodes) {
+      const id = node.id as string;
+      if (!motors[id]) motors[id] = { spec: emptyMountMotor(), ...mountIgnition(node) };
+    }
     configs.push({
       id: cfg.id,
       name: cfg.name,
@@ -468,7 +473,9 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     for (const [mountId, m] of Object.entries(chosen.motors)) {
       if (!hasUsableCurve(m.spec)) continue;
       design.setMotorById(mountId, m.spec);
-      if (m.ignitionEvent) design.setMotorIgnitionById(mountId, m.ignitionEvent, m.ignitionDelay ?? 0);
+      if (m.ignitionEvent || m.ignitionDelay) {
+        design.setMotorIgnitionById(mountId, m.ignitionEvent ?? 'automatic', m.ignitionDelay ?? 0);
+      }
     }
   }
 

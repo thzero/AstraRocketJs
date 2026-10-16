@@ -27,6 +27,12 @@ const NO_STATIC_EFFECT: Record<string, string> = {
   'bodytube.motorOverhang': 'moves the motor; no motor in this build',
   'innertube.motorMount': 'mount flag; no motor in this build',
   'innertube.motorOverhang': 'moves the motor; no motor in this build',
+  // The mount's own ignition (getDefaultMotorConfig): a motor put in the mount
+  // starts from it, and the motor's own ignition is what flies.
+  'bodytube.ignitionEvent': "the mount's own ignition; flies nothing",
+  'bodytube.ignitionDelay': "the mount's own ignition; flies nothing",
+  'innertube.ignitionEvent': "the mount's own ignition; flies nothing",
+  'innertube.ignitionDelay': "the mount's own ignition; flies nothing",
   'parachute.cd': 'descent drag only',
   'parachute.deployEvent': 'flight event',
   'parachute.deployAltitude': 'flight event',

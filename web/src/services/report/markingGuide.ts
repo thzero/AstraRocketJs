@@ -1,13 +1,14 @@
 import type { ComponentNode, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
-import { bodyTubeRadius, countOf, finCant, num } from '../../tree/nodeProps';
-import { finRootChord } from '../../tree/finPlanform';
+import { bodyTubeRadius, bool, countOf, finCant, num } from '../../tree/nodeProps';
+import { finRootChord, finTabSpan } from '../../tree/finPlanform';
 import { isFinSet, isPlanarFinSet } from '../../tree/tubefins';
 
 /**
  * The fin marking guide's arithmetic: which body tube gets a guide, how long
- * the wrapped strip is, where its seam falls, and how far along it each fin,
- * tube fin, launch lug and rail button is marked.
+ * the wrapped strip is, where its seam falls, how far along it each fin,
+ * tube fin, launch lug and rail button is marked, and where a fin's tab slot is
+ * cut.
  *
  * Ported from OpenRocket's `FinMarkingGuide.java`
  * (`swing/src/main/java/info/openrocket/swing/gui/print/`) at the ref pinned in
@@ -59,6 +60,22 @@ interface GuideMark {
   cant: number;
   /** Root chord (mm); the cant marks are laid out from it. 0 when not canted. */
   rootChordMm: number;
+  /** The fin's tab slot, when there is one to cut. */
+  slot: GuideSlot | null;
+}
+
+/**
+ * Where a fin's tab goes through the tube wall: its two ends along the body,
+ * measured forward from the aft end of the fin's root (mm), and its width
+ * around the body, the fin thickness (mm).
+ *
+ * Not in desktop's guide, which marks lines only. The strip's left edge is the
+ * reference because that is where desktop already pins a canted fin's aft end.
+ */
+export interface GuideSlot {
+  aftMm: number;
+  foreMm: number;
+  widthMm: number;
 }
 
 export interface MarkingGuide {
@@ -219,6 +236,29 @@ export function cutPoints(markPositions: number[], circumferenceMm: number, maxL
   return cuts;
 }
 
+/**
+ * A planar fin's tab slot on this tube, or null.
+ *
+ * The tab is the kernel's (`finTabSpan`: `getTabFrontEdge()` to
+ * `getTabTrailingEdge()`, its depth clamped to `getMaxTabHeight()`, which on a
+ * body tube is the tube's radius). None for a canted fin, whose slot is not a
+ * rectangle on the tube, nor on a filled tube, which has no wall to cut
+ * through. Tube fins, lugs and rail buttons have no tab.
+ */
+function finSlot(fin: ComponentNode, tube: ComponentNode): GuideSlot | null {
+  const type = String(fin.type);
+  if (!isPlanarFinSet(type) || finCant(fin) !== 0 || bool(tube, 'filled')) return null;
+  const root = finRootChord(fin);
+  const tab = finTabSpan(fin, root, bodyTubeRadius(tube));
+  if (!tab) return null;
+  const thickness = (KERNEL_DEFAULTS as Record<string, { thickness?: number }>)[type]?.thickness ?? 0;
+  return {
+    aftMm: (root - tab.x1) * 1000,
+    foreMm: (root - tab.x0) * 1000,
+    widthMm: num(fin, 'thickness', thickness) * 1000,
+  };
+}
+
 function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide {
   const circumferenceMm = guideCircumferenceMm(bodyTubeRadius(tube));
   const raw = angular.flatMap((c) => mountAngles(c).map((angle) => ({ angle, node: c })));
@@ -241,6 +281,7 @@ function buildGuide(tube: ComponentNode, angular: ComponentNode[]): MarkingGuide
         // root, so a freeform fin measures its outline rather than reading a
         // `rootChord` key it does not carry.
         rootChordMm: cant !== 0 ? finRootChord(node) * 1000 : 0,
+        slot: finSlot(node, tube),
       };
     })
     // Upstream draws in component order; sorting makes the strip read top to

@@ -1,4 +1,6 @@
-import { PLUGGED_DELAY } from '../../../engine/openRocketEngine';
+import { PLUGGED_DELAY, type ComponentNode } from '../../../engine/openRocketEngine';
+import { num } from '../../../tree/nodeProps';
+import { mountIgnition } from '../../flight/flightConfigs';
 import { escapeXml } from '../xmlUtil';
 import { uuid } from '../../app/uuid';
 import type { OrkTreeExportInput } from '../orkTypes';
@@ -69,18 +71,17 @@ export function mountConfigs(w: OrkWriter, nodeId: string | undefined): OrkWrite
 
 // Configs may all be empty here: a mount with no motor loaded still writes
 // <motormount> so the mount flag survives the round trip (desktop same).
-export function motorMountXml(w: OrkWriter, depth: number, nodeId: string | undefined, overhangM = 0): void {
+export function motorMountXml(w: OrkWriter, depth: number, mount: ComponentNode): void {
   const { emit } = w;
+  const nodeId = mount.id;
   const withMotor = mountConfigs(w, nodeId);
-  // Bare ignition defaults: the default-marked config's motor when it has
-  // one here (the desktop writes its default config bare), else the first.
-  const bare = (withMotor.find((c) => c.id === w.defaultId) ?? withMotor[0])?.motors[nodeId!];
-  const ev = bare?.ignitionEvent ?? 'automatic';
-  const evDelay = bare?.ignitionDelay ?? 0;
+  // Bare: the mount's own ignition, as RocketComponentSaver writes
+  // `getDefaultMotorConfig()`. Each configuration's motor writes its own below.
+  const bare = mountIgnition(mount);
   emit(depth, '<motormount>');
-  emit(depth + 1, `<ignitionevent>${escapeXml(ev)}</ignitionevent>`);
-  emit(depth + 1, `<ignitiondelay>${evDelay}</ignitiondelay>`);
-  emit(depth + 1, `<overhang>${overhangM}</overhang>`);
+  emit(depth + 1, `<ignitionevent>${escapeXml(bare.ignitionEvent ?? 'automatic')}</ignitionevent>`);
+  emit(depth + 1, `<ignitiondelay>${bare.ignitionDelay ?? 0}</ignitiondelay>`);
+  emit(depth + 1, `<overhang>${num(mount, 'motorOverhang', 0)}</overhang>`);
   for (const c of withMotor) {
     const m = c.motors[nodeId!]!;
     emit(depth + 1, `<motor configid="${escapeXml(c.id)}">`);

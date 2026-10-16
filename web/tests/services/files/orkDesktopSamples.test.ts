@@ -266,7 +266,15 @@ function everyPart(): RocketTree {
   const body = part('bodytube', { length: 0.5, outerRadius: 0.05, outerRadiusAuto: false, thickness: 0.002 });
   body.children = [
     part('innertube', { cluster: '3-ring', clusterScale: 1.2, clusterRotation: 0.3 }),
-    part('innertube', { outerRadius: 0.012, thickness: 0.0005, motorMount: true, motorOverhang: 0.005 }),
+    part('innertube', {
+      outerRadius: 0.012,
+      thickness: 0.0005,
+      motorMount: true,
+      motorOverhang: 0.005,
+      // The mount's own ignition, written bare in <motormount>, with a delay.
+      ignitionEvent: 'burnout',
+      ignitionDelay: 1.5,
+    }),
     // Off the axis, and not a mount (the file carries an overhang inside
     // <motormount> only).
     part('innertube', { radialPosition: 0.01, radialDirection: 0.5, motorMount: false, motorOverhang: 0 }),
