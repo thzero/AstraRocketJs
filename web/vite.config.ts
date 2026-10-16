@@ -137,7 +137,7 @@ export default defineConfig({
       // 'prompt', not 'autoUpdate': a silent activate reloads the page, which would
       // interrupt an edit in progress. UpdateToast asks first.
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
         name: 'AstraRocketJs',
         short_name: 'AstraRocket',

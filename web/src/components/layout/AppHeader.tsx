@@ -55,9 +55,15 @@ export function AppHeader() {
           and the menu's word below 2xl, the gaps and the icon buttons' padding
           below xl - and below that the row wraps, which is
           how it fits on a phone. */}
-      <span className="text-xl" aria-hidden="true">
-        🚀
-      </span>
+      {/* The mark opens About, as the version does. */}
+      <button
+        onClick={() => open('about')}
+        title={t('about.open')}
+        aria-label={t('about.open')}
+        className="shrink-0 rounded hover:opacity-80"
+      >
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" aria-hidden="true" className="h-6 w-6" />
+      </button>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
       {/* The three static badges - version, pre-release, engine backend - in one
           pill rather than three: three cost two extra gaps and two extra sets of

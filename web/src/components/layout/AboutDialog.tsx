@@ -58,14 +58,12 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
   const CONTRIBUTORS = useContributors();
   return (
     <Dialog id="about" title={appName()} onClose={onClose} layout="pad" size="lg">
-      {/* The rocket, the tagline and the version open the body rather than a
+      {/* The mark, the tagline and the version open the body rather than a
           custom header: the dialog header is shared and has one shape, and
           these read as content rather than chrome. */}
-      <div className="mb-4 flex items-center gap-3">
-        <span aria-hidden className="text-3xl">
-          🚀
-        </span>
-        <p className="text-xs text-ink-muted">
+      <div className="mb-4 flex flex-col items-center gap-2">
+        <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" aria-hidden="true" className="h-32 w-32" />
+        <p className="text-center text-xs text-ink-muted">
           {t('about.tagline')} · v{APP_VERSION}
         </p>
       </div>

@@ -79,7 +79,7 @@ const upstream = {
 const config: Config = {
   title: 'AstraRocketJs',
   tagline: 'Design and simulate model rockets in your browser',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   url: 'https://thzero.github.io',
   // Set by the Pages deploy (DOCS_BASE_URL=/AstraRocketJs/docs/), mirroring how
