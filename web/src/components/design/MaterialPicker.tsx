@@ -18,6 +18,7 @@ import { listWriteErrorText } from '../../services/storage/jsonListStore';
 import { useAsyncLoad } from '../common/useAsyncLoad';
 import { useLatest } from '../common/useLatest';
 import { confirm } from '../../state/confirmStore';
+import { mathEquals } from '../../services/motors/mathEquals';
 
 /**
  * Each material kind measures a different density, so each has its own
@@ -31,11 +32,23 @@ const QUANTITY: Record<MaterialType, Quantity> = {
 };
 
 /**
+ * The add form's density box names the quantity its material type is measured
+ * in, with no unit of its own: the unit symbol after it is the one the box reads.
+ */
+const DENSITY_LABEL: Record<MaterialType, string> = {
+  bulk: 'material.densityBulk',
+  surface: 'material.densitySurface',
+  line: 'material.densityLine',
+};
+
+/**
  * What the material is for, which decides whether the adhesives belong in the
- * list. Nothing else is filtered: every other bulk material in the table is
- * something a part can legitimately be made of, and guessing which ones suit
- * which component would block real builds (an aluminum fin, a printed nose
- * cone) to save a little scrolling.
+ * list. A structural part drops them; a fillet is offered the whole bulk list,
+ * as desktop's fin fillet material box is (`FinSetConfig`, a `MaterialModel`
+ * over the bulk database). Nothing else is filtered: every other
+ * bulk material in the table is something a part can legitimately be made of,
+ * and guessing which ones suit which component would block real builds (an
+ * aluminum fin, a printed nose cone) to save a little scrolling.
  */
 export type MaterialUse = 'structure' | 'fillet';
 
@@ -62,8 +75,8 @@ export function MaterialPicker({
 }: {
   value?: string;
   /**
-   * The density the part carries with `value`, SI. Shown when the name is not
-   * in this list: a catalog part brings its maker's material ("Balsa, bulk,
+   * The density the part carries with `value`, SI. Shown when the list holds
+   * no entry of that name and density: a catalog part brings its maker's material ("Balsa, bulk,
    * BMS typical") at its own density, which is what the part is weighed with,
    * and almost none of those names are in the list.
    */
@@ -126,31 +139,34 @@ export function MaterialPicker({
   // Resolved against the whole list, never the filtered one: a design can
   // already name a material this picker would not offer (a `.ork` with an
   // epoxy body tube), and the row has to keep showing what the part is made of.
-  const current = mats.find((m) => m.name === value);
-  // A material the part names that this list does not hold. It is still the
-  // part's material, so it is shown as chosen rather than as "not specified".
+  //
+  // A list entry is the part's material only when the density agrees too, as
+  // desktop's `Material.equals` has it: a file's own "Balsa" at 200 kg/m³ flies
+  // at 200, not at the list's 170. A part that carries no density is matched by
+  // name, since it has nothing else to compare.
+  const current = mats.find(
+    (m) => m.name === value && (!(ownDensity && ownDensity > 0) || mathEquals(m.density, ownDensity)),
+  );
+  // A material the part names that this list does not hold at the part's
+  // density. It is still the part's material, so it is shown as chosen rather
+  // than as "not specified".
   const own = value && !current ? { name: value, density: ownDensity && ownDensity > 0 ? ownDensity : null } : null;
 
   /**
-   * The list is the materials for this use, and nothing else.
+   * The list is the materials for this use.
    *
    * A structural part drops the adhesives: nothing is built out of glue, and
-   * they would add a block of rows under every body tube and centering ring. A fillet
-   * drops everything that is not an adhesive, for the mirror of that reason.
-   *
-   * Filtering the fillet rather than merely ordering it is deliberate, and it
-   * does not cost anyone a bead of something unusual: a thickened mix or a
-   * putty is a custom material, and the add form asks which group it belongs
-   * in, so filing it under Adhesives puts it here.
+   * they would add a block of rows under every body tube and centering ring. A
+   * fillet keeps the whole bulk list, adhesives included, since a bead can be
+   * any bulk material desktop offers.
    *
    * Whatever the part already uses stays in the list either way. Dropping it
    * would leave the select showing no option for the value it holds, which
    * reads as "no material" on a part that has one.
    */
   const visible = useMemo(() => {
-    const isAdhesive = (m: Material) => m.group === ADHESIVE_GROUP;
-    const wanted = use === 'fillet' ? isAdhesive : (m: Material) => !isAdhesive(m);
-    return mats.filter((m) => wanted(m) || m.name === current?.name);
+    if (use === 'fillet') return mats;
+    return mats.filter((m) => m.group !== ADHESIVE_GROUP || m.name === current?.name);
   }, [mats, use, current?.name]);
 
   const groups = useMemo(() => {
@@ -212,9 +228,12 @@ export function MaterialPicker({
       return; // the material is still there; do not tell the user otherwise
     }
     setDelErr(null);
-    // The material is gone either way, so the part is cleared either way; a
-    // list that cannot be reloaded (the catalog fetch offline) is said here
-    // rather than left as an unhandled rejection from the click.
+    // The part keeps its name and density, as desktop's material database
+    // delete leaves every component that uses the material alone
+    // (MaterialEditPanel.removeMaterial). Once the list no longer holds it, the
+    // select shows it under "From this part". A list that cannot be reloaded
+    // (the catalog fetch offline) is said here rather than left as an unhandled
+    // rejection from the click.
     let next: typeof mats | undefined;
     try {
       next = await materialsForType(type);
@@ -223,7 +242,6 @@ export function MaterialPicker({
     }
     if (!live()) return; // selecting another component unmounts this
     if (next) setMats(next);
-    onChange(undefined, 0);
   };
 
   return (
@@ -256,9 +274,11 @@ export function MaterialPicker({
         className="w-full rounded-lg bg-canvas px-2 py-2 text-sm text-ink-strong ring-1 ring-line/10"
       >
         <option value="__default__">{unsetLabel ?? t('material.defaultOption')}</option>
-        {/* The part's own material, when the list does not hold it: a catalog
-            part's maker's material, or any material while the list failed to
-            load. Without this the select falls back to "no material", so the
+        {/* The part's own material, when the list does not hold it at its
+            density: a catalog part's maker's material, a file's own density
+            under a list name, or any material while the list failed to load.
+            It comes first, so its value picks it over a list entry of the same
+            name. Without this the select falls back to "no material", so the
             row would describe a part that has one as a part that does not. */}
         {own && (
           <optgroup label={t('material.thisPart')}>
@@ -284,8 +304,14 @@ export function MaterialPicker({
       {!current && !own && !loadErr && (
         <p className="mt-1 text-[11px] leading-snug text-ink-faint">{t('material.defaultHint')}</p>
       )}
-      {loadErr && <p className="mt-1 text-xs text-danger-400">{loadErr}</p>}
-      {delErr && <p className="mt-1 text-xs text-danger-400">{delErr}</p>}
+      {/* Always mounted, empty until there is something to say: a live region
+          created together with its text is not announced (see UpdateToast). */}
+      <p role="status" aria-live="polite" className="mt-1 text-xs text-danger-400">
+        {loadErr}
+      </p>
+      <p role="status" aria-live="polite" className="mt-1 text-xs text-danger-400">
+        {delErr}
+      </p>
 
       {adding && (
         <div className="mt-2 space-y-2 rounded-lg bg-canvas p-2 ring-1 ring-line/10">
@@ -318,11 +344,14 @@ export function MaterialPicker({
             onChange={setDens}
             min={0}
             step={fu.step(10)}
-            placeholder={`${t('material.densityPlaceholder')} (${fu.sym})`}
-            ariaLabel={`${t('material.densityPlaceholder')} (${fu.sym})`}
+            placeholder={`${t(DENSITY_LABEL[type])} (${fu.sym})`}
+            ariaLabel={`${t(DENSITY_LABEL[type])} (${fu.sym})`}
             className="w-full rounded bg-surface px-2 py-1.5 text-sm tabular-nums ring-1 ring-line/10 placeholder:text-ink-faint"
           />
-          {addErr && <p className="text-xs text-danger-400">{addErr}</p>}
+          {/* Always mounted, as the two lines above the form are. */}
+          <p role="status" aria-live="polite" className="text-xs text-danger-400">
+            {addErr}
+          </p>
           <div className="flex gap-2">
             <button
               onClick={submitCustom}

@@ -4,6 +4,7 @@
 // the browser handles their locale separator, so inputs don't use this.
 import { NO_VALUE } from './noValue';
 import i18n from './index';
+import { isDefaultComponentName } from '../services/app/warningText';
 
 const cache = new Map<string, Intl.NumberFormat>();
 
@@ -72,6 +73,9 @@ export function withUnit(text: string, sym: string): string {
  * A stage as every view labels it: its own name, else "Stage n" through one
  * interpolated key, so a language that puts the number first reads right. A
  * view passes the `t` it renders with; `index` is zero-based.
+ *
+ * A stage the user never named carries the kernel's default name, which is an
+ * untranslated bundle key (`[Stage.Stage]`), so that counts as no name.
  */
 export function stageLabel(
   t: (key: string, opts?: Record<string, unknown>) => string,
@@ -79,7 +83,7 @@ export function stageLabel(
   name?: unknown,
 ): string {
   const own = typeof name === 'string' ? name.trim() : '';
-  return own || t('flight.stageN', { n: index + 1 });
+  return (isDefaultComponentName(own) ? '' : own) || t('flight.stageN', { n: index + 1 });
 }
 
 /**

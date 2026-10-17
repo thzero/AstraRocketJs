@@ -9,9 +9,10 @@ import { PropSection } from './PropSection';
  * A stage's recovery plan: single deployment, or dual with one of its devices
  * acting as the drogue.
  *
- * OpenRocket's own Recovery tab on the stage dialog, and the only place it lets
- * the drogue be set. The flag is stored per device, but what it describes is the
- * stage: single deployment is no drogue, dual is exactly one. A checkbox on each
+ * The kernel's per-device drogue flag (`RecoveryDevice.setDrogue`), which no
+ * desktop 24.12 dialog shows, offered as the stage's deployment mode. The flag
+ * is stored per device, but what it describes is the stage: single deployment
+ * is no drogue, dual is exactly one. A checkbox on each
  * chute would let a stage carry two drogues, a design the desktop cannot produce
  * and whose warnings then depend on which device the kernel walks into first.
  * Choosing here makes that unreachable, because `setStageDrogue` clears the

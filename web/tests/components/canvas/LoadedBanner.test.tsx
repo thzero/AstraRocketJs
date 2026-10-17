@@ -7,6 +7,13 @@ import { LoadedBanner } from '../../../src/components/canvas/LoadedBanner';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { useWorkspaceStore } from '../../../src/state/store';
 import { keyedNote } from '../../../src/services/files/importNote';
+import { parseDesignFile } from '../../../src/services/files/designFile';
+import { exportOrk } from '../../../src/services/files/orkFile';
+import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
+import { defaultRocketTree } from '../../../src/services/design/defaultRocket';
+import type { LoadedOrk } from '../../../src/services/files/loadOrk';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
+import en from '../../../src/i18n/locales/en.json';
 
 /**
  * The import notes collapse to a count, and collapsed stays collapsed while you
@@ -103,5 +110,34 @@ describe('LoadedBanner design name', () => {
     const btn = screen.getByRole('button', { name: /Alpha Rocket/ });
     expect(btn.textContent).toContain('Alpha Rocket');
     expect(screen.getByRole('button', { name: /Edit rocket configuration/ })).toBe(btn);
+  });
+});
+
+/**
+ * The card's label names the format the design came from, as the loader
+ * sniffed it from the file's bytes (`parseDesignFile`): a RockSim file is not a
+ * `.ork`. An import stored before the format was recorded is named without one.
+ */
+describe('LoadedBanner format label', () => {
+  const rkt = `<?xml version="1.0"?><RockSimDocument><DesignInformation><RocketDesign><Name>R</Name><StageCount>1</StageCount><Stage3Parts><BodyTube><Name>T</Name><Len>100</Len><OD>20</OD><ID>19</ID></BodyTube></Stage3Parts></RocketDesign></DesignInformation></RockSimDocument>`;
+
+  it.each([
+    ['a RockSim file', () => parseDesignFile(rkt), '.rkt'],
+    ['an OpenRocket file', () => parseDesignFile(exportOrk({ name: 'O', tree: defaultRocketTree() })), '.ork'],
+  ])('names %s by its own extension', (_label, parse, ext) => {
+    const res = parse();
+    const { loadedMeta } = wireLoadedOrk(
+      { ...res, configs: [{ id: 'c', name: null, motors: {} }], chosenConfigId: 'c' } as unknown as LoadedOrk,
+      {} as LaunchConditions,
+    );
+    renderWithProviders(<LoadedBanner loaded={loadedMeta} onClose={() => {}} />);
+    const label = screen.getByText(en.banner.loaded.replace('{{ext}}', ext));
+    expect(label.textContent).toContain(ext);
+  });
+
+  it('names a stored import with no recorded format without an extension', () => {
+    renderWithProviders(<LoadedBanner loaded={{ name: 'Old', notes: [] }} onClose={() => {}} />);
+    expect(screen.getByText(en.banner.loadedFile)).toBeTruthy();
+    expect(screen.queryByText(/\.ork|\.rkt/)).toBeNull();
   });
 });

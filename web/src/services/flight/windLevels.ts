@@ -11,9 +11,10 @@ import type { LaunchConditions, WindLevel } from '../design/orkTree';
  * is a level's identity, not a dimension with a sensible zero, and the two
  * faults that follow from that are the ones handled here:
  *
- *   - Two levels at one altitude. Refused by the kernel, mid-run, in its own
- *     words, after the design was built, for something the profile editor
- *     lets the user type.
+ *   - Two levels at one altitude. Refused when the run starts, after the
+ *     design was built (the bridge refuses the repeat before the kernel's
+ *     `addWindLevel` would), for something the profile editor lets the user
+ *     type.
  *   - A level whose altitude is missing or unreadable. Defaulting it to 0 does
  *     not mean "ground level" harmlessly: it either replaces the real surface
  *     wind or collides with it and takes the whole run down.

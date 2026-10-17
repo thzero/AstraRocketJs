@@ -283,8 +283,9 @@ describe('importRkt', () => {
     const cord = byName(stage.children, 'Shock cord');
     expect(cord.type).toBe('shockcord');
     expect(cord['cordLength']).toBeCloseTo(1, 9);
-    // 6 g over 1 m of cord.
-    expect(cord['lineDensity']).toBeCloseTo(0.006, 9);
+    // No density in the file: the cord's material stays weightless, as
+    // MassObjectHandler leaves it; a stated mass counts only through UseKnownCG.
+    expect(cord['lineDensity']).toBeUndefined();
 
     const alt = byName(stage.children, 'Altimeter');
     expect(alt.type).toBe('masscomponent');

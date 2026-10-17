@@ -17,10 +17,10 @@ The physics is OpenRocket's own core, compiled to run in your browser. Its stati
 - **Aerodynamics** by the Extended Barrowman method, giving CP, drag and stability.
 - **Mass and CG** from each part's geometry times its material density, plus any [overrides](#before-you-fly) you enter.
 - **Flight** as rigid-body motion integrated with RK4, driven by the real thrust curve of the motor you picked.
-- **Atmosphere** as the ISA standard model, or your own temperature and pressure, with a WGS or constant gravity model and a flat, spherical or WGS84 earth.
+- **Atmosphere** as the ISA standard model, your own temperature, pressure and humidity, or a forecast atmosphere that changes with altitude (see [Running a Simulation](./running-a-simulation.md)), with a WGS or constant gravity model and a flat, spherical or WGS84 earth.
 - **Wind** as either a single average with a gust standard deviation, or a multi-level profile that changes with altitude, both carrying pink-noise turbulence.
 
-The app also raises the kernel's own flight warnings: high-speed deployment, a main that opens too fast or too slow, a drogue with no main, no recovery device at all, a deployment while still on the launcher, a large angle of attack, and supersonic flight where the aerodynamic method becomes approximate. Read them.
+The app also raises the kernel's own flight warnings: high-speed deployment, a main that opens too fast or too slow, a drogue that opens too slowly, a drogue with no main, no recovery device at all, a deployment while still on the launcher, a tumble while the motor is burning, stages that separate out of order or early, an event after landing, a large angle of attack, and supersonic flight where the aerodynamic method becomes approximate. Read them.
 
 ## What the model does not know
 

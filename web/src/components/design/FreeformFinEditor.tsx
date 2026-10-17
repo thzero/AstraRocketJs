@@ -264,7 +264,7 @@ export function FreeformFinEditor({
         <div className="flex flex-wrap items-center gap-2 text-xs text-ink-muted">
           <span className="text-ink-faint">{t('freeform.point', { n: sel! + 1 })}</span>
           <label className="flex items-center gap-1">
-            X
+            {t('freeform.x')}
             {/* NumberInput, not a raw <input> with `parseFloat(...) || 0`:
                 select-all and type a replacement and the field is briefly
                 empty, which would parse to 0 and snap the vertex to the origin
@@ -274,23 +274,23 @@ export function FreeformFinEditor({
               onChange={onSi(ptX, (si) => si !== null && setPoint(sel!, si, selPt[1]))}
               onCommit={onCommit}
               step={ptX.step(0.001)}
-              ariaLabel="X"
+              ariaLabel={t('freeform.x')}
               className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
             />
-            <UnitChip label="X" quantity="length" scope={unitScope('freeform', 'x')} />
+            <UnitChip label={t('freeform.x')} quantity="length" scope={unitScope('freeform', 'x')} />
           </label>
           <label className="flex items-center gap-1">
-            Y
+            {t('freeform.y')}
             <NumberInput
               value={ptY.toUi(selPt[1])}
               onChange={onSi(ptY, (si) => si !== null && setPoint(sel!, selPt[0], si))}
               onCommit={onCommit}
               disabled={sel === last}
               step={ptY.step(0.001)}
-              ariaLabel="Y"
+              ariaLabel={t('freeform.y')}
               className="w-16 rounded bg-raised px-1.5 py-0.5 text-right tabular-nums text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
             />
-            <UnitChip label="Y" quantity="length" scope={unitScope('freeform', 'y')} />
+            <UnitChip label={t('freeform.y')} quantity="length" scope={unitScope('freeform', 'y')} />
           </label>
         </div>
       )}

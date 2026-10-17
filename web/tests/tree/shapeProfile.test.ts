@@ -10,7 +10,7 @@ import {
   stationRadius,
   profileEnds,
 } from '../../src/tree/shapeProfile';
-import { KERNEL_SHAPES } from '../../src/tree/kernelDefaults';
+import { KERNEL_DEFAULTS, KERNEL_SHAPES } from '../../src/tree/kernelDefaults';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
 
 describe('shape parameter metadata', () => {
@@ -275,11 +275,12 @@ describe('a node with no shape key', () => {
 
 describe('stationRadius on a part with no length on record', () => {
   it('reads the profile at the length the bridge builds it at', () => {
-    // ComponentFactory builds a keyless transition at `dbl(node, "length", 0.05)`.
-    // A conical transition is r1 + (r2 - r1) x / L.
+    // ComponentFactory builds a keyless transition at Transition()'s length
+    // (KERNEL_DEFAULTS.transition.length). A conical transition is r1 + (r2 - r1) x / L.
+    const L = KERNEL_DEFAULTS.transition.length;
     const t = { type: 'transition', shape: 'conical', foreRadius: 0.02, aftRadius: 0.03 } as unknown as ComponentNode;
     expect(stationRadius(t, 0)).toBeCloseTo(0.02, 12);
-    expect(stationRadius(t, 0.0125)).toBeCloseTo(0.02 + (0.01 * 0.0125) / 0.05, 12);
+    expect(stationRadius(t, 0.0125)).toBeCloseTo(0.02 + (0.01 * 0.0125) / L, 12);
   });
 });
 

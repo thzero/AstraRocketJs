@@ -43,23 +43,34 @@ const dia = (v: number): number => v * 2000;
 const g = (v: number): number => v * 1000;
 
 /**
+ * The code tables below are Maps, not plain objects: each is indexed by a
+ * token a file carried (a finish, a shape, a cross section, a placement
+ * method), and `constructor` or `__proto__` on a plain object would resolve to
+ * an Object.prototype member rather than to nothing.
+ */
+
+/**
  * `RockSimFinishCode` ordinals, by our finish token. RockSim has four; every
  * other finish goes out as matt (2), as `RockSimFinishCode.toCode` writes it,
  * because a part with no `FinishCode` opens in desktop with no finish at all.
  */
-const FINISH_CODES: Record<string, number> = { polished: 0, smooth: 1, normal: 2, unfinished: 3 };
+const FINISH_CODES: ReadonlyMap<string, number> = new Map(
+  Object.entries({ polished: 0, smooth: 1, normal: 2, unfinished: 3 }),
+);
 const MATT = 2;
 
 /** `RockSimNoseConeCode` ordinals, by our shape token. RockSim has no separate
  *  ellipsoid, so both of its rounded codes come back as ELLIPTICAL (3). */
-const SHAPE_CODES: Record<string, number> = {
-  conical: 0,
-  ogive: 1,
-  ellipsoid: 3,
-  power: 4,
-  parabolic: 5,
-  haack: 6,
-};
+const SHAPE_CODES: ReadonlyMap<string, number> = new Map(
+  Object.entries({
+    conical: 0,
+    ogive: 1,
+    ellipsoid: 3,
+    power: 4,
+    parabolic: 5,
+    haack: 6,
+  }),
+);
 
 /**
  * `RockSimLocationMode` ordinals, by our placement method. RockSim has no
@@ -67,14 +78,16 @@ const SHAPE_CODES: Record<string, number> = {
  * writeCommon), and after is written as top with its offset, as desktop's
  * BasePartDTO does, because RockSim lays out a stage's parts in order.
  */
-const LOCATION_CODES: Record<string, number> = { top: 0, absolute: 1, bottom: 2, middle: 0, after: 0 };
+const LOCATION_CODES: ReadonlyMap<string, number> = new Map(
+  Object.entries({ top: 0, absolute: 1, bottom: 2, middle: 0, after: 0 }),
+);
 
 /**
  * `TipShapeCode` ordinals, by our cross-section token
  * (`TipShapeCode.convertTipShapeCode`). RockSim calls a fin's cross section its
  * tip shape.
  */
-const TIP_SHAPE_CODES: Record<string, number> = { square: 0, rounded: 1, airfoil: 2 };
+const TIP_SHAPE_CODES: ReadonlyMap<string, number> = new Map(Object.entries({ square: 0, rounded: 1, airfoil: 2 }));
 
 /**
  * kg/m2 → RockSim's surface density in g/cm2.
@@ -253,7 +266,7 @@ function writeCommon(
   if (subtree) skip(w, { key: 'errors.rktSkip.subtreeOverride', values: label });
   if (numOpt(n, 'overrideCD') !== undefined) skip(w, { key: 'errors.rktSkip.cdOverride', values: label });
 
-  el(w, d, 'FinishCode', FINISH_CODES[strOf(n, 'finish') ?? 'normal'] ?? MATT);
+  el(w, d, 'FinishCode', FINISH_CODES.get(strOf(n, 'finish') ?? 'normal') ?? MATT);
 
   if (withPosition) {
     // A part with no position stands where its constructor puts it, as it flies.
@@ -264,7 +277,7 @@ function writeCommon(
     const xb =
       method === 'bottom' ? -offset : method === 'middle' ? offset + (w.parentLength - axialLength(n)) / 2 : offset;
     el(w, d, 'Xb', mm(xb));
-    el(w, d, 'LocationMode', LOCATION_CODES[method] ?? 0);
+    el(w, d, 'LocationMode', LOCATION_CODES.get(method) ?? 0);
   }
 }
 
@@ -280,7 +293,7 @@ function writeWall(w: Writer, d: number, n: ComponentNode): void {
 
 function writeShape(w: Writer, d: number, n: ComponentNode, fallback: string): void {
   const shape = strOf(n, 'shape') ?? fallback;
-  el(w, d, 'ShapeCode', SHAPE_CODES[shape] ?? SHAPE_CODES[fallback]!);
+  el(w, d, 'ShapeCode', SHAPE_CODES.get(shape) ?? SHAPE_CODES.get(fallback)!);
   const param = numOpt(n, 'shapeParameter');
   if (param !== undefined) el(w, d, 'ShapeParameter', param);
 }
@@ -439,7 +452,7 @@ const writeFinSet: PartWriter = (w, d, n) => {
   // The fin's cross section, which RockSim calls a tip shape
   // (the `FinSetDTO(FinSet)` constructor). Without it RockSim reads every fin as square.
   const crossSection = strOf(n, 'crossSection') ?? 'square';
-  el(w, d, 'TipShapeCode', TIP_SHAPE_CODES[crossSection] ?? 0);
+  el(w, d, 'TipShapeCode', TIP_SHAPE_CODES.get(crossSection) ?? 0);
   // An airfoil fin set with no override of its own opens with `CalcMass` and
   // `CalcCG` as its override (`FinSetHandler.endHandler`), so without them it
   // weighs nothing in desktop OpenRocket. The figures are the kernel's.

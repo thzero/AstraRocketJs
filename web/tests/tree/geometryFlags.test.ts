@@ -367,7 +367,7 @@ function design(part: ComponentNode, inPod = false): RocketTree {
               type: 'podset',
               id: 'pod',
               instanceCount: 2,
-              radialOffset: 0.06,
+              radiusOffset: 0.06,
               position: { method: 'top', offset: 0.05 },
               children: chainFor(part, '-pod'),
             },
@@ -489,7 +489,7 @@ const FIN_READERS: Record<string, Reader> = {
     round(
       buildAftScene(tree.components, undefined, ((k: string) => k) as unknown as TFunction)
         .outer.filter((s) => s.key.startsWith(`${String(FIN.id)}:`))
-        .map((s) => (s.kind === 'fin' ? [s.from, s.to] : null)),
+        .map((s) => (s.kind === 'fin' ? [s.angle, s.from, s.to] : s.kind === 'poly' ? s.points : null)),
     ),
   'fin cut contour': (tree) => round(finCutContour(finIn(tree), finMountOf(tree, String(FIN.id)))),
   'fin printable solid': (tree) => positions(solidFor(tree, finIn(tree))),
@@ -520,6 +520,19 @@ const FIN_FLAGS: Flag[] = [
     on: { filled: true },
   },
   { name: 'fins on a filled body tube', part: { ...TUBE, children: [FIN] } as ComponentNode, on: { filled: true } },
+  // A flag on the fin set itself: the cant turns each fin about the middle of
+  // its root (`FinSet.getCantRotation`), and its root drops to stay on the body.
+  {
+    name: 'canted fins on a body tube',
+    part: { ...TUBE, children: [FIN] } as ComponentNode,
+    on: { children: [{ ...FIN, cant: 0.1 }] },
+  },
+  {
+    name: 'canted fins on a nose cone',
+    part: { ...NOSE, children: [FIN] } as ComponentNode,
+    on: { children: [{ ...FIN, cant: -0.1 }] },
+    like: 'canted fins on a body tube',
+  },
   // One flag toggled with another already set on the parent.
   {
     name: 'fins on a flipped filled nose cone',
@@ -566,6 +579,11 @@ const FIN_UNAFFECTED: Record<string, string> = {
   // point moved onto it stays above the root and under the outline's peak.
   'fins on an unclipped transition / fin parts table':
     'the trailing point stays above the root on a widening transition',
+  // The tab's depth limit is the parent's radius at the tab's two ends
+  // (`FinSet.getMaxTabHeight`), which the cant does not move.
+  'canted fins on a body tube / fin tab limit': "the parent's radius at the tab ends, which the cant does not move",
+  'canted fins on a body tube / fin tab auto': 'sized from the mount and its rings, which the cant does not move',
+  'canted fins on a body tube / fin parts table': "lists the fin's dimensions, which the cant does not change",
 };
 
 /**

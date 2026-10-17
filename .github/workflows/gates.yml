@@ -5,8 +5,9 @@ name: Gates
 # reusable workflow (`workflow_call`) is how GitHub shares jobs, and it is the
 # only way to avoid keeping copies of this in sync by hand.
 #
-# The web jobs (build-and-test, e2e, update-flow) run in parallel, and the PR
-# is gated on all of them. The engine checks (parity, the reproducible extract,
+# The web jobs (build-and-test, unit, e2e) run in parallel, and the PR is
+# gated on all of them. Each is split three ways, each slice on its own runner,
+# so the wait is one slice, not the whole job. The service worker checks (update-flow) run by hand in e2e-full.yml. The engine checks (parity, the reproducible extract,
 # the aero scorecards) are not here: they only move when the engine changes,
 # and are run by hand with `npm run audit` in engine-java.
 #
@@ -22,9 +23,14 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    # npm ci plus `verify` runs a few minutes. A cap sized just over the work
-    # fails on runner load, which a shared runner has.
-    timeout-minutes: 15
+    # A cap sized just over the work fails on runner load, which a shared
+    # runner has.
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # The three parts of `build` in web/package.json, one runner each.
+        check: [npm run typecheck, npm run lint, npx vite build]
     defaults:
       run:
         working-directory: web
@@ -34,61 +40,80 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
 
-      - run: npm ci
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
 
-      # ONE list, `gates` in web/package.json, run here and locally, so the
-      # gates cannot drift between them. `verify` and
-      # `verify:ci` are two endings on it: a gate added to `verify:ci` alone is
-      # not run by CI. Spelling the steps out here instead lets the hand-run
-      # list drift from this one. What the list holds, and why each is there:
+      - if: steps.web-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # The three parts of `npm run build`, one per runner. `verify` runs the same
+      # three locally and adds the unit suite, which is the unit job below:
       #
-      #   format:check  Formatting. `.gitattributes` pins LF, without which a
-      #                 CRLF checkout fails `--check` on every tracked file, and
-      #                 `.prettierignore` excludes the generated artifacts
-      #                 (public/docs, the TeaVM output, the synced catalogs),
-      #                 leaving only authored code.
-      #   spell         US English, enforced. cspell's en-US dictionary catches
-      #                 a British spelling, and cspell.json's flagWords make the
-      #                 common ones (the -our, -re and -ise forms) forbidden
-      #                 outright, so no project-words entry can let one in.
       #   typecheck     All four tsconfig projects: src and tests, the app,
       #                 e2e, and the build config files (tsconfig.node.json).
       #   lint          ESLint, warnings included.
-      #   knip          Dead exports / unimported modules. Cheap, and it only
-      #                 stays useful if something runs it.
-      #   dupes         jscpd over src (`.jscpd.json`): any copied block of 45
-      #                 tokens and 5 lines fails, so two copies of a helper
-      #                 cannot drift apart.
-      #   vite build    The production build. Before the suite on purpose: it is
-      #                 ~20 s against the suite's ~5 min, so a broken build is
-      #                 reported early rather than after everything else passes.
-      #   vitest        The unit suite, without coverage. Coverage and its
-      #                 floors in vitest.config.ts are checked by hand with
-      #                 `npm run audit`, not here.
-      - run: npm run verify
+      #   vite build    The production build.
+      #
+      # Formatting, spelling, knip and jscpd are housekeeping and run in `npm run audit`.
+      - run: ${{ matrix.check }}
 
-      # The production build is inside `npm run gates`, so there is no build
-      # step here, and the push gate and the local pre-push command both catch
-      # a change that typechecks and tests clean but breaks the build. `gates`
-      # runs `vite build` directly rather than `npm run build`, because that
-      # script is `typecheck && lint && vite build` and `gates` has just run both.
+  # The unit suite, without coverage, in three slices on three runners.
+  # Coverage and its floors in vitest.config.ts are checked by hand with
+  # `npm run audit`, not here.
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # One slice failing must not cancel the others, or the first red slice
+      # hides the rest of the failures.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
-  # The Docusaurus site is built and typechecked on every run of these gates:
-  # e2e and update-flow both run `npm run docs:build` for the Help checks, and
-  # e2e runs the site's `typecheck`, so a broken docusaurus.config.ts,
-  # sidebars.ts or MDX page fails the pull request there.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
+
+      - if: steps.web-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - run: npx vitest run --shard=${{ matrix.shard }}/3
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
   # CORE_SPECS in web/playwright.config.ts). Every pull request and push to a
-  # branch other than master runs them. The full suite runs in e2e-full.yml, by hand.
+  # branch other than master and beta runs them. The full suite runs in e2e-full.yml, by hand.
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    # Chromium and the system libraries it needs come baked into the image, so
+    # the job installs nothing. The tag must match the @playwright/test version
+    # in web/package-lock.json; the first step fails when they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: web
@@ -98,53 +123,23 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-          # The website lock too: this job builds the docs (below), which runs
-          # Docusaurus out of website/.
-          cache-dependency-path: |
-            web/package-lock.json
-            website/package-lock.json
 
-      - run: npm ci
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
 
-      - name: Install the docs site's dependencies
-        working-directory: website
+      - if: steps.web-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      # The docs build does not typecheck, so a type error in the site's
-      # config, sidebars or components builds clean without this.
-      - name: Typecheck the docs site
-        working-directory: website
-        run: npm run typecheck
+      - name: Check the image matches Playwright
+        run: |
+          v=$(node -p "require('@playwright/test/package.json').version")
+          [ "$v" = "1.63.0" ] || { echo "::error::@playwright/test is $v; update the container image tag in gates.yml"; exit 1; }
 
-      # The accessibility scans of the Help and Safety dialogs read the docs
-      # from web/public/docs, which is gitignored; without a build the frame is
-      # empty and the scan checks nothing.
-      - name: Build the docs the Help and Safety scans read
-        run: npm run docs:build
-
-      # Key the browser cache on the resolved Playwright version, not on the
-      # lockfile hash: the browser build only changes when Playwright does.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      # Both projects in playwright.config.ts are Chromium. The browser restores
-      # from the cache, but the system libraries `--with-deps` apt-installs do
-      # not, so a cache hit still needs `install-deps`.
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-
-      - run: npm run e2e:core
+      - run: npm run e2e:core -- --shard=${{ matrix.shard }}/3
 
       # The HTML report, with the trace of every failed attempt in it, uploaded
       # when the job fails. A spec that passes on its retry leaves the job green
@@ -152,75 +147,6 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
-          name: playwright-report-core
+          name: playwright-report-core-${{ matrix.shard }}
           path: web/playwright-report/
           retention-days: 7
-
-  update-flow:
-    # The service worker, against real production builds: the update path, and
-    # the runtime catalogs with the network off.
-    #
-    # Nothing else here can see either: the Playwright suite serves one build,
-    # so it never sees a deploy, and vitest has no browser. The update check
-    # proves what a deploy depends on: a tab open on the old build is offered
-    # the new one and, on Reload, comes back on it, with no hard reload. The
-    # offline check proves what a launch site depends on: the catalogs are
-    # requested with a `?v=<hash>` cache-buster, which Workbox does not strip
-    # when matching the precache, so a wrong precache entry leaves motors,
-    # components and materials unreachable offline with no error shown. Three
-    # `vite build`s plus a headless Chromium, about three minutes.
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-          cache: npm
-          # The website lock too: this job builds the docs (below), which runs
-          # Docusaurus out of website/.
-          cache-dependency-path: |
-            web/package-lock.json
-            website/package-lock.json
-
-      - run: npm ci
-
-      - name: Install the docs site's dependencies
-        working-directory: website
-        run: npm ci
-
-      # offline-help (the last step) needs the built docs: the in-app Help
-      # dialog reads web/public/docs, which is gitignored, and the check serves
-      # a production build with those docs precached. Both locales, as the
-      # deploy builds them, because the dialog can be opened in either.
-      - name: Build the docs the offline-help check reads
-        run: npm run docs:build
-
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-
-      - run: npm run e2e:update
-
-      - run: npm run e2e:offline-data
-
-      # Help with the network off, which is the case the docs are built INTO the
-      # app for: a launch site with no signal. It is the one promise the
-      # precached docs make, gated beside its sibling (offline DATA).
-      - run: npm run e2e:offline-help

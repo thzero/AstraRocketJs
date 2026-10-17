@@ -365,6 +365,7 @@ NSEW
 nudgeable
 offaxis
 onmember
+onshape
 opacityaffectstexture
 opencsv
 openmeteo
@@ -610,3 +611,12 @@ octo
 Spherachutes
 Rocketman
 fullwidth
+letterboxed
+unflipped
+rint
+REARTH
+dconst
+Bulkdensity
+Surfacedensity
+Linedensity
+Wildman

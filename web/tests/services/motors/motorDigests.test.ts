@@ -217,11 +217,30 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
     expect(new TextDecoder().decode(zip['rocket.ork']!)).toContain(`<digest>${digest}</digest>`);
   });
 
-  it('writes a motor the catalog has as the catalog motor, curve or not', async () => {
-    // A user's own curve for an Estes C6 is still an Estes C6 to the file.
+  it('writes a motor the catalog names outright as the catalog motor, curve or not', async () => {
+    // A user's own curve for an Estes C6, under Estes and that exact name, is
+    // the one catalog row and goes out as it.
     const { motors, zip } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes' });
     expect(motors.body!.digest).toBe(catalogDigest(row('Estes', 'C6'), 5));
     expect(Object.keys(zip).filter((n) => n.startsWith('thrustcurves/'))).toEqual([]);
+  });
+
+  /**
+   * Desktop's findMotors puts a digest match ahead of the maker and name
+   * (ThrustCurveMotorSetDatabase.java:42-76), so a curve written under a stock
+   * motor's digest opens as that stock motor. A curve the catalog names only
+   * with a doubt goes out as itself.
+   */
+  it.each([
+    ['under a maker the catalog does not carry', { designation: 'G80', manufacturer: 'Homemade', diameter: 0.029 }],
+    ['under a shortened name', { designation: 'H128W-OLD', manufacturer: 'AeroTech', diameter: 0.029 }],
+    ['with no maker, where several sell the name', { designation: 'C6', manufacturer: undefined }],
+  ])('embeds the curve of a motor that shares a catalog name %s', async (_case, over) => {
+    const stock = new Set(CATALOG.flatMap((m) => (m.digests ?? []).map((e) => e.digest)));
+    const { motors, zip } = await save({ ...curve, ...over } as MotorSpec);
+    const digest = motors.body!.digest!;
+    expect(stock.has(digest)).toBe(false);
+    expect(rseDigest(new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!))).toBe(digest);
   });
 
   it('embeds the curve of a motor that shares a catalog name but not its diameter', async () => {
@@ -249,7 +268,7 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
       expect(rseDigest(new TextDecoder().decode(zip[`thrustcurves/${digest}.rse`]!))).toBe(digest);
     });
 
-    it('still writes the catalog digest for a motor the catalog has', async () => {
+    it('still writes the catalog digest for a motor the catalog names outright', async () => {
       vi.mocked(loadCatalog).mockResolvedValueOnce([
         imported({ designation: 'C6', manufacturer: 'Estes' }),
         ...CATALOG,

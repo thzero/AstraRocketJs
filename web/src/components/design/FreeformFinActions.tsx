@@ -141,7 +141,11 @@ export function FreeformFinActions({ node }: { node: ComponentNode }) {
         {imageFile.input}
       </div>
       <p className="text-[11px] leading-snug text-ink-faint">{t('freeform.importHint')}</p>
-      {error && <p className="text-[11px] leading-snug text-warn-400">{error}</p>}
+      {/* Always mounted, empty until there is something to say: a live region
+          created together with its text is not announced (see UpdateToast). */}
+      <p role="status" aria-live="polite" className="text-[11px] leading-snug text-warn-400">
+        {error}
+      </p>
     </div>
   );
 }

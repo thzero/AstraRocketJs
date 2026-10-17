@@ -35,11 +35,21 @@ import {
   carryToCopies,
   reconcileConfigs,
   ensureConfig,
+  followMountIgnition,
+  mountIgnition,
+  sameIgnition,
   type FlightConfig,
+  type MountMotor,
 } from '../services/flight/flightConfigs';
-import { launchPatchFor, type LaunchConditions, type LaunchPatch } from '../services/design/orkTree';
+import {
+  launchPatchFor,
+  overLaunchDefaults,
+  type LaunchConditions,
+  type LaunchPatch,
+} from '../services/design/orkTree';
 import type { OrkExportMotor } from '../services/files/orkFile';
 import type { ImportNote } from '../services/files/importNote';
+import type { DesignFormat } from '../services/files/designFile';
 import { repairValues } from '../services/design/repairValues';
 import { withKernelEnds } from '../services/design/autoRadius';
 import {
@@ -78,7 +88,7 @@ import type { MotorDims } from '../tree/schematicGeometry';
 import { type ConfigsTab } from './tabs';
 import { createViewSlice, type ViewSlice } from './viewSlice';
 import { createFileSlice, type FileSlice } from './fileSlice';
-import { markWritten } from './writtenWorkspace';
+import { markWritten, voidPendingAutosave } from './writtenWorkspace';
 import { errorText } from '../i18n/keyedError';
 import { flightBranches } from '../services/flight/flightColumns';
 import {
@@ -105,7 +115,13 @@ export {
 } from './workspaceSelectors';
 
 type Rocket = ReturnType<typeof buildRocketTree>;
-type LoadedMeta = { name: string; notes: ImportNote[]; exportMotors: Record<string, OrkExportMotor> } | null;
+type LoadedMeta = {
+  name: string;
+  notes: ImportNote[];
+  exportMotors: Record<string, OrkExportMotor>;
+  /** The file's format, which the loaded-design card names. */
+  format?: DesignFormat;
+} | null;
 
 /** One undo/redo checkpoint: the whole editable workspace: the design tree (and
  *  which part was selected, so undo re-focuses what changed) plus the simulations,
@@ -133,6 +149,9 @@ type HistoryEntry = {
 };
 /** Cap the stack so a long session can't grow memory without bound. */
 const HISTORY_LIMIT = 100;
+
+/** Which configurations an ignition change reaches; see `setMountIgnition`. */
+export type IgnitionScope = 'config' | 'all';
 
 export interface WorkspaceState extends ViewSlice, FileSlice {
   // --- design ---
@@ -170,13 +189,18 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * while the tree is still the one it was raised on), and this warning has to
    * outlive both.
    *
-   * A successful save clears only the transient "full" case. `degraded` and
-   * `loadFailed` are facts about this session that a later save does not undo,
-   * and `idbKeyValueStore.markDegraded()` is one-way and never notifies twice,
-   * so a message cleared here would never be raised again. Hence the `kind`.
+   * Two slots behind it (`storageNotices`), shown together. A save's own
+   * failure (`full`, `conflict`) is retired by the next save that lands, and a
+   * conflict also by a workspace swap, which points saving at a design this
+   * tab can write. `degraded` and `loadFailed` are facts about this session
+   * that a later save does not undo, and `idbKeyValueStore.markDegraded()` is
+   * one-way and never notifies twice, so a message cleared or overwritten
+   * there would never be raised again.
    */
   storageWarning: string | null;
+  /** The save failure's kind when one stands, else the standing notice's. */
   storageWarningKind: StorageWarningKind | null;
+  storageNotices: { standing: StorageNotice | null; save: StorageNotice | null };
   selectedId: string | null;
   /**
    * Bumped by every selection gesture, including one that picks the part that
@@ -197,7 +221,9 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    */
   clipboard: ComponentNode | null;
   loadedMeta: LoadedMeta;
-  rocket: Rocket | null; // live engine handle (set by the rebuild effect; read by the aero sweep and the dimension fields)
+  // The live engine handle, set by the rebuild effect; read by the aero sweep,
+  // the dimension fields, the file writers' part figures and the report model.
+  rocket: Rocket | null;
   // --- history (undo/redo of component edits) ---
   past: HistoryEntry[];
   future: HistoryEntry[];
@@ -315,7 +341,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   setStorageWarning: (msg: string | null, kind?: StorageWarningKind) => void;
   /** Storage refused a write: raise the clearable "storage full" warning. */
   warnStorageFull: () => void;
-  /** A save succeeded: retire a "storage full" warning, leave the standing ones. */
+  /** A save landed: retire a "storage full" or conflict warning, leave the standing ones. */
   clearSaveWarning: () => void;
   /**
    * When the autosave last landed (epoch ms), or null before the first one.
@@ -390,7 +416,7 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
   addStageToTree: () => void;
   moveSelected: (dir: -1 | 1) => void;
   updateDesignMeta: (
-    patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'comment' | 'revision' | 'designType'>>,
+    patch: Partial<Pick<RocketTree, 'name' | 'designer' | 'kitName' | 'comment' | 'revision' | 'designType'>>,
   ) => void;
   /** Finalize the in-flight edit (slider drag / text entry) into one undo entry.
    *  Called by the editors when an interaction ends (blur / discrete change). */
@@ -410,8 +436,19 @@ export interface WorkspaceState extends ViewSlice, FileSlice {
    * that configuration is aged, because all of them now fly a different motor.
    */
   setMountMotor: (configId: string, mountId: string, m: MotorSpec) => void;
-  /** Set when one mount's motor ignites, in one configuration. */
-  setMountIgnition: (configId: string, mountId: string, event: IgnitionEvent, delay: number) => void;
+  /**
+   * Set when one mount's motor ignites. `config` changes the one configuration;
+   * `all` changes that mount's motor in every configuration and the mount's own
+   * ignition too, which is desktop's "Change all configurations using the
+   * default ignition event" (IgnitionSelectionDialog).
+   */
+  setMountIgnition: (
+    configId: string,
+    mountId: string,
+    event: IgnitionEvent,
+    delay: number,
+    scope?: IgnitionScope,
+  ) => void;
   /**
    * Override one deployment field of one recovery device, in one configuration;
    * null clears that field so the device's own value on the design applies again.
@@ -627,12 +664,27 @@ function sanitizeSims(sims: Simulation[], configs: FlightConfig[]): Simulation[]
   if (!safe.length) return [newSimulation(i18n.t('sims.untitled', { n: 1 }), fallback, launchDefaults)];
   return safe.map((s) => ({
     ...s,
-    launch: { ...launchDefaults, ...(s.launch ?? {}) },
+    launch: overLaunchDefaults(launchDefaults, s.launch),
     configId: known.has(s.configId) ? s.configId : fallback,
     // Kept, not dropped: flights persist under their own key and are re-attached
     // by the workspace store before this sees them (workspaceStore.withResults).
     result: s.result ?? null,
   }));
+}
+
+/** One storage warning and the condition that raised it. */
+type StorageNotice = { msg: string; kind: StorageWarningKind | null };
+
+/** The shown storage warning for these slots: the standing notice, then the save failure. */
+function storageWarningOf(
+  notices: WorkspaceState['storageNotices'],
+): Pick<WorkspaceState, 'storageWarning' | 'storageWarningKind' | 'storageNotices'> {
+  const shown = [notices.standing, notices.save].filter((n): n is StorageNotice => n !== null);
+  return {
+    storageNotices: notices,
+    storageWarning: shown.length ? shown.map((n) => n.msg).join(' ') : null,
+    storageWarningKind: notices.save?.kind ?? notices.standing?.kind ?? null,
+  };
 }
 
 /**
@@ -898,9 +950,13 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
    * `set` keeps a subscriber from seeing either half alone.
    *
    * A batch still running belongs to the old design, so it is canceled here
-   * (its answers would be dropped by the `ranOn` guard anyway).
+   * (its answers would be dropped by the `ranOn` guard anyway). So is an
+   * autosave still pending for it: the timer is cleared only once the effect
+   * re-runs, and firing before that it would write the old design under the
+   * new one's entry.
    */
   const replaceWorkspace = (patch: Partial<WorkspaceState> | ((s: WorkspaceState) => Partial<WorkspaceState>)) => {
+    voidPendingAutosave();
     batchAbort?.abort();
     batchAbort = null;
     // A sweep belongs to a simulation of the design being replaced, so it goes
@@ -932,6 +988,9 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // pending rather than as someone else's numbers.
       info: null,
       rocket: null,
+      // A conflict is about the outgoing design's entry, which another tab
+      // moved on; the incoming design saves on its own claim.
+      ...(s.storageNotices.save?.kind === 'conflict' ? storageWarningOf({ ...s.storageNotices, save: null }) : {}),
       ...(typeof patch === 'function' ? patch(s) : patch),
     }));
   };
@@ -950,6 +1009,7 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
     buildErr: null,
     storageWarning: null,
     storageWarningKind: null,
+    storageNotices: { standing: null, save: null },
     lastSavedAt: null,
     quietReplace: 0,
     simRuns: {},
@@ -978,11 +1038,23 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
 
     setErr: (err) => set({ err }),
     setBuildErr: (buildErr) => set({ buildErr }),
-    setStorageWarning: (storageWarning, kind) =>
-      set({ storageWarning, storageWarningKind: storageWarning ? (kind ?? null) : null }),
+    setStorageWarning: (msg, kind) =>
+      set((s) => {
+        const notice = msg ? { msg, kind: kind ?? null } : null;
+        // A clear that names no kind clears both slots.
+        if (!notice && !kind) return storageWarningOf({ standing: null, save: null });
+        return storageWarningOf(
+          kind === 'degraded' || kind === 'loadFailed'
+            ? { ...s.storageNotices, standing: notice }
+            : { ...s.storageNotices, save: notice },
+        );
+      }),
     warnStorageFull: () => get().setStorageWarning(i18n.t('storage.full'), 'full'),
     clearSaveWarning: () =>
-      set((s) => (s.storageWarningKind === 'full' ? { storageWarning: null, storageWarningKind: null } : {})),
+      set((s) => {
+        const kind = s.storageNotices.save?.kind;
+        return kind === 'full' || kind === 'conflict' ? storageWarningOf({ ...s.storageNotices, save: null }) : {};
+      }),
     markSaved: () => set({ lastSavedAt: Date.now() }),
     applyBuild: (info, rocket) => set({ info, rocket }),
     setSimPrefs: (prefs) => set((s) => (changedPrefKeys(s.simPrefs, prefs).length ? { simPrefs: prefs } : {})),
@@ -1003,8 +1075,10 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // against the resolved one.
       const fixed = { ...repaired, tree: withKernelEnds(repaired.tree) };
       const prefs = get().simPrefs;
+      // A row from before result keys is keyed against the stored tree, the one
+      // it flew on, so a value the load repaired leaves it reading outdated.
       const sims = sanitizeSims(w.sims, configs)
-        .map((x) => legacyResultKey(x, repaired.tree, configOf(configs, x), prefs))
+        .map((x) => legacyResultKey(x, w.tree, configOf(configs, x), prefs))
         .map((x) =>
           fixed.tree !== repaired.tree &&
           x.resultKey !== undefined &&
@@ -1069,7 +1143,15 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       // name/length/color/slider patch can't, so skip the full tree walk on the
       // hot per-keystroke edit path.
       const touchesMounts = 'motorMount' in patch;
-      set({ tree: next, configs: touchesMounts ? reconcileConfigs(next, configs) : configs });
+      const reconciled = touchesMounts ? reconcileConfigs(next, configs) : configs;
+      // The mount's own ignition reaches the motors still on its old one.
+      const touchesIgnition = 'ignitionEvent' in patch || 'ignitionDelay' in patch;
+      set({
+        tree: next,
+        configs: touchesIgnition
+          ? followMountIgnition(reconciled, selectedId, findNode(tree, selectedId)!, findNode(next, selectedId)!)
+          : reconciled,
+      });
     },
     // Splitting a cluster duplicates the tube it is on, mounts included, so the
     // mount topology really can change here, unlike a field edit.
@@ -1181,16 +1263,35 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       recordStep();
       patchConfig(configId, (c) => ({ ...c, motors: { ...c.motors, [mountId]: { ...c.motors[mountId], spec: m } } }));
     },
-    setMountIgnition: (configId, mountId, event, delay) => {
+    setMountIgnition: (configId, mountId, event, delay, scope = 'config') => {
+      const target = { ignitionEvent: event, ignitionDelay: delay };
+      const timed = (seated: MountMotor | undefined) => !!seated && sameIgnition(seated, target);
+      if (scope === 'all') {
+        // Every motor on the mount, whatever it had, as the desktop dialog's OK
+        // does (MotorMount.getMotorIterator), plus the mount itself. The mount
+        // is compared as it flies, so absent keys read as automatic with no delay.
+        const { tree, configs } = get();
+        const mount = findNode(tree, mountId);
+        const nodeMoves = !!mount && !sameIgnition(mountIgnition(mount), target);
+        const next = configs.map((c) => {
+          const seated = c.motors[mountId];
+          if (!seated || timed(seated)) return c;
+          return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ...target } } };
+        });
+        if (!nodeMoves && next.every((c, i) => c === configs[i])) return;
+        beginEdit();
+        set({ tree: nodeMoves ? updateNode(tree, mountId, target) : tree, configs: next });
+        return;
+      }
       // No motor in that mount, or the timing it already has: nothing to
       // record, so no transaction is opened.
       const seated = get().configs.find((c) => c.id === configId)?.motors[mountId];
-      if (!seated || ((seated.ignitionEvent ?? 'automatic') === event && (seated.ignitionDelay ?? 0) === delay)) return;
+      if (!seated || timed(seated)) return;
       beginEdit();
       patchConfig(configId, (c) => {
         const seated = c.motors[mountId];
         if (!seated) return c; // no motor in that mount: nothing to time
-        return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ignitionEvent: event, ignitionDelay: delay } } };
+        return { ...c, motors: { ...c.motors, [mountId]: { ...seated, ...target } } };
       });
     },
     setDeployment: (configId, deviceId, key, value) => {

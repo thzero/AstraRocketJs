@@ -2,6 +2,7 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { GroundTrack } from '../../../src/components/canvas/GroundTrack';
+import { DriftSweepPanel } from '../../../src/components/canvas/DriftSweepPanel';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { ChartFlight } from '../../../src/components/canvas/FlightChart';
 import type { LaunchConditions } from '../../../src/services/design/orkTree';
@@ -395,5 +396,29 @@ describe('GroundTrack drift region', () => {
     expect((screen.getByLabelText('Speeds') as HTMLInputElement).value).toBe('4');
     expect((screen.getByLabelText('Headings') as HTMLInputElement).value).toBe('8');
     expect(screen.getByText('32 flights')).toBeTruthy();
+  });
+});
+
+/**
+ * A bearing or heading span is an angle held in degrees; it prints in the
+ * reader's angle unit, as the flight chart's angle of attack does.
+ */
+describe('GroundTrack angle readouts', () => {
+  beforeEach(() => localStorage.clear());
+  afterEach(() => localStorage.clear());
+
+  it('prints a landing bearing in radians when the angle unit is radians', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
+    // 500 m east and north of the pad: 45 degrees.
+    expect(screen.getByText(/707 m · 0\.79 rad/)).toBeTruthy();
+  });
+
+  it('prints the sweep heading spans in radians when the angle unit is radians', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<DriftSweepPanel simId="sim-1" launch={LAUNCH} />);
+    const spans = screen.getAllByRole('option').map((o) => o.textContent);
+    expect(spans).toContain('±1.57 rad');
+    expect(spans.join('')).not.toContain('°');
   });
 });

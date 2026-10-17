@@ -62,9 +62,10 @@ describe('AboutDialog contributors', () => {
     for (const a of document.querySelectorAll('a')) expect(a.getAttribute('href') ?? '').not.toMatch(/^javascript:/i);
   });
 
-  it('keeps the decorative rocket out of the accessible name', () => {
+  it('keeps the decorative mark out of the accessible name', () => {
     renderWithProviders(<AboutDialog onClose={() => {}} />);
-    const rocket = [...document.querySelectorAll('span')].find((s) => s.textContent === '🚀');
-    expect(rocket?.getAttribute('aria-hidden')).toBe('true');
+    const mark = document.querySelector('img[src$="favicon.svg"]');
+    expect(mark?.getAttribute('alt')).toBe('');
+    expect(mark?.getAttribute('aria-hidden')).toBe('true');
   });
 });

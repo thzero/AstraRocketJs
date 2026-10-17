@@ -9,8 +9,9 @@ import { numTag } from './importTags';
 import { radToDeg } from '../../../prefs/units';
 
 /**
- * Launch conditions from the first <simulation>'s <conditions> (the desktop
- * saves one block per simulation; the app has a single launch panel). Units
+ * Launch conditions from the first <simulation>'s <conditions>: the launch a
+ * simulation the file does not carry starts from. Each carried simulation
+ * reads its own block through {@link readSimulationLaunch}. Units
  * per the desktop OpenRocketSaver: rod angle in degrees, wind speeds m/s,
  * altitude m, temperature kelvin, pressure pascal. <wind model="average"> is
  * the modern form; the bare windaverage/windturbulence pair (turbulence
@@ -61,10 +62,11 @@ export function readSimulationLaunch(simEl: Element | null): Partial<LaunchCondi
 }
 
 /**
- * The gravity model, as the desktop's GravityHandler reads it:
- * `<gravity model="wgs|constant">` with the constant in `<value>`. The bare
- * `<gravitymodel>`/`<constantgravity>` pair is read when no `<gravity>` is
- * present, for files written in that spelling.
+ * The gravity model, as upstream OpenRocket's GravityHandler reads it:
+ * `<gravity model="wgs|constant">` with the constant in `<value>` (24.12 has
+ * no gravity setting). The bare `<gravitymodel>`/`<constantgravity>` pair,
+ * which this app writes (see exportSimulation), is read when no `<gravity>` is
+ * present.
  */
 function readGravity(condEl: Element, launch: Partial<LaunchConditions>): void {
   const el = condEl.querySelector(':scope > gravity');
@@ -116,7 +118,7 @@ function readWeatherSource(condEl: Element, launch: Partial<LaunchConditions>): 
 
 function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   const windEls = Array.from(condEl.querySelectorAll(':scope > wind'));
-  const windModelType = (text(condEl, ':scope > windmodeltype') ?? '').toLowerCase();
+  const multilevelSelected = selectsMultilevel(condEl);
 
   // Average wind: modern <wind model="average"> (speed/direction/standarddeviation)
   // or the ≤23.09 legacy <windaverage>/<windturbulence>/<winddirection> trio.
@@ -138,9 +140,12 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   if (!Number.isNaN(dirRad)) launch.windDirectionDeg = radToDeg(dirRad);
 
   // Multilevel wind (24.x): <wind model="multilevel"><windlevel altitude speed
-  // direction standarddeviation/>…>. Honored when windmodeltype selects it.
+  // direction standarddeviation/>…>. Flown when windmodeltype selects it, and
+  // held without flying when it selects Average: the desktop reads the levels
+  // either way (WindHandler fills the multilevel model whatever the type) and
+  // writes them back whenever there are any.
   const mlEl = windEls.find((w) => (w.getAttribute('model') ?? '').toLowerCase() === 'multilevel');
-  if (mlEl && windModelType.includes('multilevel')) {
+  if (mlEl) {
     // finiteNum, not `parseFloat(x) || 0`: that would let "Infinity" through
     // as a wind speed, and the kernel's wind model has no answer for it.
     //
@@ -164,7 +169,10 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
         };
       }),
     );
-    if (levels.length) launch.windLevels = levels;
+    if (levels.length) {
+      if (multilevelSelected) launch.windLevels = levels;
+      else launch.keptWindLevels = levels;
+    }
     // MSL unless the file says AGL. The desktop carries it as an attribute on
     // the <wind> element (OpenRocketSaver writes
     // <wind model="multilevel" altituderef="agl">, importt/WindHandler
@@ -183,33 +191,65 @@ function readWind(condEl: Element, launch: Partial<LaunchConditions>): void {
   }
 }
 
+/**
+ * Whether the file flies its multilevel wind. The desktop sets the model as it
+ * reads: each closing `<wind>` selects its own model (WindHandler.storeSettings),
+ * and `<windmodeltype>` selects one outright (SimulationConditionsHandler), so
+ * the last of them in the file decides. A file with neither flies Average, the
+ * SimulationOptions default.
+ */
+function selectsMultilevel(condEl: Element): boolean {
+  let multilevel = false;
+  for (const el of Array.from(condEl.children)) {
+    const tag = el.tagName.toLowerCase();
+    const value =
+      tag === 'wind' ? (el.getAttribute('model') ?? '') : tag === 'windmodeltype' ? (el.textContent ?? '') : null;
+    if (value === null) continue;
+    const model = value.trim().toLowerCase();
+    if (model === 'average') multilevel = false;
+    else if (model.includes('multilevel')) multilevel = true;
+  }
+  return multilevel;
+}
+
 function readAtmosphere(condEl: Element, launch: Partial<LaunchConditions>): void {
   const atmEl = condEl.querySelector(':scope > atmosphere');
-  if (!atmEl) return;
-  if (atmEl.getAttribute('model') === 'isa') {
-    // ISA standard: null means "blank = standard" in LaunchConditions.
-    launch.temperatureC = null;
-    launch.pressureHPa = null;
-  } else {
-    const tK = numTag(atmEl, 'basetemperature', NaN);
-    if (!Number.isNaN(tK)) launch.temperatureC = tK - 273.15;
-    const pPa = numTag(atmEl, 'basepressure', NaN);
-    if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
+  if (atmEl) {
+    // Every model but `extendedisa` flies ISA, as AtmosphereHandler.storeSettings
+    // sets it (an unknown or missing model warns and uses ISA). ISA flies none of
+    // the base values, so all three are null here ("blank = standard"); a
+    // Settings default filling one of them would fly custom air at the site.
+    if ((atmEl.getAttribute('model') ?? '').trim().toLowerCase() !== 'extendedisa') {
+      launch.temperatureC = null;
+      launch.pressureHPa = null;
+      launch.relativeHumidity = null;
+    } else {
+      const tK = numTag(atmEl, 'basetemperature', NaN);
+      if (!Number.isNaN(tK)) launch.temperatureC = tK - 273.15;
+      const pPa = numTag(atmEl, 'basepressure', NaN);
+      if (!Number.isNaN(pPa)) launch.pressureHPa = pPa / 100;
+      // A fraction on disk, as the kernel holds it. <baserelativehumidity> is
+      // the element upstream OpenRocket's AtmosphereHandler reads and this app
+      // writes (24.12 has no humidity); <relativehumidity> (an alternate
+      // spelling) and <launchrelativehumidity> on <conditions> are read too.
+      const rh = numTag(
+        atmEl,
+        'baserelativehumidity',
+        numTag(atmEl, 'relativehumidity', numTag(condEl, 'launchrelativehumidity', NaN)),
+      );
+      if (!Number.isNaN(rh)) launch.relativeHumidity = rh;
+    }
   }
-  // A fraction on disk, as the kernel holds it. <baserelativehumidity> is
-  // desktop's element and what this app writes; <relativehumidity> (an alternate
-  // spelling) and <launchrelativehumidity> on <conditions> are
-  // read too.
-  const rh = numTag(
-    atmEl,
-    'baserelativehumidity',
-    numTag(atmEl, 'relativehumidity', numTag(condEl, 'launchrelativehumidity', NaN)),
-  );
-  if (!Number.isNaN(rh)) launch.relativeHumidity = rh;
-  // This app's forecast atmosphere (see exportSimulation). Kelvin and pascal on
-  // disk; a level the engine would refuse is dropped rather than failing the run.
+  // This app's forecast atmosphere (see exportSimulation): <forecastlevel>
+  // children of <conditions>, or of <atmosphere> in files written that way.
+  // Kelvin and pascal on disk; a level the engine would refuse is dropped
+  // rather than failing the run.
+  const levelEls = [
+    ...condEl.querySelectorAll(':scope > forecastlevel'),
+    ...(atmEl?.querySelectorAll(':scope > forecastlevel') ?? []),
+  ];
   const levels = usableAtmosphereLevels(
-    Array.from(atmEl.querySelectorAll(':scope > forecastlevel')).map((l) => {
+    levelEls.map((l) => {
       // An absent attribute is NaN, not the 0 Number(null) would make of it.
       const at = (name: string) => {
         const v = l.getAttribute(name);

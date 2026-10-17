@@ -5,7 +5,7 @@ import { fmtDegrees, useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { useSettings } from '../../state/SettingsProvider';
 import type { MotorSpec } from '../../engine/openRocketEngine';
-import { fmtNum, fmtSiteTime } from '../../i18n/format';
+import { fmtNum, fmtSiteTime, withUnit } from '../../i18n/format';
 import { hourInZone, nextHourMs, todayYmd, ymdInZone } from '../../services/weather/openMeteo';
 import { readWeatherKey } from '../../services/weather/weatherKey';
 import {
@@ -28,6 +28,7 @@ import { weatherErrorText } from '../../services/weather/weatherErrorText';
 import { roundTo } from '../../services/app/numbers';
 import { useLatest } from '../common/useLatest';
 import { motorName } from '../../services/motors/motorName';
+import { useEngineStore } from '../../state/engineStore';
 import { useOnline } from '../common/useOnline';
 
 /**
@@ -92,6 +93,9 @@ export function OffTheRail() {
   const [motorOpen, setMotorOpen] = useState(false);
   const [motorError, setMotorError] = useState<string | null>(null);
   const request = useLatest();
+  // The average thrust to weight is the kernel's average thrust, null until the
+  // engine has loaded; reading the phase re-renders the figures when it does.
+  useEngineStore((s) => s.phase);
 
   const getWind = async () => {
     const { latitudeDeg, longitudeDeg, launchAltitudeM } = site;
@@ -158,7 +162,7 @@ export function OffTheRail() {
   const fmtSpeed = (ms: number) => `${speed.fmtSym(ms, 1)}`;
   const fmtWind = (ms: number) => `${wind.fmtSym(ms, 1)}`;
   const fmtMass = (kg: number) => `${mass.fmtSym(kg)}`;
-  const ratio = (r: number) => `${fmtNum(r, 1)} : 1`;
+  const ratio = (r: number) => t('units.ratio', { ratio: fmtNum(r, 1) });
   const warn = 'text-warn-400';
   // An out-of-limit figure carries a word as well as the amber, so the verdict
   // is not told by color alone.
@@ -293,7 +297,7 @@ export function OffTheRail() {
               <Stat label={t('rail.exitSpeed')}>
                 {flagged(ok.exitSpeedMs < minExit, fmtSpeed(ok.exitSpeedMs), t('limits.belowMin'))}
               </Stat>
-              <Stat label={t('rail.exitTime')}>{`${fmtNum(ok.exitS, 2)} s`}</Stat>
+              <Stat label={t('rail.exitTime')}>{withUnit(fmtNum(ok.exitS, 2), t('units.second'))}</Stat>
               <Stat label={t('rail.railNeeded', { speed: fmtSpeed(minExit) })}>
                 {needed != null
                   ? flagged(needed > railLengthM, railUnit.fmtSym(needed, 2), t('limits.overRail'))

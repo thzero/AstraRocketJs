@@ -6,15 +6,23 @@ import type { Keyed } from '../../../i18n/keyedError';
  * strings RASAero's global <Surface> and per-fin <AirfoilSection> accept.
  */
 
-/** Our airfoilSection ids → RASAero's supersonic airfoil strings. */
-export const SECTION_TO_AIRFOIL: Record<string, string> = {
-  doublewedge: 'Double Wedge',
-  hexbluntbase: 'Hexagonal Blunt Base',
-  hexagonal: 'Hexagonal',
-  naca: 'NACA',
-  biconvex: 'Biconvex',
-  singlewedge: 'Single Wedge',
-};
+/**
+ * Our airfoilSection ids → RASAero's supersonic airfoil strings.
+ *
+ * Both tables here are Maps, not plain objects: the id and the finish are
+ * free text a file carried, and `constructor` on a plain object would resolve
+ * to an Object.prototype member and write a function's source into the file.
+ */
+export const SECTION_TO_AIRFOIL: ReadonlyMap<string, string> = new Map(
+  Object.entries({
+    doublewedge: 'Double Wedge',
+    hexbluntbase: 'Hexagonal Blunt Base',
+    hexagonal: 'Hexagonal',
+    naca: 'NACA',
+    biconvex: 'Biconvex',
+    singlewedge: 'Single Wedge',
+  }),
+);
 
 /**
  * Our finish ids (the .ork spelling: ExternalComponent.Finish lowercased) to
@@ -23,15 +31,17 @@ export const SECTION_TO_AIRFOIL: Record<string, string> = {
  * have no row in the desktop table; they take {@link RASAERO_SURFACE_DEFAULT}
  * with a warning, as its `else` branch does.
  */
-const FINISH_TO_SURFACE: Readonly<Record<string, string>> = {
-  mirror: 'Smooth (Zero Roughness)',
-  finishpolished: 'Polished',
-  optimum: 'Sheet Metal',
-  smooth: 'Camouflage Paint',
-  normal: 'Rough Camouflage Paint',
-  unfinished: 'Galvanized Metal',
-  roughunfinished: 'Cast Iron (Very Rough)',
-};
+const FINISH_TO_SURFACE: ReadonlyMap<string, string> = new Map(
+  Object.entries({
+    mirror: 'Smooth (Zero Roughness)',
+    finishpolished: 'Polished',
+    optimum: 'Sheet Metal',
+    smooth: 'Camouflage Paint',
+    normal: 'Rough Camouflage Paint',
+    unfinished: 'Galvanized Metal',
+    roughunfinished: 'Cast Iron (Very Rough)',
+  }),
+);
 export const RASAERO_SURFACE_DEFAULT = 'Smooth (Zero Roughness)';
 
 /** The warning the desktop raises when a finish has no RASAero row. */
@@ -39,7 +49,7 @@ export const RASAERO_SURFACE_WARNING: Keyed = { key: 'errors.exportRasaeroSurfac
 
 /** The RASAero surface for a finish id, with the desktop's warning when it has no row. */
 export function rasaeroSurface(finish: string): { surface: string; warning?: Keyed } {
-  const surface = FINISH_TO_SURFACE[finish];
+  const surface = FINISH_TO_SURFACE.get(finish);
   if (surface) return { surface };
   return { surface: RASAERO_SURFACE_DEFAULT, warning: RASAERO_SURFACE_WARNING };
 }

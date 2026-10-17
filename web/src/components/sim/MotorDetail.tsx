@@ -18,6 +18,7 @@ import {
 import { inUserUnit, motorTypeLabel, withFixedUnit } from './motorFormat';
 import { token } from '../common/colorTokens';
 import { motorSimilarity } from '../../engine/openRocketEngine';
+import { useEngineStore } from '../../state/engineStore';
 import { loadHideSimilar, saveHideSimilar } from './motorPrefs';
 import { finalizeSamples } from '../../services/motors/curveFinalize';
 
@@ -48,13 +49,15 @@ export function MotorDetail({
   };
   // The curves the dropdown offers: the one shown, and with the box ticked only
   // those the kernel's MotorCorrelation does not call near duplicates of it.
-  // Every curve while the engine is still loading, rather than none.
+  // Every curve while the engine is still loading, rather than none. Engine
+  // readiness is a dependency, so the list is filtered once the engine arrives.
+  const engineReady = useEngineStore((s) => s.phase) === 'ready';
   const offered = useMemo(
     () =>
       curves
         .map((_, i) => i)
         .filter((i) => {
-          if (!hideSimilar || i === curveIndex || !curves[curveIndex]) return true;
+          if (!hideSimilar || !engineReady || i === curveIndex || !curves[curveIndex]) return true;
           // A curve the kernel cannot compare is offered rather than hidden, and
           // never takes the dialog down with it.
           try {
@@ -67,7 +70,7 @@ export function MotorDetail({
             return true;
           }
         }),
-    [curves, curveIndex, hideSimilar],
+    [curves, curveIndex, hideSimilar, engineReady],
   );
   const title = motor.code || motor.designation;
   const showCommon = !!motor.code && motor.code !== motor.designation;

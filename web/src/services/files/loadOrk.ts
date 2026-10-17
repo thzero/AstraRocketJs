@@ -1,8 +1,7 @@
-import { fmtList, partLabel } from '../../i18n/format';
-import i18n from '../../i18n';
 import type { OrkSimulation } from './ork/importSimulations';
 import {
   OpenRocketDesign,
+  engineActive,
   resetEngine,
   type StaticInfo,
   type IgnitionEvent,
@@ -10,7 +9,7 @@ import {
   type MotorSpec,
   type ComponentNode,
 } from '../../engine/openRocketEngine';
-import { parseDesignFile } from './designFile';
+import { parseDesignFile, type DesignFormat } from './designFile';
 import type { OrkExportMotor } from './orkFile';
 import type { LaunchConditions } from '../design/orkTree';
 import { loadCatalog, matchCatalogMotor, type CatalogMotor, type MotorMatchDoubt } from '../motors/motorDb';
@@ -19,14 +18,15 @@ import { parseRse, removeDelay } from '../motors/rseParser';
 import type { CustomMotor } from '../motors/motorStore';
 import type { OrkMotorRef } from './orkTypes';
 import { findMounts } from '../design/treeEdit';
+import { IGNITION_EVENTS } from '../design/componentFields';
 import { motorFitsMount, mountFit } from '../motors/motorPicker';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { uuid } from '../app/uuid';
-import { type FlightConfig, type MountMotor } from '../flight/flightConfigs';
+import { mountIgnition, type FlightConfig, type MountMotor } from '../flight/flightConfigs';
 import { errorReason } from '../../i18n/keyedError';
 import { roundTo } from '../app/numbers';
 import { rseDigest } from './ork/embeddedMotors';
-import { keyedNote, type ImportNote } from './importNote';
+import { keyedNote, noteList, notePartName, type ImportNote } from './importNote';
 
 /**
  * One of the file's flight configurations, with its motors resolved: the same
@@ -37,8 +37,16 @@ type LoadedConfig = FlightConfig;
 
 export interface LoadedOrk {
   name: string;
-  design: OpenRocketDesign;
-  info: StaticInfo;
+  /** The file's format, which the loaded-design card names. */
+  format?: DesignFormat;
+  /**
+   * The throwaway handle the file was built in to seat its motors, and that
+   * handle's static figures. Null when the file was opened before the engine
+   * had loaded: nothing downstream reads either (the app rebuilds from `tree`),
+   * and the rebuild effect builds the design when the engine arrives.
+   */
+  design: OpenRocketDesign | null;
+  info: StaticInfo | null;
   /** Notes for the banner: unsupported components, unresolved motors, etc. */
   notes: ImportNote[];
   /** The parsed tree + motors, kept so the design can be re-exported (round-trip). */
@@ -70,7 +78,7 @@ export interface LoadedOrk {
   unbuildable?: ImportNote;
 }
 
-const IGNITION_EVENTS: ReadonlySet<string> = new Set(['automatic', 'launch', 'ejectioncharge', 'burnout', 'never']);
+const IGNITION_EVENT_NAMES: ReadonlySet<string> = new Set(IGNITION_EVENTS);
 
 /**
  * A placeholder for a .ork motor we couldn't resolve. It keeps the designation
@@ -133,7 +141,7 @@ export function emptyMountMotor(): MotorSpec {
  */
 function mountMotor(ref: OrkMotorRef, spec: MotorSpec): MountMotor {
   const entry: MountMotor = { spec };
-  if (ref.ignitionEvent && IGNITION_EVENTS.has(ref.ignitionEvent)) {
+  if (ref.ignitionEvent && IGNITION_EVENT_NAMES.has(ref.ignitionEvent)) {
     entry.ignitionEvent = ref.ignitionEvent as IgnitionEvent;
     entry.ignitionDelay = ref.ignitionDelay ?? 0;
   }
@@ -233,16 +241,25 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // format-agnostic: it works off the import result, and a `.rkt` simply
   // arrives with no motors and no flight configurations to resolve.
   const res = parseDesignFile(buffer);
-  // Free the previous design's handles, only once the file has parsed: a reset
-  // voids the open design's live handle, and a file that will not parse leaves
-  // that design on screen. A failure from here on is rebuilt by the caller.
-  resetEngine();
-  const built = buildForImport(res.tree);
-  const design = built.design;
+  // The kernel's share of an open is a throwaway handle: the reset frees the
+  // previous design's handles and the build probes whether the kernel accepts
+  // the tree (`importNote.unbuildable`). Opening needs neither, and before the
+  // engine has loaded both throw: the tree, the drawing and the exports read
+  // no kernel, and the rebuild effect builds the design when the engine
+  // arrives (useWorkspaceEffects), meeting the same refusal in the same place.
+  // With an engine, the reset waits for the parse: a reset voids the open
+  // design's live handle, and a file that will not parse leaves that design on
+  // screen. A failure from here on is rebuilt by the caller.
+  let built: ReturnType<typeof buildForImport> | null = null;
+  if (engineActive()) {
+    resetEngine();
+    built = buildForImport(res.tree);
+  }
+  const design = built?.design ?? null;
 
   // The readers already name every tag they skipped (`res.ignored`) in `res.notes`.
   const notes: ImportNote[] = [...(res.notes ?? [])];
-  if (built.unbuildable) notes.push(built.unbuildable);
+  if (built?.unbuildable) notes.push(built.unbuildable);
 
   const catalog = await loadCatalog();
   // Thrust curves the file brought with it, by designation. A `.ork` from the
@@ -283,6 +300,13 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   };
 
   const resolveOnce = async (ref: OrkMotorRef): Promise<MotorSpec> => {
+    // A motor the file names no designation for: the reader has named the
+    // mount, a lookup by an empty name finds nothing worth a second note, and
+    // only a curve the file carries under the motor's digest can fill it.
+    if (!ref.designation) {
+      const byDigest = ref.digest ? embedded.byDigest.get(ref.digest) : undefined;
+      return byDigest ? customMotorToSpec(byDigest, ref.delay) : unresolvedMotor(ref);
+    }
     const own = () => embedded.byName.get(removeDelay(ref.designation).toUpperCase());
     const match = matchCatalogMotor(catalog, ref.designation, ref.manufacturer);
     // The file's maker is a filter, as desktop's motor database reads a file
@@ -315,7 +339,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
         otherMaker
           ? keyedNote('importNote.motorOtherMaker', {
               motor: ref.designation,
-              maker: ref.manufacturer,
+              maker: ref.manufacturer ?? '',
               catalogMaker: match.motor.manufacturer,
             })
           : keyedNote('importNote.motorNotInCatalog', { motor: ref.designation }),
@@ -336,7 +360,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
       // Leaving the mount empty is not neutral: a mount without an entry is
       // seeded with a default C6 (flightConfigs.reconcileConfig), so a single
       // transient thrustcurve.org failure while opening an L-motor design would
-      // produce a runnable simulation flying a 10 N-s C6, with the only warning
+      // produce a runnable simulation flying a C6, with the only warning
       // buried in the import notes that settings.showImportNotes can hide.
       notes.push(keyedNote('importNote.motorFetchFailed', { motor: ref.designation, reason: errorReason(e) }));
       return unresolvedMotor(ref);
@@ -362,7 +386,6 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   const chosenConfigId = declared.some((c) => c.id === res.chosenConfigId) ? res.chosenConfigId! : declared[0]!.id;
 
   const mountNodes = findMounts(res.tree);
-  const mounts = mountNodes.map((m) => m.id as string);
   const byId = new Map(mountNodes.map((m) => [m.id as string, m]));
   // One complaint per mount and motor, however many configurations fly it.
   const misfits = new Set<string>();
@@ -386,7 +409,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     const key = `${mountId}|${spec.designation}`;
     if (misfits.has(key)) return;
     misfits.add(key);
-    const mount = (node!.name as string) || node!.type;
+    const mount = notePartName(node!);
     const tooWide = motor.diameter > fit.bore;
     notes.push(
       tooWide
@@ -415,7 +438,12 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     }
     // Every mount this configuration named no motor for gets the empty
     // placeholder (see emptyMountMotor), so nothing seeds it a default later.
-    for (const id of mounts) if (!motors[id]) motors[id] = { spec: emptyMountMotor() };
+    // It carries the mount's own ignition, which a motor chosen for it keeps,
+    // as desktop copies the mount's into a motor chosen for an empty slot.
+    for (const node of mountNodes) {
+      const id = node.id as string;
+      if (!motors[id]) motors[id] = { spec: emptyMountMotor(), ...mountIgnition(node) };
+    }
     configs.push({
       id: cfg.id,
       name: cfg.name,
@@ -433,7 +461,7 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   if (emptyMounts.length) {
     const named = emptyMounts.filter((m) => !chosen.motors[m.id as string]?.spec.designation);
     if (named.length) {
-      const names = fmtList(named.map((m) => `"${partLabel(i18n.t, m)}"`));
+      const names = noteList(named.map(notePartName), { quote: true });
       notes.push(keyedNote('importNote.mountsWithoutMotor', { mounts: names }));
     }
   }
@@ -441,15 +469,20 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
   // Seat the opened configuration into the throwaway handle, which is what the
   // static info below is read from. The other configurations are data at this
   // point; each is built in turn by whichever simulation flies it.
-  for (const [mountId, m] of Object.entries(chosen.motors)) {
-    if (!hasUsableCurve(m.spec)) continue;
-    design.setMotorById(mountId, m.spec);
-    if (m.ignitionEvent) design.setMotorIgnitionById(mountId, m.ignitionEvent, m.ignitionDelay ?? 0);
+  if (design) {
+    for (const [mountId, m] of Object.entries(chosen.motors)) {
+      if (!hasUsableCurve(m.spec)) continue;
+      design.setMotorById(mountId, m.spec);
+      if (m.ignitionEvent || m.ignitionDelay) {
+        design.setMotorIgnitionById(mountId, m.ignitionEvent ?? 'automatic', m.ignitionDelay ?? 0);
+      }
+    }
   }
 
-  const info = design.staticInfo();
+  const info = design?.staticInfo() ?? null;
   return {
     name: res.name,
+    ...(res.format ? { format: res.format } : {}),
     design,
     info,
     notes,
@@ -459,6 +492,6 @@ export async function loadOrk(buffer: ArrayBuffer): Promise<LoadedOrk> {
     chosenConfigId,
     launch: res.launch,
     ...(res.simulations ? { simulations: res.simulations } : {}),
-    unbuildable: built.unbuildable,
+    unbuildable: built?.unbuildable,
   };
 }

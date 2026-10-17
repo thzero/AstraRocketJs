@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { SimEditor } from '../../../src/components/sim/SimEditor';
 import { selectActive, useWorkspaceStore } from '../../../src/state/store';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { seedFromInput } from '../../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
@@ -62,6 +62,20 @@ describe('the time-step slider', () => {
     expect(slider.getAttribute('aria-label')).not.toBe(box.getAttribute('aria-label') ?? 'Time step');
     expect(screen.getAllByLabelText('Time step')).toEqual([box]);
   });
+
+  it('announces the time step at every stop, not the stop index', () => {
+    renderWithProviders(<SimEditor />);
+    const slider = screen.getByRole('slider') as HTMLInputElement;
+    const stops = Number(slider.max) - Number(slider.min) + 1;
+    expect(stops).toBeGreaterThan(2);
+    for (let i = Number(slider.min); i <= Number(slider.max); i++) {
+      fireEvent.change(slider, { target: { value: String(i) } });
+      const stored = selectActive(st()).prefs!.timeStep!;
+      const text = screen.getByRole('slider').getAttribute('aria-valuetext');
+      expect(text).toMatch(/ s$/);
+      expect(Number(text!.replace(/ s$/, ''))).toBe(stored);
+    }
+  });
 });
 
 /** The override field offers the range the kernel flies: 1 to 20 degrees. */
@@ -71,6 +85,18 @@ describe('the max angle step override', () => {
     const field = screen.getByLabelText('Max angle step') as HTMLInputElement;
     expect(Number(field.min)).toBeCloseTo(1);
     expect(Number(field.max)).toBeCloseTo(20);
+  });
+
+  it('shows the unit symbol and bounds in the angle unit when the unit is radians', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    try {
+      renderWithProviders(<SimEditor />);
+      const field = screen.getByLabelText('Max angle step') as HTMLInputElement;
+      expect(Number(field.min)).toBeCloseTo(Math.PI / 180, 4);
+      expect(field.parentElement?.textContent).toContain('rad');
+    } finally {
+      localStorage.clear();
+    }
   });
 
   it('shows a stored out-of-range override as the step the run flies', () => {

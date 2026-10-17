@@ -231,27 +231,34 @@ export function LaunchPanel({
   const speedEditBase = useRef<Map<string, { avg: number; sd: number }> | null>(null);
 
   /**
-   * Switch wind models. Multilevel is represented by having levels, so turning
-   * it on seeds one from the single wind (nothing typed is lost) and turning it
-   * off drops them, which is what `simConditions` keys the engine's choice on.
+   * Switch wind models. Multilevel is represented by having levels, which is
+   * what `simConditions` keys the engine's choice on. As on the desktop, where
+   * the type only picks between two models that both keep their values
+   * (SimulationOptions.setWindModelType), turning Multilevel off keeps the
+   * profile in `keptWindLevels` and turning it back on restores it. With no
+   * profile to restore, one level is seeded from the single wind, so nothing
+   * typed is lost. Each simulation is switched from its own conditions.
    */
   const setWindModel = (model: 'average' | 'multilevel') => {
-    if (model === 'average') return onChange({ windLevels: undefined });
-    // Each simulation from its own wind; one that already has a profile keeps it.
-    onChange((l) =>
-      l.windLevels?.length
-        ? {}
-        : {
-            windLevels: [
-              {
-                altitudeM: 0,
-                speed: l.windAverage || 0,
-                directionDeg: l.windDirectionDeg ?? DEFAULT_HEADING_DEG,
-                stddev: l.windStdDev || 0,
-              },
-            ],
+    if (model === 'average') {
+      return onChange((l) =>
+        l.windLevels?.length ? { windLevels: undefined, keptWindLevels: l.windLevels } : { windLevels: undefined },
+      );
+    }
+    onChange((l) => {
+      if (l.windLevels?.length) return {};
+      if (l.keptWindLevels?.length) return { windLevels: l.keptWindLevels, keptWindLevels: undefined };
+      return {
+        windLevels: [
+          {
+            altitudeM: 0,
+            speed: l.windAverage || 0,
+            directionDeg: l.windDirectionDeg ?? DEFAULT_HEADING_DEG,
+            stddev: l.windStdDev || 0,
           },
-    );
+        ],
+      };
+    });
   };
 
   return (
@@ -288,7 +295,13 @@ export function LaunchPanel({
           kind="deg"
           u={u}
           stepSi={Math.PI / 180}
-          minSi={0}
+          // Into the wind, the sign is the meaning: a negative angle launches
+          // with the wind, as on the desktop, whose rod angle runs -60 to 60
+          // and which the kernel flies as given (SimulationStatus rotates by
+          // the signed angle). The safety check judges the magnitude. With a
+          // fixed heading the direction field carries the meaning, so the box
+          // floors at 0.
+          minSi={launch.launchIntoWind ? -MAX_ROD_ANGLE_RAD[powerClass ?? 'model'] : 0}
           maxSi={MAX_ROD_ANGLE_RAD[powerClass ?? 'model']}
           hint={
             powerClass === null

@@ -1,6 +1,8 @@
-import { G0, trapezoidImpulse } from '../motors/motorMath';
+import { G0 } from '../motors/motorMath';
 import { degToRad } from '../../prefs/units';
 import { thrustAt, type Sample } from '../motors/motorCombine';
+import { finalizeSamples } from '../motors/curveFinalize';
+import { motorStatistics } from '../../engine/openRocketEngine';
 import { lerpAt } from '../flight/interpolate';
 
 /**
@@ -43,7 +45,10 @@ export interface RailInput {
 
 export interface RailExit {
   liftoffMassKg: number;
-  /** Mean thrust over the burn ÷ liftoff weight. */
+  /**
+   * The kernel's average thrust ÷ liftoff weight. NaN while the engine is not
+   * loaded, so it reads as a dash and passes no check.
+   */
   thrustToWeightAverage: number;
   /** Highest thrust ÷ liftoff weight. */
   thrustToWeightPeak: number;
@@ -65,11 +70,16 @@ function motorMassAt(m: RailMotor, t: number): number {
   return m.masses.length === 0 ? 0 : (lerpAt(m.times, m.masses, t) ?? 0);
 }
 
-/** Mean thrust over the burn, N. */
+/**
+ * The kernel's average thrust, N: impulse over the burn window between the
+ * crossings of 5% of peak (`ThrustCurveMotor.computeStatistics`, through
+ * `getMotorStatistics`), the figure the motor picker and the catalog show. The
+ * curve goes in as the kernel flies it (`finalizeSamples`). NaN while the
+ * engine is not loaded or when the kernel refuses the curve.
+ */
 function averageThrust(m: RailMotor): number {
-  const impulse = trapezoidImpulse(m.times, m.thrusts);
-  const burn = m.times[m.times.length - 1]! - m.times[0]!;
-  return burn > 0 ? impulse / burn : 0;
+  const curve = finalizeSamples(m.times.map((ti, i): Sample => [ti, m.thrusts[i] ?? 0]));
+  return motorStatistics(curve)?.averageThrust ?? NaN;
 }
 
 /** Where the climb stands when the stopping condition is met. */
@@ -119,6 +129,11 @@ function climb(motor: RailMotor, dryMassKg: number, stop: (s: number, v: number)
 }
 
 export function railExit(input: RailInput): RailExit | RailFailure {
+  return railExitWith(input, averageThrust(input.motor));
+}
+
+/** {@link railExit} with the motor's average thrust already read from the kernel. */
+function railExitWith(input: RailInput, averageThrustN: number): RailExit | RailFailure {
   const { motor, dryMassKg, railLengthM } = input;
   const liftoffMassKg = dryMassKg + (motor.masses[0] ?? 0);
   const weight = liftoffMassKg * G0;
@@ -127,8 +142,10 @@ export function railExit(input: RailInput): RailExit | RailFailure {
   const curve = motor.times.map((ti, i): Sample => [ti, motor.thrusts[i] ?? 0]);
   return {
     liftoffMassKg,
-    thrustToWeightAverage: averageThrust(motor) / weight,
+    thrustToWeightAverage: averageThrustN / weight,
     thrustToWeightPeak: Math.max(...motor.thrusts) / weight,
+    // Over the mass at that moment, not the liftoff mass: the motor has burned
+    // some propellant by the time the rocket leaves the rail.
     thrustToWeightAtExit: thrustAt(curve, at.t) / ((dryMassKg + motorMassAt(motor, at.t)) * G0),
     liftoffS: at.liftoffS,
     exitS: at.t,
@@ -168,13 +185,14 @@ export function maxDryMassKg(
   minExitMs: number,
   minThrustToWeight = MIN_THRUST_TO_WEIGHT,
 ): number | null {
+  const average = averageThrust(motor);
   const ok = (dry: number) => {
-    const r = railExit({ motor, dryMassKg: dry, railLengthM });
+    const r = railExitWith({ motor, dryMassKg: dry, railLengthM }, average);
     return typeof r !== 'string' && r.exitSpeedMs >= minExitMs && r.thrustToWeightAverage >= minThrustToWeight;
   };
   if (!ok(0)) return null;
   // The thrust-to-weight bound alone caps it, so the search has a finite top.
-  let hi = averageThrust(motor) / (minThrustToWeight * G0) - (motor.masses[0] ?? 0);
+  let hi = average / (minThrustToWeight * G0) - (motor.masses[0] ?? 0);
   if (ok(hi)) return hi;
   let lo = 0;
   for (let i = 0; i < 40; i++) {

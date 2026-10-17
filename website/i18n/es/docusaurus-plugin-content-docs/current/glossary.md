@@ -11,7 +11,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Acabado de superficie**: Lo rugosa que es la superficie de una pieza, lo que cambia el arrastre por fricción. *En la aplicación:* no tiene campo; un acabado leído de un archivo `.ork` se usa en el vuelo y se vuelve a escribir al guardar el diseño.
 
-**Aceleración**: La rapidez con la que cambia la velocidad. *En la aplicación:* el recuadro **Acel. máx**, la gráfica de aceleración y las columnas `Az`, `Al`, `Ax`, `Ay`, `Abx`, `Aby` de una exportación de datos de vuelo. Un acelerómetro a bordo marca unos 1 G en la rampa donde esto marca cero, porque esto es la aceleración respecto al suelo con la gravedad ya tenida en cuenta.
+**Aceleración**: La rapidez con la que cambia la velocidad. *En la aplicación:* el recuadro **Acel. máx**, la gráfica de aceleración y las columnas `Az`, `Al`, `Ax`, `Ay`, `Abx`, `Aby`, `Abz` de una exportación de datos de vuelo. Un acelerómetro a bordo marca unos 1 G en la rampa donde esto marca cero, porque esto es la aceleración respecto al suelo con la gravedad ya tenida en cuenta.
 
 **Aceleración de Coriolis**: La aceleración lateral aparente de cualquier cosa que se mueve sobre una Tierra que gira. Diminuta en vuelos de modelismo; está en los datos porque el motor la modela. *En la aplicación:* la columna `Ac`, y la opción **Geodésico** de lanzamiento que cambia el modelo.
 
@@ -25,7 +25,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Altitud del campo de vuelo**: La altura del lugar de lanzamiento sobre el nivel del mar, que fija el aire estándar con el que vuelas si dejas la temperatura y la presión en blanco. *En la aplicación:* **Altitud** en las condiciones de lanzamiento. Ver **ISA**.
 
-**Ángulo de ataque (AoA, α)**: El ángulo entre hacia dónde apunta el cohete y hacia dónde va. *En la aplicación:* la columna `α` y el aviso de ángulo de ataque grande, que salta cuando un vuelo sale del rango en el que la aerodinámica es válida.
+**Ángulo de ataque (AoA, α)**: El ángulo entre hacia dónde apunta el cohete y hacia dónde va. *En la aplicación:* la columna **Ángulo de ataque** y el aviso de ángulo de ataque grande, que salta cuando un vuelo sale del rango en el que la aerodinámica es válida.
 
 **Ángulo de inclinación de aleta**: Una aleta inclinada sobre su propia raíz, que hace girar el cohete en vuelo. *En la aplicación:* **Ángulo de inclinación** en un juego de aletas.
 
@@ -57,7 +57,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Barrido**: Cuánto queda la punta de una aleta por detrás de su raíz. El **ángulo de barrido** es lo mismo expresado como ángulo. *En la aplicación:* **Flecha** y **Ángulo del borde de ataque** en un juego de aletas, que se siguen.
 
-**Barrido de deriva**: Volar la misma simulación a lo largo de una cuadrícula de velocidades y rumbos de viento para ver dónde podría aterrizar. *En la aplicación:* el botón **Deriva** de la traza sobre el terreno, que abre el panel **Barrido de deriva**.
+**Barrido de deriva**: Volar la misma simulación a lo largo de una cuadrícula de velocidades y rumbos de viento para ver dónde podría aterrizar. *En la aplicación:* el botón **Deriva** de la **Traza en tierra**, que abre el panel **Barrido de deriva**.
 
 **Barrowman (método)**: El método analítico original para hallar el centro de presión de un cohete a partir de las formas de sus componentes. El motor usa la forma extendida. Ver **Barrowman extendido**.
 
@@ -75,11 +75,10 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Carga útil**: Todo lo que el cohete lleva y que no está ahí para hacerlo volar: un altímetro, una cámara, un huevo.
 
-**Cd volado**: El coeficiente de arrastre con el que un dispositivo de recuperación voló realmente, que es su propio **Cd** salvo que se haya dejado seguir automáticamente al diseño.
 
-**Centro de gravedad (CG)**: Donde el cohete se equilibra. *En la aplicación:* el marcador de CG en las vistas, el recuadro de CG y la serie `cgLocation`. Se mueve hacia delante a medida que se quema el propelente.
+**Centro de gravedad (CG)**: Donde el cohete se equilibra. *En la aplicación:* el marcador de CG en las vistas, el recuadro de CG, y la gráfica y la columna **CG**. Se mueve hacia delante a medida que se quema el propelente.
 
-**Centro de presión (CP)**: Donde actúan las fuerzas aerodinámicas. *En la aplicación:* el marcador de CP, el recuadro de CP y la serie `cpLocation`. Se mueve con el ángulo de ataque y el número de Mach. En la vista Aero puede leerse como longitud o como porcentaje de la longitud total o de la **Longitud aerodinámica**.
+**Centro de presión (CP)**: Donde actúan las fuerzas aerodinámicas. *En la aplicación:* el marcador de CP, el recuadro de CP, y la gráfica y la columna **CP**. Se mueve con el ángulo de ataque y el número de Mach. En la vista Aero puede leerse como longitud o como porcentaje de la longitud total o de la **Longitud aerodinámica**.
 
 **Cinta**: Una cinta usada en lugar de un paracaídas para un descenso rápido y a la deriva en cohetes pequeños. *En la aplicación:* **Cinta**, dimensionada por longitud y ancho de tira.
 
@@ -113,7 +112,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Densidad del material**: Lo que pesa un material por unidad de volumen, de área o de longitud: volumétrica para sólidos, superficial para tejidos, lineal para cordón. *En la aplicación:* el selector de materiales, donde se pueden añadir materiales propios.
 
-**Deriva**: Cuánto se aleja el cohete de la rampa a favor del viento al aterrizar. *En la aplicación:* la traza sobre el terreno, la lectura de deriva y el **Barrido de deriva**.
+**Deriva**: Cuánto se aleja el cohete de la rampa a favor del viento al aterrizar. *En la aplicación:* la **Traza en tierra**, la lectura de deriva y el **Barrido de deriva**.
 
 **Descenso balístico**: Bajar sin ningún dispositivo de recuperación desplegado. *En la aplicación:* un vuelo sin dispositivo, o uno en el que el despliegue nunca se activó, aterriza a velocidad balística; la velocidad de impacto dice con cuánta fuerza.
 
@@ -137,9 +136,9 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Ejecución guardada**: Una simulación conservada en la lista con sus resultados, para poder comparar varias. Ver **Ejecución desactualizada**.
 
-**Elipse de deriva**: La zona en la que aterrizan varias ejecuciones, dibujada sobre la traza del terreno. Cuando el viento es aleatorio muestra la dispersión que un único punto de aterrizaje oculta.
+**Elipse de deriva**: La elipse a dos desviaciones típicas alrededor de los aterrizajes de un **Barrido de deriva**, dibujada sobre la **Traza en tierra**. Muestra la dispersión que un único punto de aterrizaje oculta.
 
-**Empuje**: La fuerza que produce un motor. El **empuje medio** es su media durante la combustión (el número del nombre del motor) y el **empuje de pico** su máximo. *En la aplicación:* la columna `Ft` y la curva de empuje.
+**Empuje**: La fuerza que produce un motor. El **empuje medio** es su media durante la combustión (el número del nombre del motor) y el **empuje de pico** su máximo. *En la aplicación:* la columna **Empuje** y la curva de empuje.
 
 **Estimación**: Una cifra que la aplicación calcula a partir del diseño en lugar de leerla de un vuelo. La aplicación lo indica donde muestra una, y la sustituye por la cifra del propio motor en cuanto una simulación la tiene. *En la aplicación:* **Masa (Recuperación, est.)** y el bloque de dimensionado del descenso antes de una ejecución.
 
@@ -147,7 +146,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Etapa paralela (propulsor lateral)**: Un propulsor montado al costado del cohete en lugar de debajo, que se separa y vuela su propia rama. *En la aplicación:* **Propulsor** en el árbol de componentes.
 
-**Evento de encendido**: Lo que enciende un motor: el lanzamiento, una separación de etapa o el fin de combustión de otro motor. Con un **retardo de encendido** espera ese tiempo después. *En la aplicación:* los ajustes de encendido del motor.
+**Evento de encendido**: Lo que enciende un motor: **Lanzamiento**, **Eyección de la etapa inferior** o **Fin de combustión de la etapa inferior**. **Automático** es Lanzamiento para la etapa que despega y la eyección de la etapa inferior para las demás; **Nunca** deja el motor sin encender. Con un **retardo de encendido** espera ese tiempo después. *En la aplicación:* los ajustes **Encendido** y **Retardo de encendido** del motor.
 
 **Evento de separación**: Una etapa que suelta la de debajo, opcionalmente tras un **retardo de separación**. *En la aplicación:* los ajustes de separación de la etapa, y el evento de vuelo `STAGE_SEPARATION`.
 
@@ -157,9 +156,9 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 ## F {#f}
 
-**Factor de escala**: Multiplicar las dimensiones de todo un diseño para hacer una versión mayor o menor. *En la aplicación:* el diálogo **Escala**.
+**Factor de escala**: Multiplicar las dimensiones de todo un diseño para hacer una versión mayor o menor. *En la aplicación:* el diálogo **Escalar cohete**.
 
-**Fin de combustión**: El momento en que el motor deja de empujar; el **tiempo de combustión** es cuánto ha durado. *En la aplicación:* el evento de vuelo `BURNOUT`.
+**Fin de combustión**: El momento en que el motor deja de empujar; el **tiempo de combustión** es cuánto ha durado. *En la aplicación:* el evento de vuelo `BURNOUT`, y el tiempo de combustión del propio motor en el explorador de motores.
 
 **Finura (relación de)**: La longitud total dividida por el diámetro máximo. Un número bajo es rechoncho, uno alto es una aguja. *En la aplicación:* un recuadro de estadísticas.
 
@@ -191,11 +190,11 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Instalación sin conexión**: La aplicación se instala en tu dispositivo y funciona sin red, incluida esta documentación y los diseños de ejemplo que trae. Un campo de vuelo a menudo no tiene cobertura. *En la aplicación:* el aviso de instalación de tu navegador, y **Ayuda**, que se lee sin conexión tras la primera visita, instalada o no.
 
-**Instancia**: Una repetición de una pieza: un par de botones de riel, un anillo de cápsulas, un racimo de tubos. *En la aplicación:* el número de instancias y su separación en una pieza que se puede repetir.
+**Instancia**: Una repetición de una pieza: un par de botones de riel, un anillo de cápsulas, un racimo de tubos. *En la aplicación:* **Número de instancias** y **Separación entre copias** en una pieza que se puede repetir.
 
 **Integración**: Avanzar el vuelo en pequeñas porciones de tiempo, que es como se calcula toda la trayectoria. El motor usa **RK4**, un integrador Runge-Kutta de cuarto orden, con paso adaptativo. Ver **Paso de tiempo**.
 
-**Intensidad de turbulencia**: La σ de las rachas expresada como porcentaje del viento medio, que a menudo es la forma más fácil de pensarla. *En la aplicación:* el editor del perfil de viento, donde las dos se siguen.
+**Intensidad de turbulencia**: La σ de las rachas expresada como porcentaje del viento medio, que a menudo es la forma más fácil de pensarla. *En la aplicación:* **Intensidad de turbulencia** en las condiciones de lanzamiento y en el editor del perfil de viento, donde ella y la desviación estándar se siguen.
 
 **ISA**: La Atmósfera Estándar Internacional: un modelo acordado de cómo cambian la temperatura, la presión y la densidad con la altitud. *En la aplicación:* lo que vuela un vuelo cuando las condiciones de lanzamiento dejan la temperatura y la presión en blanco.
 
@@ -249,7 +248,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Núcleo de simulación**: El propio núcleo de física de OpenRocket, compilado para ejecutarse en tu navegador. Todos los números que produce una simulación vienen de él. Ver **OpenRocket**.
 
-**Número de Mach**: La velocidad como fracción de la velocidad del sonido. **Subsónico** es por debajo de Mach 1, **transónico** alrededor y **supersónico** por encima. *En la aplicación:* el recuadro **Mach máx.** y la columna `M`.
+**Número de Mach**: La velocidad como fracción de la velocidad del sonido. **Subsónico** es por debajo de Mach 1, **transónico** alrededor y **supersónico** por encima. *En la aplicación:* el recuadro **Mach máx.** y la columna **Mach**.
 
 **Número de Reynolds**: Una medida de cómo se comporta un flujo a un tamaño y una velocidad dados, que es lo que decide cuánta parte del arrastre es fricción superficial. *En la aplicación:* la columna `R` de una exportación de datos de vuelo.
 
@@ -283,7 +282,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 ## R {#r}
 
-**Racimo**: Más de un motor en una etapa, encendidos juntos. *En la aplicación:* un soporte de motor con un número de instancias mayor que uno.
+**Racimo**: Más de un motor en una etapa, encendidos juntos. *En la aplicación:* el patrón **Clúster** de un tubo interior.
 
 **Rama de simulación**: Una de las piezas que descienden en un vuelo por etapas. El sostenedor es una rama y cada propulsor separado es otra, cada una con sus propios eventos y su propia masa, que es la razón por la que las cifras de un propulsor no son las del conjunto.
 
@@ -291,7 +290,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Relación de amortiguamiento**: Cuánto se apaga por sí misma una oscilación del cohete. *En la aplicación:* las columnas `ζ` y `ωn`.
 
-**Relación de aspecto**: La envergadura de una aleta frente a su cuerda: alta es larga y estrecha, baja es corta y rechoncha. *En la aplicación:* un campo derivado en un juego de aletas.
+**Relación de aspecto**: La longitud de una cinta frente a su ancho: alta es larga y estrecha, baja es corta y ancha. *En la aplicación:* **Relación de aspecto** en una cinta, un campo derivado: al escribirla se conserva el área de la cinta y cambian la longitud y el ancho.
 
 **Relación empuje-peso**: El empuje dividido por el peso del cohete al despegar. Por debajo de 5:1 aproximadamente, un cohete sale de la rampa con desgana. *En la aplicación:* la columna **Empuje:peso** de la tabla de motores del informe de diseño, y la columna `Twr`.
 
@@ -335,13 +334,13 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Tipo de motor**: Qué clase de motor es: de un solo uso, recargable o híbrido. El **tipo de propelente** nombra lo que lleva dentro. Ambos vienen del catálogo de motores, no de tu diseño, y ninguno cambia la simulación: lo que vuela es la curva de empuje. *En la aplicación:* los filtros y las filas de detalle del explorador de motores.
 
-**Tira de estadísticas**: La fila de recuadros bajo las vistas del diseño: longitud, diámetro, relación de finura, masa vacía y cargada, CG, CP, masa de recuperación, estabilidad, coeficiente de arrastre y los momentos de inercia. Todas sus cifras vienen del motor mientras editas, salvo las marcadas como estimación. Ver **Estimación**.
+**Tira de estadísticas**: La fila de recuadros bajo las vistas del diseño: longitud, diámetro, relación de finura, masa vacía y cargada, CG, CP, masa de recuperación, estabilidad, coeficiente de arrastre, pendiente de fuerza normal y los momentos de inercia. Todas sus cifras vienen del motor mientras editas, salvo las marcadas como estimación. Ver **Estimación**.
 
 **Tobera**: La garganta y la campana del motor, que aceleran los gases de escape. *En la aplicación:* el diámetro de salida de la tobera de una etapa, cuando un archivo `.ork` lo define, reduce el arrastre de base mientras el motor empuja, y la vista Aero muestra entonces una curva de arrastre con motor.
 
 **Transición**: Una pieza cuyo diámetro cambia de un extremo al otro, uniendo tubos de tamaños distintos. Una que se estrecha en la cola es una **cola de bote**.
 
-**Traza sobre el terreno**: El recorrido que el vuelo hizo sobre el suelo, dibujado en un mapa del campo de vuelo. Ver **Elipse de deriva**.
+**Traza en tierra**: El recorrido que el vuelo hizo sobre el suelo, dibujado en un mapa del campo de vuelo. Ver **Elipse de deriva**.
 
 **Tubo de cuerpo**: Un tubo recto de diámetro constante: la sección principal del fuselaje. *En la aplicación:* **Tubo de cuerpo** en el árbol de componentes.
 
@@ -373,7 +372,7 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 
 **Viento medio y rachas**: La velocidad constante del viento, y cuánto varía alrededor de ella. *En la aplicación:* las condiciones de lanzamiento, o un **perfil de viento** por capas que da velocidad y dirección a varias altitudes.
 
-**Vista desde la cola**: El cohete visto de frente por detrás, de modo que un número de aletas, un ángulo de reloj o un racimo de motores se ve tal como está. *En la aplicación:* el botón **Trasera** junto a **2D** y **3D**.
+**Vista desde la cola**: El cohete visto de frente por detrás, de modo que un número de aletas, un ángulo de reloj o un racimo de motores se ve tal como está. *En la aplicación:* el botón **Trasera** junto a **Lateral**, en las vistas 2D y 3D.
 
 **Vista esquemática (2D) y vista 3D**: Las dos formas en que se dibuja el diseño: una vista lateral plana con reglas opcionales, y un modelo sólido que se puede girar. Las dos pueden mostrar los marcadores de CG y CP y la tarjeta de datos. Ver **Vista desde la cola**.
 
@@ -400,62 +399,60 @@ Usa el buscador de la parte superior de este sitio, o el buscador del diálogo *
 | `.zip` | Las piezas imprimibles del cohete entero, un archivo por pieza, cuando la exportación 3MF está configurada así. |
 | `.dxf` | Hojas de corte 2D para aletas, anillos de centrado y mamparos. |
 | `.pdf` | El informe de diseño, con sus plantillas 1:1 y la guía de marcado de aletas. |
-| `.svg`, `.png`, `.jpg` | El esquema 2D como dibujo o como imagen. |
+| `.svg`, `.png`, `.jpg` | El esquema 2D como dibujo o como imagen. PNG y JPG también capturan la vista 3D. |
 | `.kml`, `.gpx` | La trayectoria del vuelo, para Google Earth y herramientas GPS. Los waypoints también van a `.csv`. |
 | `.mustache` | Una plantilla de exportación de la trayectoria, importada o descargada. |
 
 ## Símbolos de las gráficas y las descargas {#symbols-in-plots-and-downloads}
 
-Todas las columnas que puede llevar una exportación de datos de vuelo. El motor las registra; la aplicación solo las etiqueta.
+Una exportación de datos de vuelo escribe cada columna con su nombre y su unidad: **Tiempo**, **Altitud**, **Velocidad**, **Aceleración**, **Masa**, **Empuje**, **Resistencia**, **Mach**, **Margen de estabilidad**, **CP**, **CG** y **Ángulo de ataque**, y después los nombres de abajo. Los símbolos son las formas abreviadas de OpenRocket para esos nombres, que usan las entradas de arriba. El motor registra todas las columnas; la aplicación solo las etiqueta.
 
-| Símbolo | Nombre |
+| Símbolo | Nombre en la exportación |
 | --- | --- |
 | `ha` | Altitud sobre el nivel del mar |
 | `Vz` | Velocidad vertical |
 | `Vl` | Velocidad lateral |
 | `Az` | Aceleración vertical |
 | `Al` | Aceleración lateral |
-| `Ax`, `Ay` | Aceleración al Este, al Norte |
-| `Abx`, `Aby` | Aceleración en los ejes propios del cohete |
-| `Ac` | Aceleración de Coriolis |
-| `g` | Aceleración de la gravedad en la posición del cohete |
-| `Px`, `Py` | Posición al Este y al Norte del punto de lanzamiento |
-| `Pl` | Distancia lateral al punto de lanzamiento |
+| `Ax`, `Ay` | Aceleración hacia el este, Aceleración hacia el norte |
+| `Abx`, `Aby`, `Abz` | Aceleración del cuerpo en X, Aceleración del cuerpo en Y, Aceleración del cuerpo en Z |
+| `Ac` | Aceleración Coriolis |
+| `g` | Aceleración gravitacional |
+| `Px`, `Py` | Posición al este del lanzamiento, Posición al norte del lanzamiento |
+| `Pl` | Distancia lateral |
 | `θl` | Dirección lateral |
 | `Φ` | Orientación lateral (azimut) |
-| `Θ` | Orientación vertical (cenit) |
-| `dθ`, `dΨ`, `dΦ` | Tasa de cabeceo, guiñada y balanceo |
-| `α` | Ángulo de ataque |
-| `M` | Número de Mach |
+| `Θ` | Orientación vertical (zenit) |
+| `dθ`, `dΨ`, `dΦ` | Tasa de cabeceo, Tasa de guiñada, Tasa de rotación |
 | `Vs` | Velocidad del sonido |
 | `ρ` | Densidad del aire |
 | `P` | Presión del aire |
 | `T` | Temperatura del aire |
-| `Vw`, `θw` | Velocidad y dirección del viento |
-| `φ`, `λ` | Latitud y longitud |
-| `Ft` | Empuje |
+| `Vw`, `θw` | Velocidad del viento, Dirección del viento |
+| `φ`, `λ` | Latitud, Longitud |
+| `Fta` | Corrección de presión de empuje |
 | `Twr` | Relación empuje-peso |
-| `mp` | Masa del motor |
-| `Cd` | Coeficiente de arrastre |
-| `Cda` | Coeficiente de arrastre axial |
-| `Cdf` | Coeficiente de arrastre por fricción |
-| `Cdp` | Coeficiente de arrastre de presión |
-| `Cdb` | Coeficiente de arrastre de base |
-| `Cn` | Coeficiente de fuerza normal |
-| `Cθ` | Coeficiente de momento de cabeceo |
-| `CτΦ`, `CτΨ` | Coeficiente de momento de balanceo y de guiñada |
-| `Cτs` | Coeficiente de fuerza lateral |
-| `Ccm` | Coeficiente de momento corrector |
-| `Cdm` | Coeficiente de momento de amortiguamiento |
-| `Cdm_aero`, `Cdm_prop` | Momento de amortiguamiento, partes aerodinámica y propulsiva |
-| `Cζθ`, `CζΦ`, `CζΨ` | Coeficiente de amortiguamiento de cabeceo, balanceo y guiñada |
-| `CfΦ` | Coeficiente de forzado de balanceo |
+| `mp` | Masa del propulsor |
+| `Cd` | Coeficiente de rozamiento |
+| `Cda` | Coeficiente de rozamiento axial |
+| `Cdf` | Coeficiente de rozamiento por fricción |
+| `Cdp` | Coeficiente de rozamiento por presión |
+| `Cdb` | Coeficiente de rozamiento base |
+| `Cn` | Coeficiente de fuerza normal (CN) |
+| `CNα` | Derivada del coeficiente de fuerza normal (CNα) |
+| `Cθ` | Coeficiente del momento del cabeceo |
+| `CτΦ`, `CτΨ` | Coeficiente del momento de rotación, Coeficiente del momento de guiñada |
+| `Cτs` | Coeficiente de la fuerza lateral |
+| `Ccm` | Coeficiente de momento correctivo |
+| `Cdm` | Coeficiente de amortiguamiento |
+| `Cdm_aero`, `Cdm_prop` | Coeficiente de amortiguamiento (aerodinámico), Coeficiente de amortiguamiento (propulsivo) |
+| `Cζθ`, `CζΦ`, `CζΨ` | Coeficiente de amortiguación del cabeceo, Coeficiente de amortiguación de la rotación, Coeficiente de amortiguación de guiñada |
+| `CfΦ` | Coeficiente de la fuerza de rotación |
 | `ζ` | Relación de amortiguamiento |
 | `ωn` | Frecuencia natural |
-| `Il` | Momento de inercia longitudinal (cabeceo) |
-| `Ir` | Momento de inercia rotacional (balanceo) |
+| `Il` | Momento de inercia longitudinal |
+| `Ir` | Momento de inercia rotacional |
 | `Ar` | Área de referencia |
 | `Lr` | Longitud de referencia |
 | `R` | Número de Reynolds |
 | `dt` | Paso de tiempo de la simulación |
-| `tc` | Tiempo de cálculo |

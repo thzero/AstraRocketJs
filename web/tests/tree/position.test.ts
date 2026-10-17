@@ -12,7 +12,7 @@ import { KERNEL_DEFAULTS } from '../../src/tree/kernelDefaults';
 import { axialFrameOf } from '../../src/tree/axialRebase';
 
 describe('axialLength', () => {
-  it('uses the furthest point x for a freeform fin set', () => {
+  it('uses the root chord from the first to the last point for a freeform fin set', () => {
     const fin = {
       type: 'freeformfinset',
       points: [
@@ -48,9 +48,9 @@ describe('axialLength', () => {
     expect(axialLength({ type: 'centeringring' })).toBeCloseTo(0.002);
     expect(axialLength({ type: 'engineblock' })).toBeCloseTo(0.005);
     expect(axialLength({ type: 'innertube' })).toBeCloseTo(0.07);
-    expect(axialLength({ type: 'tubecoupler' })).toBeCloseTo(0.05);
-    expect(axialLength({ type: 'launchlug' })).toBeCloseTo(0.05);
-    expect(axialLength({ type: 'masscomponent' })).toBeCloseTo(0.02);
+    expect(axialLength({ type: 'tubecoupler' })).toBeCloseTo(KERNEL_DEFAULTS.tubecoupler.length);
+    expect(axialLength({ type: 'launchlug' })).toBeCloseTo(KERNEL_DEFAULTS.launchlug.length);
+    expect(axialLength({ type: 'masscomponent' })).toBeCloseTo(KERNEL_DEFAULTS.masscomponent.length);
     expect(axialLength({ type: 'tubefinset' })).toBeCloseTo(0.1);
     expect(axialLength({ type: 'parachute' })).toBeCloseTo(0.025);
     expect(axialLength({ type: 'streamer' })).toBeCloseTo(0.025);
@@ -110,7 +110,7 @@ describe('resolveFilePositions', () => {
   });
 
   it('lays out a member with no length at the kernel length for its type', () => {
-    // The nose has no length key: it is 0.07 m in the kernel (KERNEL_DEFAULTS.nosecone).
+    // The nose has no length key: it is NoseCone()'s length in the kernel (KERNEL_DEFAULTS.nosecone).
     const tree: RocketTree = {
       components: [
         {

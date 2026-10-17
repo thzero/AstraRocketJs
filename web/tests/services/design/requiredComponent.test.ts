@@ -32,6 +32,14 @@ const tree = (over: Record<string, unknown> = {}): RocketTree =>
                 thickness: 0.003,
                 ...(over.fins ?? {}),
               },
+              {
+                id: 'button',
+                type: 'railbutton',
+                name: 'Button',
+                outerDiameter: 0.009,
+                height: 0.008,
+                ...(over.button ?? {}),
+              },
             ],
             ...(over.tube ?? {}),
           },
@@ -69,15 +77,6 @@ describe('badDimensions', () => {
     expect(badDimensions({ components: [nose, tail] } as unknown as RocketTree)).toEqual([]);
   });
 
-  it('still needs every other dimension of a filled part, and the wall of a hollow one', () => {
-    expect(
-      badDimensions(tree({ tube: { filled: true, thickness: undefined, length: 0 } })).map((b) => b.field),
-    ).toEqual(['length']);
-    expect(badDimensions(tree({ tube: { filled: false, thickness: undefined } })).map((b) => b.field)).toEqual([
-      'thickness',
-    ]);
-  });
-
   it('finds nothing in a healthy design', () => {
     expect(badDimensions(tree())).toEqual([]);
   });
@@ -89,26 +88,25 @@ describe('badDimensions', () => {
     expect(badDimensions(tree()).map((d) => d.field)).not.toContain('sweep');
   });
 
-  it('catches a zeroed dimension and names the part', () => {
-    const bad = badDimensions(tree({ tube: { outerRadius: 0 } }));
+  it('catches a zeroed value and names the part', () => {
+    const bad = badDimensions(tree({ fins: { finCount: 0 } }));
     expect(bad).toHaveLength(1);
-    expect(bad[0]).toMatchObject({ id: 'tube', type: 'bodytube', name: 'Body tube', field: 'outerRadius' });
+    expect(bad[0]).toMatchObject({ id: 'fins', type: 'trapezoidfinset', name: 'Fins', field: 'finCount' });
   });
 
-  it('catches a dimension that is missing entirely', () => {
-    const bad = badDimensions(tree({ tube: { thickness: undefined } }));
-    expect(bad.map((d) => d.field)).toContain('thickness');
+  it('takes a value the part does not carry as the kernel default, which flies', () => {
+    expect(badDimensions(tree({ fins: { finCount: undefined }, button: { outerDiameter: undefined } }))).toEqual([]);
   });
 
-  it('reports every bad dimension, nested parts included', () => {
-    const bad = badDimensions(tree({ tube: { outerRadius: 0 }, fins: { thickness: 0 } }));
-    expect(bad.map((d) => `${d.name}.${d.field}`)).toEqual(['Body tube.outerRadius', 'Fins.thickness']);
+  it('reports every bad value, nested parts included', () => {
+    const bad = badDimensions(tree({ fins: { finCount: 0 }, button: { outerDiameter: 0 } }));
+    expect(bad.map((d) => `${d.name}.${d.field}`)).toEqual(['Fins.finCount', 'Button.outerDiameter']);
   });
 
   it('carries no name for a part that has none, leaving the label to the reader', () => {
-    const bad = badDimensions(tree({ tube: { name: undefined, outerRadius: 0 } }));
+    const bad = badDimensions(tree({ fins: { name: undefined, finCount: 0 } }));
     expect(bad[0]!.name).toBe('');
-    expect(bad[0]!.type).toBe('bodytube');
+    expect(bad[0]!.type).toBe('trapezoidfinset');
   });
 
   it('knows nothing about types it has no rules for', () => {
@@ -122,39 +120,39 @@ describe('designBlocker', () => {
   });
 
   it('blocks a design with a zeroed dimension', () => {
-    const b = designBlocker(tree({ tube: { outerRadius: 0 } }));
+    const b = designBlocker(tree({ fins: { finCount: 0 } }));
     expect(b?.kind).toBe('badGeometry');
   });
 
   it('reports the missing MOUNT first, since without one there is no flight', () => {
-    const b = designBlocker(tree({ tube: { motorMount: false, outerRadius: 0 } }));
+    const b = designBlocker(tree({ tube: { motorMount: false }, fins: { finCount: 0 } }));
     expect(b?.kind).toBe('noMount');
   });
 
   it('translates the part TYPE when the part has no name of its own', () => {
     // The fallback is a bare token like "bodytube"; printing that at the user
     // would leak an internal name into the message.
-    const b = designBlocker(tree({ tube: { name: undefined, outerRadius: 0 } }))!;
-    expect(designBlockerText(b, t)).toContain('part.bodytube');
+    const b = designBlocker(tree({ fins: { name: undefined, finCount: 0 } }))!;
+    expect(designBlockerText(b, t)).toContain('part.trapezoidfinset');
   });
 
   it("keeps a part's own name even when it reads like a type", () => {
     // An unnamed part arrives with no name, not one copied from its type, so the
     // message can tell it from a part someone called "bodytube" and translate
     // only the first.
-    const b = designBlocker(tree({ tube: { name: 'bodytube', outerRadius: 0 } }))!;
+    const b = designBlocker(tree({ fins: { name: 'bodytube', finCount: 0 } }))!;
     expect(designBlockerText(b, t)).toContain('name=bodytube,');
   });
 
   it('names each part once, listing all of its bad dimensions together', () => {
     // One thing to go and fix, not two.
-    const b = designBlocker(tree({ tube: { outerRadius: 0, thickness: 0 } }))!;
+    const b = designBlocker(tree({ button: { outerDiameter: 0, height: 0 } }))!;
     const msg = designBlockerText(b, t);
     expect(msg).toContain('sim.badGeometry');
-    expect(msg).toContain('sim.badGeometryPart(name=Body tube,');
-    expect(msg).toContain('part.field.outerRadius');
-    expect(msg).toContain('part.field.thickness');
+    expect(msg).toContain('sim.badGeometryPart(name=Button,');
+    expect(msg).toContain('part.field.outerDiameter');
+    expect(msg).toContain('part.field.height');
     // The part is named once, not repeated per field.
-    expect(msg.match(/Body tube/g)).toHaveLength(1);
+    expect(msg.match(/Button/g)).toHaveLength(1);
   });
 });

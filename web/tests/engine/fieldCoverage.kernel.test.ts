@@ -27,6 +27,12 @@ const NO_STATIC_EFFECT: Record<string, string> = {
   'bodytube.motorOverhang': 'moves the motor; no motor in this build',
   'innertube.motorMount': 'mount flag; no motor in this build',
   'innertube.motorOverhang': 'moves the motor; no motor in this build',
+  // The mount's own ignition (getDefaultMotorConfig): a motor put in the mount
+  // starts from it, and the motor's own ignition is what flies.
+  'bodytube.ignitionEvent': "the mount's own ignition; flies nothing",
+  'bodytube.ignitionDelay': "the mount's own ignition; flies nothing",
+  'innertube.ignitionEvent': "the mount's own ignition; flies nothing",
+  'innertube.ignitionDelay': "the mount's own ignition; flies nothing",
   'parachute.cd': 'descent drag only',
   'parachute.deployEvent': 'flight event',
   'parachute.deployAltitude': 'flight event',
@@ -39,6 +45,17 @@ const NO_STATIC_EFFECT: Record<string, string> = {
   'parallelstage.separationDelay': 'flight event',
   'parallelstage.separationAltitude': 'flight event',
   'masscomponent.massComponentType': 'a label; desktop uses it only to name and picture the part',
+  // Surface roughness feeds the skin-friction drag of a flight (ExternalComponent.getFinish,
+  // read by the aerodynamic calculator at a Reynolds number), not the static build.
+  'nosecone.finish': 'skin friction in flight only',
+  'bodytube.finish': 'skin friction in flight only',
+  'transition.finish': 'skin friction in flight only',
+  'trapezoidfinset.finish': 'skin friction in flight only',
+  'ellipticalfinset.finish': 'skin friction in flight only',
+  'freeformfinset.finish': 'skin friction in flight only',
+  'tubefinset.finish': 'skin friction in flight only',
+  'launchlug.finish': 'skin friction in flight only',
+  'railbutton.finish': 'skin friction in flight only',
   // Turning an axially symmetric arrangement changes no mass, CG or inertia.
   'tubefinset.rotation': 'symmetric fin pattern',
   'innertube.clusterRotation': 'symmetric cluster',

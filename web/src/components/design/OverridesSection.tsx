@@ -24,6 +24,7 @@ function OverrideRow({
   enabled,
   value,
   step,
+  min,
   onToggle,
   onValue,
   onCommit,
@@ -37,6 +38,8 @@ function OverrideRow({
   enabled: boolean;
   value: number;
   step: number;
+  /** The box's floor; absent, it takes any number. */
+  min?: number;
   onToggle: (on: boolean) => void;
   /** `null` while the box is empty: a cleared box is not a typed 0. */
   onValue: (v: number | null) => void;
@@ -73,7 +76,7 @@ function OverrideRow({
             onCommit={onCommit}
             disabled={!enabled || locked}
             step={step}
-            min={0}
+            min={min}
             className="w-24 rounded-md bg-raised px-2 py-1 text-right text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500 disabled:opacity-40"
           />
           {unit && <span className="min-w-10 text-xs text-ink-faint">{unit}</span>}
@@ -141,6 +144,9 @@ export function OverridesSection({
         label={t('override.mass')}
         unit={<UnitChip quantity="mass" scope={massOverrideScope} />}
         step={overrideMassUnit.step(0.0005)}
+        // The bridge refuses a negative mass (ComponentFactory.NON_NEGATIVE)
+        // and desktop's spinner floors it at 0 (RocketComponentConfig).
+        min={0}
         enabled={typeof node.overrideMass === 'number'}
         value={overrideMassUnit.toUi(num(node, 'overrideMass'))}
         onToggle={(on) =>
@@ -160,6 +166,8 @@ export function OverridesSection({
         label={t(node.type === 'stage' ? 'override.cgStage' : 'override.cg')}
         unit={<UnitChip quantity="length" scope={cgOverrideScope} />}
         step={overrideCgUnit.step(0.001)}
+        // Desktop's spinner floors the CG at 0 (RocketComponentConfig).
+        min={0}
         enabled={typeof node.overrideCGX === 'number'}
         value={overrideCgUnit.toUi(num(node, 'overrideCGX'))}
         onToggle={(on) =>
@@ -175,6 +183,9 @@ export function OverridesSection({
         onSub={(on) => onChange({ overrideSubcomponentsCG: on || undefined })}
         coveredBy={cover('cg')}
       />
+      {/* No floor: a drag coefficient override may be negative. Desktop's
+          spinner runs -Infinity..Infinity (RocketComponentConfig) and
+          RocketComponent.setOverrideCD stores any value. */}
       <OverrideRow
         label={t('override.cd')}
         step={0.05}

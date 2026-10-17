@@ -9,8 +9,9 @@ import { MAX_PASSTHROUGH } from './importLimits';
  *
  * A `.ork` written by the desktop can hold things we have no model for, and they
  * sit at three levels: inside a component (the Appearance tab's `<appearance>`
- * and `<insideappearance>`), inside `<rocket>` (`<kitname>`), and beside it at
- * document level (`<photostudio>`, `<docprefs>`, `<datatypes>`). Reading them
+ * and `<insideappearance>`), inside `<rocket>` (a desktop version's new tag),
+ * and beside it at document level (`<photostudio>`, `<docprefs>`,
+ * `<datatypes>`). Reading them
  * into the app would mean building an editor for each; ignoring them would mean
  * every save silently throws them away, so a design that came here for one
  * dimension would go back stripped of its paint and its Photo Studio setup.
@@ -163,6 +164,7 @@ export const KNOWN_ROCKET_TAGS: ReadonlySet<string> = new Set([
   'id',
   'comment',
   'designer',
+  'kitname',
   'revision',
   'designtype',
   'referencetype',
@@ -233,6 +235,7 @@ export const KNOWN_CONDITIONS_TAGS: ReadonlySet<string> = new Set([
   'gravitymodel',
   'constantgravity',
   'weathersource',
+  'forecastlevel',
   'timestep',
   'maxtime',
   'recoveryspeedwarning',

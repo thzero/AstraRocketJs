@@ -16,6 +16,7 @@ const design = {
 };
 
 vi.mock('../../../src/engine/openRocketEngine', () => ({
+  engineActive: () => true, // the kernel is loaded: the file goes through it
   OpenRocketDesign: { buildTree: () => design },
   resetEngine: () => {},
 }));

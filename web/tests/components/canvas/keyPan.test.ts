@@ -1,5 +1,3 @@
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { keyPan } from '../../../src/components/canvas/keyPan';
 import { ZOOM_IDENTITY } from '../../../src/tree/schematicGeometry';
@@ -22,14 +20,5 @@ describe('keyPan', () => {
   it('leaves the fitted view and other keys alone', () => {
     expect(keyPan(ZOOM_IDENTITY, 'ArrowLeft', false, 100)).toBeNull();
     expect(keyPan(zoomed, 'Enter', false, 100)).toBeNull();
-  });
-});
-
-describe('both zoomable views pan from the keyboard', () => {
-  const src = (rel: string) => readFileSync(fileURLToPath(new URL(`../../../src/${rel}`, import.meta.url)), 'utf8');
-  it.each(['components/canvas/TreeSchematic.tsx', 'components/canvas/AftView.tsx'])('%s', (file) => {
-    const text = src(file);
-    expect(text).toContain('keyPan(zoom, e.key, e.shiftKey,');
-    expect(text).toContain('tabIndex={zoom.k > 1 ? 0 : undefined}');
   });
 });

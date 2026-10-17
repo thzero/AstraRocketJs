@@ -3,18 +3,20 @@ import {
   FREEFORM_FALLBACK,
   bodyRadiusAt,
   finMount,
+  finBodyPoint,
   finPointsWithRoot,
   finRootChord,
   finSpan,
   finTabPoints,
   mountRadius,
   type FinParent,
+  type FinPose,
 } from '../../tree/finPlanform';
 import { profileEnds } from '../../tree/shapeProfile';
-import { countOf, num, str } from '../../tree/nodeProps';
+import { bodyTubeRadius, countOf, finCant, num, str } from '../../tree/nodeProps';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults.js';
 import { railButtonSize } from './railButton';
-import { lineInstances, placementOffsets } from '../../tree/placement';
+import { lineInstances, placementOffsets, turnedOffset } from '../../tree/placement';
 import { tubeFinRadius } from '../../tree/tubefins.js';
 import { DISPLAY_NAME } from '../../tree/schema.js';
 import { motorSeatStart, partLength } from '../../tree/position.js';
@@ -44,14 +46,18 @@ import {
 const fillOf = colorOf;
 
 /**
- * One drawn instance of a fin set in the side view. `p` is the foreshortening
- * on the radial coordinates: cos(clock angle), so +1 is straight up, 0 edge-on,
- * −1 straight down (the desktop's FinSetShapes.getShapesSide, 24.12). `near` is
- * the half a flat silhouette can't express: a fin at +z is in front of the
- * airframe (drawn whole); one at −z is behind (the tube covers its root, so its
- * fill is clipped at the wall).
+ * One drawn instance of a fin set in the side view. `angle` is its whole turn
+ * about its parent's axis: its own instance angle, every enclosing pod or
+ * booster instance's, and the view's roll. `p` is the foreshortening on the
+ * radial coordinates, cos(angle), so +1 is straight up, 0 edge-on, −1 straight
+ * down. A canted fin is also turned about the middle of its root before that
+ * (`finBodyPoint`), as the kernel places it. `near` is the half a flat
+ * silhouette can't express: a fin at +z is in front of the airframe (drawn
+ * whole); one at −z is behind (the tube covers its root, so its fill is clipped
+ * at the wall).
  */
 interface FinInstance {
+  angle: number;
   p: number;
   near: boolean;
 }
@@ -205,9 +211,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    * airframe (sin θ ≥ 0). every instance comes back, including hidden ones;
    * furthest-out last so the reaching fin reads on top when a rolled set overlaps.
    */
-  const finFactors = (n: ComponentNode, dfltCount = 3): FinInstance[] => {
+  const finFactors = (n: ComponentNode, turn: number, dfltCount = 3): FinInstance[] => {
     const count = countOf(n, 'finCount', dfltCount);
-    const out: FinInstance[] = ringInstanceOffsets(count, 1, num(n, 'rotation', 0) + roll).map(({ y, z }) => ({
+    const out: FinInstance[] = ringInstanceOffsets(count, 1, num(n, 'rotation', 0) + turn).map(({ y, z, angle }) => ({
+      angle,
       p: y,
       near: z >= 0,
     }));
@@ -319,11 +326,23 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
 
   /**
    * Draws `parent`'s children. `pRadius` is the parent's largest radius, which
-   * sizes the internal parts inside it; a part on the outside stands on the
-   * body radius at its own station (`bodyRadiusAt`), which on a nose cone or
-   * transition is not that radius.
+   * sizes the internal parts inside it; `surfaceAt` is the body radius under a
+   * station (`bodyRadiusAt`). Lugs, rail buttons, tube fins and fairings can
+   * only sit on a body tube (Transition.isCompatible, treeEdit.canHost), where
+   * that is the tube's radius; only a freeform fin sits on a cone or
+   * transition, where it is the station's. `turn` is the angle the parent's frame is
+   * turned by about the axis: the view's roll plus the angle of every pod or
+   * booster instance it sits in, which the kernel turns each child by
+   * (FlightConfiguration.java:456-462).
    */
-  const renderChildren = (parent: ComponentNode, pStart: number, pLen: number, pRadius: number, baseY: number) => {
+  const renderChildren = (
+    parent: ComponentNode,
+    pStart: number,
+    pLen: number,
+    pRadius: number,
+    baseY: number,
+    turn: number,
+  ) => {
     /** The parent's outer radius under the rocket-frame station `x`. */
     const surfaceAt = (x: number): number => bodyRadiusAt(parent, x - pStart) ?? pRadius;
     // A part the kernel repeats along the body is drawn once per copy.
@@ -331,32 +350,34 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
       const t = child.type;
       // Off-axis assembly: draw its whole chain once per ring instance at the
       // instance's projected baseline (side view projects y, ignores depth z).
-      // The view roll turns the ring; −off.y since the section frame's +y is up
-      // and SVG y grows down.
+      // The parent's turn turns the ring, and each instance's own angle turns
+      // everything in it; −off.y since the section frame's +y is up and SVG y
+      // grows down.
       if (isAssembly(t)) {
         const podChain = child.children ?? [];
         const podLen = assemblyChainLength(child);
         const podRadius = resolveAssemblyRadius(child, assemblyParentRadius(parent));
         const podStart = axialStart(child, podLen, pStart, pLen);
         const count = countOf(child, 'instanceCount', 2);
-        for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0) + roll)) {
-          renderChain(podChain, podStart, baseY - off.y * ctx.scale);
+        for (const off of ringInstanceOffsets(count, podRadius, num(child, 'angleOffset', 0) + turn)) {
+          renderChain(podChain, podStart, baseY - off.y * ctx.scale, off.angle);
         }
         continue;
       }
       const grab = {
         ...clickable(child),
       };
-      // Through-the-wall fin tab, foreshortened with the fin instance `p` it
-      // belongs to. `tab` is `finTabPoints` in the fin's own frame (x from the
-      // fin front, y from the body radius `R` under it): down from the body
-      // surface at its front edge, along its bottom, up to the surface at its
-      // trailing edge. Its depth is clamped to the parent radius at its two
-      // ends and its span stands where the kernel puts it, so the drawing and
-      // the part the DXF, the STL and the 1:1 PDF template cut are one part.
-      // On a body tube both ends sit on one radius and it is a rect; on a
-      // nose cone or transition its top follows the surface.
-      const renderTab = (finStart: number, R: number, tab: [number, number][] | null, p: number) => {
+      // Through-the-wall fin tab, placed with the fin instance it belongs to.
+      // `tab` is `finTabPoints` in the fin's own frame (x from the fin front, y
+      // from the body radius under it): down from the body surface at its
+      // front edge, along its bottom, up to the surface at its trailing edge.
+      // Its depth is clamped to the parent radius at its two ends and its span
+      // stands where the kernel puts it, so the drawing and the part the DXF,
+      // the STL and the 1:1 PDF template cut are one part. On a body tube with
+      // no cant both ends sit on one radius and it is a rect; on a nose cone or
+      // transition its top follows the surface, and a canted tab turns with
+      // its fin.
+      const renderTab = (pose: FinPose, tab: [number, number][] | null) => {
         if (!tab) return;
         const [front, bottomFront, , trail] = tab as [
           [number, number],
@@ -364,8 +385,12 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           [number, number],
           [number, number],
         ];
-        const px = (x: number) => ctx.x0 + (finStart + x) * ctx.scale;
-        const py = (y: number) => baseY - (R + y) * p * ctx.scale;
+        const at = (x: number, y: number): [number, number] => {
+          const [bx, by] = finBodyPoint(x, y, 0, pose);
+          return [ctx.x0 + bx * ctx.scale, baseY - by * ctx.scale];
+        };
+        const px = (x: number) => at(x, 0)[0];
+        const py = (y: number) => at(0, y)[1];
         const ink = {
           fill: wire ? 'none' : fillOf(child, token('sch-part')),
           fillOpacity: wire ? undefined : '0.35',
@@ -377,7 +402,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const ys = [py(front[1]), py(bottomFront[1]), py(trail[1])];
         const hPx = Math.max(...ys) - Math.min(...ys);
         if (wire && hPx < 0.5) return;
-        if (front[1] === trail[1]) {
+        if (front[1] === trail[1] && pose.cant === 0) {
           const yInner = py(bottomFront[1]);
           const ySurface = py(front[1]);
           (wire ? wires : shapes).push(
@@ -393,7 +418,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           return;
         }
         (wire ? wires : shapes).push(
-          <polygon key={key++} points={tab.map(([x, y]) => `${px(x)},${py(y)}`).join(' ')} {...ink} />,
+          <polygon key={key++} points={tab.map(([x, y]) => at(x, y).join(',')).join(' ')} {...ink} />,
         );
       };
       if (t === 'freeformfinset' || t === 'trapezoidfinset' || t === 'ellipticalfinset') {
@@ -420,9 +445,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const chord = finRootChord(child);
         const aftX = Math.max(...outline.map((pt) => pt[0]));
         const start = typeof fp === 'number' ? axialStart(child, chord, pStart, pLen) : pStart + fp.front;
-        const ymax = finSpan(child);
+        // A freeform fin's span reads its parent (`FreeformFinSet.getSpan`).
+        const ymax = finSpan(child, fp);
         const reach = R + ymax;
-        const projections = finFactors(child);
+        const cant = finCant(child);
+        const projections = finFactors(child, turn);
         noteHoverFins(
           child,
           ctx.x0 + start * ctx.scale,
@@ -433,15 +460,19 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           projections,
         );
         const clip = wallClip(parent, pStart, pLen, pRadius, baseY);
-        for (const { p, near } of projections) {
+        for (const { angle, p, near } of projections) {
+          const pose: FinPose = { front: start, radius: R, chord, cant, angle };
           const ptsStr = outline
-            .map(([px, py]) => `${ctx.x0 + (start + px) * ctx.scale},${baseY - (R + py) * p * ctx.scale}`)
+            .map(([px, py]) => {
+              const [bx, by] = finBodyPoint(px, py, 0, pose);
+              return `${ctx.x0 + bx * ctx.scale},${baseY - by * ctx.scale}`;
+            })
             .join(' ');
           // Rolled: an outline over the body, every instance, including one
           // lying flat inside the airframe (the one you follow round).
           if (wire) {
             pushWire(child, grab, clip, (extra) => <polygon key={key++} points={ptsStr} {...extra} />);
-            renderTab(start, R, tab, p);
+            renderTab(pose, tab);
             continue;
           }
           const body = (
@@ -461,7 +492,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           // the hull, their root cut at the wall by the clip.
           if (reach * Math.abs(p) > R) {
             (near ? overlay : shapes).push(body);
-            renderTab(start, R, tab, p);
+            renderTab(pose, tab);
           }
         }
       } else if (t === 'tubefinset') {
@@ -477,7 +508,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const rt = tubeFinRadius(child, R);
         const X = ctx.x0 + start * ctx.scale;
         noteHover(child, X, baseY - (R + 2 * rt) * ctx.scale, X + len * ctx.scale, baseY + (R + 2 * rt) * ctx.scale);
-        const tubes = finFactors(child, 6);
+        const tubes = finFactors(child, turn, 6);
         const tubeClip = wallClip(parent, pStart, pLen, pRadius, baseY);
         for (const { p, near } of tubes) {
           const yc = baseY - (R + rt) * p * ctx.scale;
@@ -581,23 +612,27 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           ),
         );
       } else if (t === 'launchlug' || t === 'railbutton') {
-        // A rail button has no axial 'length': it is as long as it is wide
-        // (its outer diameter) and stands out from the body by its height.
-        // Both are the kernel's own when absent, so the drawn button is the
-        // size of the simulated one.
+        // A rail button has no axial 'length' in the kernel (RailButton never
+        // sets RocketComponent.length, so it positions as a 0-long part) and
+        // its instance bounding box runs one radius either side of that
+        // station (RailButton.getInstanceBoundingBox). It is drawn its outer
+        // diameter wide, centered on the station, and stands out from the body
+        // by its height. Both are the kernel's own when absent, so the drawn
+        // button is the size of the simulated one.
         const btn = t === 'railbutton' ? railButtonSize(child) : null;
         // A lug with no size keys is the kernel's own (ComponentFactory, case
         // "launchlug"), the size the 3D view and the exporters already use.
         const len = btn ? btn.diameter : num(child, 'length', KERNEL_DEFAULTS.launchlug.length);
         const reach = btn ? btn.reach : 2 * num(child, 'outerRadius', KERNEL_DEFAULTS.launchlug.outerRadius);
-        const start = axialStart(child, len, pStart, pLen);
-        // Project the radial mount angle, turned by the view's roll as the fins
+        const station = axialStart(child, btn ? 0 : len, pStart, pLen);
+        const start = btn ? station - len / 2 : station;
+        // Project the radial mount angle, turned by the parent's turn as the fins
         // are, onto the side profile: 0° stands at full height above the tube,
         // ±90° is edge-on (foreshortens away), 180° sits below. Vertical
         // offset = radius·cos(angle) (kernel default 180°).
-        // It stands on the body radius at its own station.
-        const c = Math.cos(num(child, 'angleOffset', Math.PI) + roll);
-        const R = surfaceAt(start);
+        // It stands on the tube's radius: its parent is always a body tube.
+        const c = Math.cos(num(child, 'angleOffset', Math.PI) + turn);
+        const R = surfaceAt(station);
         const yInner = baseY - R * c * ctx.scale;
         const yOuter = baseY - (R + reach) * c * ctx.scale;
         const yTop = Math.min(yInner, yOuter);
@@ -630,9 +665,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
           centeringring: { stroke: token('sch-centeringring'), tag: 'CR' },
           bulkhead: { stroke: token('sch-bulkhead'), tag: 'BH' },
           engineblock: { stroke: token('sch-engineblock'), tag: 'EB' },
-          // Couplers and inner tubes get their own ink too: left neutral they
-          // are two unlabeled gray boxes told apart only by size, and size is
-          // what the 85% cap distorts for the coupler.
+          // Couplers and inner tubes get their own ink too: in a neutral gray
+          // they are two unlabeled boxes told apart only by size.
           tubecoupler: { stroke: token('sch-tubecoupler'), tag: 'TC' },
           innertube: { stroke: token('sch-innertube'), tag: 'IT' },
         };
@@ -641,10 +675,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         // sheet and the printed solid size it: its own radii, else the bore of
         // the tube it sits in, with a ring's bore taken from the mount through
         // it. An inner tube is drawn at its own size, the one it flies at
-        // (innerTubeExtent). Everything else keeps `internalExtent`, whose 85% cap is what
-        // keeps a chute's invented fallback box off the tube wall - a real
-        // dimension does not need protecting from itself, and a coupler hit
-        // that cap every time, since filling the bore is what a coupler is.
+        // (innerTubeExtent). Everything else keeps `internalExtent`, whose 85%
+        // cap keeps a chute's invented fallback box off the tube wall. A
+        // coupler fills the bore, so that cap would draw it smaller than it is.
         const disc = DISC_TYPES.has(child.type) ? discDims(child, tubeRadii(parent), parent.children ?? []) : null;
         const { length: len, radius: r } = disc
           ? { length: disc.length, radius: disc.outerR }
@@ -653,12 +686,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
             : internalExtent(child, pRadius);
         const start = axialStart(child, len, pStart, pLen);
         // Off the axis where the kernel flies it: an inner tube at each cluster
-        // place, anything else at its own radial position, turned by the view's
-        // roll as the fins are.
-        const offsets = placementOffsets(child, r).map(({ y, z }) => ({
-          y: y * Math.cos(roll) - z * Math.sin(roll),
-          z: y * Math.sin(roll) + z * Math.cos(roll),
-        }));
+        // place, anything else at its own radial position, turned by the
+        // parent's turn as the fins are.
+        const offsets = placementOffsets(child, r).map((off) => turnedOffset(off, turn));
         // Loaded motor: an accent-tinted case at the real case size, seated
         // flush against the mount's aft end (how motors actually load).
         const motor = child.type === 'innertube' && child.id ? motors?.[child.id] : undefined;
@@ -786,8 +816,11 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
               ...motorShapes(motor, motorSeatStart(child, start, len, motor.length), baseY - off.y * ctx.scale),
             );
           }
+          // Its own internal parts sit in this copy, as the kernel places a
+          // child once per parent instance: an engine block in each tube of a
+          // cluster.
+          renderChildren(child, start, len, r, baseY - off.y * ctx.scale, turn);
         }
-        renderChildren(child, start, len, r, baseY);
       }
     }
   };
@@ -861,8 +894,9 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   };
 
   // Draws an axial nose→tail chain with its centerline at screen `baseY`
-  // (ctx.cy for the core rocket; offset for each off-axis pod instance).
-  const renderChain = (nodes: ComponentNode[], xStart: number, baseY: number) => {
+  // (ctx.cy for the core rocket; offset for each off-axis pod instance), its
+  // frame turned by `turn` (see renderChildren).
+  const renderChain = (nodes: ComponentNode[], xStart: number, baseY: number, turn: number) => {
     let cx = xStart;
     for (const n of nodes) {
       const len = partLength(n);
@@ -876,10 +910,10 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const shLen = num(n, 'shoulderLength', 0);
         const baseR = flipped ? ends.fore : ends.aft;
         shoulderRect(n, flipped ? cx - shLen : cx + len, shLen, num(n, 'shoulderRadius', 0), baseR, baseY);
-        renderChildren(n, cx, len, r, baseY);
+        renderChildren(n, cx, len, r, baseY, turn);
         cx += len;
       } else if (n.type === 'bodytube') {
-        const r = num(n, 'outerRadius', KERNEL_DEFAULTS.bodytube.outerRadius);
+        const r = bodyTubeRadius(n);
         // A zero-size "phantom" tube (length 0, radius 0) is a modeling hack
         // used only to hang an off-axis fin set at a chosen radius (e.g. a
         // T-tail's horizontal stabilizer). Draw no rect for it (a degenerate
@@ -907,7 +941,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         if (tubeMotor) {
           shapes.push(...motorShapes(tubeMotor, motorSeatStart(n, cx, len, tubeMotor.length), baseY));
         }
-        renderChildren(n, cx, len, r, baseY);
+        renderChildren(n, cx, len, r, baseY, turn);
         cx += len;
       } else if (n.type === 'transition') {
         const { fore: rf, aft: ra } = profileEnds(n);
@@ -915,13 +949,13 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
         const fsl = num(n, 'foreShoulderLength', 0);
         shoulderRect(n, cx - fsl, fsl, num(n, 'foreShoulderRadius', 0), rf, baseY);
         shoulderRect(n, cx + len, num(n, 'aftShoulderLength', 0), num(n, 'aftShoulderRadius', 0), ra, baseY);
-        renderChildren(n, cx, len, Math.max(rf, ra), baseY);
+        renderChildren(n, cx, len, Math.max(rf, ra), baseY, turn);
         cx += len;
       }
     }
   };
 
-  renderChain(chain, 0, ctx.cy);
+  renderChain(chain, 0, ctx.cy, roll);
 
   return { shapes, overlay, wires, clipDefs, extents };
 }

@@ -1,5 +1,5 @@
 import { fileURLToPath } from 'node:url';
-import { defineConfig } from 'vitest/config';
+import { configDefaults, defineConfig } from 'vitest/config';
 
 // Unit tests run under Vitest. This file takes the place of vite.config.ts for
 // them: Vitest reads one config, so nothing in vite.config.ts (its `define`,
@@ -21,6 +21,7 @@ import { defineConfig } from 'vitest/config';
 export default defineConfig({
   define: {
     __APP_VERSION__: JSON.stringify('0.0.0-test'),
+    __APP_CHANNEL__: JSON.stringify(''),
     __HELP_URL__: JSON.stringify('https://example.test/docs'),
     __CONTRIBUTORS_URL__: JSON.stringify('https://example.test/graphs/contributors'),
     // A stand-in pin, like the version above. The real one is checked straight
@@ -46,8 +47,16 @@ export default defineConfig({
   },
   test: {
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
+    // `tests/repo` checks repository conventions (comment wording, em dashes, CI
+    // triggers, orphan scripts and exports), not app behavior. `npm run audit`
+    // runs them with REPO_CHECKS set; the unit suite and CI leave them out.
+    exclude: process.env.REPO_CHECKS ? configDefaults.exclude : [...configDefaults.exclude, 'tests/repo/**'],
     environment: 'node',
     setupFiles: ['tests/testing/allLocales.ts'],
+    // A passing test slower than this prints a yellow check instead of a green
+    // one. The 300 ms default marks most component tests on a CI runner, so the
+    // yellow stops pointing at anything.
+    slowTestThreshold: 2000,
     // Vitest isolates one worker per file, and this suite has hundreds of them.
     // Uncapped, a 32-core box starts one worker per file at ~9.5 s of startup
     // each, and under that load a file that drives the real TeaVM kernel can blow
@@ -61,8 +70,7 @@ export default defineConfig({
     // started taking seconds is noticed where it is written. Files that fly the
     // kernel still set KERNEL_TEST_TIMEOUT_MS, which is longer.
     ...(process.env.CI ? { testTimeout: 60_000, hookTimeout: 60_000 } : {}),
-    // Reported and enforced by `npm run audit`, `verify:ci` and `test:coverage`,
-    // which are run by hand (CI runs `verify`), and fail
+    // Reported and enforced by `npm run audit`, which is run by hand, and fails
     // below these minimums; `npm run verify` and `npm test` do not collect coverage
     // at all and are unaffected, which is why instrumentation stays off the command
     // a developer types before pushing.
@@ -73,8 +81,7 @@ export default defineConfig({
     // when a higher reading has stayed put.
     coverage: {
       provider: 'v8',
-      // `text-summary` is the totals in the log of `npm run audit` and
-      // `test:coverage`; `json-summary` the same numbers as a file, `lcov` the
+      // `text-summary` is the totals in the log of `npm run audit`; `json-summary` the same numbers as a file, `lcov` the
       // per-line report for an editor or a coverage viewer.
       reporter: ['text-summary', 'json-summary', 'lcov'],
       include: ['src/**/*.{ts,tsx}'],
@@ -82,8 +89,8 @@ export default defineConfig({
       // The tests and their scaffolding live outside src, and coverage only
       // includes src, so neither needs excluding.
       exclude: ['src/engine/vendor/**', 'src/**/*.d.ts'],
-      // Each minimum is five points under its measurement (`npm run
-      // test:coverage`), rounded down to a whole number: enough to absorb the
+      // Each minimum is five points under its measurement (`npx vitest
+      // run --coverage`), rounded down to a whole number: enough to absorb the
       // ordinary wobble of a refactor that moves code between files, and little
       // enough that deleting a tested module still fails.
       //

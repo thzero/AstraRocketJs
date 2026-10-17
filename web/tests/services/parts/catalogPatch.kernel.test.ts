@@ -1,10 +1,10 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { catalogPatch, defaultNode } from '../../../src/services/design/treeEdit';
+import { catalogPatch, defaultNode, presetRef, updateNode } from '../../../src/services/design/treeEdit';
 import { isComponentRow, type Component, type ParachuteComponent } from '../../../src/services/parts/componentDb';
 import { KERNEL_MATERIALS } from '../../../src/tree/kernelDefaults';
-import type { ComponentNode, ComponentType } from '../../../src/engine/openRocketEngine';
+import type { ComponentNode, ComponentType, RocketTree } from '../../../src/engine/openRocketEngine';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
 import { loadEngine, type KernelGeometry } from '../../testing/kernelGeometry';
 
@@ -48,15 +48,26 @@ function design(probe: ComponentNode): unknown {
   return { components: [node('stage' as ComponentType, 'st', {}, chain)] };
 }
 
-/** The kernel's geometry and info for one part, applied through `catalogPatch` and built. */
+/**
+ * A design holding a new part with the row picked onto it, as the property
+ * panel applies a pick: the patch and the link in one `updateNode`, so every
+ * rule the editor runs on an edit (shoulder seeding, the automatic radii)
+ * runs on the pick too.
+ */
+function picked(row: Component): RocketTree {
+  const probe = node(row.type as ComponentType, 'probe');
+  const tree = design(probe) as RocketTree;
+  return updateNode(tree, 'probe', { ...catalogPatch(row, probe), ...presetRef(row) });
+}
+
+/** The kernel's geometry and info for one part, picked onto a new part and built. */
 function build(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped
   engine: any,
   row: Component,
 ): { geo: KernelGeometry & { error?: string }; info: Record<string, number> } {
-  const probe = { ...node(row.type as ComponentType, 'probe'), ...catalogPatch(row) } as ComponentNode;
   engine.reset();
-  const handle = engine.buildRocket(JSON.stringify(design(probe)));
+  const handle = engine.buildRocket(JSON.stringify(picked(row)));
   return {
     geo: JSON.parse(engine.getComponentGeometry(handle, 'probe')),
     info: JSON.parse(engine.getComponentInfo(handle, 'probe')),
@@ -231,7 +242,7 @@ describe('catalogPatch through the kernel', () => {
  * desktop: `ComponentPresetFactory` turns the mass of a tube, ring, bulkhead,
  * nose cone or transition into its material's density, and
  * `Parachute.loadPreset` takes a parachute's as its mass override. Every such
- * row is applied through catalogPatch and built in the kernel, so a node that
+ * row is picked onto a new part through updateNode and built in the kernel, so a node that
  * reaches the kernel with a different shape, wall or volume than the desktop
  * gave the preset shows up as a different mass.
  */
@@ -242,14 +253,169 @@ describe('a stated catalog mass', () => {
     expect(massed.length).toBeGreaterThan(100);
     const wrong: string[] = [];
     for (const row of massed) {
-      const probe = { ...node(row.type as ComponentType, 'probe'), ...catalogPatch(row) } as ComponentNode;
       engine.reset();
-      const handle = engine.buildRocket(JSON.stringify(design(probe)));
+      const handle = engine.buildRocket(JSON.stringify(picked(row)));
       const info = JSON.parse(engine.getComponentInfo(handle, 'probe'));
       if (info.error || !(Math.abs(info.mass / row.mass! - 1) < 0.005))
         wrong.push(`${row.type} ${row.mfr} ${row.partNo}: catalog ${row.mass} kg, flies ${info.mass ?? info.error}`);
     }
     expect(wrong).toEqual([]);
+  });
+
+  // A degenerate shape (a reversed nose cone whose ends are 0 and 2.54 µm, with
+  // a 21.6 mm shoulder on its 0 end) has no volume once its shoulder is held to
+  // that end: PresetDump on the 24.12 jar reports the density
+  // `ComponentPresetFactory` gave SEMROC `BC-08542 [R]` as Infinity. Its stated
+  // mass applies in neither build, so the row carries none.
+  it('is not carried for a reversed SEMROC cone that no build gives a volume', async () => {
+    const engine = await loadEngine();
+    const row = catalog.find((p) => p.mfr === 'SEMROC Astronautics' && p.partNo === 'BC-08542 [R]')!;
+    expect(row).toBeDefined();
+    expect(row.mass).toBeUndefined();
+    engine.reset();
+    const h = engine.buildRocket(JSON.stringify(picked(row)));
+    const fields = JSON.parse(engine.getComponentFields(h, 'probe')) as Record<string, number>;
+    expect(fields['foreShoulderRadius']).toBe(0);
+  });
+});
+
+/**
+ * A stated shoulder, held to the end it plugs as the 24.12 release's
+ * `Transition.loadFromPreset` applies it: `setForeShoulderRadius(double)` and
+ * `setAftShoulderRadius(double)` clamp to `Math.min(radius, getForeRadius())`
+ * and `getAftRadius()` (`javap -c` on `info.openrocket.core.rocketcomponent.Transition`
+ * in OpenRocket-24.12.jar), after the end radius is set, and a nose cone is
+ * loaded unflipped so its one shoulder is the aft one. The bridge builds the
+ * shoulder unclamped, so the node has to carry the clamped radius itself.
+ */
+describe('a stated shoulder', () => {
+  const sides = (p: Component): { key: string; stated: number; end: number }[] =>
+    p.type === 'nosecone'
+      ? p.shoulderDiameter != null
+        ? [{ key: 'shoulderRadius', stated: p.shoulderDiameter / 2, end: p.outerDiameter / 2 }]
+        : []
+      : p.type === 'transition'
+        ? [
+            ...(p.foreShoulderDiameter != null
+              ? [{ key: 'foreShoulderRadius', stated: p.foreShoulderDiameter / 2, end: p.foreOuterDiameter / 2 }]
+              : []),
+            ...(p.aftShoulderDiameter != null
+              ? [{ key: 'aftShoulderRadius', stated: p.aftShoulderDiameter / 2, end: p.aftOuterDiameter / 2 }]
+              : []),
+          ]
+        : [];
+
+  it('flies at its radius held to the end it plugs, on every row that states one', async () => {
+    const engine = await loadEngine();
+    const rows = catalog.filter((p) => sides(p).length > 0);
+    expect(rows.length).toBeGreaterThan(500);
+    // The rows the clamp is for are among them.
+    expect(rows.some((p) => sides(p).some((sd) => sd.stated > sd.end))).toBe(true);
+    const wrong: string[] = [];
+    for (const row of rows) {
+      engine.reset();
+      const tree = picked(row);
+      const h = engine.buildRocket(JSON.stringify(tree));
+      const fields = JSON.parse(engine.getComponentFields(h, 'probe')) as Record<string, number>;
+      for (const { key, stated, end } of sides(row)) {
+        const want = Math.min(stated, end);
+        if (!(Math.abs(fields[key]! - want) <= 1e-12))
+          wrong.push(`${row.type} ${row.mfr} ${row.partNo} ${key}: 24.12 ${want}, kernel ${fields[key]}`);
+      }
+    }
+    expect(wrong).toEqual([]);
+  });
+});
+
+/**
+ * A catalog rail button weighs, without its mass override, the button's own
+ * stated mass: `ComponentPresetFactory.makeRailButton` divides the preset's
+ * `MASS` by `RailButton.getComponentVolume` and gives the material that
+ * density (`javap -c` on OpenRocket-24.12.jar). `MASS` is the button alone, as
+ * PresetDump on that jar reports it below; the override adds the screw and nut.
+ */
+describe('a catalog rail button', () => {
+  // [maker, part number, MASS in kg], PresetDump on the 24.12 release jar.
+  const PRESET_MASS: [string, string, number][] = [
+    ['Binder Design-Rail Button Supply House', 'Std 1010 RB', 4.4500000000000003e-4],
+    ['Binder Design-Rail Button Supply House', 'Std 1515 RB', 0.0014650000000000002],
+    ['Rail-Buttons.com', '1P1010DLX', 3.2e-4],
+    ['Rail-Buttons.com', '1PMB', 8.999999999999999e-5],
+    ['Rail-Buttons.com', 'RB-10-D', 3.05e-4],
+    ['Rail-Buttons.com', 'RB-Micro', 1.0e-5],
+    ['Rail-Buttons.com', 'RB1515S', 0.001355],
+    ['Wildman Rocketry', '2052-LG', 0.003215],
+  ];
+
+  it('covers every rail button in the catalog', () => {
+    const keys = catalog.filter((p) => p.type === 'railbutton').map((p) => `${p.mfr} ${p.partNo}`);
+    expect(keys.sort()).toEqual(PRESET_MASS.map(([m, pn]) => `${m} ${pn}`).sort());
+  });
+
+  it.each(PRESET_MASS)('%s %s weighs its own stated mass with the override off', async (mfr, partNo, mass) => {
+    const row = catalog.find((p) => p.type === 'railbutton' && p.mfr === mfr && p.partNo === partNo)!;
+    const tree = picked(row);
+    const probe = (tree.components[0]!.children ?? [])
+      .flatMap((c) => [c, ...(c.children ?? [])])
+      .find((c) => c.id === 'probe')!;
+    delete probe['overrideMass'];
+    const engine = await loadEngine();
+    engine.reset();
+    const info = JSON.parse(engine.getComponentInfo(engine.buildRocket(JSON.stringify(tree)), 'probe'));
+    expect(info.mass / mass).toBeCloseTo(1, 3);
+  });
+});
+
+/**
+ * A pick onto a part whose shoulder is capped keeps the cap. The 24.12
+ * release's `Transition.loadFromPreset` (which `NoseCone.loadFromPreset` calls)
+ * sets each stated shoulder's length and radius, and a filled part's shoulder
+ * wall, and never its cap (`javap -c` on
+ * `info.openrocket.core.rocketcomponent.Transition` in OpenRocket-24.12.jar).
+ * The kernel's `loadFromPreset` also never sets the cap, and its shoulder length
+ * setter leaves the cap alone on a shoulder that already has a length: the
+ * oracle is the kernel's `setShoulderLength` on the part as it was before the
+ * pick.
+ */
+describe('a pick onto a capped shoulder', () => {
+  const stated = (p: Component, side: '' | 'fore' | 'aft'): boolean => {
+    const r = p as unknown as Record<string, number | null | undefined>;
+    const k = (n: string) => (side ? `${side}Shoulder${n}` : `shoulder${n}`);
+    return (r[k('Diameter')] ?? 0) > 0 && (r[k('Length')] ?? 0) > 0;
+  };
+  const rows = (): { what: string; row: Component; side: '' | 'fore' | 'aft' }[] => [
+    { what: "a nose cone's", row: catalog.find((p) => p.type === 'nosecone' && stated(p, ''))!, side: '' },
+    {
+      what: "a transition's fore",
+      row: catalog.find((p) => p.type === 'transition' && stated(p, 'fore'))!,
+      side: 'fore',
+    },
+    { what: "a transition's aft", row: catalog.find((p) => p.type === 'transition' && stated(p, 'aft'))!, side: 'aft' },
+  ];
+  it.each(rows())('keeps the cap on $what shoulder', async ({ row, side }) => {
+    const key = (k: string) => (side ? `${side}Shoulder${k}` : `shoulder${k}`);
+    const length = (row as unknown as Record<string, number>)[key('Length')]!;
+    const probe = node(row.type as ComponentType, 'probe', {
+      [key('Length')]: 0.02,
+      [key('Radius')]: 0.01,
+      [key('Thickness')]: 0.001,
+      [key('Capped')]: true,
+    });
+    const tree = design(probe) as RocketTree;
+
+    const engine = await loadEngine();
+    engine.reset();
+    const h = engine.buildRocket(JSON.stringify(tree));
+    const kernel = JSON.parse(engine.setShoulderLength(h, 'probe', side, length)) as Record<string, unknown>;
+    expect(kernel['error']).toBeUndefined();
+    expect(kernel[key('Capped')]).toBe(true);
+
+    const after = updateNode(tree, 'probe', { ...catalogPatch(row, probe), ...presetRef(row) });
+    const got = (after.components[0]!.children ?? [])
+      .flatMap((c) => [c, ...(c.children ?? [])])
+      .find((c) => c.id === 'probe')!;
+    expect(got[key('Length')]).toBe(length);
+    expect(got[key('Capped')]).toBe(kernel[key('Capped')]);
   });
 });
 

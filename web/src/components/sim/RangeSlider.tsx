@@ -30,8 +30,9 @@ export function RangeSlider({
    * slider would look like one, leaving no way to aim at a size except to drag
    * and read the number back.
    *
-   * Decorative for assistive tech, which gets the value from the inputs
-   * themselves, so the ticks are hidden from it rather than read out ten times.
+   * Decorative for assistive tech, so the ticks are hidden from it rather than
+   * read out ten times. Each thumb announces its stop's label instead of its
+   * index, through `aria-valuetext`.
    */
   stops?: string[];
 }) {
@@ -64,6 +65,7 @@ export function RangeSlider({
         max={count - 1}
         step={1}
         value={low}
+        aria-valuetext={stops?.[low]}
         aria-label={t('motorDlg.rangeMin', { label })}
         onChange={(e) => onChange(Math.min(Number(e.target.value), high), high)}
         className={THUMB}
@@ -75,6 +77,7 @@ export function RangeSlider({
         max={count - 1}
         step={1}
         value={high}
+        aria-valuetext={stops?.[high]}
         aria-label={t('motorDlg.rangeMax', { label })}
         onChange={(e) => onChange(low, Math.max(Number(e.target.value), low))}
         className={THUMB}

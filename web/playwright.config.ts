@@ -21,6 +21,7 @@ const MOBILE_SPECS = [
   '**/layout-overflow.spec.ts',
   '**/sketch-rotation.spec.ts',
   '**/mobile-layout.spec.ts',
+  '**/file-menu-focus.spec.ts',
   '**/a11y-phone.spec.ts',
 ];
 
@@ -29,7 +30,10 @@ const MOBILE_SPECS = [
 // paths a broken build breaks first. The app boots with and without the engine,
 // a part is selected and edited, a motor is picked, a simulation runs, and the
 // shell holds together on a phone and from the keyboard. The rest of the suite
-// runs by hand (e2e-full.yml), and locally with `npm run e2e`.
+// runs by hand (e2e-full.yml), and locally with `npm run e2e`. That includes
+// the axe scans (a11y.spec.ts, a11y-phone.spec.ts): some 300 of them, one per
+// view, theme and dialog, which on a CI runner's two workers take longer than
+// a pull request can wait.
 const CORE_SPECS = [
   '**/smoke.spec.ts',
   '**/engine-boot.spec.ts',
@@ -38,14 +42,17 @@ const CORE_SPECS = [
   '**/schematic-interaction.spec.ts',
   '**/component-editor.spec.ts',
   '**/component-dialog.spec.ts',
+  '**/component-dialog-undo.spec.ts',
+  '**/help-over-dialog.spec.ts',
+  '**/settings-escape.spec.ts',
   '**/motor-picker.spec.ts',
   '**/simulations-tab.spec.ts',
   '**/auto-run.spec.ts',
   '**/units.spec.ts',
-  '**/a11y.spec.ts',
-  '**/a11y-phone.spec.ts',
   '**/layout-overflow.spec.ts',
   '**/mobile-layout.spec.ts',
+  '**/number-entry.spec.ts',
+  '**/file-menu-focus.spec.ts',
 ];
 const core = process.env.E2E_SCOPE === 'core';
 

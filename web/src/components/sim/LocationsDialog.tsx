@@ -16,24 +16,33 @@ import { formatCoord } from '../../services/map/slippyMap';
 /**
  * The saved launch locations, listed on the left and edited on the right.
  *
- * Self-contained on purpose: it loads from the `LaunchLocationStore` itself and
- * applies a location to the active simulation itself, so it works both from the launch
- * panel's ⚙ (where the site fields are on screen) and from the menu (where they
- * are not). That is why it exists as its own component rather than living
- * inside `LocationPicker`: a manage view reachable only from the one panel
- * that already has a dropdown is hard to find.
+ * Self-contained on purpose: it loads from the `LaunchLocationStore` itself, so
+ * it works both from a `LocationPicker`'s ⚙ (the launch panel, Settings > Launch
+ * defaults and the tools' site fields, where the site fields are on screen) and
+ * from the menu (where they are not). That is why it exists as its own component
+ * rather than living inside `LocationPicker`: a manage view reachable only from
+ * the panels that already have a dropdown is hard to find.
  *
  * Master-detail rather than a list that opens a dialog per row: correcting a
  * set of coordinates is something you do to several fields in a sitting, and a
  * modal per location makes each one a separate errand. It also gives the map
  * room to be useful.
  *
- * Applying from here writes to the active simulation only, as one undo step,
- * even when rows are ticked. The dialog opens from the menu as well, away from
- * the editor's "editing N simulations" banner, and a site written to rows
- * nothing on screen names is a change nobody sees being made.
+ * "Use" writes to the site fields of whatever opened the dialog: a picker passes
+ * `onApply`, which edits the fields it shows. With no `onApply` (the menu) it
+ * writes to the active simulation only, as one undo step, even when rows are
+ * ticked: the menu is away from the editor's "editing N simulations" banner,
+ * and a site written to rows nothing on screen names is a change nobody sees
+ * being made.
  */
-export function LocationsDialog({ onClose }: { onClose: () => void }) {
+export function LocationsDialog({
+  onClose,
+  onApply,
+}: {
+  onClose: () => void;
+  /** Writes a location's site where the opener shows it; the active simulation when absent. */
+  onApply?: (location: LaunchLocation) => void;
+}) {
   const { t } = useTranslation();
   const patchActiveLaunch = useWorkspaceStore((s) => s.patchActiveLaunch);
   // The launch panel's own altitude unit and scope, so this list reads in feet
@@ -96,11 +105,13 @@ export function LocationsDialog({ onClose }: { onClose: () => void }) {
   };
 
   const apply = (location: LaunchLocation) => {
-    patchActiveLaunch({
-      latitudeDeg: location.latitudeDeg,
-      longitudeDeg: location.longitudeDeg,
-      launchAltitudeM: location.launchAltitudeM,
-    });
+    if (onApply) onApply(location);
+    else
+      patchActiveLaunch({
+        latitudeDeg: location.latitudeDeg,
+        longitudeDeg: location.longitudeDeg,
+        launchAltitudeM: location.launchAltitudeM,
+      });
     onClose();
   };
 

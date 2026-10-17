@@ -5,9 +5,10 @@ import { findMounts, findNode, findParent, hasCatalog, siblingIndex, stageNodes 
 import { fitContextFor } from '../../services/parts/componentFit';
 import { useWorkspaceStore } from '../../state/store';
 import { confirm } from '../../state/confirmStore';
-import { num } from '../../tree/nodeProps';
+import { bodyTubeRadius, num } from '../../tree/nodeProps';
 import { partLabel } from '../../i18n/format';
 import { overriddenBy, type OverrideKind } from '../../services/design/overriddenBy';
+import { hasStageBelow } from '../../services/design/fieldRange';
 
 /**
  * Everything {@link PropertyPanel} needs about the current selection: the node,
@@ -29,11 +30,13 @@ export function useSelectedComponent() {
 
   const node = useMemo(() => (selectedId ? findNode(tree, selectedId) : null), [tree, selectedId]);
   // Tube fins ring a body, and whether their tubes collide depends on that
-  // radius, which is not on the fin set itself.
+  // radius, which is not on the fin set itself. A body tube with no stored
+  // radius flies at the bridge's default, which `bodyTubeRadius` reads.
   const parentRadius = useMemo(() => {
     if (node?.type !== 'tubefinset' || !selectedId) return 0;
     const parent = findParent(tree, selectedId);
-    return parent ? num(parent, 'outerRadius') : 0;
+    if (!parent) return 0;
+    return parent.type === 'bodytube' ? bodyTubeRadius(parent) : num(parent, 'outerRadius');
   }, [tree, selectedId, node]);
   const sib = useMemo(() => (selectedId ? siblingIndex(tree, selectedId) : null), [tree, selectedId]);
   // What the part being edited has to fit, for the catalog picker's ranking.
@@ -51,6 +54,9 @@ export function useSelectedComponent() {
   const stages = stageNodes(tree);
   const isOnlyStage = !!node && node.type === 'stage' && stages.length <= 1;
   const isFirstStage = !!node && node.type === 'stage' && stages[0]?.id === node.id;
+  // Whether a stage sits below this part's, which is what a recovery device's
+  // lower-stage separation event needs to ever fire.
+  const stageBelow = !!selectedId && hasStageBelow(tree, selectedId);
   // The ancestor whose override decides each of this part's values, by name.
   const coveredBy = useMemo(() => {
     const out: Partial<Record<OverrideKind, string>> = {};
@@ -96,5 +102,6 @@ export function useSelectedComponent() {
     coveredBy,
     parentRadius,
     fit,
+    stageBelow,
   };
 }

@@ -1,4 +1,5 @@
 import { readFileSync, rmSync } from 'node:fs';
+import { resolve as resolvePath } from 'node:path';
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
@@ -12,10 +13,24 @@ interface PackageInfo {
   contributorsPage?: { url?: string };
 }
 const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as PackageInfo;
+
+/**
+ * The release channel: '' for the production site, 'beta' for the beta site
+ * (.github/workflows/beta-deploy.yml). The beta site shares the
+ * thzero.github.io origin with production, so the channel names its storage
+ * (services/storage/storageKeys.ts) and labels the app, the version and the
+ * installed PWA, so a person can tell the two apart.
+ */
+const channel: string = process.env.APP_CHANNEL?.trim() ?? '';
+if (channel !== '' && channel !== 'beta') throw new Error(`APP_CHANNEL must be '' or 'beta', not '${channel}'`);
+
 // The version the app reports. Overridable so scripts/check-update-flow.mjs can
 // build two distinguishable versions from one checkout and watch the service
-// worker hand one over to the other; nothing else sets it.
-const version: string = process.env.APP_VERSION_OVERRIDE || pkg.version;
+// worker hand one over to the other. A channel build carries the channel and,
+// in CI, the run number, so a beta bug report names the build it came from.
+const baseVersion: string = process.env.APP_VERSION_OVERRIDE || pkg.version;
+const runNumber = process.env.GITHUB_RUN_NUMBER;
+const version: string = channel ? `${baseVersion}-${channel}${runNumber ? `.${runNumber}` : ''}` : baseVersion;
 
 /**
  * This build's id: the time it was built, so a later build always has a higher
@@ -91,7 +106,7 @@ const upstream = {
  * (services/app/remoteData.ts). Such a build leaves its own copy of them out of
  * the output and the precache, so the app can never fall back to a catalog
  * older than the published one. Offline, the service worker answers from its
- * cached download (the `astra-catalogs` rule below). Dev, preview and a build
+ * cached download (the `astra-catalogs` rules below). Dev, preview and a build
  * with no data host keep reading public/data.
  */
 const hostedCatalogs = process.env.VITE_DATA_BASE?.trim()
@@ -106,6 +121,19 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    // index.html runs before any module, so it cannot import the storage prefix
+    // or the channel; it takes both from here. The prefix rule is the one in
+    // services/storage/storageKeys.ts.
+    {
+      name: 'html-channel',
+      transformIndexHtml: {
+        order: 'pre' as const,
+        handler: (html: string) =>
+          html
+            .replaceAll('%APP_TITLE%', channel ? 'AstraRocketJs Beta' : 'AstraRocketJs')
+            .replaceAll('%STORAGE_PREFIX%', channel ? `astrarocketjs-${channel}` : 'astrarocketjs'),
+      },
+    },
     // The service worker's build-id script (see buildId above).
     {
       name: 'sw-build-id',
@@ -114,13 +142,21 @@ export default defineConfig({
         this.emitFile({ type: 'asset', fileName: swBuildFile, source: swBuildSource });
       },
     },
-    {
-      name: 'drop-hosted-catalogs',
-      apply: 'build',
-      closeBundle() {
-        for (const file of hostedCatalogs) rmSync(new URL(`./dist/${file}`, import.meta.url), { force: true });
-      },
-    },
+    (() => {
+      // The folder the build wrote, not `./dist`: a build given `--outDir`
+      // would otherwise keep the hosted catalogs and delete them from dist.
+      let outDir = '';
+      return {
+        name: 'drop-hosted-catalogs',
+        apply: 'build' as const,
+        configResolved(config: { root: string; build: { outDir: string } }) {
+          outDir = resolvePath(config.root, config.build.outDir);
+        },
+        closeBundle() {
+          for (const file of hostedCatalogs) rmSync(resolvePath(outDir, file), { force: true });
+        },
+      };
+    })(),
     // Offline support. Everything the app needs is static (the WASM kernel runs
     // the physics in-browser; there is no backend), so it can work fully offline
     // once cached, which matters at a launch site with no signal.
@@ -128,10 +164,10 @@ export default defineConfig({
       // 'prompt', not 'autoUpdate': a silent activate reloads the page, which would
       // interrupt an edit in progress. UpdateToast asks first.
       registerType: 'prompt',
-      includeAssets: ['favicon.svg', 'apple-touch-icon.png'],
+      includeAssets: ['favicon.svg', 'favicon.ico', 'apple-touch-icon.png'],
       manifest: {
-        name: 'AstraRocketJs',
-        short_name: 'AstraRocket',
+        name: channel ? 'AstraRocketJs Beta' : 'AstraRocketJs',
+        short_name: channel ? 'AstraRocket Beta' : 'AstraRocket',
         description: 'Design and simulate model rockets in your browser.',
         theme_color: '#0b1020',
         background_color: '#0b1020',
@@ -155,8 +191,10 @@ export default defineConfig({
         // precached. In a data-host build that is the materials and the
         // contributors only: the motors and components come from the host, are
         // kept by the `astra-catalogs` rule below, and are fetched in the
-        // background on the first visit (services/app/warmCatalogs.ts), so an
-        // app installed online still has them at a launch site with no signal.
+        // background on every visit (services/app/warmCatalogs.ts), so an app
+        // opened once online still has them at a launch site with no signal.
+        // The rule sees only a page the worker controls, and the first visit is
+        // not one, so there warmCatalogs.ts writes them to that cache itself.
         // `ork` is in here for the bundled OpenRocket examples
         // (public/examples/, see services/storage/exampleLibrary.ts). The set comes
         // to ~340 kB with their stored flight data stripped, which is cheap
@@ -196,8 +234,9 @@ export default defineConfig({
         // still asks for `data/motors.generated.json?v=429fee4cf0b3` - and
         // Workbox keys the precache on `data/motors.generated.json`, so the
         // query would make every one of those a miss. Offline, the request would
-        // fall through every runtime rule (they cover page loads, the jsDelivr
-        // host and the engine fallback) and fail at the network: no motors,
+        // fall through every runtime rule (they cover page loads, docs pages,
+        // the jsDelivr host, the engine fallback, the report fonts and map
+        // tiles) and fail at the network: no motors,
         // no components, no materials, on the one device that is at a launch
         // site with no signal. Workbox's default ignores only `utm_*` and
         // `fbclid`.
@@ -284,16 +323,56 @@ export default defineConfig({
             },
           },
           {
+            // The data host's manifest.json (services/app/remoteData.ts): a
+            // content hash per published catalog, which the page appends to
+            // each catalog URL as `?v=<hash>`. Network first, so an online open
+            // reads the hash the host serves now and asks for the catalog under
+            // it, which the catalog rule below then stores; the cached manifest
+            // answers only when the network fails or takes over three seconds,
+            // and then it names the `?v=<hash>` copies the cache already holds.
+            // A network answer that lands after the timeout is stored too, so
+            // until the next online open the cached manifest can name a copy
+            // the cache does not hold.
+            //
+            // Stale-while-revalidate here would hand the page the previous
+            // manifest on the first open after a refresh while storing the new
+            // one behind it, and the next offline open would ask for catalogs
+            // under hashes nothing cached (scripts/check-offline-data.mjs
+            // checks the refresh-then-offline sequence).
+            //
+            // The same cache as the catalogs, because a page the worker does not
+            // control writes the manifest there itself
+            // (services/app/warmCatalogs.ts). One URL per host, overwritten in
+            // place, so no entry cap.
+            urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/gh\/.*@data\/manifest\.json$/,
+            handler: 'NetworkFirst',
+            options: {
+              cacheName: 'astra-catalogs',
+              networkTimeoutSeconds: 3,
+              cacheableResponse: { statuses: [200] },
+            },
+          },
+          {
             // Catalogs published to the `data` branch (see sync-catalogs.yml),
             // and the only copy of the motors and components a data-host build
-            // has offline. Stale-while-revalidate: render instantly from cache,
-            // refresh in the background, so a weekly catalog refresh lands on the
-            // next open.
+            // has offline. Keyed on the whole URL, hash included, so a refreshed
+            // catalog is a new entry under its new hash. Stale-while-revalidate:
+            // a hash the cache holds renders instantly from cache, and a new one
+            // is fetched and stored on the online open that first asks for it,
+            // which is the first open after a refresh (the manifest rule above
+            // serves the refreshed hash that same open).
+            //
+            // No maxAgeSeconds: Workbox refuses a cached response older than
+            // that, and this is the only offline copy, so a user who has not
+            // opened the app online for that long would have no motors and no
+            // parts at the field. The `?v=<hash>` keys and the revalidation
+            // keep it current, and maxEntries caps how many it holds
+            // (scripts/check-offline-data.mjs checks both).
             urlPattern: /^https:\/\/cdn\.jsdelivr\.net\/gh\/.*@data\//,
             handler: 'StaleWhileRevalidate',
             options: {
               cacheName: 'astra-catalogs',
-              expiration: { maxEntries: 16, maxAgeSeconds: 60 * 60 * 24 * 90 },
+              expiration: { maxEntries: 16 },
               cacheableResponse: { statuses: [200] },
             },
           },
@@ -340,6 +419,11 @@ export default defineConfig({
             // a handful of pads, so browsing the world does not grow without
             // limit; Workbox evicts the least recently used past that.
             //
+            // No maxAgeSeconds: Workbox refuses a cached response older than
+            // that, so a site checked at home longer ago than the limit would
+            // draw blank at the field (scripts/check-offline-data.mjs checks
+            // the built rule).
+            //
             // The ground track pulls tiles around the same pads as the site map,
             // so most of what it asks for is already here, but it sizes its zoom to the
             // flight rather than to SITE_ZOOM and so fills a second zoom level
@@ -357,7 +441,7 @@ export default defineConfig({
               // texture and the plain `<img>` maps that ask the same way. The
               // versioned cache name keeps such entries out.
               cacheName: 'astra-map-tiles-v2',
-              expiration: { maxEntries: 1200, maxAgeSeconds: 60 * 60 * 24 * 180 },
+              expiration: { maxEntries: 1200 },
               cacheableResponse: { statuses: [0, 200] },
               // A tile is cached under its address without the user's Esri
               // key (services/map/esriKey), so adding, renewing or clearing a
@@ -381,6 +465,7 @@ export default defineConfig({
   // Expose the package version to the app (shown in the header).
   define: {
     __APP_VERSION__: JSON.stringify(version),
+    __APP_CHANNEL__: JSON.stringify(channel),
     __HELP_URL__: JSON.stringify(helpUrl),
     __CONTRIBUTORS_URL__: JSON.stringify(contributorsUrl),
     __UPSTREAM__: JSON.stringify(upstream),

@@ -64,7 +64,7 @@ const CP_LABEL_L = 6;
 // Wide enough for "CP · 22.4 cm" so the margin text is nudged clear of the
 // label.
 const CP_LABEL_R = 92;
-/** Rough half-width of the margin text (13 px bold ≈ 7.2 px per char). */
+/** Rough half-width of the margin text (11 px bold, with 7.2 px per char leaving room). */
 const marginHalfW = (text: string) => (text.length * 7.2) / 2;
 
 export interface CalloutLayout {
@@ -339,26 +339,32 @@ export function computeSchematicLayout(
  * ever written.
  *
  * For a mass component the last-resort radius is the kernel's default
- * (ComponentFactory masscomponent radius = 0.005), not a fraction of the
+ * (ComponentFactory masscomponent radius = 0.0125), not a fraction of the
  * parent. A `pRadius * 0.7` fraction would draw a mass component with no
  * `radius` key (a hand-edited or imported one) at ~9 mm on a 13 mm tube while
- * the kernel flies it at 5 mm, and the drawing must agree with the simulation.
+ * the kernel flies it at 12.5 mm, and the drawing must agree with the simulation.
  *
  * A parachute, streamer or shock cord with no `radius` keeps the parent
  * fraction. The bridge does pass a packed radius to the kernel when one is on
  * record; without one the kernel keeps MassObject's own default, a size nobody
- * chose that moves only the part's rotational inertia, and the 5 mm mass
- * default would shrink the default design's chute box until its glyph does not
- * fit.
+ * chose that moves only the part's rotational inertia, so the box is sized to
+ * the tube it sits in rather than to a number the drawing would then have to
+ * cap against a narrow tube.
  *
  * A part with no `length` is drawn at the length the bridge builds its type at
- * (`partLength`): 20 mm for a mass component, 25 mm for recovery gear.
+ * (`partLength`): 25 mm for a mass component and for recovery gear.
+ *
+ * The 85 % cap against the parent applies to the invented fallback box only.
+ * A stated `outerRadius` or `radius` is drawn as stated: the kernel flies it
+ * unchanged (`MassObject.setRadius` floors at 0 and nothing else), so a 12.5 mm
+ * nose weight in a 13 mm tube is a 12.5 mm part, not an 11 mm one.
  */
 export function internalExtent(node: ComponentNode, parentRadius: number): { length: number; radius: number } {
   const dflt = node.type === 'masscomponent' ? KERNEL_MASSCOMPONENT_RADIUS : parentRadius * 0.7;
+  const stated = numOpt(node, 'outerRadius') ?? numOpt(node, 'radius');
   return {
     length: partLength(node),
-    radius: Math.min(parentRadius * 0.85, num(node, 'outerRadius', num(node, 'radius', dflt))),
+    radius: stated ?? Math.min(parentRadius * 0.85, dflt),
   };
 }
 
@@ -442,6 +448,12 @@ export function zoomAbout(z: ZoomState, px: number, py: number, k: number): Zoom
 
 /** The deepest zoom the schematic views allow. */
 export const MAX_ZOOM = 12;
+
+/**
+ * What one wheel notch multiplies a schematic view's scale by. One constant
+ * for the side views and the aft view, so a notch zooms them by the same step.
+ */
+export const WHEEL_ZOOM_FACTOR = 1.2;
 
 /** Multiply a view's scale by `f` about (px, py), held within [1, max]. */
 export function zoomStep(z: ZoomState, px: number, py: number, f: number, max: number): ZoomState {

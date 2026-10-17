@@ -44,7 +44,7 @@ import { useAsyncLoad } from '../common/useAsyncLoad';
 
 /**
  * How many rows are rendered at once. There are well over a thousand body tubes and no
- * virtualization in the tree, so the list is capped. The footer reports the match
+ * virtualization in the table, so the list is capped. The footer reports the match
  * count and how many rows are held back, rather than printing the cap as the
  * total and making the catalog read as small.
  */
@@ -321,6 +321,7 @@ function columnsFor(type: ComponentType, u: Units, t: (k: string) => string, ran
       return [...fitCol, ...ident, odCol, idCol, lenCol, material, notes];
     case 'transition':
       return [
+        ...fitCol,
         ...ident,
         shapeCol,
         {
@@ -408,13 +409,10 @@ function PickerDialog({
   // there is no Fit column and no toggle, rather than a control that filters
   // everything away for reasons the user cannot see.
   const canFit = fitRuleFor(type, fit) != null;
-  // Fit ranks by default; it does not hide. Defaulting the filter on would be
-  // wrong: no nose cone in the catalog is within 0.6 mm of a 54.66 mm airframe,
-  // because manufacturers' nominal sizes cluster in families that do not line
-  // up, so a picker that hid everything else would open empty on a perfectly
-  // ordinary design. Sorting by fit puts the few couplers that suit a
-  // 51.5 mm bore at the top of several hundred and still lets an unusual build scroll past
-  // them. The toggle is there for anyone who does want the hard filter.
+  // Fit ranks by default; it does not hide. Sorting by fit puts the few
+  // couplers that suit a 51.5 mm bore at the top of several hundred and still
+  // lets an unusual build scroll past them. The toggle is there for anyone who
+  // does want the hard filter.
   const [q, setQ] = useState<ComponentQuery>({ ...emptyQuery, sort: canFit ? 'fit' : 'mfr' });
   const set = (patch: Partial<ComponentQuery>) => setQ((prev) => ({ ...prev, ...patch }));
 
@@ -427,6 +425,9 @@ function PickerDialog({
   // families, bulkheads five, and they are not the same five.
   const mats = useMemo(() => materialFamilies(all), [all]);
   const shapes = useMemo(() => noseShapes(all), [all]);
+  // Offered only where this type has legacy rows, which the list hides until
+  // it is checked, as desktop's chooser does.
+  const hasLegacy = useMemo(() => all.some((p) => p.legacy), [all]);
   const ranked = useMemo(() => queryComponents(all, q, type, fit), [all, q, type, fit]);
   const shown = ranked.slice(0, ROW_CAP);
   const baseCols = useMemo(() => columnsFor(catType, u, t, canFit), [catType, u, t, canFit]);
@@ -586,6 +587,17 @@ function PickerDialog({
                 {t('picker.fitsOnly')}
               </label>
             )}
+            {hasLegacy && (
+              <label className="flex items-center gap-1.5 text-xs text-ink-soft">
+                <input
+                  type="checkbox"
+                  checked={q.showLegacy}
+                  onChange={(e) => set({ showLegacy: e.target.checked })}
+                  className="accent-accent-500"
+                />
+                {t('picker.showLegacy')}
+              </label>
+            )}
             {!queryIsEmpty(q) && (
               <button
                 onClick={() =>
@@ -606,8 +618,12 @@ function PickerDialog({
             : t('picker.results', { count: ranked.length })}
           {/* A delete that the storage layer refused. It belongs here rather
               than beside the row, which is gone from view the moment the list
-              is scrolled or filtered. */}
-          {delErr && <div className="mt-1 normal-case tracking-normal text-danger-400">{delErr}</div>}
+              is scrolled or filtered. Always mounted, empty until there is
+              something to say: a live region created together with its text
+              is not announced (see UpdateToast). */}
+          <div role="status" aria-live="polite" className="mt-1 normal-case tracking-normal text-danger-400">
+            {delErr}
+          </div>
         </div>
       }
     >

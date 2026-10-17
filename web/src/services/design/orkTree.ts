@@ -76,6 +76,30 @@ export type LaunchPatch =
 export const launchPatchFor = (p: LaunchPatch, launch: LaunchConditions, rowId: string): Partial<LaunchConditions> =>
   typeof p === 'function' ? p(launch, rowId) : p;
 
+/**
+ * A stored or file launch laid over the defaults, which fill the fields it
+ * lacks. The wind profiles and the forecast atmosphere are the exception: they
+ * come from `launch` alone. A launch without a flown profile flies the Average
+ * model, and taking the defaults' would turn it into a multilevel flight; one
+ * without a kept profile has none, and taking the defaults' would write a
+ * profile into a file that never had it. A launch without forecast levels
+ * flies the standard atmosphere: desktop never writes `<forecastlevel>`, and
+ * a cleared forecast is stored as no levels. With no launch at all there is
+ * nothing to override, and the defaults stand whole, as they do for a new
+ * simulation.
+ */
+export const overLaunchDefaults = (
+  defaults: LaunchConditions,
+  launch: Partial<LaunchConditions> | undefined,
+): LaunchConditions => {
+  const out = { ...defaults, ...launch };
+  if (!launch) return out;
+  if (launch.windLevels === undefined) delete out.windLevels;
+  if (launch.keptWindLevels === undefined) delete out.keptWindLevels;
+  if (launch.atmosphereLevels === undefined) delete out.atmosphereLevels;
+  return out;
+};
+
 /** Launch conditions, in the shape a .ork's `<simulation>` `<conditions>` is parsed into. */
 export interface LaunchConditions {
   launchRodLengthM: number | null;
@@ -90,6 +114,16 @@ export interface LaunchConditions {
   windDirectionDeg?: number;
   /** Altitude-layered wind profile (24.x multilevel); overrides the single wind. */
   windLevels?: WindLevel[];
+  /**
+   * The multilevel profile held while the Average model is selected. Never
+   * flown: `simConditions` reads `windLevels` alone and `resultKey` leaves this
+   * out. The desktop keeps its multilevel model beside the average one and
+   * `<windmodeltype>` only picks between them, so a file saved with Average
+   * selected still carries the profile (OpenRocketSaver writes it whenever it
+   * has levels), and switching back to Multilevel shows it again. Absent while
+   * `windLevels` is set: there is one profile, in one place.
+   */
+  keptWindLevels?: WindLevel[];
   /**
    * What a wind level's altitude is measured from. OpenRocket's
    * `MultiLevelPinkNoiseWindModel.AltitudeReference`, defaulting to MSL as the

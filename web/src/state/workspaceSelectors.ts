@@ -33,7 +33,7 @@ export const simPrefsOf = (s: Settings): SimPrefs => ({ ...s.simulation, lengthU
 /** Each repaired value as the banner's own line. */
 export const repairNotes = (repaired: RepairedValue[]): string[] => repaired.map((r) => repairedText(r, i18n.t));
 
-/** Which condition raised `storageWarning`; only 'full' is save-clearable. */
+/** Which condition raised `storageWarning`; 'full' and 'conflict' are retired by a save that lands. */
 export type StorageWarningKind = 'full' | 'degraded' | 'loadFailed' | 'conflict';
 
 /**
@@ -102,7 +102,7 @@ export function defaultConfig(tree: RocketTree): FlightConfig {
 export const workspaceSnapshot = (
   s: Pick<WorkspaceState, 'tree' | 'sims' | 'configs' | 'activeId' | 'loadedMeta'>,
 ): Workspace => ({
-  version: 2,
+  version: 3,
   tree: s.tree,
   sims: s.sims,
   configs: s.configs,

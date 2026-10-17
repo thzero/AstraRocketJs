@@ -24,7 +24,7 @@ import {
   thicknessXml,
 } from './exportParts';
 import { stageFileName } from '../../design/orkTree';
-import { defaultSeparation } from '../../../tree/kernelDefaults';
+import { KERNEL_DEFAULTS, KERNEL_DEPLOYMENT, KERNEL_MATERIALS, defaultSeparation } from '../../../tree/kernelDefaults';
 
 /**
  * One writer per component type: the element body the desktop's saver for
@@ -91,9 +91,12 @@ const recoveryHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   // after the material and omits it for a main, so a round-tripped file stays
   // byte-comparable with one the desktop wrote.
   if (node['drogue'] === true) w.emit(d, '<isdrogue>true</isdrogue>');
-  w.emit(d, `<deployevent>${escapeXml(deployEventXml(str(node, 'deployEvent', 'ejection')))}</deployevent>`);
-  w.emit(d, `<deployaltitude>${num(node, 'deployAltitude', 200)}</deployaltitude>`);
-  w.emit(d, `<deploydelay>${num(node, 'deployDelay', 0)}</deploydelay>`);
+  w.emit(
+    d,
+    `<deployevent>${escapeXml(deployEventXml(str(node, 'deployEvent', KERNEL_DEPLOYMENT.deployEvent)))}</deployevent>`,
+  );
+  w.emit(d, `<deployaltitude>${num(node, 'deployAltitude', KERNEL_DEPLOYMENT.deployAltitude)}</deployaltitude>`);
+  w.emit(d, `<deploydelay>${num(node, 'deployDelay', KERNEL_DEPLOYMENT.deployDelay)}</deploydelay>`);
   deploymentConfigs(w, d, node);
 };
 
@@ -166,7 +169,7 @@ const writeTransition: NodeWriter = (w, node, d) => {
 // configuration loads a motor into it.
 const mountXml: NodeWriter = (w, node, d) => {
   if (node['motorMount'] === true || mountConfigs(w, node.id).length > 0) {
-    motorMountXml(w, d, node.id, num(node, 'motorOverhang', 0));
+    motorMountXml(w, d, node);
   }
 };
 
@@ -174,9 +177,10 @@ const writeBodytube: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Body Tube');
   finishXml(w, d, node);
   material(w, d, node);
-  w.emit(d, `<length>${num(node, 'length', 0.3)}</length>`);
-  thicknessXml(w, d, node, COMPONENT_DEFAULTS.bodytube.thickness);
-  w.emit(d, `<radius>${node['outerRadiusAuto'] === true ? 'auto' : num(node, 'outerRadius', 0.012)}</radius>`);
+  const bt = COMPONENT_DEFAULTS.bodytube;
+  w.emit(d, `<length>${num(node, 'length', bt.length)}</length>`);
+  thicknessXml(w, d, node, bt.thickness);
+  w.emit(d, `<radius>${node['outerRadiusAuto'] === true ? 'auto' : num(node, 'outerRadius', bt.outerRadius)}</radius>`);
   // Extension tag (desktop warns-and-ignores): sub-minimum flag.
   if (node['caseAirframe'] === true) {
     w.emit(d, '<caseairframe>true</caseairframe>');
@@ -187,10 +191,11 @@ const writeBodytube: NodeWriter = (w, node, d) => {
 
 const writeTrapezoidFinset: NodeWriter = (w, node, d) => {
   planarFinHead(w, node, d, 'Trapezoidal Fin Set');
-  w.emit(d, `<rootchord>${num(node, 'rootChord', 0.05)}</rootchord>`);
-  w.emit(d, `<tipchord>${num(node, 'tipChord', 0.03)}</tipchord>`);
-  w.emit(d, `<sweeplength>${num(node, 'sweep', 0.02)}</sweeplength>`);
-  w.emit(d, `<height>${num(node, 'height', 0.03)}</height>`);
+  const fin = COMPONENT_DEFAULTS.trapezoidfinset;
+  w.emit(d, `<rootchord>${num(node, 'rootChord', fin.rootChord)}</rootchord>`);
+  w.emit(d, `<tipchord>${num(node, 'tipChord', fin.tipChord)}</tipchord>`);
+  w.emit(d, `<sweeplength>${num(node, 'sweep', fin.sweep)}</sweeplength>`);
+  w.emit(d, `<height>${num(node, 'height', fin.height)}</height>`);
 };
 
 const writeFreeformFinset: NodeWriter = (w, node, d) => {
@@ -205,13 +210,14 @@ const writeFreeformFinset: NodeWriter = (w, node, d) => {
 
 const writeEllipticalFinset: NodeWriter = (w, node, d) => {
   planarFinHead(w, node, d, 'Elliptical Fin Set');
-  w.emit(d, `<rootchord>${num(node, 'rootChord', 0.05)}</rootchord>`);
-  w.emit(d, `<height>${num(node, 'height', 0.03)}</height>`);
+  const fin = COMPONENT_DEFAULTS.ellipticalfinset;
+  w.emit(d, `<rootchord>${num(node, 'rootChord', fin.rootChord)}</rootchord>`);
+  w.emit(d, `<height>${num(node, 'height', fin.height)}</height>`);
 };
 
 const writeTubeFinset: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Tube Fin Set');
-  finCountXml(w, d, node, 6);
+  finCountXml(w, d, node, COMPONENT_DEFAULTS.tubefinset.finCount);
   w.emit(d, '<radiusoffset method="coaxial">0.0</radiusoffset>');
   finAngleXml(w, d, node, 'fixed');
   position(w, d, node, 'bottom');
@@ -220,19 +226,24 @@ const writeTubeFinset: NodeWriter = (w, node, d) => {
   // A tube fin set with no diameter is sized by the kernel from the body
   // radius and the fin count, so the flag has to survive the save.
   autoRadius(w, d, node, 'outerRadius', 'radius');
-  w.emit(d, `<length>${num(node, 'length', 0.1)}</length>`);
-  w.emit(d, `<thickness>${num(node, 'thickness', 0.0005)}</thickness>`);
+  w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.tubefinset.length)}</length>`);
+  // No wall is no tag: the bridge leaves a keyless tube fin set's wall to its
+  // parent tube (ComponentFactory.applyWallThickness), and desktop reads an
+  // absent <thickness> the same way, so a number here would fly one wall and
+  // save another.
+  if (typeof node['thickness'] === 'number') w.emit(d, `<thickness>${node['thickness']}</thickness>`);
 };
 
 const writeInnertube: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Inner Tube');
   position(w, d, node, 'bottom');
   material(w, d, node);
-  w.emit(d, `<length>${num(node, 'length', 0.07)}</length>`);
+  const it = COMPONENT_DEFAULTS.innertube;
+  w.emit(d, `<length>${num(node, 'length', it.length)}</length>`);
   // Preserve the off-axis / split-cluster offset (see the innertube reader).
   radialXml(w, d, node);
-  w.emit(d, `<outerradius>${num(node, 'outerRadius', 0.0095)}</outerradius>`);
-  w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.innertube.thickness)}</thickness>`);
+  w.emit(d, `<outerradius>${num(node, 'outerRadius', it.outerRadius)}</outerradius>`);
+  w.emit(d, `<thickness>${num(node, 'thickness', it.thickness)}</thickness>`);
   // Desktop stores cluster rotation in degrees; we keep radians inside.
   w.emit(
     d,
@@ -249,7 +260,7 @@ const writeInnertube: NodeWriter = (w, node, d) => {
 };
 
 const writeTubecoupler: NodeWriter = (w, node, d) => {
-  ringLikeBody(w, node, d, 'Tube Coupler', 0.05);
+  ringLikeBody(w, node, d, 'Tube Coupler', COMPONENT_DEFAULTS.tubecoupler.length);
   w.emit(d, `<thickness>${num(node, 'thickness', COMPONENT_DEFAULTS.tubecoupler.thickness)}</thickness>`);
 };
 
@@ -288,30 +299,34 @@ const writeFairing: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Camera shroud');
   position(w, d, node, 'middle');
   finishXml(w, d, node);
-  w.emit(d, `<length>${num(node, 'length', 0.08)}</length>`);
-  w.emit(d, `<width>${num(node, 'width', 0.025)}</width>`);
-  w.emit(d, `<height>${num(node, 'height', 0.02)}</height>`);
+  const fr = COMPONENT_DEFAULTS.fairing;
+  w.emit(d, `<length>${num(node, 'length', fr.length)}</length>`);
+  w.emit(d, `<width>${num(node, 'width', fr.width)}</width>`);
+  w.emit(d, `<height>${num(node, 'height', fr.height)}</height>`);
   w.emit(d, `<fairingshape>${escapeXml(str(node, 'fairingShape', 'halfround'))}</fairingshape>`);
-  w.emit(d, `<mass>${num(node, 'mass', 0.03)}</mass>`);
+  w.emit(d, `<mass>${num(node, 'mass', fr.mass)}</mass>`);
 };
 
 const writeLaunchlug: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Launch Lug');
   instancesXml(w, d, node, 1);
-  w.emit(d, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
-  w.emit(d, `<radialdirection>${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</radialdirection>`);
+  const lug = COMPONENT_DEFAULTS.launchlug;
+  const lugAngle = KERNEL_DEFAULTS.launchlug.angleOffset;
+  w.emit(d, `<angleoffset method="relative">${(num(node, 'angleOffset', lugAngle) * 180) / Math.PI}</angleoffset>`);
+  w.emit(d, `<radialdirection>${(num(node, 'angleOffset', lugAngle) * 180) / Math.PI}</radialdirection>`);
   position(w, d, node, 'middle');
   finishXml(w, d, node);
   material(w, d, node);
-  w.emit(d, `<radius>${num(node, 'outerRadius', 0.0022)}</radius>`);
-  w.emit(d, `<length>${num(node, 'length', 0.05)}</length>`);
-  w.emit(d, `<thickness>${num(node, 'thickness', 0.0003)}</thickness>`);
+  w.emit(d, `<radius>${num(node, 'outerRadius', lug.outerRadius)}</radius>`);
+  w.emit(d, `<length>${num(node, 'length', lug.length)}</length>`);
+  w.emit(d, `<thickness>${num(node, 'thickness', lug.thickness)}</thickness>`);
 };
 
 const writeRailbutton: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Rail Button');
   instancesXml(w, d, node, 1);
-  w.emit(d, `<angleoffset method="relative">${(num(node, 'angleOffset', Math.PI) * 180) / Math.PI}</angleoffset>`);
+  const rbAngle = KERNEL_DEFAULTS.railbutton.angleOffset;
+  w.emit(d, `<angleoffset method="relative">${(num(node, 'angleOffset', rbAngle) * 180) / Math.PI}</angleoffset>`);
   position(w, d, node, 'middle');
   finishXml(w, d, node);
   // Material and the five other dimensions come from the node when the reader
@@ -359,28 +374,33 @@ function autoLengthXml(
 
 const writeParachute: NodeWriter = (w, node, d) => {
   recoveryHead(w, node, d, 'Parachute');
-  w.emit(d, `<diameter>${num(node, 'diameter', 0.3)}</diameter>`);
+  const chute = COMPONENT_DEFAULTS.parachute;
+  w.emit(d, `<diameter>${num(node, 'diameter', chute.diameter)}</diameter>`);
   if (typeof node['spillHoleDiameter'] === 'number' && node['spillHoleDiameter'] > 0) {
     // Extension tag (desktop warns-and-ignores, same as airfoilsection).
     w.emit(d, `<spillholediameter>${node['spillHoleDiameter']}</spillholediameter>`);
   }
-  w.emit(d, `<linecount>${num(node, 'lineCount', 6)}</linecount>`);
-  autoLengthXml(w, d, node, 'lineLength', 'lineLengthAuto', 'linelength', 0.3);
+  w.emit(d, `<linecount>${num(node, 'lineCount', chute.lineCount)}</linecount>`);
+  autoLengthXml(w, d, node, 'lineLength', 'lineLengthAuto', 'linelength', chute.lineLength);
   if (typeof node['lineDensity'] === 'number') {
     const lname = typeof node['lineMaterialName'] === 'string' ? node['lineMaterialName'] : 'custom';
     w.emit(d, `<linematerial type="line" density="${node['lineDensity']}">${escapeXml(lname)}</linematerial>`);
   } else {
+    // The kernel's own line, the row `material` writes under <material>; a
+    // parachute's line has a tag of its own, so the row is written from the
+    // table here rather than through `material`.
+    const line = KERNEL_MATERIALS.line;
     w.emit(
       d,
-      '<linematerial type="line" density="0.0018" group="ThreadsLines">Elastic cord (round 2 mm, 1/16 in)</linematerial>',
+      `<linematerial type="line" density="${line.density}" group="${line.group}">${escapeXml(line.name)}</linematerial>`,
     );
   }
 };
 
 const writeStreamer: NodeWriter = (w, node, d) => {
   recoveryHead(w, node, d, 'Streamer');
-  w.emit(d, `<striplength>${num(node, 'stripLength', 0.5)}</striplength>`);
-  w.emit(d, `<stripwidth>${num(node, 'stripWidth', 0.05)}</stripwidth>`);
+  w.emit(d, `<striplength>${num(node, 'stripLength', COMPONENT_DEFAULTS.streamer.stripLength)}</striplength>`);
+  w.emit(d, `<stripwidth>${num(node, 'stripWidth', COMPONENT_DEFAULTS.streamer.stripWidth)}</stripwidth>`);
 };
 
 const writeShockcord: NodeWriter = (w, node, d) => {
@@ -388,18 +408,19 @@ const writeShockcord: NodeWriter = (w, node, d) => {
   position(w, d, node, 'top');
   packedXml(w, d, node);
   radialXml(w, d, node);
-  autoLengthXml(w, d, node, 'cordLength', 'cordLengthAuto', 'cordlength', 0.3);
+  autoLengthXml(w, d, node, 'cordLength', 'cordLengthAuto', 'cordlength', COMPONENT_DEFAULTS.shockcord.cordLength);
   material(w, d, node, 'line');
 };
 
 const writeMasscomponent: NodeWriter = (w, node, d) => {
   header(w, d, node, 'Mass Component');
   position(w, d, node, 'top');
-  w.emit(d, `<packedlength>${num(node, 'length', 0.02)}</packedlength>`);
-  w.emit(d, packedRadiusXml(node, COMPONENT_DEFAULTS.masscomponent.radius));
+  const mc = COMPONENT_DEFAULTS.masscomponent;
+  w.emit(d, `<packedlength>${num(node, 'length', mc.length)}</packedlength>`);
+  w.emit(d, packedRadiusXml(node, mc.radius));
   // Off-axis placement, so a mass off the centerline keeps its place on save.
   radialXml(w, d, node);
-  w.emit(d, `<mass>${num(node, 'mass', 0.01)}</mass>`);
+  w.emit(d, `<mass>${num(node, 'mass', mc.mass)}</mass>`);
   // Legal values = MassComponent.MassComponentType lowercased:
   // masscomponent, altimeter, flightcomputer, deploymentcharge,
   // tracker, payload, recoveryhardware, battery.
@@ -411,7 +432,8 @@ const assemblyHead = (w: OrkWriter, node: ComponentNode, d: number, fallback: st
   header(w, d, node, fallback);
   // ComponentAssembly: no <radialdirection>, which the desktop savers
   // suppress for assemblies.
-  w.emit(d, `<instancecount>${num(node, 'instanceCount', 2)}</instancecount>`);
+  const assembly = node.type === 'podset' ? KERNEL_DEFAULTS.podset : KERNEL_DEFAULTS.parallelstage;
+  w.emit(d, `<instancecount>${num(node, 'instanceCount', assembly.instanceCount)}</instancecount>`);
   const rMethod = node['radiusMethod'] === 'free' ? 'free' : 'relative';
   w.emit(d, `<radiusoffset method="${rMethod}">${num(node, 'radiusOffset', 0)}</radiusoffset>`); // meters
   const aMethod = node['angleMethod'] === 'fixed' ? 'fixed' : 'relative';

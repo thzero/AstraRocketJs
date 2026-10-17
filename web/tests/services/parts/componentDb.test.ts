@@ -185,3 +185,86 @@ describe('isComponentRow refuses sizes and shapes the editor cannot build', () =
     expect(cat.components.filter((r) => !isComponentRow(r))).toEqual([]);
   });
 });
+
+/**
+ * A row from the data host is a catalog row, never a saved part. `catalogPatch`
+ * applies a `custom` row's `patch` as a whole node, so a published row carrying
+ * one could write any key onto the part it is picked for.
+ */
+describe("a published row that carries a saved part's fields", () => {
+  it('reaches the picker without them', async () => {
+    vi.resetModules();
+    vi.doMock('../../../src/services/app/remoteData', () => ({
+      fetchCatalog: async () => ({
+        generated: '',
+        count: 1,
+        components: [tube({ custom: true, id: 'mine', patch: { type: 'stage', children: [], overrideMass: 1e6 } })],
+      }),
+    }));
+    const { componentsForType } = await import('../../../src/services/parts/componentDb');
+    const { catalogPatch } = await import('../../../src/services/design/treeEdit');
+    const [row] = await componentsForType('bodytube');
+    expect(row).toBeDefined();
+    expect(row).not.toHaveProperty('custom');
+    expect(row).not.toHaveProperty('patch');
+    expect(row).not.toHaveProperty('id');
+    // Picked, it is a catalog body tube: its stated sizes, nothing from the patch.
+    const patch = catalogPatch(row!);
+    expect(patch['outerRadius']).toBe(0.0246 / 2);
+    expect(patch).not.toHaveProperty('overrideMass');
+    expect(patch).not.toHaveProperty('children');
+    vi.doUnmock('../../../src/services/app/remoteData');
+  });
+
+  it('is refused when its material or digest is not a string, or its legacy flag not true', () => {
+    expect(isComponentRow(tube({ material: 'Cardboard', digest: 'a87e783f' }))).toBe(true);
+    expect(isComponentRow(tube({ material: { toString: 1 } }))).toBe(false);
+    expect(isComponentRow(tube({ material: 5 }))).toBe(false);
+    expect(isComponentRow(tube({ digest: ['x'] }))).toBe(false);
+    expect(isComponentRow(tube({ legacy: true }))).toBe(true);
+    expect(isComponentRow(tube({ legacy: 'yes' }))).toBe(false);
+  });
+});
+
+/**
+ * The parts desktop's library marks legacy (`ComponentPreset.LEGACY`, from the
+ * `<Legacy/>` of the jar's `*-legacy.orc` files), by type: a dump of every
+ * preset the 24.12 release jar loads (PresetDump and the full-property dump
+ * agree). Desktop's chooser hides these until "Show Legacy Database" is
+ * checked, so the catalog has to say which they are.
+ */
+describe('the legacy parts', () => {
+  const LEGACY_BY_TYPE: Record<string, number> = {
+    bodytube: 407,
+    bulkhead: 71,
+    centeringring: 199,
+    engineblock: 26,
+    launchlug: 43,
+    nosecone: 397,
+    parachute: 41,
+    streamer: 12,
+    transition: 253,
+    tubecoupler: 95,
+  };
+
+  it('are the ones the release marks legacy, type by type', () => {
+    const cat = JSON.parse(readFileSync(resolve(process.cwd(), 'public/data/components.generated.json'), 'utf8')) as {
+      components: Component[];
+    };
+    const got: Record<string, number> = {};
+    for (const p of cat.components) if (p.legacy) got[p.type] = (got[p.type] ?? 0) + 1;
+    expect(got).toEqual(LEGACY_BY_TYPE);
+  });
+
+  it('tell two parts with one part number apart', () => {
+    // SEMROC BC-08542 is in the database and in semroc-legacy.orc; the release
+    // marks only the second legacy.
+    const cat = JSON.parse(readFileSync(resolve(process.cwd(), 'public/data/components.generated.json'), 'utf8')) as {
+      components: Component[];
+    };
+    const flag = (mfr: string) =>
+      cat.components.find((p) => p.type === 'nosecone' && p.mfr === mfr && p.partNo === 'BC-08542')?.legacy;
+    expect(flag('SEMROC')).toBeUndefined();
+    expect(flag('SEMROC Astronautics')).toBe(true);
+  });
+});

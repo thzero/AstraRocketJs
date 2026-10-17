@@ -13,7 +13,8 @@ import { ColorInput } from '../common/ColorInput';
  * the name and the catalog picker: those say what the part is and what it is made
  * from, and both are written to the `.ork`, while this is a view preference that
  * changes nothing about the rocket. A section of its own says so, and leaves room
- * for the other appearance settings (finish, texture) whenever they land.
+ * for the other appearance settings (texture) whenever they land. The surface
+ * finish is not one of them: it sets the drag, so it sits with the material.
  *
  * Below the part's own sections, above the tree actions, Overrides and Comment,
  * for the same reason

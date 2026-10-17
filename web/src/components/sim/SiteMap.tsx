@@ -36,7 +36,7 @@ import { SOURCE_LAYERS } from '../common/map/mapStyle';
  * recognize the mown strip from the air when you could never have looked its
  * numbers up.
  *
- * Tiles come from Esri's imagery or OpenStreetMap, drawn as plain `<img>` tags
+ * Tiles come from Esri's imagery or street map, drawn as plain `<img>` tags
  * at computed offsets rather than through a mapping library: showing one point
  * and letting it be dragged is the whole requirement, and Leaflet or MapLibre
  * would bring a layer system, a plugin surface and a stylesheet for the parts

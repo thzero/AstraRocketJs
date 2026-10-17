@@ -37,7 +37,10 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
   const g = withFixedUnit;
   // MotorSpec is SI; `q` converts to the user's unit and appends its symbol.
   const q = (quantity: Parameters<typeof u.fmt>[0], si: number | null, d?: number) => inUserUnit(u, quantity, si, 1, d);
-  const delay = motor.ejectionDelay >= PLUGGED_DELAY ? t('motor.plugged') : `${fmtNum(motor.ejectionDelay, 1)} s`;
+  const delay =
+    motor.ejectionDelay >= PLUGGED_DELAY
+      ? t('motor.plugged')
+      : `${fmtNum(motor.ejectionDelay, 1)} ${t('units.second')}`;
 
   return (
     <Dialog
@@ -62,11 +65,12 @@ export function MotorSpecDialog({ motor, onClose }: { motor: MotorSpec; onClose:
         <SpecItem label={t('sims.delay')} value={delay} />
         <SpecItem label={t('motorDlg.avgThrust')} value={q('force', avg, 1)} />
         <SpecItem label={t('motorDlg.maxThrust')} value={q('force', max, 1)} />
-        <SpecItem label={t('motorDlg.initialThrust')} value={q('force', init, 1)} />
+        <SpecItem label={t('motorDlg.initialThrust') + '*'} value={q('force', init, 1)} />
         <SpecItem label={t('motorDlg.totalImpulse')} value={q('impulse', impulse, 1)} />
         <SpecItem label={t('motorDlg.burnTime')} value={g(burn, 's', 2)} />
         {motor.curveSrc && <SpecItem label={t('motorDlg.curve')} value={motor.curveSrc} />}
       </dl>
+      <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('motorDlg.initialNote')}</p>
     </Dialog>
   );
 }

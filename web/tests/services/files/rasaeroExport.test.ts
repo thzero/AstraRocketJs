@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import {
   rasaeroSurface,
   RASAERO_SURFACE_DEFAULT,
@@ -156,7 +157,7 @@ describe('finish to RASAero surface (desktop table)', () => {
 
   it('collects the warning for a finish with no row', () => {
     const warnings: Keyed[] = [];
-    const xml = exportCdx1({ tree: withFinish('rough'), name: 'x', warnings });
+    const xml = exportCdx1({ tree: withFinish('rough'), name: 'x', launchMassKg: 0.45, launchCgM: 0.12, warnings });
     expect(xml).toContain('<Surface>Smooth (Zero Roughness)</Surface>');
     expect(warnings).toEqual([RASAERO_SURFACE_WARNING]);
   });
@@ -245,7 +246,7 @@ describe('a non-finite dimension', () => {
 
 /**
  * A trapezoid fin with no sweep key exports the kernel's default sweep
- * (`FIN_DEFAULTS.sweep`, 0.02 m), which is what the engine flies for that node.
+ * (`KERNEL_DEFAULTS.trapezoidfinset.sweep`), which is what the engine flies for that node.
  */
 describe('a trapezoid fin with no sweep key', () => {
   it('writes the kernel default sweep', () => {
@@ -253,7 +254,9 @@ describe('a trapezoid fin with no sweep key', () => {
     const fin = bare.components[0]!.children![1]!.children![0]!;
     delete fin['sweep'];
     const out = exportCdx1({ tree: bare, name: 'bare', launchMassKg: 0.45, launchCgM: 0.127 });
-    expect(out).toContain(`<SweepDistance>${(0.02 * 39.37).toFixed(4).replace(/0+$/, '')}</SweepDistance>`);
+    expect(out).toContain(
+      `<SweepDistance>${(KERNEL_DEFAULTS.trapezoidfinset.sweep * 39.37).toFixed(4).replace(/0+$/, '')}</SweepDistance>`,
+    );
   });
 });
 
@@ -482,5 +485,62 @@ describe('the nose shape parameter', () => {
     [{ shape: 'haack', shapeParameter: 1 / 3 }, 'errors.rasaero.noseHaackParameter', 0.333],
   ])('refuses %o', (nose, key, value) => {
     expect(() => shapeOf(nose)).toThrow(expect.objectContaining({ key, values: { name: 'Nose', value } }));
+  });
+});
+
+/**
+ * A RASAero booster has a boat tail only on the last stage: desktop's
+ * `BoosterDTO` writes a trailing transition as the boat tail when the stage is
+ * the rocket's last child and otherwise raises error31 and error32 ("Boattails
+ * can only be added to the last stage"), refusing the export. The same
+ * transition on the last stage is the boat tail.
+ */
+describe('a trailing narrowing transition on a booster', () => {
+  const booster = (id: string, trailing: boolean): unknown => ({
+    type: 'stage',
+    id,
+    name: id,
+    children: [
+      { type: 'bodytube', id: `${id}t`, length: 0.2, outerRadius: 0.0127, children: [{ ...fins, id: `${id}f` }] },
+      ...(trailing
+        ? [{ type: 'transition', id: `${id}x`, length: 0.03, shape: 'conical', foreRadius: 0.0127, aftRadius: 0.008 }]
+        : []),
+    ],
+  });
+  const fins = {
+    type: 'trapezoidfinset',
+    finCount: 3,
+    rootChord: 0.0508,
+    tipChord: 0.0254,
+    sweep: 0.0254,
+    height: 0.0254,
+    thickness: 0.003,
+    position: { method: 'bottom', offset: 0 },
+  };
+  const three = (middle: boolean, last: boolean): RocketTree =>
+    ({
+      name: 'Three',
+      components: [tree.components[0]!, booster('Middle', middle), booster('Last', last)],
+    }) as RocketTree;
+  const cells = [
+    { massKg: 0.4, cgM: 0.15 },
+    { massKg: 0.7, cgM: 0.3 },
+    { massKg: 1, cgM: 0.45 },
+  ];
+
+  it('is refused on a stage that is not the last, naming the stage', () => {
+    expect(() => exportCdx1({ tree: three(true, false), name: 'Three', stageLaunch: cells })).toThrow(
+      expect.objectContaining({ key: 'errors.rasaero.boosterBoattail', values: { stage: 'Middle' } }),
+    );
+  });
+
+  it('is the boat tail of the last stage', () => {
+    const xml = exportCdx1({ tree: three(false, true), name: 'Three', stageLaunch: cells });
+    const boosters = xml.match(/<Booster>[\s\S]*?<\/Booster>/g)!;
+    expect(boosters).toHaveLength(2);
+    expect(boosters[0]).toContain('<BoattailLength>0</BoattailLength>');
+    // 0.03 m is 1.1811 in; 0.008 m aft radius is 0.63 in across.
+    expect(boosters[1]).toContain('<BoattailLength>1.1811</BoattailLength>');
+    expect(boosters[1]).toContain('<BoattailRearDiameter>0.6299</BoattailRearDiameter>');
   });
 });

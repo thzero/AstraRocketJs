@@ -203,9 +203,34 @@ export function resultKey(tree: RocketTree, config: FlightConfig, sim: Simulatio
 function computeResultKey(tree: RocketTree, config: FlightConfig, sim: Simulation, globals: SimPrefs): string {
   const { id: _id, name: _name, ...flown } = config;
   const prefs = effectivePrefs(globals, sim.prefs);
-  // Where the weather came from describes the launch; it is not flown.
-  const { weatherSource: _source, ...launch } = sim.launch;
+  // Where the weather came from describes the launch, and a profile kept under
+  // the Average model waits to be switched back to; neither is flown.
+  const { weatherSource: _source, keptWindLevels: _kept, ...launch } = sim.launch;
   return stableJson([flightKey(tree), flown, launch, SIM_PREF_KEYS.map((k) => prefs[k] ?? null)]);
+}
+
+/** A configuration as {@link resultKey} keys it: without its id and name. */
+const flownConfig = ({ id: _id, name: _name, ...flown }: FlightConfig) => flown;
+
+/**
+ * A stored {@link resultKey} keyed against `after` in place of `before`, for a
+ * rewrite of a stored configuration into one that flies the same. Null when
+ * the key was not taken against `before`, so a result that was outdated stays
+ * outdated.
+ *
+ * Works on the stored key alone, so a migration with no preferences or launch
+ * defaults to hand can carry a current result across the rewrite.
+ */
+export function rekeyedForConfig(key: string, before: FlightConfig, after: FlightConfig): string | null {
+  let parts: unknown;
+  try {
+    parts = JSON.parse(key);
+  } catch {
+    return null;
+  }
+  if (!Array.isArray(parts) || parts.length !== 4) return null;
+  if (stableJson(parts[1]) !== stableJson(flownConfig(before))) return null;
+  return stableJson([parts[0], flownConfig(after), parts[2], parts[3]]);
 }
 
 /**

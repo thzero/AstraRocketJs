@@ -38,8 +38,13 @@ export interface SeatedMotor {
   count: number;
 }
 
+/**
+ * Copies of a pod set or parallel stage. A node with no count flies two, the
+ * bridge's default (`ComponentFactory.applyAssembly`), as the drawings show.
+ */
 const instancesOf = (n: ComponentNode): number => {
   if (n.type !== 'podset' && n.type !== 'parallelstage') return 1;
+  if (n['instanceCount'] == null) return 2;
   const c = Number(n['instanceCount']);
   return Number.isFinite(c) && c >= 1 ? Math.floor(c) : 1;
 };

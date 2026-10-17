@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../src/tree/kernelDefaults';
 import {
   niceRulerStep,
   rulerGraduations,
@@ -23,11 +24,12 @@ const node = (o: object): ComponentNode => o as unknown as ComponentNode;
 
 describe('internalExtent with no length on record', () => {
   it('draws the length the bridge builds each type at', () => {
-    // ComponentFactory: masscomponent `dbl(node, "length", 0.02)`, parachute 0.025.
+    // ComponentFactory reads each type's length with its constructor's value
+    // as the fallback (KERNEL_DEFAULTS).
     const mass = { type: 'masscomponent', id: 'm' } as unknown as ComponentNode;
     const chute = { type: 'parachute', id: 'p' } as unknown as ComponentNode;
-    expect(internalExtent(mass, 0.012).length).toBe(0.02);
-    expect(internalExtent(chute, 0.012).length).toBe(0.025);
+    expect(internalExtent(mass, 0.012).length).toBe(KERNEL_DEFAULTS.masscomponent.length);
+    expect(internalExtent(chute, 0.012).length).toBe(KERNEL_DEFAULTS.parachute.length);
   });
 });
 

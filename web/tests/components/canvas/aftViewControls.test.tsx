@@ -5,6 +5,7 @@ import { renderWithProviders } from '../../testing/renderWithProviders';
 import { AftView } from '../../../src/components/canvas/AftView';
 import { TreeSchematic } from '../../../src/components/canvas/TreeSchematic';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 
 /**
  * No inert controls on the aft view.
@@ -120,9 +121,9 @@ describe('the side schematic gates the same three the same way', () => {
   });
 });
 
-/** The lug's ring sits at the kernel's 2.2 mm radius when the node states none. */
+/** The lug's ring sits at the kernel's own radius (LaunchLug()) when the node states none. */
 describe('the aft view draws a keyless launch lug at the kernel size', () => {
-  it('scales the lug against the tube by 2.2 mm to 24 mm', () => {
+  it('scales the lug against the tube by the kernel radius to 24 mm', () => {
     const withLug = {
       name: 'T',
       components: [
@@ -150,7 +151,7 @@ describe('the aft view draws a keyless launch lug at the kernel size', () => {
       );
       return Number(c?.getAttribute('r'));
     };
-    expect(radiusOf('Lug') / radiusOf('Body tube')).toBeCloseTo(0.0022 / 0.024, 6);
+    expect(radiusOf('Lug') / radiusOf('Body tube')).toBeCloseTo(KERNEL_DEFAULTS.launchlug.outerRadius / 0.024, 6);
   });
 });
 
@@ -221,6 +222,25 @@ describe('the aft view pans from the keyboard', () => {
 
   it('takes focus and the arrows only once zoomed in', () => {
     view();
+    expect(svg().getAttribute('tabindex')).toBeNull();
+    const fitted = transform();
+    fireEvent.keyDown(svg(), { key: 'ArrowLeft' });
+    expect(transform()).toBe(fitted);
+    fireEvent.click(btn(ZOOM_IN));
+    expect(svg().getAttribute('tabindex')).toBe('0');
+    const zoomed = transform();
+    expect(fireEvent.keyDown(svg(), { key: 'ArrowLeft' })).toBe(false);
+    expect(transform()).not.toBe(zoomed);
+  });
+});
+
+/** The side view pans from the keyboard the same way once zoomed in. */
+describe('the side view pans from the keyboard', () => {
+  const svg = () => screen.getByLabelText(/^Rocket side view/);
+  const transform = () => svg().querySelector('g[transform^="translate"]')!.getAttribute('transform');
+
+  it('takes focus and the arrows only once zoomed in', () => {
+    renderWithProviders(<TreeSchematic tree={tree} info={null} />);
     expect(svg().getAttribute('tabindex')).toBeNull();
     const fitted = transform();
     fireEvent.keyDown(svg(), { key: 'ArrowLeft' });

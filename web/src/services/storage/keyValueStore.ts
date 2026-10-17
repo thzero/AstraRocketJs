@@ -7,8 +7,8 @@
 // Async by design so a non-localStorage implementation can be dropped in
 // without reshaping callers; idbKeyValueStore.ts is that implementation and
 // the default for every store. This localStorage one serves as its
-// fallback for browsers where IndexedDB is blocked, and for the synchronous
-// unload journal in workspaceStore.ts.
+// fallback for browsers where IndexedDB is blocked. The synchronous unload
+// journal in workspaceStore.ts calls `localStorage` directly, not through this.
 export interface KeyValueStore {
   get(key: string): Promise<string | null>;
   /**

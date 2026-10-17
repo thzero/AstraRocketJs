@@ -25,6 +25,23 @@ describe('parseWindProfileCsv', () => {
     expect(parseWindProfileCsv(csv('altitude,speed,direction,stddev', '0,4,90,'))[0]!.stddev).toBe(0);
   });
 
+  /**
+   * The kernel floors a negative deviation at 0:
+   * `this.standardDeviation = Math.max(standardDeviation, 0)`
+   * (engine-java/src/java/info/openrocket/core/models/wind/PinkNoiseWindModel.java:157),
+   * which every level goes through (MultiLevelPinkNoiseWindModel.java:52).
+   */
+  it('floors a negative deviation at 0, as the kernel does', () => {
+    const kernelFloor = (sd: number) => Math.max(sd, 0);
+    for (const sd of [-0.0001, -0.5, -3, -1e6, 0, 0.25, 7]) {
+      const [level] = parseWindProfileCsv(csv('altitude,speed,direction,stddev', `0,4,90,${sd}`));
+      expect(level!.stddev, String(sd)).toBe(kernelFloor(sd));
+    }
+    // A decimal comma in a semicolon file, and a negative speed's flipped heading, too.
+    const [level] = parseWindProfileCsv(csv('altitude;speed;direction;stddev', '0;-4;90;-1,5'));
+    expect(level).toEqual({ altitudeM: 0, speed: 4, directionDeg: 270, stddev: 0 });
+  });
+
   it('accepts semicolon and tab separated files', () => {
     expect(parseWindProfileCsv(csv('altitude;speed;direction', '0;4;90'))[0]!.speed).toBe(4);
     expect(parseWindProfileCsv(csv('altitude\tspeed\tdirection', '0\t4\t90'))[0]!.speed).toBe(4);

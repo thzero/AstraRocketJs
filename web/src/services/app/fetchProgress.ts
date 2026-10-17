@@ -48,8 +48,8 @@ export async function readStreamWithProgress(
     if (loaded > maxBytes) {
       // Cancel, do not merely abandon. Dropping the reader leaves the transfer
       // in flight, so the cap would bound the buffer we keep and not the bytes
-      // the network moves, and the caller goes on to try its fallback base
-      // while the refused response is still downloading. `cancel` can itself
+      // the network moves, and the refused response would go on downloading
+      // after the caller has given up on it. `cancel` can itself
       // reject (a stream already errored by the network), and that must not
       // mask the reason we are here.
       await reader.cancel().catch(() => {});

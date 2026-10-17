@@ -5,6 +5,34 @@ import { readFileSync } from 'node:fs';
 // Reads the app version from web/package.json.
 const { version } = JSON.parse(readFileSync(new URL('../web/package.json', import.meta.url), 'utf-8'));
 
+// The footer line, per locale. It is written here and not in
+// i18n/<locale>/docusaurus-theme-classic/footer.json because it carries the
+// version, which a translation file cannot; a `copyright` entry in that file
+// would replace this one and drop the version. Docusaurus loads this config
+// once per locale and names it in DOCUSAURUS_CURRENT_LOCALE. `docusaurus start`
+// with no --locale assigns undefined to it, which Node stores as the string
+// "undefined", and serves the default locale.
+const FOOTER: Record<string, string> = {
+  en:
+    `Documentation for AstraRocketJs v${version}. ` +
+    'AstraRocketJs runs OpenRocket’s own engine. Not affiliated with the OpenRocket project. ' +
+    'See the <a href="https://openrocket.readthedocs.io">OpenRocket documentation</a> for the underlying physics.',
+  // The Spanish line is outside the English spell check.
+  // cspell:disable
+  es:
+    `Documentación de AstraRocketJs v${version}. ` +
+    'AstraRocketJs ejecuta el propio motor de OpenRocket. No está afiliado al proyecto OpenRocket. ' +
+    'Consulta la <a href="https://openrocket.readthedocs.io">documentación de OpenRocket</a> para la física subyacente.',
+  // cspell:enable
+};
+const footerCopyright = (): string => {
+  const current = process.env.DOCUSAURUS_CURRENT_LOCALE;
+  const locale = !current || current === 'undefined' ? 'en' : current;
+  const line = FOOTER[locale];
+  if (!line) throw new Error(`docusaurus.config.ts has no footer line for the ${locale} locale`);
+  return line;
+};
+
 // WHICH OpenRocket the engine is, read the same way from the one file that
 // names it: engine-java/extract/UPSTREAM. "The same physics core" is not a
 // checkable claim on its own - a reader comparing their numbers against the
@@ -48,10 +76,17 @@ const upstream = {
 // the Pages deploy, so both live on the one GitHub Pages site:
 //   /AstraRocketJs/        the app
 //   /AstraRocketJs/docs/   these docs (…/docs/es/ for Spanish)
+// The app these docs belong to: the docs are built into the app at <app>/docs/,
+// so a deploy's DOCS_BASE_URL names it (the beta site's is /AstraRocketJs-beta/docs/).
+// A local build has no deploy, and links to the production app.
+const appUrl = process.env.DOCS_BASE_URL
+  ? `https://thzero.github.io${process.env.DOCS_BASE_URL.replace(/docs\/$/, '')}`
+  : 'https://thzero.github.io/AstraRocketJs/';
+
 const config: Config = {
   title: 'AstraRocketJs',
   tagline: 'Design and simulate model rockets in your browser',
-  favicon: 'img/favicon.ico',
+  favicon: 'img/favicon.svg',
 
   url: 'https://thzero.github.io',
   // Set by the Pages deploy (DOCS_BASE_URL=/AstraRocketJs/docs/), mirroring how
@@ -168,17 +203,14 @@ const config: Config = {
       title: 'AstraRocketJs',
       items: [
         { type: 'docSidebar', sidebarId: 'docs', position: 'left', label: 'Documentation' },
-        { href: 'https://thzero.github.io/AstraRocketJs/', label: 'Launch the app', position: 'right' },
+        { href: appUrl, label: 'Launch the app', position: 'right' },
         { type: 'localeDropdown', position: 'right' },
         { href: 'https://github.com/thzero/AstraRocketJs', label: 'GitHub', position: 'right' },
       ],
     },
     footer: {
       style: 'dark',
-      copyright:
-        `Documentation for AstraRocketJs v${version}. ` +
-        'AstraRocketJs runs OpenRocket’s own engine. Not affiliated with the OpenRocket project. ' +
-        'See the <a href="https://openrocket.readthedocs.io">OpenRocket documentation</a> for the underlying physics.',
+      copyright: footerCopyright(),
     },
   } satisfies Preset.ThemeConfig,
 };

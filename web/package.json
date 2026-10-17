@@ -1,10 +1,10 @@
 {
   "name": "astrarocketjs-web",
-  "version": "0.2.6",
+  "version": "0.3.0",
   "version_major": 0,
-  "version_minor": 2,
-  "version_patch": 6,
-  "version_date": "10/11/2026",
+  "version_minor": 3,
+  "version_patch": 0,
+  "version_date": "10/15/2026",
   "type": "module",
   "engines": {
     "node": ">=24"
@@ -59,10 +59,7 @@
     "sync:materials": "node scripts/sync-materials.mjs",
     "sync:examples": "node scripts/sync-examples.mjs",
     "sync:contributors": "node scripts/sync-contributors.mjs",
-    "test:coverage": "vitest run --coverage",
-    "gates": "npm run format:check && npm run spell && npm run typecheck && npm run lint && npm run knip && npm run dupes && vite build",
-    "verify": "npm run gates && vitest run",
-    "verify:ci": "npm run gates && npm run test:coverage"
+    "verify": "npm run build && vitest run"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

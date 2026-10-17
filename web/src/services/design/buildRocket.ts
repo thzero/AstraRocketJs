@@ -2,7 +2,7 @@ import { buildRocketTree } from '../../engine/api';
 import type { OpenRocketDesign, RocketTree, StaticInfo } from '../../engine/openRocketEngine';
 import { configuredTree, liveMotors, seatedMotorsKey, stageFlies, type FlightConfig } from '../flight/flightConfigs';
 import { findStages } from './treeEdit';
-import { badDimensions, type BadDimension } from './requiredComponent';
+import { badDimensions, overturnedFins, type BadDimension, type NamedPart } from './requiredComponent';
 import { hasUsableCurve } from '../motors/motorCurve';
 import { errorReason, type Keyed } from '../../i18n/keyedError';
 
@@ -58,8 +58,10 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
     // then reports "no motor" instead of the app failing to draw the rocket.
     if (!hasUsableCurve(m.spec)) continue;
     r.setMotorById(id, m.spec);
-    // Skip "automatic": it is the engine's own default and needs no call.
-    if (m.ignitionEvent) r.setMotorIgnitionById(id, m.ignitionEvent, m.ignitionDelay ?? 0);
+    // Automatic with no delay is the engine's own default and needs no call; a
+    // delay alone still does.
+    if (m.ignitionEvent || m.ignitionDelay)
+      r.setMotorIgnitionById(id, m.ignitionEvent ?? 'automatic', m.ignitionDelay ?? 0);
   }
   // After the motors: grounding a stage refreshes the configuration's active
   // motor list, and a motor seated later would put a grounded stage's engine
@@ -68,7 +70,20 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
     const id = stage.id as string;
     if (!stageFlies(config, id)) r.setStageActiveById(id, false);
   }
+  sources.set(r, tree.components);
   return r;
+}
+
+/** The parts each live handle was built from (see `builtFrom`). */
+const sources = new WeakMap<OpenRocketDesign, RocketTree['components']>();
+
+/**
+ * The `components` of the tree a handle from `buildConfiguredRocket` was built
+ * from, compared by identity: every edit replaces it. A handle the store holds
+ * can describe an earlier design while a rebuild waits out its debounce.
+ */
+export function builtFrom(rocket: OpenRocketDesign): RocketTree['components'] | undefined {
+  return sources.get(rocket);
 }
 
 /**
@@ -85,7 +100,7 @@ export function buildConfiguredRocket(tree: RocketTree, config: FlightConfig): O
  * so in those words, so the banner says the same thing.
  */
 export type StaticInfoResult =
-  { info: StaticInfo; rocket: OpenRocketDesign } | { error: string | Keyed; bad?: BadDimension[] };
+  { info: StaticInfo; rocket: OpenRocketDesign } | { error: string | Keyed; bad?: BadDimension[]; fins?: NamedPart[] };
 
 /**
  * Build the configured rocket and read its static info (CG / CP / stability),
@@ -112,7 +127,11 @@ export function computeStaticInfo(
     }
     return { info, rocket };
   } catch (e) {
+    // What the design can say for itself about the failure: zero dimensions,
+    // and fin sets canted through their own body, whose root points the kernel
+    // computes as NaN (so the build reports a NaN mass that names no part).
     const bad = badDimensions(tree);
-    return { error: errorReason(e), ...(bad.length ? { bad } : {}) };
+    const fins = overturnedFins(tree);
+    return { error: errorReason(e), ...(bad.length ? { bad } : {}), ...(fins.length ? { fins } : {}) };
   }
 }

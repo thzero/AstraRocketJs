@@ -3,7 +3,7 @@
  * to a `Math.random()` template for older environments. Generic: used for
  * `.ork` component `<id>`s, simulation ids, and anywhere a globally-unique id is
  * needed. (Distinct from orkTree's `freshId()`, which mints short sequential
- * editor node ids like `c1`, not UUIDs.)
+ * node ids like `c1` for parts read from a file, not UUIDs.)
  */
 export function uuid(): string {
   if (typeof crypto !== 'undefined' && crypto.randomUUID) {

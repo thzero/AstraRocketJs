@@ -93,29 +93,32 @@ export function SeparationSection({
             placeholder={fmtUpTo(design.separationDelay, 2)}
             step={0.5}
             min={0}
-            unit="s"
+            unit={t('units.second')}
             onChange={(v) => setSeparation(config.id, id, 'separationDelay', v)}
             onCommit={onCommit}
           />
 
-          {/* The altitude is read by the two altitude triggers only, and is offered
-              for the same reason the property panel offers it: the value survives a
-              trip through another event and is there when you come back. */}
-          <OverrideNumber
-            name={name}
-            label={t('prop.separationAltitude')}
-            value={over?.separationAltitude == null ? null : alt.toUi(over.separationAltitude)}
-            placeholder={alt.fmt(design.separationAltitude)}
-            step={alt.step(10)}
-            // Floored at zero, like the design-side field. `onSi` rejects only a
-            // null or a failed conversion, not a negative, so a typed -150 would
-            // commit and the stage would never separate on altitude under that
-            // one configuration.
-            min={alt.toUi(0)}
-            unit={alt.sym}
-            onChange={onSi(alt, (si) => setSeparation(config.id, id, 'separationAltitude', si))}
-            onCommit={onCommit}
-          />
+          {/* The altitude is read by the two altitude triggers only, so the box is
+              offered under those alone, as the property panel and desktop do; a
+              stored override survives a trip through another event. */}
+          {event.startsWith('altitude') && (
+            <OverrideNumber
+              name={name}
+              label={t('prop.separationAltitude')}
+              value={over?.separationAltitude == null ? null : alt.toUi(over.separationAltitude)}
+              placeholder={alt.fmt(design.separationAltitude)}
+              step={alt.step(10)}
+              // Floored at zero, as the design-side box is by `fieldRange` (a
+              // `distance` field is non-negative). `onSi` rejects only a
+              // null or a failed conversion, not a negative, so a typed -150 would
+              // commit and the stage would never separate on altitude under that
+              // one configuration.
+              min={alt.toUi(0)}
+              unit={alt.sym}
+              onChange={onSi(alt, (si) => setSeparation(config.id, id, 'separationAltitude', si))}
+              onCommit={onCommit}
+            />
+          )}
 
           {event === 'never' && (
             <p className="mt-2 text-[11px] leading-snug text-ink-faint">{t('configs.neverSeparates')}</p>

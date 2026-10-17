@@ -1,6 +1,7 @@
 package api;
 
 import info.openrocket.core.material.Material;
+import info.openrocket.core.motor.MotorConfiguration;
 import info.openrocket.core.rocketcomponent.AxialStage;
 import info.openrocket.core.rocketcomponent.ExternalComponent;
 import info.openrocket.core.rocketcomponent.StructuralComponent;
@@ -12,6 +13,7 @@ import info.openrocket.core.rocketcomponent.InnerTube;
 import info.openrocket.core.rocketcomponent.LaunchLug;
 import info.openrocket.core.rocketcomponent.MassComponent;
 import info.openrocket.core.rocketcomponent.MassObject;
+import info.openrocket.core.rocketcomponent.MotorMount;
 import info.openrocket.core.rocketcomponent.NoseCone;
 import info.openrocket.core.rocketcomponent.ParallelStage;
 import info.openrocket.core.rocketcomponent.Parachute;
@@ -78,10 +80,13 @@ public final class ComponentFields {
         o.bool("cdOverridden", c.isCDOverridden());
         o.num("overrideCD", c.getOverrideCD());
         o.bool("overrideSubcomponentsCD", c.isSubcomponentsOverriddenCD());
+        o.text("comment", c.getComment());
         if (c instanceof ExternalComponent) {
             ExternalComponent e = (ExternalComponent) c;
             o.material("", e.getMaterial());
-            o.str("finish", e.getFinish().name());
+            // Desktop's RockSim handlers leave the finish unset when the file
+            // carries no FinishCode; reported as such rather than thrown on.
+            o.str("finish", e.getFinish() == null ? "unset" : e.getFinish().name());
         } else if (c instanceof StructuralComponent) {
             o.material("", ((StructuralComponent) c).getMaterial());
         } else if (c instanceof RecoveryDevice) {
@@ -129,6 +134,7 @@ public final class ComponentFields {
             o.bool("filled", b.isFilled());
             o.bool("motorMount", b.isMotorMount());
             o.num("motorOverhang", b.getMotorOverhang());
+            defaultIgnition(o, b);
         }
 
         if (c instanceof FinSet) {
@@ -139,6 +145,7 @@ public final class ComponentFields {
             o.str("crossSection", f.getCrossSection().name());
             o.num("rotation", f.getBaseRotation());
             o.num("filletRadius", f.getFilletRadius());
+            o.material("fillet", f.getFilletMaterial());
             o.num("tabLength", f.getTabLength());
             o.num("tabHeight", f.getTabHeight());
             o.num("tabOffset", f.getTabOffset());
@@ -167,7 +174,9 @@ public final class ComponentFields {
         if (c instanceof RingComponent) {
             RingComponent r = (RingComponent) c;
             o.num("outerRadius", r.getOuterRadius());
+            o.bool("outerRadiusAuto", r.isOuterRadiusAutomatic());
             o.num("innerRadius", r.getInnerRadius());
+            o.bool("innerRadiusAuto", r.isInnerRadiusAutomatic());
             if (c instanceof ThicknessRingComponent) {
                 o.num("thickness", ((ThicknessRingComponent) c).getThickness());
             }
@@ -177,6 +186,7 @@ public final class ComponentFields {
                 InnerTube t = (InnerTube) c;
                 o.bool("motorMount", t.isMotorMount());
                 o.num("motorOverhang", t.getMotorOverhang());
+                defaultIgnition(o, t);
                 o.str("cluster", t.getClusterConfiguration().getXMLName());
                 o.num("clusterScale", t.getClusterScale());
                 o.num("clusterRotation", t.getClusterRotation());
@@ -210,12 +220,14 @@ public final class ComponentFields {
         if (c instanceof MassObject) {
             MassObject m = (MassObject) c;
             o.num("radius", m.getRadius());
+            o.bool("radiusAuto", m.isRadiusAutomatic());
             o.num("radialPosition", m.getRadialPosition());
             o.num("radialDirection", m.getRadialDirection());
         }
         if (c instanceof RecoveryDevice) {
             RecoveryDevice d = (RecoveryDevice) c;
             o.num("cd", d.getCD());
+            o.bool("cdAuto", d.isCDAutomatic());
             DeploymentConfiguration dc = d.getDeploymentConfigurations().getDefault();
             o.str("deployEvent", dc.getDeployEvent().name());
             o.num("deployAltitude", dc.getDeployAltitude());
@@ -255,6 +267,16 @@ public final class ComponentFields {
         return o.done();
     }
 
+    /**
+     * The mount's own ignition (`getDefaultMotorConfig()`), in the app's names:
+     * lowercase with the underscore dropped, as the .ork spells them.
+     */
+    private static void defaultIgnition(Out o, MotorMount mount) {
+        MotorConfiguration config = mount.getDefaultMotorConfig();
+        o.str("ignitionEvent", config.getIgnitionEvent().name().replace("_", ""));
+        o.num("ignitionDelay", config.getIgnitionDelay());
+    }
+
     /** A flat JSON object. A later key replaces nothing: each key is written once per class branch. */
     private static final class Out {
         private final StringBuilder sb = new StringBuilder("{");
@@ -280,6 +302,26 @@ public final class ComponentFields {
         /** Enumeration names only: plain ASCII, no escaping needed. */
         void str(String k, String v) {
             if (key(k)) sb.append('"').append(v.toLowerCase()).append('"');
+        }
+
+        /** Free text as the part carries it (a comment): escaped, case kept. */
+        void text(String k, String v) {
+            if (!key(k)) return;
+            sb.append('"');
+            escape(v == null ? "" : v);
+            sb.append('"');
+        }
+
+        /** JSON string escaping for free text: quotes, backslashes and control characters. */
+        private void escape(String v) {
+            for (char ch : v.toCharArray()) {
+                if (ch == '"' || ch == '\\') sb.append('\\').append(ch);
+                else if (ch == '\n') sb.append("\\n");
+                else if (ch == '\r') sb.append("\\r");
+                else if (ch == '\t') sb.append("\\t");
+                else if (ch < 0x20) sb.append(' ');
+                else sb.append(ch);
+            }
         }
 
         /** A material's name and density, under `<prefix>MaterialName` and `<prefix>Density`. */

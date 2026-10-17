@@ -45,13 +45,10 @@ npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end tests against a fresh production build on port 5180
                      # (run `npx playwright install chromium` once first; nothing installs the browser for you)
-npm run dupes        # jscpd copy-paste check over src (see below); part of verify
-npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
-                     # dupes, the production build, and the unit suite. ~100 s.
-npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
-                     # it drops below the minimum percentages in vitest.config.ts
-                     # (lines 82, statements 81, branches 74, functions 76).
-                     # Not run by CI; `npm run audit` runs its coverage half.
+npm run dupes        # jscpd copy-paste check over src (see below); part of audit
+npm run verify       # the pre-push gate: typecheck, lint, the production build,
+                     # and the unit suite. Format, spell, knip and dupes run in
+                     # npm run audit.
 npm run audit        # every web check CI does not run: coverage, then the files
                      # the app saves opened in desktop OpenRocket, then every
                      # part of them read back and compared with what the app's
@@ -78,8 +75,8 @@ A few house rules that keep the codebase consistent:
 - **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** every other locale file (`web/tests/i18n/locales.test.ts` fails otherwise) - never hardcode strings in components. See [Translation](../CONTRIBUTING.md#translation).
 - **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` - name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** - its naming, comment density, and style.
-- **No em dash (U+2014).** Prose takes a colon, comma, period or parentheses. `web/tests/noEmDash.test.ts` fails on the character or its HTML entity anywhere in the project's own text; its header lists what it scans.
-- **Comments and test titles state the present constraint.** A comment says what holds and why; a test title says what it guards, not the bug it came from. No change history, issue or PR tags, audit finding IDs, dates or named people. `web/tests/commentsStateTheConstraint.test.ts` scans comments and `describe`/`it`/`test` titles in `web/src` (not `src/engine/vendor`), `web/tests`, `web/e2e`, `web/scripts` and `engine-java/src/api` for issue references (`#123`, `PR #12`, `issue 12`, `openrocket#123`), audit IDs (`finding 12`, an ID beside the word audit or finding), ISO dates, and history phrases such as "until now", "previously", "used to be" and "we now". String literals and Markdown are not scanned. A line that needs one of these for a present-tense reason goes in the test's `ALLOWED` list with that reason.
+- **No em dash (U+2014).** Prose takes a colon, comma, period or parentheses. `web/tests/repo/noEmDash.test.ts` fails on the character or its HTML entity anywhere in the project's own text; its header lists what it scans.
+- **Comments and test titles state the present constraint.** A comment says what holds and why; a test title says what it guards, not the bug it came from. No change history, issue or PR tags, audit finding IDs, dates or named people. `web/tests/repo/commentsStateTheConstraint.test.ts` scans comments and `describe`/`it`/`test` titles in `web/src` (not `src/engine/vendor`), `web/tests`, `web/e2e`, `web/scripts` and `engine-java/src/api` for issue references (`#123`, `PR #12`, `issue 12`, `openrocket#123`), audit IDs (`finding 12`, an ID beside the word audit or finding), ISO dates, and history phrases such as "until now", "previously", "used to be" and "we now". String literals and Markdown are not scanned. A line that needs one of these for a present-tense reason goes in the test's `ALLOWED` list with that reason.
 
 ## Where a number comes from
 
@@ -143,7 +140,7 @@ npm run sync:contributors            # GitHub contributors → public/data/contr
 
 **Staging.** The motor and parts catalogs are each made in two steps, and only the digest step writes them. `sync-motors.mjs` and `sync-components.mjs` write their rows to a staging file in the system temp folder, named for the checkout so two checkouts never share one (`web/scripts/lib/catalogStaging.mjs`), not to `public/data`. `sync-motor-digests.mjs` and `sync-preset-digests.mjs` read the staged catalog, add the digests, write the finished catalog to `public/data`, refresh `manifest.json` and remove the staged file. A digest step that fails leaves `public/data` holding the last finished catalog, and running it again reads the same staged file. Run on its own, with nothing staged, a digest step reads and rewrites the catalog already in `public/data`. `sync:materials` and `sync:contributors` write their own files and refresh the manifest too.
 
-The parts catalog takes both steps, in that order. `sync-components.mjs` reads the two sets of `.orc` files desktop's parts library reads: the community database and the files OpenRocket ships in its jar (the legacy manufacturer files, several parachute makers and `RailButton_Database.orc`). The community database has to match the copy inside the pinned jar file for file (line endings aside); a database at another commit stops the run, and `sync:database` checks out the right one. A part's material is looked up the way desktop's loader does it: in the part's own file by type and exact name, then among desktop's built-in materials (read from the pinned jar by `scripts/preset-digests/MaterialDump.java`, so a run with `--internal` needs the jar too; name compared ignoring case), and with neither the part gets density 0. Only rows identical in every field are dropped, because desktop keeps parts that share a part number and tells them apart by digest. Nose cone rows carry their wall and shoulder; rail buttons are a catalog type of their own.
+The parts catalog takes both steps, in that order. `sync-components.mjs` reads the two sets of `.orc` files desktop's parts library reads: the community database and the files OpenRocket ships in its jar (the legacy manufacturer files, several parachute makers and `RailButton_Database.orc`). The community database has to match the copy inside the pinned jar file for file (line endings aside); a database at another commit stops the run, and `sync:database` checks out the right one. A part's material is looked up the way desktop's loader does it: in the part's own file by type and exact name, then among desktop's built-in materials (read from the pinned jar by `scripts/preset-digests/MaterialDump.java`, so a run with `--internal` needs the jar too; name compared ignoring case), and with neither the part gets density 0. A row is dropped only when an earlier one matches it in every field, and for a parachute that includes the line count, line length, packed size and materials the digest step later fills in (`scripts/lib/partRows.mjs`), because desktop keeps parts that share a part number and tells them apart by digest. Nose cone rows carry their wall and shoulder; rail buttons are a catalog type of their own.
 
 `sync-preset-digests.mjs` then adds what only OpenRocket's loader knows, matched on type, manufacturer, part number and description (or type, manufacturer and part number when that names one part): the digest a saved `.ork` needs to keep its link to the part, and the part's stated mass. The manufacturer matches under any name desktop knows the maker by ("LOC Precision" is desktop's "LOC/Precision"), the part number is compared trimmed and then takes desktop's spelling, trailing spaces included, and parts that share all four but differ in size each take the preset of their own size. A stated mass becomes the row's `materialDensity`, the mass divided by the part's volume, and the volume is measured in the app's own engine (`scripts/lib/presetVolume.mjs`) because OpenRocket builds disagree on a preset's volume. A parachute's stated mass becomes its mass override, and a parachute row also takes the line count and length, packed size, and canopy and line materials desktop applies when the part is picked. A rail button's mass override is the button, screw and nut masses from its file, and a stated drag coefficient becomes its drag override. Both digest steps refuse to write a catalog in which a row that is in both the previous and the new catalog lost its digest, or one below the floors in `scripts/lib/digestCoverage.mjs`. A row the source dropped takes its digest with it; that is reported, not refused.
 
@@ -175,9 +172,9 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
 | Job              | Runs                                                                                                      |
 | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `build-and-test` | `npm run verify` (the gate list and the unit suite, without coverage)                                     |
-| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), in one job        |
-| `update-flow`    | `npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help` against production builds |
+| `build-and-test` | `npm run build` in three parts: `typecheck`, `lint`, `vite build`                                         |
+| `unit`           | the unit suite, without coverage, split three ways (`vitest run --shard`)                                 |
+| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), split three ways  |
 
 The engine checks are not CI gates. After a change under `engine-java/` or to the vendored engine, run `npm run audit` in `engine-java/` (needs a JDK): parity, a rebuild that fails if the committed engine binaries differ, the extraction check, the pinned upstream date, and the aero scorecards. It stops at the first failure and names the step.
 
@@ -187,11 +184,15 @@ Every change goes through the change audit in [`docs/AUDIT_PROMPT_CHANGES.md`](.
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
-A push to **any branch but `master`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
+A push to **any branch but `master` and `beta`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `beta` is excluded because it carries only work already gated on `dev`, and its deploy is started by hand (`beta-deploy.yml`). `web/tests/repo/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
 
-A pull request runs every `gates.yml` job on the merge result (`ci.yml`), then its own `verify` job, `CI / verify`: one check that stands for every gate on the merge result, and the one a pull request from a fork also gets. `web/tests/ciTriggers.test.ts` fails if either `verify` job stops running after a failed gate or stops failing with it.
+A pull request runs every `gates.yml` job on the merge result (`ci.yml`), then its own `verify` job, `CI / verify`: one check that stands for every gate on the merge result, and the one a pull request from a fork also gets. `web/tests/repo/ciTriggers.test.ts` fails if either `verify` job stops running after a failed gate or stops failing with it.
 
-The Docusaurus site is typechecked in `e2e` (`npm run typecheck` in `website/`), and `e2e` and `update-flow` both build it (`npm run docs:build`) for the Help checks, so a docs type error, a broken MDX page or a broken `sidebars.ts` fails the PR.
+The service worker checks (`npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help`, against production builds) are the `update-flow` job in `e2e-full.yml`, run by hand with the full suite. No PR job builds the Docusaurus site; a broken MDX page, config or `sidebars.ts` fails `e2e-full.yml` and the deploy.
+
+The axe scans (`a11y.spec.ts`, `a11y-phone.spec.ts`) are not in `CORE_SPECS`. There are about 300 of them, and on a runner's two workers they take longer than a pull request should wait. They run in the full suite.
+
+Each `gates.yml` job restores `node_modules` from a cache keyed on the lockfile and runs `npm ci` only when the lockfile changed.
 
 `gates.yml` is a reusable workflow. `ci.yml` calls it on a PR and `dev.yml` on a push to any other branch, so there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
 

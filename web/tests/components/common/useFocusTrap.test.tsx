@@ -165,6 +165,49 @@ describe('useFocusTrap', () => {
       expect(over).not.toHaveBeenCalled();
     });
 
+    /**
+     * Help is mounted early in the header and opens over dialogs rendered after
+     * it, so the surface on top is the one opened last, wherever it sits in the
+     * document.
+     */
+    it('gives Escape and focus to the surface opened last, even when it is earlier in the document', () => {
+      const earlier = vi.fn();
+      const later = vi.fn();
+      function Pair({ earlierOpen }: { earlierOpen: boolean }) {
+        const first = useFocusTrap<HTMLDivElement>(earlierOpen, { onEscape: earlier });
+        const second = useFocusTrap<HTMLDivElement>(true, { onEscape: later });
+        return (
+          <>
+            <div ref={first} role="dialog" aria-label="earlier">
+              <button>in earlier</button>
+            </div>
+            <div ref={second} role="dialog" aria-label="later">
+              <button>in later</button>
+            </div>
+          </>
+        );
+      }
+      const { rerender } = render(<Pair earlierOpen={false} />);
+      rerender(<Pair earlierOpen />);
+
+      const inEarlier = screen.getByRole('button', { name: 'in earlier' });
+      expect(document.activeElement).toBe(inEarlier);
+      // Focus moved by the user inside the surface on top stays there.
+      inEarlier.blur();
+      inEarlier.focus();
+      expect(document.activeElement).toBe(inEarlier);
+
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(earlier).toHaveBeenCalledTimes(1);
+      expect(later).not.toHaveBeenCalled();
+
+      // Closed again, the one underneath is on top once more.
+      rerender(<Pair earlierOpen={false} />);
+      fireEvent.keyDown(window, { key: 'Escape' });
+      expect(later).toHaveBeenCalledTimes(1);
+      expect(earlier).toHaveBeenCalledTimes(1);
+    });
+
     it('swallows it under a surface that cannot be dismissed', () => {
       // A modal with no onEscape is one that must not close on it
       // (WorkInProgressDialog). While it is on top, Escape does nothing at all

@@ -120,25 +120,20 @@ describe('describeNotes', () => {
 });
 
 describe('fitRuleFor', () => {
-  const fit: FitContext = { parentInner: 0.0515, parentOuter: 0.0546, airframeOuter: [0.0546] };
+  const fit: FitContext = { parentInner: 0.0515, foreMatch: 0.0546, aftMatch: 0.0663 };
 
   it('measures the parts that live inside an airframe against its bore', () => {
     for (const t of ['tubecoupler', 'centeringring', 'bulkhead'] as const)
       expect(fitRuleFor(t, fit)).toEqual({ kind: 'inside', target: 0.0515 });
   });
 
-  it('measures the parts that ARE the airframe against its outer diameter', () => {
-    for (const t of ['bodytube', 'nosecone'] as const)
-      expect(fitRuleFor(t, fit)).toEqual({ kind: 'match', targets: [0.0546] });
-  });
-
-  it('falls back to the airframe already in the design when there is no enclosing body', () => {
-    // A body tube dropped straight onto a stage has no parent geometry, but the
-    // 54 mm tube already in the rocket is still the size that continues it.
-    expect(fitRuleFor('bodytube', { airframeOuter: [0.0546, 0.0663] })).toEqual({
-      kind: 'match',
-      targets: [0.0546, 0.0663],
-    });
+  it('matches the parts that ARE the airframe at the ends their rows state', () => {
+    // Desktop's chooser: a tube's and a transition's rows state both ends, a
+    // nose cone's only the aft one.
+    for (const t of ['bodytube', 'transition'] as const)
+      expect(fitRuleFor(t, fit)).toEqual({ kind: 'ends', fore: 0.0546, aft: 0.0663 });
+    expect(fitRuleFor('nosecone', fit)).toEqual({ kind: 'ends', fore: null, aft: 0.0663 });
+    expect(fitRuleFor('nosecone', { foreMatch: 0.0546 })).toBeNull();
   });
 
   it('abstains rather than guessing', () => {
@@ -167,12 +162,18 @@ describe('fitScore', () => {
     expect(fitScore(tube(0.053), inside)).toBeNull(); // 1.5 mm over, will not go in
   });
 
-  it('matches an airframe from either side', () => {
-    const match = { kind: 'match' as const, targets: [0.0546608] };
-    expect(fitScore(tube(0.0546608), match)).toBeCloseTo(0, 6);
-    expect(fitScore(tube(0.0546108), match)!).toBeCloseTo(0.00005, 6); // 0.05 mm, nominal rounding
-    expect(fitScore(tube(0.0556608), match)).toBeNull(); // 1 mm out: a step, not the same tube
-    expect(fitScore(tube(0.0576608), match)).toBeNull(); // 3 mm out
+  it("matches an end within desktop's band, max(0.05 d, 1 mm), strictly inside", () => {
+    // ComponentPresetRowFilter(double, int) in the 24.12 jar: epsilon = max(0.05 * d, 0.001).
+    const d = 0.0546608;
+    const eps = Math.max(0.05 * d, 0.001);
+    const match = { kind: 'ends' as const, fore: d, aft: null };
+    expect(fitScore(tube(d), match)).toBeCloseTo(0, 9);
+    expect(fitScore(tube(d - 0.5 * eps), match)!).toBeCloseTo(0.5 * eps, 9);
+    expect(fitScore(tube(d + 0.99 * eps), match)).not.toBeNull();
+    expect(fitScore(tube(d + 1.01 * eps), match)).toBeNull();
+    expect(fitScore(tube(d - 1.01 * eps), match)).toBeNull();
+    // Both ends stated: both have to match.
+    expect(fitScore(tube(d), { kind: 'ends', fore: d, aft: d + 2 * eps })).toBeNull();
   });
 
   it('never scores a parachute, which has no outer diameter to measure', () => {
@@ -187,6 +188,13 @@ describe('boreClears', () => {
     // A 29 mm ring cannot center a 38 mm motor mount, however well its OD fits.
     expect(boreClears(ring(0.0324866), { mountOuter: 0.0418846 })).toBe(false);
     expect(boreClears(ring(0.0418846), { mountOuter: 0.0418846 })).toBe(true);
+    // Not even by a millimeter: the ring has to go over the mount.
+    expect(boreClears(ring(0.0408846), { mountOuter: 0.0418846 })).toBe(false);
+  });
+
+  it('rejects a bore far wider than the mount, which centers nothing', () => {
+    // A 54/38 ring around a 29 mm mount.
+    expect(boreClears(ring(0.0418846), { mountOuter: 0.0294 })).toBe(false);
   });
 
   it('says nothing about types that do not ring anything, or when there is no child', () => {
@@ -199,11 +207,21 @@ describe('queryComponents', () => {
   const tubes = ofType('bodytube');
   const couplers = ofType('tubecoupler');
 
+  it("hides the library's legacy parts until they are asked for", () => {
+    // Desktop's chooser starts with "Show Legacy Database" unchecked.
+    const legacy = tubes.filter((p) => p.legacy);
+    expect(legacy.length).toBeGreaterThan(0);
+    const shown = queryComponents(tubes, q(), 'bodytube');
+    expect(shown.length).toBe(tubes.length - legacy.length);
+    expect(shown.some((r) => r.part.legacy)).toBe(false);
+    expect(queryComponents(tubes, q({ showLegacy: true }), 'bodytube').length).toBe(tubes.length);
+  });
+
   it('narrows 237 couplers to the handful that fit a real bore', () => {
     // The bore is a real Public Missiles 2.1" tube. Without the fit filter,
     // picking its coupler means reading 237 rows.
     const fit: FitContext = { parentInner: 0.0515112 };
-    const all = queryComponents(couplers, q(), 'tubecoupler', fit);
+    const all = queryComponents(couplers, q({ showLegacy: true }), 'tubecoupler', fit);
     const fits = queryComponents(couplers, q({ fitsOnly: true }), 'tubecoupler', fit);
     expect(all.length).toBe(couplers.length);
     expect(fits.length).toBeGreaterThan(0);
@@ -214,7 +232,7 @@ describe('queryComponents', () => {
   });
 
   it('puts the fitting parts first without hiding the rest', () => {
-    const ranked = queryComponents(couplers, q(), 'tubecoupler', { parentInner: 0.0515112 });
+    const ranked = queryComponents(couplers, q({ showLegacy: true }), 'tubecoupler', { parentInner: 0.0515112 });
     expect(ranked.length).toBe(couplers.length); // nothing dropped
     expect(ranked[0]!.fit).not.toBeNull(); // best fit leads
     expect(ranked.at(-1)!.fit).toBeNull(); // rows with no score sink
@@ -275,7 +293,7 @@ describe('queryComponents', () => {
   it('returns every match, leaving any capping to the caller', () => {
     // Every match, uncapped: slicing here and reporting the slice as the total
     // makes a 1088-row type read as though the catalog were small.
-    expect(queryComponents(tubes, q(), 'bodytube').length).toBe(tubes.length);
+    expect(queryComponents(tubes, q({ showLegacy: true }), 'bodytube').length).toBe(tubes.length);
     expect(tubes.length).toBeGreaterThan(300);
   });
 });
@@ -377,7 +395,7 @@ describe('sorting the columns that were not sortable', () => {
   it('leaves a shape sort alone on a type that has no shape', () => {
     // Every value is null, so the order must simply not change or throw.
     const tubes = ofType('bodytube');
-    expect(queryComponents(tubes, q({ sort: 'shape' }), 'bodytube').length).toBe(tubes.length);
+    expect(queryComponents(tubes, q({ sort: 'shape', showLegacy: true }), 'bodytube').length).toBe(tubes.length);
   });
 });
 
@@ -410,7 +428,7 @@ describe("the user's own saved parts", () => {
     // A deliberately bad fit, against a context the catalog answers exactly.
     // Ranking it on merit would bury it; the rule is that your own parts are
     // never off the end of the 200-row window the picker draws.
-    const fit: FitContext = { airframeOuter: [0.0258] };
+    const fit: FitContext = { foreMatch: 0.0258 };
     const list: Component[] = [...ofType('bodytube'), saved('mine', 0.2)];
     const rows = queryComponents(list, q({ sort: 'fit' }), 'bodytube', fit);
     expect(rows[0]?.part.partNo).toBe('mine');
@@ -449,7 +467,7 @@ describe('an inner tube is served by the body tubes', () => {
   it('abstains from a fit rule, because the motor it has to take is not in the tree', () => {
     // Not an oversight: scoring an inner tube's outer diameter against the
     // enclosing bore would rank a snug 51 mm sleeve above the 29 mm mount wanted.
-    expect(fitRuleFor('innertube', { parentInner: 0.0515112, parentOuter: 0.0546608 })).toBeNull();
+    expect(fitRuleFor('innertube', { parentInner: 0.0515112, foreMatch: 0.0546608 })).toBeNull();
   });
 
   it('reaches the motor mount tubes the catalog files as body tubes', () => {

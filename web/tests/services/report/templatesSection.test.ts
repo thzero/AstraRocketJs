@@ -38,7 +38,7 @@ function labelAndOutlinePages(spanM: number): { label: string; labelPage: number
     rootChord: 0.05,
     tipChord: 0.03,
     height: spanM,
-    sweepLength: 0.02,
+    sweep: 0.02,
     thickness: 0.003,
   }));
   const tree = {

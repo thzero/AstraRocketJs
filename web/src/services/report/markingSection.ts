@@ -2,7 +2,7 @@ import type { jsPDF } from 'jspdf';
 import { fmtList, fmtNum, partLabel } from '../../i18n/format';
 import { hexToRgbTuple } from './layout';
 import { drawText, ensure, heading, paragraph, sectionBreak, setStyle, writeRuler, type PdfPage } from './pdfPage';
-import { GUIDE_WIDTH_MM, cutPoints, type MarkingGuide, type MarkingGuideSet } from './markingGuide';
+import { GUIDE_WIDTH_MM, cutPoints, type GuideSlot, type MarkingGuide, type MarkingGuideSet } from './markingGuide';
 
 /**
  * The fin marking guide: one wrap-around strip per body tube, drawn 1:1.
@@ -45,6 +45,7 @@ export function writeMarkingGuideSection(p: PdfPage, set: MarkingGuideSet): void
   sectionBreak(p);
   heading(p, t('report.markingGuide'));
   paragraph(p, t('report.markingGuideHint'));
+  if (set.guides.some((g) => g.marks.some((m) => m.slot))) paragraph(p, t('report.markingSlotHint'));
 
   writeRuler(p);
 
@@ -167,10 +168,18 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
     if (mark.cant === 0) {
       doc.setDrawColor(...stroke).setLineWidth(0.3);
       arrowLine(doc, x, yc, x + W, yc, 0, stroke);
+      // Above the slot box when there is one, with the slot's ends on the same
+      // line: one label per mark, so a mark beside it has only one to clear.
+      const slot = mark.slot;
+      const half = slot ? slot.widthMm / 2 : 0;
+      const text = slot
+        ? `${label}  ${t('report.markingSlot', { a: fmtNum(slot.aftMm, 1), b: fmtNum(slot.foreMm, 1) })}`
+        : label;
       setStyle(p, 'normal')
         .setFontSize(6.5)
         .setTextColor(...stroke);
-      drawText(p, label, x + W / 3, yc - 1.2);
+      drawText(p, text, x + W / 3, yc - half - 1.2);
+      if (slot) drawSlot(doc, slot, x, yc, stroke);
       continue;
     }
 
@@ -216,6 +225,26 @@ function drawPanel(p: PdfPage, panel: Panel, x: number, top: number): void {
       angle: (-mark.cant * 180) / Math.PI,
     });
   }
+}
+
+/**
+ * A fin's tab slot: a box one fin thickness wide, centered on the fin line,
+ * from the slot's aft end to its fore end measured from the strip's left edge.
+ * A side past the strip's edge is left open, since the slot carries on beyond
+ * the paper; the mark's label gives both ends either way.
+ */
+function drawSlot(doc: jsPDF, slot: GuideSlot, x: number, yc: number, stroke: [number, number, number]): void {
+  const W = GUIDE_WIDTH_MM;
+  const x0 = Math.min(W, Math.max(0, slot.aftMm));
+  const x1 = Math.min(W, Math.max(0, slot.foreMm));
+  if (!(x1 > x0)) return;
+  const top = yc - slot.widthMm / 2;
+  const bottom = yc + slot.widthMm / 2;
+  doc.setDrawColor(...stroke).setLineWidth(0.2);
+  doc.line(x + x0, top, x + x1, top);
+  doc.line(x + x0, bottom, x + x1, bottom);
+  if (slot.aftMm >= 0) doc.line(x + x0, top, x + x0, bottom);
+  if (slot.foreMm <= W) doc.line(x + x1, top, x + x1, bottom);
 }
 
 /**

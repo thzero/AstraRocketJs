@@ -8,6 +8,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 const order = vi.hoisted(() => [] as string[]);
 const resetEngine = vi.hoisted(() => vi.fn(() => order.push('reset')));
 vi.mock('../../../src/engine/openRocketEngine', () => ({
+  engineActive: () => true, // the kernel is loaded: the file goes through it
   OpenRocketDesign: {
     buildTree: () => {
       order.push('build');

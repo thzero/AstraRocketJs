@@ -2,17 +2,18 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
-import { catalogPatch, defaultNode, findNode, syncDerived } from '../../../src/services/design/treeEdit';
+import { catalogPatch, defaultNode, findNode, syncDerived, updateNode } from '../../../src/services/design/treeEdit';
 import { isComponentRow, type ParachuteComponent } from '../../../src/services/parts/componentDb';
 import { axialFrames, rebasePosition } from '../../../src/tree/axialRebase';
 import { axialChain, axialLength } from '../../../src/tree/position';
-import { countOf, num, positionOf } from '../../../src/tree/nodeProps';
+import { countOf, MAX_CANT, num, positionOf } from '../../../src/tree/nodeProps';
 import { lineInstances, placementOffsets } from '../../../src/tree/placement';
 import { innerTubeExtent } from '../../../src/tree/schematicGeometry';
 import { clusterCount } from '../../../src/tree/cluster';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import { profileMm, rocketSideView } from '../../../src/services/report/reportGeometry';
-import { badDimensions } from '../../../src/services/design/requiredComponent';
+import { badDimensions, overturnedFins } from '../../../src/services/design/requiredComponent';
+import { designBlocker } from '../../../src/services/flight/runnability';
 import { profileEnds, shapeParamMax, shapeUsesParameter, stationRadius } from '../../../src/tree/shapeProfile';
 import { chainWithKernelEnds, withKernelEnds } from '../../../src/services/design/autoRadius';
 import {
@@ -109,14 +110,28 @@ function generate(seed: number): RocketTree {
   const vPick = <T>(xs: readonly T[]): T => xs[Math.floor(vr() * xs.length)]!;
   const round4 = (v: number) => Math.round(v * 1e4) / 1e4;
   /**
-   * A cant angle (rad) whose root offsets stay on the body: the kernel bends a
-   * canted root down to the surface (`FinSet.getFinCantYOffset`) and has no
-   * answer where half the chord, turned by the cant, reaches past the radius.
+   * Overturned fin sets, from a stream of their own so every other draw of
+   * every seed is unchanged.
+   */
+  const cr = rng(seed + 0x5bd1e995);
+  /**
+   * A cant angle (rad), mostly one whose root offsets stay on the body: the
+   * kernel bends a canted root down to the surface (`FinSet.getFinCantYOffset`)
+   * and has no answer where half the chord, turned by the cant, reaches past
+   * the radius. Now and then it is one near that limit on either side, up to
+   * the panel's 15 degrees, where the kernel's root points are NaN past it and
+   * the pre-run check has to refuse exactly those fin sets.
    */
   const cantFor = (chord: number, minRadius: number): number => {
-    if (!vChance(0.35)) return 0;
-    const cant = round4(vBetween(0.01, 0.08)) * (vChance(0.5) ? 1 : -1);
-    return (chord / 2) * Math.sin(Math.abs(cant)) < minRadius * 0.9 ? cant : 0;
+    const usual = vChance(0.35) ? round4(vBetween(0.01, 0.08)) * (vChance(0.5) ? 1 : -1) : 0;
+    const cant = (chord / 2) * Math.sin(Math.abs(usual)) < minRadius * 0.9 ? usual : 0;
+    if (cr() >= 0.3) return cant;
+    // Clear of the limit itself, where the root offset is a difference of near
+    // equal squares and rounding alone parts the app from the kernel.
+    const factor = cr() < 0.5 ? 0.6 + cr() * 0.25 : 1.15 + cr() * 0.45;
+    const sin = (minRadius * factor) / (chord / 2);
+    const near = Math.floor(Math.min(sin < 1 ? Math.asin(sin) : MAX_CANT, MAX_CANT) * 1e4) / 1e4;
+    return cr() < 0.5 ? near : -near;
   };
   /** The profile shape keys a user can set: a non-default parameter and the clip flag. */
   const shapeExtras = (node: Record<string, unknown>) => {
@@ -1467,6 +1482,9 @@ function compare(
   const view = rocketSideView(tree).body;
   const edge = view.slice(0, view.length / 2).map(([x, r]): Pt => [x / 1000, r / 1000]);
   const chainIds = new Set(axialChain(tree).map((n) => n.id));
+  /** Planar fin sets compared here, and those the kernel gives NaN root points. */
+  const finSets = new Set<string>();
+  const overturned = new Set<string>();
   for (const visit of walkTree(tree)) {
     const { node, parent, parentId } = visit;
     id = visit.id;
@@ -1618,6 +1636,13 @@ function compare(
         const moved = p0 && (p0[0] !== 0 || p0[1] !== 0) ? ', outline off the origin' : '';
         // Each piece the kernel builds a fin from, then the outline the STL, the
         // DXF and the 1:1 template cut, against the one the kernel flies.
+        finSets.add(id);
+        // Canted past its body: the kernel has no root to compare, and the
+        // pre-run check has to refuse it (checked below).
+        if ([...(k.finPoints ?? []), ...(k.rootPoints ?? [])].some(([x, y]) => x === null || y === null)) {
+          overturned.add(id);
+          break;
+        }
         const tol = clippedProfile(parent) ? PROFILE_TOL : TOL;
         const canted = typeof node['cant'] === 'number' && node['cant'] !== 0 ? ', canted' : '';
         const pieces: [string, Pt[] | null, KernelGeometry['finPoints']][] = [
@@ -1764,6 +1789,27 @@ function compare(
       }
     }
   }
+  // The pre-run check refuses a canted fin set exactly when the kernel gives it
+  // NaN root points. Judged with a motor mount in the design, which moves no
+  // geometry, so the check reaches the fins; behind a zero dimension, which it
+  // reports first, the fin sets it would name next are compared.
+  const blocker = designBlocker(withMountForCheck(tree));
+  const refused = new Set(
+    (blocker?.kind === 'finCant' ? blocker.fins : blocker === null ? [] : overturnedFins(tree)).map((f) => f.id),
+  );
+  for (const fin of finSets) {
+    const where = overturned.has(fin) ? 'overturned' : 'on its body';
+    checked.set(`fin set refused when ${where}`, (checked.get(`fin set refused when ${where}`) ?? 0) + 1);
+    if (overturned.has(fin) !== refused.has(fin)) {
+      misses.push({
+        rule: `fin set refused when ${where}`,
+        design,
+        part: fin,
+        app: refused.has(fin) ? 'refused' : 'flies',
+        kernel: overturned.has(fin) ? 'NaN root' : 'root',
+      });
+    }
+  }
   // The kernel built and resolved this design, so the pre-run check must let it fly.
   for (const bad of badDimensions(tree)) {
     if (noSize.has(bad.id ?? '')) continue;
@@ -1778,6 +1824,98 @@ function compare(
     });
   }
   return { misses, unresolved, checked };
+}
+
+/** The shoulders each part type carries: '' is a nose cone's one, at its base. */
+const SHOULDER_SIDES: Record<string, ('' | 'fore' | 'aft')[]> = { nosecone: [''], transition: ['fore', 'aft'] };
+/** How many shoulders a design grows, so the extra builds stay a small part of the run. */
+const SHOULDERS_PER_DESIGN = 3;
+
+/**
+ * Shoulders grown from length 0, the app against the kernel. Each of the
+ * design's first shoulder-bearing parts has the shoulder taken off, and is
+ * then given a length through `updateNode` (the panel's edit, which seeds the
+ * wall, radius and cap from the part the shoulder plugs into) and through the
+ * bridge's `setShoulderLength` on the same design built in the kernel
+ * (`Transition.setForeShoulderLength`, `setAftShoulderLength`, which find that
+ * part with `getPreviousSymmetricComponent` and `getNextSymmetricComponent`).
+ */
+function shoulderSeedMisses(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped
+  engine: any,
+  design: string,
+  tree: RocketTree,
+): { misses: Miss[]; checked: Map<string, number> } {
+  const misses: Miss[] = [];
+  const checked = new Map<string, number>();
+  const length = 0.03;
+  const sites = walkTree(tree)
+    .flatMap(({ node, id, parent }) =>
+      (SHOULDER_SIDES[node.type] ?? []).map((side) => ({
+        node,
+        id,
+        side,
+        inside: parent ? ` in a ${parent.type}` : '',
+      })),
+    )
+    .slice(0, SHOULDERS_PER_DESIGN);
+  for (const { node, id, side, inside } of sites) {
+    const key = (k: string) => (side ? `${side}Shoulder${k}` : `shoulder${k}`);
+    const bare = {
+      [key('Length')]: 0,
+      [key('Radius')]: 0,
+      [key('Thickness')]: 0,
+      [key('Capped')]: false,
+      [key('Auto')]: false,
+    };
+    const replace = (n: ComponentNode): ComponentNode =>
+      n.id === id ? { ...n, ...bare } : n.children ? { ...n, children: n.children.map(replace) } : n;
+    const base = syncDerived({ ...tree, components: tree.components.map(replace) });
+    engine.reset();
+    const h = engine.buildRocket(JSON.stringify(base));
+    const kernel = JSON.parse(engine.setShoulderLength(h, id, side, length)) as Record<string, unknown>;
+    // The part the shoulder plugs into offers no radius of its own (an
+    // automatic tube with nothing fixed beyond it): `getFrontAutoRadius` and
+    // `getRearAutoRadius` answer -1, and the kernel seeds that less the wall.
+    // The app seeds the radius the tube resolves to instead, so these are counted
+    // and not compared.
+    if (typeof kernel[key('Radius')] === 'number' && (kernel[key('Radius')] as number) < 0) {
+      checked.set(
+        'shoulder seed from a neighbor with no radius',
+        (checked.get('shoulder seed from a neighbor with no radius') ?? 0) + 1,
+      );
+      continue;
+    }
+    const app = findNode(updateNode(base, id, { [key('Length')]: length }), id)!;
+    const what = `${node['flipped'] === true ? 'flipped ' : ''}${node.type}${side ? ` ${side}` : ''} shoulder seed`;
+    for (const [field, same] of [
+      ['Radius', close],
+      ['Thickness', close],
+      ['Capped', (a: unknown, b: unknown) => a === b],
+    ] as const) {
+      const rule = `${what} ${field.toLowerCase()}${inside}`;
+      checked.set(rule, (checked.get(rule) ?? 0) + 1);
+      const a = app[key(field)];
+      const b = kernel['error'] ?? kernel[key(field)];
+      if (!(same as (x: unknown, y: unknown) => boolean)(a, b)) {
+        misses.push({ rule, design, part: id, app: String(a), kernel: String(b) });
+      }
+    }
+  }
+  return { misses, checked };
+}
+
+/** The design with its first body tube a motor mount, so the pre-run check gets past "no mount". */
+function withMountForCheck(tree: RocketTree): RocketTree {
+  let done = false;
+  const visit = (n: ComponentNode): ComponentNode => {
+    if (!done && n.type === 'bodytube') {
+      done = true;
+      return { ...n, motorMount: true };
+    }
+    return n.children ? { ...n, children: n.children.map(visit) } : n;
+  };
+  return { ...tree, components: tree.components.map(visit) };
 }
 
 /** One line per rule: how many designs it failed on, and the first example. */
@@ -1808,6 +1946,9 @@ describe('app geometry matches the kernel', () => {
       misses.push(...r.misses);
       unresolved += r.unresolved;
       for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
+      const grown = shoulderSeedMisses(engine, `seed ${seed}`, tree);
+      misses.push(...grown.misses);
+      for (const [rule, count] of grown.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
     }
     // The tab limit on a tapered parent is checked on every parent that takes
     // a fin set, and the added parts and the absolute placements reach the
@@ -1881,6 +2022,12 @@ describe('app geometry matches the kernel', () => {
       'nosecone template profile',
       'flipped nosecone template profile',
       'transition template profile',
+      'fin set refused when overturned',
+      'fin set refused when on its body',
+      'nosecone shoulder seed radius in a stage',
+      'flipped nosecone shoulder seed radius in a stage',
+      'transition fore shoulder seed radius in a stage',
+      'transition aft shoulder seed radius in a stage',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }
@@ -1903,6 +2050,9 @@ describe('app geometry matches the kernel', () => {
       misses.push(...r.misses);
       unresolved += r.unresolved;
       for (const [rule, count] of r.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
+      const grown = shoulderSeedMisses(engine, `assembly seed ${seed}`, tree);
+      misses.push(...grown.misses);
+      for (const [rule, count] of grown.checked) checked.set(rule, (checked.get(rule) ?? 0) + count);
     }
     expect(report(misses, ASSEMBLY_DESIGNS)).toEqual([]);
     expect(checked.get('body tube automatic radius') ?? 0).toBeGreaterThan(300);
@@ -1918,6 +2068,9 @@ describe('app geometry matches the kernel', () => {
       'parallelstage radial distance, free in a bodytube',
       'podset angle in a bodytube',
       'parallelstage angle in a bodytube',
+      'transition fore shoulder seed radius in a podset',
+      'transition fore shoulder seed radius in a parallelstage',
+      'nosecone shoulder seed radius in a stage',
     ]) {
       expect(checked.get(rule) ?? 0, rule).toBeGreaterThan(5);
     }

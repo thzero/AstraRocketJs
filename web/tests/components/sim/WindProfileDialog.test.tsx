@@ -2,10 +2,10 @@
 // cspell:ignore Schicht entfernen
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { WindProfileDialog } from '../../../src/components/sim/WindProfileDialog';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
-import type { LaunchConditions, WindLevel } from '../../../src/services/design/orkTree';
+import { launchPatchFor, type LaunchConditions, type WindLevel } from '../../../src/services/design/orkTree';
 
 const LEVELS: WindLevel[] = [
   { altitudeM: 0, speed: 2, directionDeg: 90, stddev: 0 },
@@ -234,5 +234,86 @@ describe('WindProfileDialog row labels', () => {
     } finally {
       await i18n.changeLanguage('en');
     }
+  });
+});
+
+/**
+ * The safety codes' wind ceiling is the pad's, so only the ground layer's
+ * deviation box carries it, as only its speed box does. Aloft, the turbulence
+ * box beside it sets up to its full percentage of the level's speed, and the
+ * deviation box has to hold what that writes.
+ */
+describe('WindProfileDialog deviation ceiling', () => {
+  const FAST: WindLevel[] = [
+    { altitudeM: 0, speed: 4, directionDeg: 90, stddev: 0 },
+    { altitudeM: 1000, speed: 25, directionDeg: 90, stddev: 0 },
+    { altitudeM: 3000, speed: 40, directionDeg: 90, stddev: 0 },
+  ];
+  const seen: WindLevel[][] = [];
+  function FastHost() {
+    const [launch, setLaunch] = useState<LaunchConditions>({ windLevels: FAST } as LaunchConditions);
+    return (
+      <WindProfileDialog
+        launch={launch}
+        onChange={(p) => {
+          const patch = launchPatchFor(p, launch, 'x');
+          if (patch.windLevels) seen.push(patch.windLevels);
+          setLaunch((l) => ({ ...l, ...patch }));
+        }}
+        onClose={() => {}}
+      />
+    );
+  }
+  const last = () => seen[seen.length - 1]!;
+
+  it('keeps an upper level deviation the turbulence box writes, at every upper level', () => {
+    renderWithProviders(<FastHost />);
+    for (const n of [2, 3]) {
+      const turbulence = screen.getByLabelText(`Turbulence ${n}`) as HTMLInputElement;
+      fireEvent.focus(turbulence);
+      fireEvent.change(turbulence, { target: { value: '100' } });
+      fireEvent.blur(turbulence);
+      const level = FAST[n - 1]!;
+      // 100% of the level's own speed.
+      expect(last()[n - 1]!.stddev).toBeCloseTo(level.speed, 9);
+
+      const deviation = screen.getByLabelText(`Deviation ${n}`) as HTMLInputElement;
+      fireEvent.focus(deviation);
+      fireEvent.change(deviation, { target: { value: String(level.speed * 0.9) } });
+      fireEvent.blur(deviation);
+      expect(last()[n - 1]!.stddev).toBeCloseTo(level.speed * 0.9, 9);
+    }
+  });
+
+  it('still caps the ground layer', () => {
+    renderWithProviders(<FastHost />);
+    const deviation = screen.getByLabelText('Deviation 1') as HTMLInputElement;
+    expect(deviation.getAttribute('max')).not.toBeNull();
+    for (const n of [2, 3]) expect(screen.getByLabelText(`Deviation ${n}`).getAttribute('max')).toBeNull();
+  });
+});
+
+/**
+ * Reading the CSV resolves after the fact, and the import writes to whatever
+ * simulations are the current edit targets. Closing the dialog before the read
+ * finishes must not let it land on them.
+ */
+describe('WindProfileDialog CSV import', () => {
+  it('drops a file whose read finishes after the dialog was closed', async () => {
+    const csv = ['altitude,speed,direction,stddev', '0,4,90,0', '500,8,110,1'].join('\n');
+    const bytes = new TextEncoder().encode(csv);
+    let finish!: (b: ArrayBuffer) => void;
+    const file = new File([bytes], 'wind.csv', { type: 'text/csv' });
+    file.arrayBuffer = () => new Promise<ArrayBuffer>((r) => (finish = r));
+    const onChange = vi.fn();
+    const { unmount } = renderWithProviders(
+      <WindProfileDialog launch={{ windLevels: LEVELS } as LaunchConditions} onChange={onChange} onClose={() => {}} />,
+    );
+    fireEvent.change(document.body.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    unmount();
+    await act(async () => {
+      finish(bytes.buffer.slice(0) as ArrayBuffer);
+    });
+    expect(onChange).not.toHaveBeenCalled();
   });
 });

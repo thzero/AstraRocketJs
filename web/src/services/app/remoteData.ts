@@ -24,7 +24,13 @@
  * nowhere else: such a build does not carry its own copy of them (vite.config.ts
  * leaves them out), so a catalog is never older than the published one. Offline,
  * the service worker answers from its cached copy of the download
- * (`astra-catalogs`), which warmCatalogs.ts fills on the first online visit.
+ * (`astra-catalogs`, vite.config.ts): the manifest is served network first and
+ * from the cache when the network fails, and each catalog is cached under its
+ * `?v=<hash>` URL, so an online open after a refresh stores the refreshed
+ * manifest and the catalogs it names, and the next offline open reads that
+ * pair. A worker-controlled page fills the cache through the worker's own
+ * rules; the first visit is never controlled, so warmCatalogs.ts writes it
+ * there itself, under the URLs from {@link dataHostUrls}.
  *
  * `manifest.json` (written by the sync scripts) carries a content hash per file;
  * we read it first (revalidated, tiny) and append it as `?v=<hash>` so a browser
@@ -228,7 +234,7 @@ const CATALOG_FAILED_KEY = {
   contributors: 'errors.remote.contributors',
 } as const;
 
-type CatalogName = keyof typeof CATALOG_FAILED_KEY;
+export type CatalogName = keyof typeof CATALOG_FAILED_KEY;
 
 /**
  * Catalogs read from the build's own copy only, never from the data host. The
@@ -242,6 +248,24 @@ const BUILD_ONLY: ReadonlySet<CatalogName> = new Set(['materials', 'contributors
 /** Where one catalog is read from. */
 const baseFor = (name: CatalogName): string => (BUILD_ONLY.has(name) || !REMOTE_BASE ? LOCAL_BASE : REMOTE_BASE);
 
+/** The URL one catalog is read from, cache-buster included. */
+async function catalogUrl(name: CatalogName): Promise<string> {
+  const base = baseFor(name);
+  const hash = (await manifest(base))[name];
+  return `${base}${name}.generated.json` + (hash ? `?v=${encodeURIComponent(hash)}` : '');
+}
+
+/**
+ * The data-host URLs a page reads the named catalogs from: the host's manifest,
+ * then each catalog with its cache-buster. The service worker's
+ * `astra-catalogs` rules answer these offline and match on the whole URL, so
+ * these are its cache keys. Empty with no data host.
+ */
+export async function dataHostUrls(names: readonly CatalogName[]): Promise<string[]> {
+  if (!hasDataHost() || !REMOTE_BASE) return [];
+  return [`${REMOTE_BASE}manifest.json`, ...(await Promise.all(names.map(catalogUrl)))];
+}
+
 /**
  * Fetch and parse one runtime catalog by name (`'motors'` → `motors.generated.json`),
  * cache-busted by its manifest hash and memoized for the session. Rejects when
@@ -251,14 +275,9 @@ export function fetchCatalog<T>(name: CatalogName, valid?: (v: unknown) => boole
   let p = catalogP.get(name) as Promise<T> | undefined;
   if (!p) {
     p = (async () => {
-      const base = baseFor(name);
       try {
-        const hash = (await manifest(base))[name];
-        const body = await fetchJson<T>(
-          `${base}${name}.generated.json` + (hash ? `?v=${encodeURIComponent(hash)}` : ''),
-          TTFB_TIMEOUT_MS,
-          undefined,
-          (p) => reportProgress(name, p),
+        const body = await fetchJson<T>(await catalogUrl(name), TTFB_TIMEOUT_MS, undefined, (p) =>
+          reportProgress(name, p),
         );
         // A host that is up but wrong: `{"error":"rebuilding"}` served with
         // HTTP 200 parses fine, and would leave the caller spreading a non-array.

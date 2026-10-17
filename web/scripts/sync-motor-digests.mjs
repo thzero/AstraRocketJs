@@ -25,13 +25,16 @@
 // Which entry a row gets. All of them that the key matches, each with the
 // delays that entry offers, because a plugged C6 and a delayed C6 are different
 // motors with different digests and the design knows which one it seated. The
-// writer picks by delay (`exportMotors.ts`).
+// writer picks by delay (`exportMotors.ts`), and where the delay does not
+// separate them it takes the first, so they are ordered closest to the motor
+// the app flies first: launch mass, then the curve (`lib/digestRank.mjs`).
 //
-// Matching is on manufacturer, designation and diameter, with length as a
-// tolerance check. Both of the desktop's names are tried, because its
-// designation is the maker's full code ("D24T") and its common name the impulse
-// one ("D24"), and a row synced from thrustcurve.org carries whichever that
-// motor published. The manufacturer has to go through `Manufacturer.getAllNames`
+// Matching is on manufacturer, designation and diameter to the tenth of a
+// millimeter (lib/motorDigestKey.mjs), with length as a tolerance check. Both
+// of the desktop's names are tried, because its designation is the maker's
+// full code ("D24T") and its common name the impulse one ("D24"), and a row
+// synced from thrustcurve.org carries whichever that motor published. The
+// manufacturer has to go through `Manufacturer.getAllNames`
 // because our catalog names a maker by thrustcurve.org's abbreviation, where the
 // desktop holds the full name, and that class is the only place that knows "AT"
 // and "AeroTech" are one maker.
@@ -49,16 +52,14 @@ import { fileURLToPath } from 'node:url';
 import { STAGED_MOTORS, writeFileAtomic } from './lib/catalogStaging.mjs';
 import { writeDataManifest } from './lib/dataManifest.mjs';
 import { digestChanges, goneSection, motorProblems } from './lib/digestCoverage.mjs';
+import { digestKey } from './lib/motorDigestKey.mjs';
 import { motorRowKey } from './lib/motorRowKey.mjs';
+import { rankEntries } from './lib/digestRank.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 const CATALOG = resolve(HERE, '../public/data/motors.generated.json');
 const JAVA_SRC = resolve(HERE, 'motor-digests/MotorDump.java');
-
-/** Manufacturer and designation compared the way a human reads them. */
-const norm = (s) => (s ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
-const key = (mfr, designation, diameterMm) => `${norm(mfr)}|${norm(designation)}|${Math.round(diameterMm)}`;
 
 /** How far the two databases' stated lengths for one motor may differ, in millimeters. */
 const LENGTH_TOLERANCE_MM = 2;
@@ -77,6 +78,7 @@ function dump(cp) {
     impulse,
     burn,
     maxThrust,
+    launchMass,
     digest,
   ] of runDumper({
     cp,
@@ -90,13 +92,14 @@ function dump(cp) {
       impulse: Number(impulse),
       burn: Number(burn),
       maxThrust: Number(maxThrust),
+      launchMass: Number(launchMass),
     };
     // Under both names: the desktop's designation is the maker's full code
     // ("D24T") and its common name the impulse one ("D24"), and a catalog row
     // synced from thrustcurve.org is keyed on whichever that motor published.
     for (const name of allNames.split('|')) {
       for (const d of new Set([designation, commonName])) {
-        const k = key(name, d, Number(diameter) * 1000);
+        const k = digestKey(name, d, Number(diameter) * 1000);
         if (!index.has(k)) index.set(k, []);
         index.get(k).push(entry);
       }
@@ -106,51 +109,15 @@ function dump(cp) {
 }
 
 /**
- * How far one dumped entry's curve is from the one our catalog holds, as summed
- * relative error over total impulse, burn time and peak thrust.
- *
- * Only used to order candidates: where a name resolves to several entries and
- * the delay does not separate them, this is what decides, so the desktop flies
- * the motor the design was built with rather than a namesake. A row that states
- * none of the three scores zero, which leaves the digest order to decide.
- */
-function distance(entry, row) {
-  let sum = 0;
-  for (const [ours, theirs] of [
-    [row.impulse, entry.impulse],
-    [row.burn, entry.burn],
-    [row.maxThrust, entry.maxThrust],
-  ]) {
-    if (!Number.isFinite(ours) || !Number.isFinite(theirs) || ours === 0) continue;
-    sum += Math.abs(theirs - ours) / Math.abs(ours);
-  }
-  return sum;
-}
-
-/**
- * The entries for one catalog row: deduplicated by digest, with the delays each
- * one offers merged, closest curve first, and ties broken on the digest so a
- * re-run writes the same bytes.
+ * The entries for one catalog row, each with the delays it offers, ranked
+ * closest to what the app flies first (`lib/digestRank.mjs`).
  */
 function entriesFor(index, row) {
-  const found = index.get(key(row.manufacturer, row.designation, row.diameter));
+  const found = index.get(digestKey(row.manufacturer, row.designation, row.diameter));
   if (!found) return null;
   const fits =
     row.length == null ? found : found.filter((e) => Math.abs(e.lengthMm - row.length) <= LENGTH_TOLERANCE_MM);
-  if (!fits.length) return null;
-  const byDigest = new Map();
-  for (const e of fits) {
-    const seen = byDigest.get(e.digest) ?? { delays: new Set(), distance: Infinity };
-    for (const d of e.delays) seen.delays.add(d);
-    seen.distance = Math.min(seen.distance, distance(e, row));
-    byDigest.set(e.digest, seen);
-  }
-  return [...byDigest]
-    .sort(([da, a], [db, b]) => a.distance - b.distance || (da < db ? -1 : 1))
-    .map(([digest, { delays }]) => ({
-      digest,
-      delays: [...delays].sort((a, b) => (a === 'P' ? 1 : b === 'P' ? -1 : a - b)),
-    }));
+  return fits.length ? rankEntries(fits, row) : null;
 }
 
 /** A motor's row key and whether it carries a digest, for `digestChanges`. */

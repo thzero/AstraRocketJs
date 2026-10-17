@@ -228,9 +228,11 @@ export function LocationPicker({
 
       {/* The shared dialog, also reachable from the menu. It owns its own
           loading, renaming and deleting, so this only has to say when it is
-          open and refresh the dropdown once it closes. */}
+          open, hand it the fields "Use" writes, and refresh the dropdown once
+          it closes. */}
       {managing && (
         <LocationsDialog
+          onApply={apply}
           onClose={() => {
             setManaging(false);
             void refresh();

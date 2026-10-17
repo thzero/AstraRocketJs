@@ -9,7 +9,8 @@ import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import { hexOf } from '../../design/colorHex';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
-import { DEPLOY_EVENTS } from '../../design/componentFields';
+import { DEPLOY_EVENTS, SEPARATION_EVENTS } from '../../design/componentFields';
+import { keyedNote, notePartName, type ImportNote } from '../importNote';
 
 /**
  * Readers for the individual .ork elements more than one component carries:
@@ -65,8 +66,10 @@ export function nonNegTag(el: Element, tag: string, fallback: number): number {
 export function autoRadiusTag(el: Element, tag: string): number | undefined {
   const t = text(el, `:scope > ${tag}`)?.trim();
   if (!t || t.toLowerCase().startsWith('auto')) return undefined;
+  // A stated 0 is a radius of 0, as DocumentConfig's setter sets it: desktop's
+  // phantom tubes carry fins on a pod at the pod's own axis.
   const v = Number(t);
-  return Number.isFinite(v) && v > 0 ? v : undefined;
+  return Number.isFinite(v) && v >= 0 ? v : undefined;
 }
 
 /** `<isdrogue>` as OpenRocket writes it: present and "true" or absent altogether. */
@@ -125,14 +128,36 @@ export function readAutoValue(el: Element, node: ComponentNode, tag: string, fla
   return false;
 }
 
-/** The bulk material's `group` attribute, when the file carries one (the name
- *  and density are read by `matName` / `matDensity`). Pass-through, like
- *  readFillet. */
-export function readMaterialGroup(el: Element, node: ComponentNode): void {
+/**
+ * The bulk material's `group` attribute, when the file carries one (the name
+ * and density are read by `matName` / `matDensity`). Read for every part by
+ * `readCommon`, since `RocketComponentSaver.materialParam` writes it for every
+ * material: without it the writer has no group to put back, and desktop's
+ * `MaterialSetter` then looks the material up with no group.
+ */
+function readMaterialGroup(el: Element, node: ComponentNode): void {
   const m = el.querySelector(':scope > material');
   if (!m || m.getAttribute('type') !== 'bulk') return;
   const group = m.getAttribute('group');
   if (group) node['materialGroup'] = group;
+}
+
+/**
+ * The bulk material's `shearModulus` attribute, carried for the writer.
+ *
+ * Upstream's `materialParam` writes it for a user-defined material and for any
+ * material whose modulus is not zero, and `MaterialSetter` looks the material
+ * up by it when present. Nothing here reads it, so it is kept only to be
+ * written back; absent stays absent, since the setter treats the attribute's
+ * presence as the user having set it.
+ */
+function readShearModulus(el: Element, node: ComponentNode): void {
+  const m = el.querySelector(':scope > material');
+  if (!m || m.getAttribute('type') !== 'bulk') return;
+  const raw = m.getAttribute('shearModulus');
+  if (raw === null) return;
+  const v = Number(raw);
+  if (Number.isFinite(v) && v >= 0) node['shearModulus'] = v;
 }
 
 function matDensity(el: Element): number | undefined {
@@ -173,8 +198,8 @@ export function readSoftMaterial(
  * CenteringRing and Bulkhead are LineInstanceable and LaunchLug/RailButton are
  * Instanceable, so OpenRocket writes these for all four. Carrying them keeps a
  * motor mount declared as one CenteringRing with instancecount 3 from coming
- * back from a save as a single ring. The simulation counts all N; the drawing
- * shows one, and the import note says so.
+ * back from a save as a single ring. The simulation counts all N, and the side
+ * and 3D views draw all N.
  */
 export function readInstances(el: Element, node: ComponentNode): void {
   const count = clampCount(numTag(el, 'instancecount', 1), 1, MAX_ASSEMBLY_INSTANCES);
@@ -226,8 +251,9 @@ export function readAirfoil(el: Element, node: ComponentNode): void {
  */
 function readFillet(el: Element, node: ComponentNode): void {
   const r = numTag(el, 'filletradius', 0);
-  if (!(r > 0)) return;
-  node['filletRadius'] = r;
+  if (r > 0) node['filletRadius'] = r;
+  // The material is kept whatever the radius: desktop keeps a fin set's fillet
+  // material at a 0 radius, and a fillet turned back on is in that material.
   const m = el.querySelector(':scope > filletmaterial');
   if (!m) return;
   const d = Number(m.getAttribute('density'));
@@ -266,78 +292,6 @@ export function readFinTabs(el: Element, node: ComponentNode): void {
   }
 }
 
-/**
- * Recovery-device deployment: the bare tags are the defaults; the chosen
- * config's <deploymentconfiguration> block (same child tag names) overrides
- * them per field: the desktop handler clones the default and applies only
- * the fields the block carries.
- */
-export function readDeployment(el: Element, node: ComponentNode, configEl: Element | null = null): void {
-  for (const src of configEl ? [el, configEl] : [el]) Object.assign(node, readDeploymentTags(src));
-}
-
-/**
- * A file's deploy event in the app's vocabulary. The desktop writes the enum
- * name lower-cased with the underscores removed and matches it the same way on
- * read (DocumentConfig.findEnum), so `lowerstageseparation` and the underscored
- * spelling name the one event. A token no event matches stays as written.
- */
-function deployEventOfXml(token: string): string {
-  const key = token.trim().toLowerCase().replace(/_/g, '');
-  return DEPLOY_EVENTS.find((ev) => ev.replace(/_/g, '') === key) ?? token;
-}
-
-/**
- * The deployment tags one element states, and only those, the same way for the
- * design and for each configuration's override. Altitude and delay are floored:
- * a negative deploy altitude never fires the kernel's altitude trigger, and the
- * input field holds the same minimum.
- */
-export function readDeploymentTags(src: Element): OrkDeployOverride {
-  const o: OrkDeployOverride = {};
-  const event = text(src, ':scope > deployevent');
-  if (event) o.deployEvent = deployEventOfXml(event);
-  if (text(src, ':scope > deployaltitude') !== null)
-    o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
-  if (text(src, ':scope > deploydelay') !== null)
-    o.deployDelay = nonNegTag(src, 'deploydelay', KERNEL_DEPLOYMENT.deployDelay);
-  return o;
-}
-
-/**
- * The separation tags one element states, and only those, floored the way
- * {@link readDeploymentTags} floors deployment, for the design and for each
- * configuration's override alike.
- */
-export function readSeparationTags(src: Element): OrkSepOverride {
-  const o: OrkSepOverride = {};
-  const event = text(src, ':scope > separationevent');
-  if (event) o.separationEvent = event;
-  if (text(src, ':scope > separationdelay') !== null)
-    o.separationDelay = nonNegTag(src, 'separationdelay', KERNEL_SEPARATION.separationDelay);
-  if (text(src, ':scope > separationaltitude') !== null)
-    o.separationAltitude = nonNegTag(src, 'separationaltitude', KERNEL_SEPARATION.separationAltitude);
-  return o;
-}
-
-/**
- * Stage separation (a lower <stage> or a strap-on <parallelstage>): the bare
- * tags on `el` are the defaults, and the chosen config's
- * <separationconfiguration> overrides them per field, as the desktop handler
- * clones the default and applies only the fields the block carries. Only values
- * that differ from the desktop defaults are kept, so an untouched stage stays
- * clean.
- */
-export function readSeparation(el: Element, node: ComponentNode, configEl: Element | null = null): void {
-  const o = { ...readSeparationTags(el), ...(configEl ? readSeparationTags(configEl) : {}) };
-  if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
-    node['separationEvent'] = o.separationEvent;
-  if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
-    node['separationDelay'] = o.separationDelay;
-  if (o.separationAltitude !== undefined && o.separationAltitude !== KERNEL_SEPARATION.separationAltitude)
-    node['separationAltitude'] = o.separationAltitude;
-}
-
 function readPosition(el: Element): ComponentPosition | undefined {
   // Modern files write <axialoffset method="...">; OpenRocket ≤ 15.03 wrote
   // only <position type="...">; fall back to it or old files lose every
@@ -353,10 +307,175 @@ function readPosition(el: Element): ComponentPosition | undefined {
 }
 
 /**
+ * An enum name as the bridge and desktop match it: lower-cased with the
+ * underscores removed (`ComponentFactory.enumKey`, `DocumentConfig.findEnum`).
+ */
+const enumToken = (raw: string): string => raw.trim().toLowerCase().replace(/_/g, '');
+
+/**
+ * The surface finishes the bridge builds (`ComponentFactory.finishOf`), each
+ * to the name the app keeps: `ExternalComponent.Finish` lower-cased, plus the
+ * bridge's `regular` alias for NORMAL.
+ */
+const FINISHES: ReadonlyMap<string, string> = new Map([
+  ...[
+    'rough',
+    'roughunfinished',
+    'unfinished',
+    'normal',
+    'smooth',
+    'polished',
+    'finishpolished',
+    'optimum',
+    'mirror',
+  ].map((f): [string, string] => [f, f]),
+  ['regular', 'normal'],
+]);
+
+/** `Transition.Shape`, as `ComponentFactory.shapeOf` accepts it. */
+const SHAPES: ReadonlyMap<string, string> = new Map(
+  ['conical', 'ogive', 'ellipsoid', 'power', 'parabolic', 'haack'].map((s) => [s, s]),
+);
+
+/** `FinSet.CrossSection`, as `ComponentFactory.crossSectionOf` accepts it. */
+const CROSS_SECTIONS: ReadonlyMap<string, string> = new Map(['square', 'rounded', 'airfoil'].map((s) => [s, s]));
+
+/** How much of a refused value a note shows: enough to recognize, never a page. */
+const NOTE_VALUE_CHARS = 40;
+
+/**
+ * A `<tag>` whose text has to name one of the kernel's enum constants.
+ *
+ * The text is free text from the file, and the readers keep it as the node's
+ * value, which the writers then use to index their code tables and the bridge
+ * hands to a `valueOf`-style switch. Only a name the bridge builds gets
+ * through; anything else is dropped with a note naming the part, so the part
+ * flies the kernel's default and the user is told. An absent tag is absent.
+ */
+function enumTag(
+  el: Element,
+  tag: string,
+  accepted: ReadonlyMap<string, string>,
+  noteKey: string,
+  node: ComponentNode,
+  notes: ImportNote[] | undefined,
+): string | undefined {
+  const raw = text(el, `:scope > ${tag}`);
+  if (raw === null || raw.trim() === '') return undefined;
+  const value = accepted.get(enumToken(raw));
+  if (value !== undefined) return value;
+  notes?.push(keyedNote(noteKey, { part: notePartName(node), value: raw.trim().slice(0, NOTE_VALUE_CHARS) }));
+  return undefined;
+}
+
+/** A nose cone's or transition's `<shape>`, or `fallback` when absent or not a shape the kernel has. */
+export function shapeTag(el: Element, node: ComponentNode, notes: ImportNote[] | undefined, fallback: string): string {
+  return enumTag(el, 'shape', SHAPES, 'importNote.shapeUnknown', node, notes) ?? fallback;
+}
+
+/** A fin set's `<crosssection>`, or nothing when absent or not a section the kernel has. */
+export function crossSectionTag(el: Element, node: ComponentNode, notes: ImportNote[] | undefined): string | undefined {
+  return enumTag(el, 'crosssection', CROSS_SECTIONS, 'importNote.crossSectionUnknown', node, notes);
+}
+
+/**
+ * The deploy events the bridge builds (`ComponentFactory.deployEventOf`), each
+ * under the token desktop writes and matches (the enum name lower-cased with
+ * the underscores removed, `DocumentConfig.findEnum`) and mapped to the name
+ * the app keeps, so `lowerstageseparation` and the underscored spelling name
+ * the one event.
+ */
+const DEPLOY_EVENT_NAMES: ReadonlyMap<string, string> = new Map(DEPLOY_EVENTS.map((ev) => [enumToken(ev), ev]));
+
+/** The separation events the bridge builds (`OpenRocketEngine.separationEventOf`), the same way. */
+const SEPARATION_EVENT_NAMES: ReadonlyMap<string, string> = new Map(SEPARATION_EVENTS.map((ev) => [enumToken(ev), ev]));
+
+/**
+ * Recovery-device deployment as the design states it: the bare tags, which are
+ * desktop's default. A configuration's <deploymentconfiguration> block is that
+ * configuration's override (captureDeployments), never the design's value.
+ */
+export function readDeployment(el: Element, node: ComponentNode, notes: ImportNote[] | undefined): void {
+  Object.assign(node, readDeploymentTags(el, node, notes));
+}
+
+/**
+ * The deployment tags one element states, and only those, the same way for the
+ * design and for each configuration's override. An event the bridge has no
+ * constant for is dropped with a note, as `enumTag` drops a shape: the bridge
+ * throws on it, which would refuse the whole file, where desktop warns and
+ * keeps the default event. Altitude and delay are floored: a negative deploy
+ * altitude never fires the kernel's altitude trigger, and the input field
+ * holds the same minimum.
+ */
+export function readDeploymentTags(
+  src: Element,
+  node: ComponentNode,
+  notes: ImportNote[] | undefined,
+): OrkDeployOverride {
+  const o: OrkDeployOverride = {};
+  const event = enumTag(src, 'deployevent', DEPLOY_EVENT_NAMES, 'importNote.deployEventUnknown', node, notes);
+  if (event) o.deployEvent = event;
+  if (text(src, ':scope > deployaltitude') !== null)
+    o.deployAltitude = nonNegTag(src, 'deployaltitude', KERNEL_DEPLOYMENT.deployAltitude);
+  if (text(src, ':scope > deploydelay') !== null)
+    o.deployDelay = nonNegTag(src, 'deploydelay', KERNEL_DEPLOYMENT.deployDelay);
+  return o;
+}
+
+/**
+ * The separation tags one element states, and only those, read the way
+ * {@link readDeploymentTags} reads deployment (the event checked against the
+ * bridge's names, the numbers floored), for the design and for each
+ * configuration's override alike.
+ */
+export function readSeparationTags(src: Element, node: ComponentNode, notes: ImportNote[] | undefined): OrkSepOverride {
+  const o: OrkSepOverride = {};
+  const event = enumTag(
+    src,
+    'separationevent',
+    SEPARATION_EVENT_NAMES,
+    'importNote.separationEventUnknown',
+    node,
+    notes,
+  );
+  if (event) o.separationEvent = event;
+  if (text(src, ':scope > separationdelay') !== null)
+    o.separationDelay = nonNegTag(src, 'separationdelay', KERNEL_SEPARATION.separationDelay);
+  if (text(src, ':scope > separationaltitude') !== null)
+    o.separationAltitude = nonNegTag(src, 'separationaltitude', KERNEL_SEPARATION.separationAltitude);
+  return o;
+}
+
+/**
+ * Stage separation (a lower <stage> or a strap-on <parallelstage>) as the design
+ * states it: the bare tags on `el`, with `configEl`'s fields over them when the
+ * caller passes one, as the desktop handler clones the default and applies only
+ * the fields a block carries. Only values that differ from the desktop defaults
+ * are kept, so an untouched stage stays clean.
+ */
+export function readSeparation(
+  el: Element,
+  node: ComponentNode,
+  configEl: Element | null,
+  notes: ImportNote[] | undefined,
+): void {
+  const o = { ...readSeparationTags(el, node, notes), ...(configEl ? readSeparationTags(configEl, node, notes) : {}) };
+  if (o.separationEvent && o.separationEvent !== KERNEL_SEPARATION.separationEvent)
+    node['separationEvent'] = o.separationEvent;
+  if (o.separationDelay !== undefined && o.separationDelay !== KERNEL_SEPARATION.separationDelay)
+    node['separationDelay'] = o.separationDelay;
+  if (o.separationAltitude !== undefined && o.separationAltitude !== KERNEL_SEPARATION.separationAltitude)
+    node['separationAltitude'] = o.separationAltitude;
+}
+
+/**
  * What every component carries: name, bulk material, finish, the mass/CG/Cd
  * overrides and (for the types the desktop positions) the axial position.
+ * `notes` takes the note for a value the file names that the kernel has no
+ * constant for.
  */
-export function readCommon(el: Element, node: ComponentNode, withPosition: boolean): void {
+export function readCommon(el: Element, node: ComponentNode, withPosition: boolean, notes?: ImportNote[]): void {
   // Anything in this component we have no model for, kept as raw XML so a save
   // does not strip it (services/files/ork/passthrough.ts). First, so that a node
   // carrying only unknown elements still carries them.
@@ -394,7 +513,9 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   if (density !== undefined) node.density = density;
   const bulkName = matName(el, 'bulk');
   if (bulkName) node['materialName'] = bulkName;
-  const fin = text(el, ':scope > finish');
+  readMaterialGroup(el, node);
+  readShearModulus(el, node);
+  const fin = enumTag(el, 'finish', FINISHES, 'importNote.finishUnknown', node, notes);
   if (fin && fin !== 'normal') node['finish'] = fin;
   // The part's own color: three 0-255 channels on one element in the file, a
   // hex string in the tree, which is what the pickers and both views use. The

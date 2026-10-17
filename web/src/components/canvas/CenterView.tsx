@@ -34,11 +34,12 @@ export function CenterView() {
   // phone, in the Results column at lg+ (App.tsx). See useMediaQuery.
   const desktop = useIsDesktop();
   const loadedMeta = useWorkspaceStore((s) => s.loadedMeta);
-  const resetWorkspace = useWorkspaceStore((s) => s.resetWorkspace);
-  // "Close" discards the loaded design and resets to a fresh one; confirm first.
+  const leaveForNew = useWorkspaceStore((s) => s.leaveForNew);
+  // "Close" stores the loaded design's last edits and starts a fresh one; the
+  // design stays in the library. Confirm first.
   const onCloseLoaded = async () => {
-    if (await confirm({ message: t('banner.closeConfirm'), confirmLabel: t('common.discard'), danger: true })) {
-      resetWorkspace();
+    if (await confirm({ message: t('banner.closeConfirm'), confirmLabel: t('banner.close') })) {
+      await leaveForNew();
     }
   };
   const view = useWorkspaceStore((s) => s.view);

@@ -258,6 +258,18 @@ describe('launchDefaults is validated per field', () => {
     expect(load({ geodetic: 'wgs84' }).geodetic).toBe('wgs84');
     expect(load({ windLevels: 'lots' }).windLevels).toBe(DEFAULT_SETTINGS.launchDefaults.windLevels);
   });
+
+  it('keeps a profile held under the Average model, held to the same rule as a flown one', () => {
+    const kept = [
+      { altitudeM: 0, speed: 3, directionDeg: 90, stddev: 0.3 },
+      { altitudeM: 500, speed: 6, directionDeg: 120, stddev: 1.2 },
+    ];
+    expect(load({ keptWindLevels: kept }).keptWindLevels).toEqual(kept);
+    // A repeated altitude is refused by the kernel once the profile flies again.
+    expect(load({ keptWindLevels: [...kept, { ...kept[0], speed: 9 }] }).keptWindLevels).toEqual(kept);
+    expect(load({ keptWindLevels: 'lots' })).not.toHaveProperty('keptWindLevels');
+    expect(load({ keptWindLevels: [] })).not.toHaveProperty('keptWindLevels');
+  });
 });
 
 describe('loadSettings validates what reaches styles, jsPDF and the CSV writer', () => {

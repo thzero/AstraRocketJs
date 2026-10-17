@@ -13,7 +13,7 @@
 #   engine-java/extract/extract.mjs   clones repo@ref to extract from
 #   web/scripts/sync-examples.mjs     pulls the bundled examples from repo@ref
 #   web/vite.config.ts                bakes ref+date into the app's About dialog
-#   website/docusaurus.config.ts      bakes ref+date into the docs Overview page
+#   website/docusaurus.config.ts      bakes ref+date into the docs comparison pages
 #
 # The last two are why `date` exists as a FIELD and not just as prose in this
 # header: "which OpenRocket is this?" is a question a reader of the docs asks,

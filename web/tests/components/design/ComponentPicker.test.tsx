@@ -107,10 +107,20 @@ describe('ComponentPicker', () => {
     });
 
     it('reports the true match count and says when it is holding rows back', async () => {
-      // 1088 body tubes, 200 rendered. The footer reports the match count, not the
-      // cap, which would read as though the catalog held 200 parts.
+      // 1089 current body tubes, 200 rendered. The footer reports the match
+      // count, not the cap, which would read as though the catalog held 200 parts.
       const { dialog } = await open('bodytube');
       expect(rows(dialog).length).toBe(200);
+      expect(footer(dialog)).toMatch(/Showing 200 of 1[,. ]?089/);
+    });
+
+    it('lists the legacy parts only once they are asked for', async () => {
+      // 407 of the 1496 body tubes come from the library's legacy files, which
+      // desktop's chooser hides until "Show Legacy Database" is checked.
+      const { dialog } = await open('bodytube');
+      const toggle = within(dialog).getByLabelText('Show legacy') as HTMLInputElement;
+      expect(toggle.checked).toBe(false);
+      fireEvent.click(toggle);
       expect(footer(dialog)).toMatch(/Showing 200 of 1[,. ]?496/);
     });
   });
@@ -119,12 +129,10 @@ describe('ComponentPicker', () => {
     const insideTube: FitContext = { parentInner: PM_TUBE.bore };
 
     it('ranks the fitting parts first WITHOUT hiding the rest', async () => {
-      // Ranking rather than filtering is the deliberate default. Hiding by fit
-      // opens empty on ordinary designs: no nose cone in the catalog is within
-      // the match tolerance of a 54.66 mm airframe.
+      // Ranking rather than filtering is the deliberate default.
       const { dialog } = await open('tubecoupler', insideTube);
-      expect(rows(dialog).length).toBe(200); // still the whole catalog, capped
-      expect(footer(dialog)).toMatch(/Showing 200 of 332/);
+      expect(rows(dialog).length).toBe(200); // still every current coupler, capped
+      expect(footer(dialog)).toMatch(/Showing 200 of 237/);
       // The ones that fit lead, best first, and the gaps ascend.
       const fits = rows(dialog)
         .map((r) => r[0])
@@ -145,7 +153,7 @@ describe('ComponentPicker', () => {
       fireEvent.click(within(dialog).getByLabelText('Fits here'));
       const n = rows(dialog).length;
       expect(n).toBeGreaterThan(0);
-      expect(n).toBeLessThan(12); // 332 couplers, a handful fit a 51.5 mm bore
+      expect(n).toBeLessThan(12); // 237 current couplers, a handful fit a 51.5 mm bore
       expect(footer(dialog)).toMatch(new RegExp(`${n} parts?`));
       for (const r of rows(dialog)) expect(r[0]).not.toBe('');
     });
@@ -155,6 +163,20 @@ describe('ComponentPicker', () => {
       const fits = rows(dialog).map((r) => r[0]);
       expect(fits.some((f) => f !== '')).toBe(true);
       expect(fits.at(-1)).toBe('');
+    });
+
+    it('ranks a transition by both ends, as desktop matches them', async () => {
+      // A BT-20 above and a BT-60 below: a 24.8 mm fore end and a 41.6 mm aft end.
+      const { dialog } = await open('transition', { foreMatch: 0.0248, aftMatch: 0.0416 });
+      expect(headers(dialog)[0]).toBe('Fit (mm)');
+      fireEvent.click(within(dialog).getByLabelText('Fits here'));
+      // Fit, Mfr, Part no, Shape, Fore, Aft: each end inside max(5%, 1 mm) of its neighbor.
+      const shown = rows(dialog);
+      expect(shown.length).toBeGreaterThan(0);
+      for (const r of shown) {
+        expect(Math.abs(Number(r[4]) - 24.8)).toBeLessThan(1.24);
+        expect(Math.abs(Number(r[5]) - 41.6)).toBeLessThan(2.08);
+      }
     });
 
     it('abstains for a parachute, whose fit is packed volume the model lacks', async () => {
@@ -304,7 +326,7 @@ describe('ComponentPicker', () => {
     });
 
     it('offers no fit control, because the motor it has to take is not in the tree', async () => {
-      const { dialog } = await open('innertube', { parentInner: PM_TUBE.bore, parentOuter: PM_TUBE.od });
+      const { dialog } = await open('innertube', { parentInner: PM_TUBE.bore, foreMatch: PM_TUBE.od });
       expect(headers(dialog)).not.toContain('Fit (mm)');
       expect(within(dialog).queryByLabelText('Fits here')).toBeNull();
     });

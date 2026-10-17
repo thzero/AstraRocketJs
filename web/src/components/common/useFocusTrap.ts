@@ -38,18 +38,32 @@ export interface FocusTrapOptions {
 const SURFACE = 'data-modal-surface';
 
 /**
- * The surface an Escape belongs to: the last one in document order.
- *
- * Document order rather than z-index, because that is what decides which of two
- * overlays is actually on top here: a nested dialog is rendered after the one
- * it opens from, and the app's own ConfirmDialog and PromptDialog are the last
- * things in App. It
- * is also the only one of the two a test can see, since jsdom computes no
- * styles from the Tailwind classes that carry the z-index.
+ * The order surfaces opened in. Each one's marker holds its place in it, so the
+ * stack is in the DOM where every trap and window key handler can read it.
  */
-const topmostSurface = (): Element | null => {
-  const open = document.querySelectorAll(`[${SURFACE}]`);
-  return open.length ? open[open.length - 1]! : null;
+let opened = 0;
+
+/**
+ * The surface an Escape belongs to: the one opened last.
+ *
+ * Opening order, not document order: Help is mounted early in the header and
+ * opens over dialogs rendered after it (the launch site map's key note links to
+ * it), so the last surface in the document is not always the one on top. Not
+ * z-index either, which jsdom cannot compute from the Tailwind classes that
+ * carry it. A marker with no place in the order counts as opened first, and
+ * among equals the later one in the document wins.
+ */
+export const topmostSurface = (): Element | null => {
+  let top: Element | null = null;
+  let topAt = -1;
+  for (const el of document.querySelectorAll(`[${SURFACE}]`)) {
+    const at = Number(el.getAttribute(SURFACE)) || 0;
+    if (at >= topAt) {
+      top = el;
+      topAt = at;
+    }
+  }
+  return top;
 };
 
 /**
@@ -79,7 +93,7 @@ export function useFocusTrap<T extends HTMLElement>(active: boolean, { onEscape 
     const panel = ref.current;
     if (!active || !panel) return;
     const previouslyFocused = document.activeElement as HTMLElement | null;
-    panel.setAttribute(SURFACE, '');
+    panel.setAttribute(SURFACE, String(++opened));
 
     const focusable = () =>
       Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter(

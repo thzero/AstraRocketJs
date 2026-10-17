@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { flightDataCsv, aeroTableCsv, flightEventsCsv, runTableCsv } from '../../../src/services/exports/csvExport';
-import { METRIC_UNITS, IMPERIAL_UNITS } from '../../../src/prefs/units';
+import { METRIC_UNITS, IMPERIAL_UNITS, UNITS } from '../../../src/prefs/units';
 import type { FlightResult, AeroSweep } from '../../../src/engine/openRocketEngine';
 import en from '../../../src/i18n/locales/en.json';
 import de from '../../../src/i18n/locales/de.json';
@@ -486,6 +486,44 @@ describe('runTableCsv', () => {
     expect(head.startsWith(`${de.csv.head.simulation},${de.csv.head.configuration},`)).toBe(true);
     expect(head).toContain(`${de.csv.head.exitVelocity_rail} (m/s)`);
     expect(head).not.toMatch(/Apogee|Max velocity|Configuration/);
+  });
+
+  /**
+   * q·α is Pa·rad in SI, the product of the pressure and angle quantities, so
+   * the column reads in the user's pressure unit times their angle unit, as
+   * every other column follows the user's units.
+   */
+  it('writes max q·α in the pressure unit times the angle unit, for every pair', () => {
+    const gusty = {
+      ...flown,
+      series: {
+        ...flown.series,
+        time: [0, 1, 2],
+        ρ: [1.2, 1.2, 1.2],
+        Vs: [340, 340, 340],
+        mach: [0, 0.5, 0],
+        aoa: [0, 0.1, 0],
+      },
+      events: [{ type: 'APOGEE', time: 7.5 }],
+    } as unknown as FlightResult;
+    // q = 1/2 * 1.2 * 170^2 = 17,340 Pa, times 0.1 rad: 1,734 Pa·rad.
+    const paRad = 0.5 * 1.2 * 170 * 170 * 0.1;
+    for (const p of UNITS.pressure) {
+      for (const a of UNITS.angle) {
+        const units = { ...METRIC_UNITS, pressure: p.symbol, angle: a.symbol };
+        const [head, line] = runTableCsv(
+          [{ name: 'G', configuration: '', motors: '', status: '', result: gusty }],
+          units,
+          tEn,
+        )
+          .trimEnd()
+          .split('\r\n');
+        const heads = head!.split(',');
+        const i = heads.indexOf(`${en.csv.head.maxQAlpha} (${p.symbol}·${a.symbol})`);
+        expect(i, `${p.symbol}·${a.symbol}`).toBeGreaterThan(0);
+        expect(Number(line!.split(',')[i])).toBeCloseTo(paRad / p.toSI / a.toSI, 4);
+      }
+    }
   });
 
   it("names the exit column after the design's launcher", () => {

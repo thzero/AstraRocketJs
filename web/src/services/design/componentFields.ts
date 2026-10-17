@@ -1,7 +1,8 @@
 import type { TFunction } from 'i18next';
-import { AUTO_COMPONENT_FIELDS, REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
+import { REQUIRED_COMPONENT_FIELDS } from './requiredComponent';
 import { CLUSTER_OPTIONS, clusterCount } from '../../tree/cluster';
 import type { DerivedName } from './derivedFields';
+import type { IgnitionEvent } from '../../engine/openRocketEngine';
 import { KERNEL_DEPLOYMENT } from '../../tree/kernelDefaults';
 import { RAIL_BUTTON_BOUNDS, RAIL_BUTTON_FALLBACK, RING_BOUNDS, type DimensionBounds } from './linkedDimensions';
 import { num } from '../../tree/nodeProps';
@@ -36,26 +37,23 @@ import { num } from '../../tree/nodeProps';
  *   and that a transition has two of. `foreShoulder` and `aftShoulder` are
  *   those two, kept apart rather than run together, because eight rows under
  *   one heading is a wall and the two ends are independent builds.
+ * - `material` is how the part's surface is finished, beside the material
+ *   picker, where the desktop's Material panel puts it.
  *
  * A field with no `section` is a dimension and renders in the main list.
  */
 export type PanelSection =
-  'placement' | 'finTab' | 'motor' | 'fillet' | 'shoulder' | 'foreShoulder' | 'aftShoulder' | 'comment';
+  'placement' | 'finTab' | 'motor' | 'fillet' | 'shoulder' | 'foreShoulder' | 'aftShoulder' | 'material' | 'comment';
 
 type FieldFlags = {
   /**
-   * A zero here is degenerate; it does not mean the box can be empty.
+   * A zero here is a value the kernel cannot fly (`REQUIRED_COMPONENT_FIELDS`);
+   * it does not mean the box can be empty.
    *
    * Unlike the launch conditions (where a cleared field has to be told apart
-   * from a typed zero, because still air and sea level are real values), a part
-   * has no meaningful "blank length". Zero is the invalid state, so there is no
+   * from a typed zero, because still air and sea level are real values), such a
+   * field has no meaningful blank. Zero is the invalid state, so there is no
    * second state to model and the field keeps storing a number.
-   *
-   * Marked conservatively: only where a zero makes the part stop being that part.
-   * Plenty of dimensions here are legitimately zero and are not marked: a
-   * tipChord of 0 is a delta fin, a sweep or cant of 0 is a straight one, a
-   * shoulder or fin tab of 0 is simply absent, and every delay and angle offset
-   * starts at 0.
    */
   required?: true;
   section?: PanelSection;
@@ -97,6 +95,15 @@ type FieldFlags = {
    * reference a tab ahead of the root's middle is a negative one.
    */
   signedWithinLength?: true;
+  /**
+   * A length that may be negative and has no bound either way: the kernel's
+   * setter stores any value and the desktop spinner is unbounded. A trapezoid
+   * fin's sweep is one (`TrapezoidFinSet.setSweep`; negative is a forward
+   * sweep, which the Sweep angle row below it writes), and so is a motor
+   * overhang (`BodyTube.setMotorOverhang`, `InnerTube.setMotorOverhang`;
+   * negative seats the motor short of the tube's aft end).
+   */
+  signed?: true;
   /**
    * The range the kernel's setter holds this value in, from the rest of the
    * part, in the node's own units. See services/design/linkedDimensions.ts.
@@ -150,7 +157,9 @@ const NOSE_SHAPES = ['ogive', 'conical', 'ellipsoid', 'power', 'parabolic', 'haa
 // writer map at that boundary. Apogee first: it is what a new part is created
 // with and the most common single-deploy trigger. A device with no event flies
 // the kernel's default, which the field names as its fallback. The
-// per-configuration deployment override offers this same list.
+// per-configuration deployment override offers this same list, and both drop
+// the lower-stage separation on a stage with none below it
+// (fieldRange.fieldOptions).
 export const DEPLOY_EVENTS = ['apogee', 'ejection', 'altitude', 'launch', 'lower_stage_separation', 'never'];
 
 // What a mass component represents (MassComponent.MassComponentType). Naming
@@ -220,6 +229,35 @@ const FIN_CROSS_SECTION: Field = {
   kind: 'select',
   options: ['square', 'rounded', 'airfoil'],
   optI18n: 'crossSection',
+};
+
+/**
+ * The surface finish of an external part, which sets the roughness the
+ * kernel's skin-friction drag reads (`ExternalComponent.setFinish`). The
+ * names are the ones the bridge accepts (`ComponentFactory.finishOf`), in
+ * the order desktop's `Finish` enum lists them; a part with none flies
+ * `normal` (regular paint), the enum's default. Where desktop's MaterialPanel
+ * puts it: with the material.
+ */
+const FINISHES = [
+  'rough',
+  'roughunfinished',
+  'unfinished',
+  'normal',
+  'smooth',
+  'optimum',
+  'polished',
+  'finishpolished',
+  'mirror',
+];
+const FINISH: Field = {
+  key: 'finish',
+  label: 'finish',
+  kind: 'select',
+  options: FINISHES,
+  optI18n: 'finish',
+  fallback: 'normal',
+  section: 'material',
 };
 
 // Off-center placement of internal structure: how far off the axis, and
@@ -316,9 +354,35 @@ const OUTER_DIAMETER: Field = {
 // A straight tube with a wall: length, outside, bore and wall, in that order.
 const TUBE_WALL: Field[] = [LENGTH, OUTER_DIAMETER, TUBE_BORE, TUBE_WALL_THICKNESS];
 
+/**
+ * Every ignition event, on every mount, as desktop offers `IgnitionEvent.values()`
+ * (IgnitionSelectionDialog, MotorConfig). The two stage-below triggers fire
+ * from the stage under the mount's own, which a strap-on booster is as well as
+ * an axial stage (AxialStage.getUpperStage), so the bottom axial stage can
+ * light at its boosters' burnout. On a mount with nothing below, they never
+ * fire and the motor stays unlit, as on "never", which is how a spare mount
+ * is flown. The names are the kernel's (OpenRocketEngine.ignitionEventOf) in
+ * the .ork's spelling.
+ */
+export const IGNITION_EVENTS: IgnitionEvent[] = ['automatic', 'launch', 'ejectioncharge', 'burnout', 'never'];
+
+// The mount's own ignition is the desktop Motor tab's "Ignition at"
+// (`MotorMount.getDefaultMotorConfig()`). It flies nothing itself: a motor put
+// in the mount starts from it, a motor still on it follows a change to it
+// (`followMountIgnition`), and a motor set to something else on the
+// Configurations tab keeps its own.
 const MOTOR_MOUNT: Field[] = [
   { key: 'motorMount', label: 'motorMount', kind: 'bool', section: 'motor' },
-  { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor' },
+  { key: 'motorOverhang', label: 'motorOverhang', kind: 'length', section: 'motor', signed: true },
+  {
+    key: 'ignitionEvent',
+    label: 'ignitionEvent',
+    kind: 'select',
+    options: IGNITION_EVENTS,
+    optI18n: 'ignition',
+    section: 'motor',
+  },
+  { key: 'ignitionDelay', label: 'ignitionDelay', kind: 'number', unit: 's', step: 0.5, section: 'motor' },
 ];
 
 // `rotation` is a fin set's base rotation: where its first fin sits around the
@@ -396,7 +460,7 @@ export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as con
  * The fields per component type, before `required` is filled in. `label` is an
  * i18n key suffix under `prop.*` (resolved at render).
  *
- * `PropertyPanel.scopes.test.ts` checks (through {@link FIELDS}) that no two
+ * `PropertyPanel.test.tsx` checks (through {@link FIELDS}) that no two
  * fields of a type collide on a unit scope. The scopes are strings assembled
  * from (type, key), so a duplicated key would silently make two fields share
  * one unit choice.
@@ -435,8 +499,9 @@ const RAW_FIELDS: Record<string, Field[]> = {
     },
     { key: 'shoulderThickness', label: 'shoulderThickness', kind: 'length', section: 'shoulder' },
     { key: 'shoulderCapped', label: 'shoulderCapped', kind: 'bool', section: 'shoulder' },
+    FINISH,
   ],
-  bodytube: [LENGTH, OUTER_DIAMETER, TUBE_BORE, FILLED, TUBE_WALL_THICKNESS, ...MOTOR_MOUNT],
+  bodytube: [LENGTH, OUTER_DIAMETER, TUBE_BORE, FILLED, TUBE_WALL_THICKNESS, ...MOTOR_MOUNT, FINISH],
   transition: [
     {
       key: 'shape',
@@ -502,25 +567,27 @@ const RAW_FIELDS: Record<string, Field[]> = {
     },
     { key: 'aftShoulderThickness', label: 'aftShoulderThickness', kind: 'length', section: 'aftShoulder' },
     { key: 'aftShoulderCapped', label: 'aftShoulderCapped', kind: 'bool', section: 'aftShoulder' },
+    FINISH,
   ],
   trapezoidfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'tipChord', label: 'tipChord', kind: 'length' },
-    { key: 'sweep', label: 'sweep', kind: 'length' },
-    // The same sweep, as a plan does it. Signed: negative is a forward sweep,
-    // which is the one row here where a minus sign is meaningful.
+    { key: 'sweep', label: 'sweep', kind: 'length', signed: true },
+    // The same sweep, as a plan does it. Signed: negative is a forward sweep.
     { key: 'sweepAngle', label: 'sweepAngle', kind: 'derived', derived: 'sweepAngle', step: 5 },
     { key: 'height', label: 'height', kind: 'length' },
     ...PLANAR_FIN,
+    FINISH,
   ],
   ellipticalfinset: [
     { key: 'finCount', label: 'finCount', kind: 'count' },
     { key: 'rootChord', label: 'rootChord', kind: 'length' },
     { key: 'height', label: 'height', kind: 'length' },
     ...PLANAR_FIN,
+    FINISH,
   ],
-  freeformfinset: [{ key: 'finCount', label: 'finCount', kind: 'count' }, ...PLANAR_FIN],
+  freeformfinset: [{ key: 'finCount', label: 'finCount', kind: 'count' }, ...PLANAR_FIN, FINISH],
   tubefinset: [
     { key: 'finCount', label: 'tubeCount', kind: 'count' },
     { key: 'length', label: 'length', kind: 'length' },
@@ -534,6 +601,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     TUBE_BORE,
     TUBE_WALL_THICKNESS,
     FIN_ROTATION,
+    FINISH,
   ],
   innertube: [
     LENGTH,
@@ -608,6 +676,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     TUBE_WALL_THICKNESS,
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
+    FINISH,
   ],
   railbutton: [
     railButtonLength('outerDiameter'),
@@ -620,6 +689,7 @@ const RAW_FIELDS: Record<string, Field[]> = {
     railButtonLength('screwHeight'),
     { key: 'angleOffset', label: 'rotation', kind: 'angle', section: 'placement' },
     ...LINE_INSTANCES,
+    FINISH,
   ],
   parachute: [
     { key: 'diameter', label: 'diameter', kind: 'length' },
@@ -678,21 +748,12 @@ const RAW_FIELDS: Record<string, Field[]> = {
  * The same table with `required` filled in from `services/design/requiredComponent`,
  * which is also what the Run button and the run loop check. One list, so the
  * editor cannot mark a field the run path ignores, or the other way round.
- *
- * A field the kernel derives is never marked, even though it is required in the
- * sense that the part cannot work without one: leaving a centering ring's outer
- * radius blank means "the tube I sit in", which is a real answer and the one
- * OpenRocket writes as `auto`. A red asterisk there would demand a number the
- * design does not need, and the run path agrees: `badDimensions` skips the same
- * pairs.
  */
 export const FIELDS: Record<string, Field[]> = Object.fromEntries(
   Object.entries(RAW_FIELDS).map(([type, fields]) => [
     type,
     [...fields, COMMENT].map((f) =>
-      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) && !(AUTO_COMPONENT_FIELDS[type] ?? []).includes(f.key)
-        ? { ...f, required: true }
-        : f,
+      (REQUIRED_COMPONENT_FIELDS[type] ?? []).includes(f.key) ? { ...f, required: true } : f,
     ),
   ]),
 );

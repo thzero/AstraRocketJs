@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { act, cleanup } from '@testing-library/react';
+import { act, cleanup, screen } from '@testing-library/react';
 
 /**
  * The workspace effects: hydration gate, debounced autosave, unload journal,
@@ -32,6 +32,18 @@ vi.mock('../../src/engine/simClient', () => ({ warmSimWorker: vi.fn() }));
 vi.mock('../../src/services/storage/persistStorage', () => ({
   requestPersistentStorage: vi.fn(() => Promise.resolve(true)),
 }));
+// A retry starts a real engine load. Here it never settles, so a test can
+// look at the window between the reset and the new engine. The reset itself
+// (resetEngineInit) is the real one.
+vi.mock('../../src/engine/openRocketEngine', async (orig) => ({
+  ...(await orig<typeof import('../../src/engine/openRocketEngine')>()),
+  initEngine: () => new Promise<never>(() => {}),
+}));
+// The file opened below names no motor, so the catalog is never consulted.
+vi.mock('../../src/services/motors/motorDb', async (orig) => ({
+  ...(await orig<typeof import('../../src/services/motors/motorDb')>()),
+  loadCatalog: async () => [],
+}));
 
 const degraded = vi.hoisted(() => ({ fire: null as null | (() => void) }));
 vi.mock('../../src/services/storage/idbKeyValueStore', async (orig) => ({
@@ -51,11 +63,37 @@ import { useEngineStore } from '../../src/state/engineStore';
 import { getDesignLibrary, setDesignLibrary, type DesignLibrary } from '../../src/services/storage/designLibrary';
 import { renderWithProviders } from '../testing/renderWithProviders';
 import i18n from '../../src/i18n';
+import { AeroAnalysis } from '../../src/components/canvas/AeroAnalysis';
+import { unchangedSinceWrite } from '../../src/state/writtenWorkspace';
 
 function Host() {
   useWorkspaceEffects();
   return null;
 }
+
+/** A desktop file holding one tube and no motor, as `openOrkFile` receives it. */
+const orkFile = (name: string): Blob => {
+  const bytes = new TextEncoder().encode(`<?xml version='1.0' encoding='utf-8'?>
+<openrocket version="1.10" creator="OpenRocket 24.12">
+  <rocket>
+    <name>${name}</name>
+    <subcomponents>
+      <stage>
+        <name>Sustainer</name>
+        <subcomponents>
+          <bodytube>
+            <name>Body</name>
+            <length>0.3</length>
+            <thickness>0.0005</thickness>
+            <radius>0.0125</radius>
+          </bodytube>
+        </subcomponents>
+      </stage>
+    </subcomponents>
+  </rocket>
+</openrocket>`);
+  return { size: bytes.byteLength, arrayBuffer: async () => bytes.buffer as ArrayBuffer } as unknown as Blob;
+};
 
 const s = () => useWorkspaceStore.getState();
 /** A saved workspace distinguishable from the default design. */
@@ -71,6 +109,8 @@ const saved = () => ({
 beforeEach(() => {
   vi.useFakeTimers();
   s().resetWorkspace();
+  // A standing notice outlives a design swap, so one test's would reach the next.
+  s().setStorageWarning(null);
   load.mockReset().mockResolvedValue(null);
   save.mockReset().mockResolvedValue(undefined);
   saveSync.mockReset();
@@ -107,6 +147,46 @@ describe('hydration', () => {
     expect(computeStaticInfo).toHaveBeenCalledTimes(1);
     // And it built the restored design, not the default it was mounted with.
     expect((computeStaticInfo.mock.calls[0]![0] as { name: string }).name).toBe('Restored');
+  });
+
+  /**
+   * The editor is live while the stored design is read and the language bundle
+   * awaited (up to 3 s on a cold cache), and nothing autosaves until that
+   * resolves, so a part added in those seconds exists only on screen.
+   * Hydrating over it would replace it with the stored design. The edit stays,
+   * detached from the stored design's entry so it is saved as a design of its
+   * own and the stored one keeps its entry unchanged.
+   */
+  it('keeps an edit made before the stored design arrived, as a design of its own', async () => {
+    let settle!: (v: unknown) => void;
+    load.mockReturnValue(new Promise((r) => (settle = r)));
+    const stored = saved();
+    renderWithProviders(<Host />);
+
+    act(() => s().addPartToTree('bodytube'));
+    const edited = s().tree;
+    const bootIds = new Set(stored.tree.components.flatMap((c) => [c.id, ...(c.children ?? []).map((k) => k.id)]));
+    const added = edited.components
+      .flatMap((c) => (c.children ?? []).map((k) => k.id))
+      .filter((id) => !bootIds.has(id));
+    expect(added).toHaveLength(1);
+
+    await act(async () => {
+      settle(stored);
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    // The edit survives, and the hydration still completed: the design built once.
+    expect(s().tree).toBe(edited);
+    expect(s().tree.name).not.toBe('Restored');
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    expect(computeStaticInfo.mock.calls[0]![0]).toBe(edited);
+    // Detached before the write, so the write creates an entry rather than
+    // overwriting the stored design's.
+    expect(setActiveId).toHaveBeenCalledWith(null);
+    expect(save).toHaveBeenCalledTimes(1);
+    expect((save.mock.calls[0]![0] as { tree: unknown }).tree).toBe(edited);
+    expect(setActiveId.mock.invocationCallOrder[0]!).toBeLessThan(save.mock.invocationCallOrder[0]!);
   });
 
   /**
@@ -160,6 +240,63 @@ describe('hydration', () => {
       await Promise.resolve();
     });
     expect(save).toHaveBeenCalled();
+  });
+
+  /**
+   * The same window, with the load rejecting: the edit stays, is not marked
+   * written (so the unload flush and the hidden-tab save store it) and is
+   * detached from whatever the store pointed at.
+   */
+  it('keeps an edit made before the load rejected, unwritten and detached', async () => {
+    let fail!: (e: unknown) => void;
+    load.mockReturnValue(new Promise((_r, reject) => (fail = reject)));
+    renderWithProviders(<Host />);
+
+    act(() => s().addPartToTree('bodytube'));
+    const edited = s().tree;
+
+    await act(async () => {
+      fail(new Error('idb blocked'));
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(s().tree).toBe(edited);
+    expect(s().storageWarningKind).toBe('loadFailed');
+    expect(setActiveId).toHaveBeenCalledWith(null);
+    expect(unchangedSinceWrite(s())).toBe(false);
+    // So the unload flush writes it, where an untouched default is skipped.
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(saveSync).toHaveBeenCalledTimes(1);
+    expect((saveSync.mock.calls[0]![0] as { tree: unknown }).tree).toBe(edited);
+  });
+
+  /**
+   * The same window on a first visit, with nothing stored: the edit is the
+   * user's and stays unwritten, so the unload flush and the hidden-tab save
+   * store it. Only an untouched default is marked written.
+   */
+  it('keeps an edit made before an empty load resolved, unwritten', async () => {
+    let resolve!: (w: null) => void;
+    load.mockReturnValue(new Promise((r) => (resolve = r)));
+    renderWithProviders(<Host />);
+
+    act(() => s().addPartToTree('bodytube'));
+    const edited = s().tree;
+
+    await act(async () => {
+      resolve(null);
+      for (let i = 0; i < 6; i++) await Promise.resolve();
+    });
+
+    expect(s().tree).toBe(edited);
+    expect(unchangedSinceWrite(s())).toBe(false);
+    act(() => {
+      window.dispatchEvent(new Event('pagehide'));
+    });
+    expect(saveSync).toHaveBeenCalledTimes(1);
+    expect((saveSync.mock.calls[0]![0] as { tree: unknown }).tree).toBe(edited);
   });
 
   // The store read the design and holds its claim on it; `hydrate` is what
@@ -527,6 +664,40 @@ describe('what triggers a rebuild', () => {
     expect(s().info).not.toBeNull();
   });
 
+  /**
+   * A file opened in that same first second. The import needs no kernel (the
+   * engine module here is the real one with no engine loaded, so every kernel
+   * call refuses), the design lands on screen with no error, and the engine's
+   * arrival builds it.
+   */
+  it('opens a file before the kernel has loaded, and builds it when the kernel arrives', async () => {
+    useEngineStore.setState({ phase: 'loading', backend: null });
+    await mount();
+    const original = getDesignLibrary();
+    setDesignLibrary({
+      list: async () => [],
+      setActive: async () => true,
+      activeId: async () => null,
+    } as unknown as DesignLibrary);
+    try {
+      await act(async () => {
+        await s().openOrkFile(orkFile('Early'));
+      });
+    } finally {
+      setDesignLibrary(original);
+    }
+    expect(s().err).toBeNull();
+    expect(s().tree.name).toBe('Early');
+    expect(computeStaticInfo).not.toHaveBeenCalled();
+
+    await act(async () => {
+      useEngineStore.setState({ phase: 'ready', backend: 'wasm' });
+      await Promise.resolve();
+    });
+    expect(computeStaticInfo).toHaveBeenCalledTimes(1);
+    expect((computeStaticInfo.mock.calls[0]![0] as { name: string }).name).toBe('Early');
+  });
+
   // The engine can arrive after an import has already failed. Building the
   // same design must not wipe that message before it is read.
   it('keeps an action error through a build of the same design', async () => {
@@ -568,6 +739,26 @@ describe('what triggers a rebuild', () => {
     });
 
     expect(computeStaticInfo).toHaveBeenCalledTimes(2);
+  });
+
+  /**
+   * `retry()` resets the engine, which voids every handle the old one issued,
+   * and the rebuild waits for the new engine. A handle kept in the store in
+   * that window is dead: the Aero view's Worst button throws on it and an
+   * input change blanks the pane. The store reads as not built instead, which
+   * the Aero view renders as its not-built state.
+   */
+  it('clears the built rocket the moment a retry throws the engine away', async () => {
+    await mount();
+    expect(s().rocket).not.toBeNull();
+
+    act(() => useEngineStore.getState().retry());
+
+    expect(useEngineStore.getState().phase).toBe('loading');
+    expect(s().rocket).toBeNull();
+    expect(s().info).toBeNull();
+    renderWithProviders(<AeroAnalysis />);
+    expect(screen.getByText('Build a valid rocket to see its drag.')).toBeTruthy();
   });
 });
 

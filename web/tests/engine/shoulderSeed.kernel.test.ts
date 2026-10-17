@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { loadEngine } from '../testing/kernelGeometry';
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
 import { findNode, updateNode } from '../../src/services/design/treeEdit';
+import { syncAutoShoulders } from '../../src/services/design/autoShoulder';
 import type { ComponentNode, RocketTree } from '../../src/engine/openRocketEngine';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS });
@@ -18,6 +19,11 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS });
  */
 const stage = (children: ComponentNode[]): RocketTree =>
   ({ components: [{ id: 'st', type: 'stage', children }] }) as unknown as RocketTree;
+/** A rocket of several stages, front to back. */
+const stages = (...rows: ComponentNode[][]): RocketTree =>
+  ({
+    components: rows.map((children, i) => ({ id: `st${i}`, type: 'stage', children })),
+  }) as unknown as RocketTree;
 const nose = (): ComponentNode =>
   ({
     id: 'nose',
@@ -39,6 +45,17 @@ const transition = (): ComponentNode =>
     thickness: 0.0012,
     shape: 'conical',
   }) as ComponentNode;
+/** A pod set holding a transition and a tube, at the bottom of the tube it hangs on less 50 mm. */
+const pod = (radiusMethod: string, instanceCount: number, radiusOffset: number): ComponentNode =>
+  ({
+    id: 'pod',
+    type: 'podset',
+    instanceCount,
+    radiusMethod,
+    radiusOffset,
+    position: { method: 'bottom', offset: 0.05 },
+    children: [transition(), tube('pt', 0.02, 0.0005)],
+  }) as ComponentNode;
 const airframe = () => stage([nose(), tube('up', 0.031, 0.0009), transition(), tube('low', 0.02, 0.0006)]);
 
 const CASES: { name: string; tree: RocketTree; id: string; side: '' | 'fore' | 'aft' }[] = [
@@ -46,6 +63,70 @@ const CASES: { name: string; tree: RocketTree; id: string; side: '' | 'fore' | '
   { name: "a transition's fore shoulder", tree: airframe(), id: 'trans', side: 'fore' },
   { name: "a transition's aft shoulder", tree: airframe(), id: 'trans', side: 'aft' },
   { name: 'a nose cone with nothing behind it', tree: stage([nose()]), id: 'nose', side: '' },
+  {
+    name: "a booster's top transition, plugging into the sustainer's tube",
+    tree: stages([nose(), tube('up', 0.031, 0.0009)], [transition(), tube('low', 0.02, 0.0006)]),
+    id: 'trans',
+    side: 'fore',
+  },
+  {
+    name: "a sustainer's last transition, plugging into the booster's tube past an empty stage",
+    tree: stages([nose(), tube('up', 0.031, 0.0009), transition()], [], [tube('low', 0.02, 0.0006)]),
+    id: 'trans',
+    side: 'aft',
+  },
+  {
+    name: 'a nose cone ahead of a wider tube in the next stage',
+    tree: stages([nose()], [tube('t', 0.04, 0.0008)]),
+    id: 'nose',
+    side: '',
+  },
+  {
+    name: 'a fore shoulder behind a tube wider than its own end',
+    tree: stage([nose(), tube('up', 0.031, 0.0009), { ...transition(), foreRadius: 0.02 }, tube('low', 0.02, 0.0006)]),
+    id: 'trans',
+    side: 'fore',
+  },
+  {
+    name: 'a nose cone ahead of an automatic tube, reading through it to the transition behind',
+    tree: stage([
+      nose(),
+      { ...tube('up', 0.031, 0.0009), outerRadiusAuto: true } as ComponentNode,
+      { ...transition(), foreRadius: 0.033 },
+      tube('low', 0.02, 0.0006),
+    ]),
+    id: 'nose',
+    side: '',
+  },
+  {
+    name: 'a fore shoulder behind a solid tube',
+    tree: stage([
+      nose(),
+      { ...tube('up', 0.031, 0.0009), filled: true } as ComponentNode,
+      transition(),
+      tube('low', 0.02, 0.0006),
+    ]),
+    id: 'trans',
+    side: 'fore',
+  },
+  {
+    name: 'the first transition of a coaxial pod set, plugging into the nose cone ahead of the tube it hangs on',
+    tree: stage([
+      nose(),
+      {
+        ...tube('up', 0.025, 0.0009),
+        children: [pod('coaxial', 1, 0)],
+      } as ComponentNode,
+    ]),
+    id: 'trans',
+    side: 'fore',
+  },
+  {
+    name: 'the first transition of a pod set off the axis, with nothing in line ahead',
+    tree: stage([nose(), { ...tube('up', 0.031, 0.0009), children: [pod('relative', 2, 0.01)] } as ComponentNode]),
+    id: 'trans',
+    side: 'fore',
+  },
 ];
 
 const key = (side: string, k: string) => (side ? `${side}Shoulder${k}` : `shoulder${k}`);
@@ -92,5 +173,28 @@ describe('a shoulder grown from length 0', () => {
       'nose',
     )!;
     expect([n['shoulderRadius'], n['shoulderThickness']]).toEqual([0.02, 0.003]);
+  });
+});
+
+/**
+ * An automatic shoulder fits the bore of the part it plugs into, found the way
+ * the kernel finds it (`getPreviousSymmetricComponent`, which walks into the
+ * stage ahead), with the bore read back from the kernel's geometry.
+ */
+describe('an automatic shoulder', () => {
+  it("fits the sustainer's tube from the top of the booster", async () => {
+    const tree = stages(
+      [nose(), tube('up', 0.031, 0.0009)],
+      [
+        { ...transition(), foreShoulderAuto: true, foreShoulderLength: 0.03 } as ComponentNode,
+        tube('low', 0.02, 0.0006),
+      ],
+    );
+    const engine = await loadEngine();
+    engine.reset();
+    const h = engine.buildRocket(JSON.stringify(tree));
+    const bore = (JSON.parse(engine.getComponentGeometry(h, 'up')) as { innerRadius: number }).innerRadius;
+    const fitted = findNode(syncAutoShoulders(tree), 'trans')!;
+    expect(fitted['foreShoulderRadius']).toBeCloseTo(bore, 9);
   });
 });

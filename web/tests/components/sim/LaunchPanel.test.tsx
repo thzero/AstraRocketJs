@@ -89,6 +89,25 @@ describe('a site found by "Use my location"', () => {
 });
 
 /**
+ * The browser's permission prompt can sit unanswered for minutes, and `onChange`
+ * writes to whatever rows are the current edit targets. Allowing the prompt
+ * after the panel is gone must not write a launch site.
+ */
+it('drops a location that arrives after the panel was closed', () => {
+  let allow!: PositionCallback;
+  const getCurrentPosition = vi.fn((ok: PositionCallback) => {
+    allow = ok;
+  });
+  Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+  const onChange = vi.fn();
+  const { unmount } = renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} />);
+  fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
+  unmount();
+  allow({ coords: { latitude: 39.5, longitude: -105.1, altitude: 1650 } } as GeolocationPosition);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+/**
  * Settings opens its own launch panel over the simulation editor's. Radios that
  * share a name are one group to the browser, so an arrow key in one panel's
  * wind model would check the other's and change the flight behind the dialog.
@@ -180,6 +199,31 @@ describe('the launcher angle limit', () => {
     expect(
       screen.getByText(/within 30° of vertical, and the NAR and Tripoli high power codes within 20°/),
     ).toBeTruthy();
+  });
+
+  /**
+   * Into the wind, the sign is the meaning: desktop's rod angle runs -60 to 60
+   * and "a negative launch rod angle will launch with the wind"
+   * (messages.properties); the kernel flies the signed angle
+   * (SimulationStatus.java rotates by it, AbstractRKSimulationStepper.java
+   * aims the rod with its sine). An imported -5 flies as -5, so the box has to
+   * hold it rather than snap it to 0 on the first edit. With a fixed heading
+   * the direction field carries the meaning, so the box floors at 0 there.
+   */
+  it('accepts a negative angle while launching into the wind, and floors at 0 otherwise', () => {
+    const onChange = vi.fn();
+    const intoWind = renderWithProviders(
+      <LaunchPanel launch={{ ...LAUNCH, launchIntoWind: true }} onChange={onChange} powerClass="model" />,
+    );
+    expect(Number(angle().min)).toBeCloseTo(-30, 9);
+    fireEvent.change(angle(), { target: { value: '-5' } });
+    expect(onChange).toHaveBeenLastCalledWith({ launchRodAngleDeg: -5 });
+    intoWind.unmount();
+
+    renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} powerClass="model" />);
+    expect(Number(angle().min)).toBe(0);
+    fireEvent.change(angle(), { target: { value: '-5' } });
+    expect(onChange).toHaveBeenLastCalledWith({ launchRodAngleDeg: 0 });
   });
 });
 
@@ -361,5 +405,59 @@ describe('the site buttons', () => {
     renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={() => {}} />);
     expect(screen.getByRole('button', { name: 'Use my location' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Show on map' })).toBeTruthy();
+  });
+});
+
+/**
+ * The desktop's model switch changes only which model flies
+ * (SimulationOptions.setWindModelType, SimulationOptions.java:191-196); the
+ * multilevel model keeps its levels while Average is selected, so switching
+ * back shows the same profile.
+ */
+describe('switching wind models keeps the profile', () => {
+  const profile = [
+    { altitudeM: 0, speed: 3, directionDeg: 90, stddev: 0.3 },
+    { altitudeM: 500, speed: 6, directionDeg: 120, stddev: 1.2 },
+  ];
+
+  function Host({ start, onLaunch }: { start: LaunchConditions; onLaunch: (l: LaunchConditions) => void }) {
+    const [launch, setLaunch] = useState<LaunchConditions>(start);
+    return (
+      <LaunchPanel
+        launch={launch}
+        onChange={(p) =>
+          setLaunch((l) => {
+            const next = { ...l, ...launchPatchFor(p, l, 'row') };
+            onLaunch(next);
+            return next;
+          })
+        }
+      />
+    );
+  }
+
+  it('restores a kept profile on Multilevel, and keeps it again on Average', () => {
+    let last: LaunchConditions = LAUNCH;
+    renderWithProviders(<Host start={{ ...LAUNCH, keptWindLevels: profile }} onLaunch={(l) => (last = l)} />);
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Multi-level' }));
+    expect(last.windLevels).toEqual(profile);
+    expect(last.keptWindLevels).toBeUndefined();
+
+    fireEvent.click(screen.getByRole('radio', { name: 'Average' }));
+    expect(last.windLevels).toBeUndefined();
+    expect(last.keptWindLevels).toEqual(profile);
+  });
+
+  it('seeds one level from the single wind when there is nothing to restore', () => {
+    let last: LaunchConditions = LAUNCH;
+    renderWithProviders(
+      <Host
+        start={{ ...LAUNCH, windAverage: 4, windStdDev: 0.4, windDirectionDeg: 200 }}
+        onLaunch={(l) => (last = l)}
+      />,
+    );
+    fireEvent.click(screen.getByRole('radio', { name: 'Multi-level' }));
+    expect(last.windLevels).toEqual([{ altitudeM: 0, speed: 4, directionDeg: 200, stddev: 0.4 }]);
   });
 });

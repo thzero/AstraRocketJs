@@ -72,7 +72,7 @@ A crosswind meets a rocket moving straight up, so the air it sees comes from an 
 ### Read the result {#read-the-result-rail}
 
 - **Liftoff mass**: the rocket and the loaded motor.
-- **Thrust to weight**: the motor's average thrust over its burn, its peak thrust, and its thrust at the moment the rocket leaves the rail, each over the liftoff weight. The last one is the figure a simulation reports at rail departure.
+- **Thrust to weight**: the motor's average thrust over its burn, its peak thrust, each over the liftoff weight, and its thrust at the moment the rocket leaves the rail over the weight at that moment, with some propellant burned. The last one is the figure a simulation reports at rail departure.
 - **Rail exit speed** and **Time to leave the rail**.
 - **Rail for** the minimum rail exit speed: how much rail it takes to reach that speed, in amber when that is more than the rail you entered.
 - **Weathercock angle** at the wind you entered, and **in the gusts** when the wind came from a forecast.

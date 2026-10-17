@@ -1,4 +1,4 @@
-import type { MotorSpec } from '../../../engine/openRocketEngine';
+import type { MotorSpec, MotorType } from '../../../engine/openRocketEngine';
 import { motorDigest } from '../../motors/motorDigest';
 import { finalizeThrustCurve, sortLists } from '../../motors/curveFinalize';
 import { escapeXml } from '../xmlUtil';
@@ -71,6 +71,17 @@ export function rseDigest(text: string): string | null {
  */
 const num = (v: number) => String(v);
 
+/** The `Type` attribute for each motor type, as `RockSimMotorLoader` reads it. */
+const RSE_TYPES: Record<MotorType, string> = { SU: 'single-use', reload: 'reloadable', hybrid: 'hybrid' };
+
+/**
+ * The motor's `Type` attribute, or nothing when the spec has no type. The
+ * loader reads an absent attribute as unknown and then takes the type from the
+ * manufacturer, so leaving it out keeps that inference, where a stated value
+ * would override it.
+ */
+const typeAttr = (spec: MotorSpec): string => (spec.type ? ` Type="${RSE_TYPES[spec.type]}"` : '');
+
 /**
  * The `.rse` the desktop would write for this motor (`RockSimMotorWriter`):
  * mass and CG stated on every row, so nothing is recomputed on load. Null for a
@@ -95,7 +106,7 @@ export function embeddedMotorFile(spec: MotorSpec): EmbeddedMotorFile | null {
   const lines = [
     '<engine-database>',
     ' <engine-list>',
-    `  <engine mfg="${escapeXml(spec.manufacturer || 'custom')}" code="${escapeXml(spec.designation)}" Type="single-use"` +
+    `  <engine mfg="${escapeXml(spec.manufacturer || 'custom')}" code="${escapeXml(spec.designation)}"${typeAttr(spec)}` +
       ` dia="${num(spec.diameter * 1000)}" len="${num(spec.length * 1000)}" initWt="${num(initWt)}"` +
       ` propWt="${num(propWt)}" auto-calc-mass="0" auto-calc-cg="0">`,
     '   <data>',

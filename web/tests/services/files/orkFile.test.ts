@@ -4,6 +4,7 @@ import { exportOrk, importOrk, type OrkExportMotor } from '../../../src/services
 import { specToTree, type RocketSpec } from '../../testing/specTree';
 import { PLUGGED_DELAY, type ComponentNode, type RocketTree } from '../../../src/engine/openRocketEngine';
 import type { DesignInfo } from '../../../src/services/files/orkTypes';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
 import { weatherKeyStore } from '../../../src/services/weather/weatherKey';
 import { sourceStatus } from '../../../src/services/weather/weatherSource';
 import { badDimensions } from '../../../src/services/design/requiredComponent';
@@ -1037,6 +1038,58 @@ describe('a forecast atmosphere round-trips', () => {
     const got = back({ ...base, temperatureC: null, pressureHPa: null, relativeHumidity: null });
     expect(got.temperatureC).toBeNull();
     expect(got.atmosphereLevels).toHaveLength(2);
+  });
+
+  /**
+   * No OpenRocket has a forecast atmosphere. Inside <atmosphere>,
+   * AtmosphereHandler hands an unknown child to AbstractElementHandler, which
+   * warns "Unknown attributes in element 'forecastlevel'"; as a direct child of
+   * <conditions>, SimulationConditionsHandler.closeElement has no case for it and
+   * skips it without a warning (24.12 and upstream alike). `npm run audit` opens
+   * such a file in 24.12.
+   */
+  it.each([
+    ['a custom site', base],
+    ['the standard atmosphere at the site', { ...base, temperatureC: null, pressureHPa: null, relativeHumidity: null }],
+  ])('writes the levels as children of <conditions>, outside <atmosphere>, under %s', (_label, launch) => {
+    const doc = new DOMParser().parseFromString(exportOrk({ name: 'F', tree, launch }), 'application/xml');
+    const cond = doc.querySelector('simulation > conditions')!;
+    expect(cond.querySelectorAll(':scope > forecastlevel')).toHaveLength(2);
+    expect(doc.querySelectorAll('atmosphere forecastlevel')).toHaveLength(0);
+  });
+
+  it('still reads levels a file holds inside <atmosphere>', () => {
+    const xml = exportOrk({ name: 'F', tree, launch: base });
+    const inside = xml
+      .replace(/\s*<forecastlevel [^>]*\/>/g, '')
+      .replace(
+        '</atmosphere>',
+        '<forecastlevel altitude="1949" temperature="275.45" pressure="80000" relativehumidity="0.3"/></atmosphere>',
+      );
+    expect(inside).toContain(
+      '<forecastlevel altitude="1949" temperature="275.45" pressure="80000" relativehumidity="0.3"/></atmosphere>',
+    );
+    const got = importOrk(inside).launch!.atmosphereLevels!;
+    expect(got).toHaveLength(1);
+    expect(got[0]!.altitudeM).toBe(1949);
+    expect(got[0]!.pressureHPa).toBeCloseTo(800, 9);
+  });
+
+  it('is not carried a second time as an unread conditions child', () => {
+    const res = importOrk(exportOrk({ name: 'F', tree, launch: base }));
+    const again = exportOrk({
+      name: 'F',
+      tree,
+      launch: res.launch as LaunchConditions,
+      simulations: res.simulations?.map((sim) => ({
+        name: sim.name,
+        configId: sim.configId ?? '',
+        launch: { ...base, ...sim.launch } as LaunchConditions,
+        status: 'notsimulated' as const,
+        ...(sim.xmlExtra ? { xmlExtra: sim.xmlExtra } : {}),
+      })),
+    });
+    expect(again.match(/<forecastlevel /g)).toHaveLength(2);
   });
 
   it('writes no element when there is no profile', () => {

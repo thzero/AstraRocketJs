@@ -1,5 +1,5 @@
 import { fetchElevations, type FetchOpts } from '../weather/openMeteo';
-import { offsetToLatLon } from '../map/geodesy';
+import { offsetToLatLon, reduceLonDeg } from '../map/geodesy';
 
 /**
  * The ground around a launch site, so a descent can end where it meets the
@@ -25,11 +25,16 @@ export interface TerrainGrid {
 /** Points per side: 15 x 15 = 225 heights, three requests, about 140 m apart over a 1 km half-width. */
 export const TERRAIN_POINTS = 15;
 
-/** The grid's corners, `halfWidthM` meters each way from the site. */
+/**
+ * The grid's corners, `halfWidthM` meters each way from the site. The corners
+ * come back in [-180, 180], so a grid across the date line has its east edge
+ * west of its west edge; the east edge is carried a turn further on, so the
+ * grid's longitudes run east without a break.
+ */
 export function terrainBounds(latDeg: number, lonDeg: number, halfWidthM: number) {
   const ne = offsetToLatLon(latDeg, lonDeg, { east: halfWidthM, north: halfWidthM });
   const sw = offsetToLatLon(latDeg, lonDeg, { east: -halfWidthM, north: -halfWidthM });
-  return { south: sw.lat, west: sw.lon, north: ne.lat, east: ne.lon };
+  return { south: sw.lat, west: sw.lon, north: ne.lat, east: ne.lon < sw.lon ? ne.lon + 360 : ne.lon };
 }
 
 /** The grid's points, in the order `heights` holds them. */
@@ -39,7 +44,7 @@ export function terrainPoints(b: ReturnType<typeof terrainBounds>, n = TERRAIN_P
     for (let j = 0; j < n; j++) {
       out.push({
         latitudeDeg: b.south + ((b.north - b.south) * i) / (n - 1),
-        longitudeDeg: b.west + ((b.east - b.west) * j) / (n - 1),
+        longitudeDeg: reduceLonDeg(b.west + ((b.east - b.west) * j) / (n - 1)),
       });
     }
   }
@@ -50,7 +55,11 @@ export function terrainPoints(b: ReturnType<typeof terrainBounds>, n = TERRAIN_P
 export function groundAt(grid: TerrainGrid): (latDeg: number, lonDeg: number) => number {
   const { south, west, north, east, n, heights } = grid;
   const at = (i: number, j: number) => heights[i * n + j]!;
-  return (lat, lon) => {
+  // A longitude in [-180, 180] is moved by whole turns to the one nearest the
+  // grid, whose east edge may lie past 180.
+  const mid = (west + east) / 2;
+  return (lat, lonDeg) => {
+    const lon = mid + reduceLonDeg(lonDeg - mid);
     const fi = Math.min(n - 1, Math.max(0, ((lat - south) / (north - south)) * (n - 1)));
     const fj = Math.min(n - 1, Math.max(0, ((lon - west) / (east - west)) * (n - 1)));
     const i0 = Math.min(n - 2, Math.floor(fi));

@@ -10,6 +10,7 @@ import { unwrapConditionsChild } from './passthrough';
 import { degToRad } from '../../../prefs/units';
 import { DEFAULT_HEADING_DEG } from '../../flight/simulations';
 import { G0 } from '../../motors/motorMath';
+import { DEFAULT_SETTINGS } from '../../storage/settings';
 
 /**
  * The <simulations> block: every simulation, each with its own conditions and
@@ -104,17 +105,11 @@ function flightDataTag(s: FlightSummary): string {
 
 /**
  * The desktop's own defaults for what `OrkSimPrefs` covers (SimulationOptions
- * and the RK4 stepper's recommended step), for a caller that passes none.
+ * and the RK4 stepper's recommended step), for a caller that passes none. The
+ * app's default settings are those numbers, so they are read from there rather
+ * than held a second time.
  */
-const DESKTOP_SIM_PREFS: OrkSimPrefs = {
-  timeStep: 0.05,
-  maxTime: 1200,
-  randomSeed: null,
-  deploymentSpeedWarn: 20,
-  mainHighSpeedWarn: 30.48,
-  mainLowSpeedWarn: 15.24,
-  drogueLowSpeedWarn: 3.048,
-};
+const DESKTOP_SIM_PREFS: OrkSimPrefs = DEFAULT_SETTINGS.simulation;
 
 function conditionsXml(
   w: OrkWriter,
@@ -149,18 +144,24 @@ function conditionsXml(
   const fixedSeed = seed != null && Number.isInteger(seed);
   if (fixedSeed) emit(depth, `<randomseed>${seed}</randomseed>`);
   atmosphereXml(w, depth, launch);
-  // Gravity in OpenRocketSaver's element, after the atmosphere as the desktop
-  // writes it. Only written when it is not the default, so a file that never
-  // touched it round-trips unchanged.
+  forecastLevelsXml(w, depth, launch.atmosphereLevels ?? []);
+  // Gravity as the bare <gravitymodel>/<constantgravity> pair, which this app
+  // reads and every OpenRocket skips without a warning: SimulationConditionsHandler
+  // ignores a <conditions> child it does not know. Upstream's own
+  // <gravity model="constant"><value> is not written: 24.12 has no gravity
+  // setting, warns on the <value> child and then misreads the rest of the
+  // simulations block. Desktop flies its own gravity either way. Only written
+  // when it is not the default, so a file that never touched it round-trips
+  // unchanged.
   if (launch.gravityModel === 'constant') {
-    emit(depth, '<gravity model="constant">');
-    emit(depth + 1, `<value>${launch.constantGravity ?? G0}</value>`);
-    emit(depth, '</gravity>');
+    emit(depth, '<gravitymodel>constant</gravitymodel>');
+    emit(depth, `<constantgravity>${launch.constantGravity ?? G0}</constantgravity>`);
   }
   weatherSourceXml(w, depth, launch);
-  // What the run flew under, in OpenRocketSaver's elements and order. The
-  // drogue element's capital L is the desktop's own spelling, which its reader
-  // matches exactly.
+  // What the run flew under, in upstream OpenRocketSaver's elements and order.
+  // 24.12 reads the time step and the maximum time and skips the four warning
+  // thresholds without a warning. The drogue element's capital L is upstream's
+  // own spelling, which its reader matches exactly.
   emit(depth, `<timestep>${prefs.timeStep}</timestep>`);
   emit(depth, `<maxtime>${prefs.maxTime}</maxtime>`);
   emit(depth, `<recoveryspeedwarning>${prefs.deploymentSpeedWarn}</recoveryspeedwarning>`);
@@ -194,11 +195,13 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   emit(depth + 1, `<direction>${windDirRad}</direction>`);
   emit(depth + 1, `<standarddeviation>${launch.windStdDev ?? 0}</standarddeviation>`);
   emit(depth, '</wind>');
-  // The multilevel profile, when there is one. The desktop writes both wind
-  // elements and lets <windmodeltype> pick, which is also what our importer
-  // reads, so the average block above stays as the fallback a reader without
-  // multilevel support sees.
-  const levels = launch.windLevels ?? [];
+  // The multilevel profile, when there is one, flown or kept. The desktop
+  // writes both wind elements and lets <windmodeltype> pick, which is also what
+  // our importer reads, so the average block above stays as the fallback a
+  // reader without multilevel support sees, and a profile kept under Average
+  // is written as the desktop writes its unselected multilevel model.
+  const flown = launch.windLevels ?? [];
+  const levels = flown.length ? flown : (launch.keptWindLevels ?? []);
   if (levels.length) {
     // The altitude reference is an attribute of <wind>, as OpenRocketSaver
     // writes it and importt/WindHandler reads it. As a child element the
@@ -217,19 +220,13 @@ function windXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
     }
     emit(depth, '</wind>');
   }
-  emit(depth, `<windmodeltype>${levels.length ? 'Multilevel' : 'Average'}</windmodeltype>`);
+  emit(depth, `<windmodeltype>${flown.length ? 'Multilevel' : 'Average'}</windmodeltype>`);
 }
 
 function atmosphereXml(w: OrkWriter, depth: number, launch: LaunchConditions): void {
   const { emit } = w;
-  const levels = launch.atmosphereLevels ?? [];
   if (launch.temperatureC === null && launch.pressureHPa === null && launch.relativeHumidity == null) {
-    if (!levels.length) emit(depth, '<atmosphere model="isa"/>');
-    else {
-      emit(depth, '<atmosphere model="isa">');
-      forecastLevelsXml(w, depth + 1, levels);
-      emit(depth, '</atmosphere>');
-    }
+    emit(depth, '<atmosphere model="isa"/>');
   } else {
     // Kelvin / pascal on disk. The desktop stores both-or-ISA, so a
     // single custom value fills the other with the ISA sea-level standard.
@@ -237,12 +234,12 @@ function atmosphereXml(w: OrkWriter, depth: number, launch: LaunchConditions): v
     emit(depth + 1, `<basetemperature>${(launch.temperatureC ?? 15) + 273.15}</basetemperature>`);
     emit(depth + 1, `<basepressure>${(launch.pressureHPa ?? 1013.25) * 100}</basepressure>`);
     // Only when set, so a file that never expressed humidity carries none.
-    // <baserelativehumidity> is the element desktop writes and reads
-    // (OpenRocketSaver, AtmosphereHandler); under any other name it skips it.
+    // <baserelativehumidity> is the element upstream OpenRocket writes and
+    // reads (OpenRocketSaver, AtmosphereHandler). 24.12 has no humidity: it
+    // flies dry air and warns on the element.
     if (launch.relativeHumidity != null) {
       emit(depth + 1, `<baserelativehumidity>${launch.relativeHumidity}</baserelativehumidity>`);
     }
-    forecastLevelsXml(w, depth + 1, levels);
     emit(depth, '</atmosphere>');
   }
 }
@@ -279,10 +276,12 @@ function weatherSourceXml(w: OrkWriter, depth: number, launch: LaunchConditions)
 }
 
 /**
- * A forecast atmosphere, as an extension element of this app's: desktop
- * OpenRocket has no such model and skips elements it does not know, so a
- * desktop opening the file flies its own atmosphere. Kelvin and pascal, like
- * <basetemperature> and <basepressure> beside it.
+ * A forecast atmosphere, as extension elements of this app's, directly in
+ * <conditions>. No OpenRocket has such a model: their SimulationConditionsHandler
+ * skips a <conditions> child it does not know without a warning, so a desktop
+ * opening the file flies its own atmosphere. Inside <atmosphere> the same element
+ * would warn on its attributes. Kelvin and pascal, like <basetemperature> and
+ * <basepressure>.
  */
 function forecastLevelsXml(w: OrkWriter, depth: number, levels: readonly AtmosphereLevel[]): void {
   for (const l of levels) {

@@ -99,7 +99,7 @@ test('the identity block is the same at every width, and the row fits from 1180'
   await page.addStyleTag({ content: WIDE_FACE });
 
   const title = header.getByRole('heading', { level: 1 });
-  const mark = header.getByText('🚀');
+  const mark = header.locator('img[src$="favicon.svg"]');
   // The version opens About, so it is a button; the backend names itself only in
   // its tooltip, where the product names are latin in every language.
   const version = header.getByRole('button', { name: /^v\d/ });

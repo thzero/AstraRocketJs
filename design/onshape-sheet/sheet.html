@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AstraRocket to Onshape</title>
+<style>
+  @page { size: 13.333in 7.5in; margin: 0; }
+  html, body { margin: 0; padding: 0; }
+  body { width: 13.333in; height: 7.5in; background: #ffffff; color: #111111; font-family: "Segoe UI", Arial, sans-serif; overflow: hidden; }
+  .sheet { position: relative; width: 100%; height: 100%; display: grid; grid-template-columns: 2.1in 1fr 2.1in; }
+  .side { display: flex; align-items: center; justify-content: center; }
+  .side img { max-height: 6.9in; max-width: 1.9in; }
+  .main { display: flex; flex-direction: column; align-items: center; padding: 0.3in 0.2in 0.35in; min-height: 0; }
+  h1 { margin: 0; font-weight: 400; font-size: 44pt; letter-spacing: -0.5pt; display: flex; align-items: center; gap: 0.18in; }
+  h1 .mark { width: 0.75in; height: 0.75in; }
+  h1 .astra { color: #2f4a68; }
+  h1 .to { color: #111111; font-size: 26pt; margin: 0 6pt; }
+  h1 .onshape { color: #4a8a1c; }
+  .lead { margin: 0.2in 0 0; font-size: 16pt; line-height: 1.32; max-width: 7.6in; text-indent: 0.25in; }
+  ol { margin: 0.18in 0 0; padding-left: 0.4in; font-size: 16pt; line-height: 1.35; max-width: 7.6in; }
+  ol li { margin-bottom: 0.06in; }
+  a { color: #2b8fd6; text-decoration: none; }
+  .help { margin: 0.08in 0 0; font-size: 13pt; color: #333333; }
+  .shots { margin-top: auto; display: flex; gap: 0.5in; align-items: flex-start; }
+  .frame { border: 1.5pt solid #222222; display: flex; flex-direction: column; }
+  .frame .cap { font-size: 10pt; font-weight: 600; padding: 6pt 9pt; border-bottom: 1pt solid #d6d6d6; color: #333333; }
+  .menu img { display: block; width: 2in; }
+  .steps { width: 3.9in; }
+  .steps ol { font-size: 10pt; line-height: 1.35; margin: 8pt 10pt 8pt 0; padding-left: 26pt; max-width: none; }
+  .steps ol li { margin-bottom: 3pt; }
+  .steps b { font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="sheet">
+  <div class="side"><img src="left.png" alt=""></div>
+  <div class="main">
+    <h1><img class="mark" src="../icon.svg" alt=""><span class="astra">AstraRocket</span><span class="to">to</span><span class="onshape">Onshape</span></h1>
+    <p class="lead">An easy two-step process to create Onshape models from AstraRocket designs. Sizes, positions and masses come from the OpenRocket engine that simulates the design, so the Onshape document matches the rocket that flies.</p>
+    <ol>
+      <li>In <a href="https://github.com/AstraRocket/simulator">AstraRocket</a>, choose Menu → Export → JSON</li>
+      <li>Use the <a href="https://cad.onshape.com/documents/8e0814e355abcb7f2e678124/w/e2a90792fddced2ca802f65f/e/6eb2e92aea957e94a813c25e">"AstraRocketOnshapeImport" custom feature</a> and select the .json after importing</li>
+    </ol>
+    <p class="help">Step-by-step help: <a href="https://AstraRocket.github.io/simulator/docs/files-and-exports/#exporting-json-for-onshape-json">AstraRocket online help, Exporting JSON for Onshape</a></p>
+    <div class="shots">
+      <div class="frame menu"><div class="cap">AstraRocket</div><img src="menu.png" alt=""></div>
+      <div class="frame steps"><div class="cap">In Onshape</div>
+        <ol>
+          <li>Create a new document or open an existing one.</li>
+          <li>Create a new Part Studio.</li>
+          <li>If the document does not have it yet, add a custom feature and search for <b>AstraRocketOnshapeImport</b>.</li>
+          <li>Import the downloaded <b>.json</b> file into the document.</li>
+          <li>Open the <b>AstraRocketOnshapeImport</b> feature and select the JSON file.</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+  <div class="side"><img src="right.png" alt=""></div>
+</div>
+</body>
+</html>

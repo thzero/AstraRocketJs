@@ -94,16 +94,16 @@ describe('a saved part as a picker row', () => {
     expect((customPartToRow(part) as { innerDiameter: number | null }).innerDiameter).toBeNull();
   });
 
-  it('marks a solid nose cone filled, the way catalogPatch writes one', () => {
+  it('marks a nose cone filled by its flag, the way catalogPatch writes one', () => {
     const solid: CustomPart = {
       id: 'x',
       type: 'nosecone',
       mfr: 'm',
       partNo: 'p',
       desc: '',
-      node: { shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.013 },
+      node: { shape: 'ogive', length: 0.1, aftRadius: 0.013, thickness: 0.013, filled: true },
     };
-    const hollow: CustomPart = { ...solid, node: { ...solid.node, thickness: 0.001 } };
+    const hollow: CustomPart = { ...solid, node: { ...solid.node, thickness: 0.001, filled: false } };
     expect((customPartToRow(solid) as { filled: boolean }).filled).toBe(true);
     expect((customPartToRow(hollow) as { filled: boolean }).filled).toBe(false);
   });

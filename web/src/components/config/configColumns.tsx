@@ -39,12 +39,12 @@ function Overridden({ children, t }: { children: React.ReactNode; t: TFunction }
   );
 }
 
-/** A delay as the cells print it, in the reader's locale: "+1.5s". */
-const delayText = (s: number) => ` +${fmtUpTo(s, 3)}s`;
+/** A delay as the cells print it, in the reader's locale and seconds symbol: "+1.5s". */
+const delayText = (s: number, t: TFunction) => ` +${fmtUpTo(s, 3)}${t('units.second')}`;
 
 // A trigger, the altitude it fires at when it reads one, and its delay.
-const triggerText = (event: string, altitude: string | null, delay: number) =>
-  `${event}${altitude ? ` ${altitude}` : ''}${delay ? delayText(delay) : ''}`;
+const triggerText = (event: string, altitude: string | null, delay: number, t: TFunction) =>
+  `${event}${altitude ? ` ${altitude}` : ''}${delay ? delayText(delay, t) : ''}`;
 
 export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
   return findMounts(tree).map((mt, i) => ({
@@ -64,7 +64,7 @@ export function motorColumns(tree: RocketTree, t: TFunction): ConfigColumn[] {
             <Overridden t={t}>
               {' '}
               {t(`ignition.${ign}`)}
-              {seated.ignitionDelay ? delayText(seated.ignitionDelay) : ''}
+              {seated.ignitionDelay ? delayText(seated.ignitionDelay, t) : ''}
             </Overridden>
           )}
         </>
@@ -87,7 +87,7 @@ export function recoveryColumns(
       const u = alt(device);
       // The altitude is only read by the altitude trigger, so printing it beside
       // "apogee" would be printing a number the flight never uses.
-      const text = triggerText(t(`deployEvent.${event}`), event === 'altitude' ? u.fmtSym(altitude) : null, delay);
+      const text = triggerText(t(`deployEvent.${event}`), event === 'altitude' ? u.fmtSym(altitude) : null, delay, t);
       return over ? <Overridden t={t}>{text}</Overridden> : text;
     },
   }));
@@ -124,6 +124,7 @@ export function separationColumns(
         t(`separationEvent.${event}`),
         event.startsWith('altitude') ? u.fmtSym(altitude) : null,
         delay,
+        t,
       );
       return over ? <Overridden t={t}>{text}</Overridden> : text;
     },

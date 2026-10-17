@@ -732,6 +732,13 @@ export function loadSettings(): Settings {
             ? usableWindLevels(l.windLevels)
             : DEFAULT_SETTINGS.launchDefaults.windLevels;
         }
+        // A kept profile becomes the flown one when Multilevel is chosen again,
+        // so it is held to the same rule. Empty is no profile.
+        if (l.keptWindLevels !== undefined) {
+          const kept = Array.isArray(l.keptWindLevels) ? usableWindLevels(l.keptWindLevels) : [];
+          if (kept.length) l.keptWindLevels = kept;
+          else delete l.keptWindLevels;
+        }
         // Same reasoning for a forecast atmosphere: one bad level fails the run.
         if (l.atmosphereLevels !== undefined) {
           const kept = Array.isArray(l.atmosphereLevels) ? usableAtmosphereLevels(l.atmosphereLevels) : [];
@@ -821,6 +828,24 @@ export function loadStoredSettings(): Settings | null {
     return null;
   }
   return loadSettings();
+}
+
+/**
+ * The top-level keys stored that this build's settings do not have, as stored.
+ *
+ * `loadSettings` drops them, so a write of what it returns would destroy the
+ * preferences a newer build of this PWA keeps there. A change writes them back
+ * beside its own; a reset to the defaults does not.
+ */
+export function unknownStoredSettings(): Record<string, unknown> {
+  try {
+    const raw = localStorage.getItem(KEY);
+    const stored = raw ? (JSON.parse(raw) as unknown) : null;
+    if (!stored || typeof stored !== 'object' || Array.isArray(stored)) return {};
+    return Object.fromEntries(Object.entries(stored).filter(([k]) => !Object.hasOwn(DEFAULT_SETTINGS, k)));
+  } catch {
+    return {};
+  }
 }
 
 /** Whether a `storage` event touched the settings: their key, or a clear of the whole store. */
