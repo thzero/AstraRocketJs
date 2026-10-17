@@ -102,7 +102,7 @@ export function finXml(w: Cdx1Writer, parent: ComponentNode, parentStart: number
   const locIn = (plan.root - bottomOffset + below) * IN;
   const cs = str(fin, 'crossSection', 'square');
   // A supersonic airfoil section beats the plain cross section.
-  const section = SECTION_TO_AIRFOIL[str(fin, 'airfoilSection', '')];
+  const section = SECTION_TO_AIRFOIL.get(str(fin, 'airfoilSection', ''));
   // No <PartType> inside <Fin>: RASAero's parser is rigid.
   emit('<Fin>');
   emit(`<Count>${count}</Count>`);

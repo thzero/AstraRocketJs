@@ -1,5 +1,14 @@
+import { readFileSync } from 'node:fs';
 import { describe, it, expect } from 'vitest';
-import { simConditions, DEFAULT_HEADING_DEG, type SimPrefs } from '../../../src/services/flight/simulations';
+import { MAX_ROD_ANGLE_RAD } from '../../../src/services/flight/safetyLimits';
+import {
+  simConditions,
+  newSimulation,
+  resultKey,
+  DEFAULT_HEADING_DEG,
+  type SimPrefs,
+} from '../../../src/services/flight/simulations';
+import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 import type { CompleteLaunch } from '../../../src/services/flight/requiredLaunch';
 
 const base: CompleteLaunch = {
@@ -169,10 +178,72 @@ describe('launch into the wind with a multilevel profile', () => {
  * 20 degrees, but the bridge sets it on `SimulationConditions`, which does not.
  * A step outside that range flies a flight the desktop never can.
  */
+/**
+ * A negative rod angle (launching with the wind while "into the wind" is set)
+ * reaches the kernel signed. Checked against the Java rather than assumed:
+ * desktop's `SimulationOptions.setLaunchRodAngle` admits -MAX_LAUNCH_ROD_ANGLE
+ * to MAX_LAUNCH_ROD_ANGLE, the bridge hands the angle to
+ * `SimulationConditions.setLaunchRodAngle`, which stores it as given, and the
+ * stepper aims the rod with its sine, so the sign is flown.
+ */
+describe('a negative rod angle', () => {
+  const java = (rel: string) => readFileSync(new URL(`../../../../engine-java/src/${rel}`, import.meta.url), 'utf8');
+
+  it('is sent as its radians, inside the range desktop admits', () => {
+    const options = java('java/info/openrocket/core/simulation/SimulationOptions.java');
+    const m = options.match(/MAX_LAUNCH_ROD_ANGLE\s*=\s*Math\.PI\s*\/\s*(\d+)\s*;/);
+    if (!m) throw new Error('SimulationOptions.java declares no MAX_LAUNCH_ROD_ANGLE');
+    const limit = Math.PI / Number(m[1]);
+    expect(options).toContain('MathUtil.clamp(launchRodAngle, -MAX_LAUNCH_ROD_ANGLE, MAX_LAUNCH_ROD_ANGLE)');
+    expect(java('java/info/openrocket/core/simulation/SimulationConditions.java')).toMatch(
+      /setLaunchRodAngle\(double launchRodAngle\) \{\s*this\.launchRodAngle = launchRodAngle;/,
+    );
+    expect(java('api/java/api/OpenRocketEngine.java')).toContain(
+      'conditions.setLaunchRodAngle(JsonLite.dbl(o, "rodAngle", 0))',
+    );
+    expect(java('java/info/openrocket/core/simulation/AbstractRKSimulationStepper.java')).toContain(
+      'Math.sin(sim.getLaunchRodAngle())',
+    );
+
+    const c = simConditions({ ...base, launchIntoWind: true, launchRodAngleDeg: -5 });
+    expect(c.launchRodAngle).toBeCloseTo(deg2rad(-5), 12);
+    expect(c.launchRodAngle).toBeGreaterThan(-limit);
+    // The panel's bound, mirrored below zero into the wind, sits inside the kernel's.
+    expect(MAX_ROD_ANGLE_RAD.model).toBeLessThanOrEqual(limit);
+  });
+});
+
 describe('simConditions max angle step', () => {
   it('flies the step inside the kernel range', () => {
     expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(0.05) }).maxAngleStep).toBeCloseTo(deg2rad(1));
     expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(30) }).maxAngleStep).toBeCloseTo(deg2rad(20));
     expect(simConditions(base, PREFS).maxAngleStep).toBeCloseTo(deg2rad(3));
+  });
+});
+
+/**
+ * The desktop flies only the selected wind model (SimulationOptions.getWindModel,
+ * SimulationOptions.java:220-228, cloned into the conditions at :924-926), so a
+ * profile held under Average changes neither the flight nor whether a result is
+ * current.
+ */
+describe('a profile kept under the Average model', () => {
+  const kept = [
+    { altitudeM: 0, speed: 3, directionDeg: 90, stddev: 0.3 },
+    { altitudeM: 500, speed: 6, directionDeg: 120, stddev: 1.2 },
+  ];
+  const seeded = { ...PREFS, randomSeed: 7 };
+
+  it('is not flown', () => {
+    expect(simConditions({ ...base, keptWindLevels: kept }, seeded)).toEqual(simConditions(base, seeded));
+  });
+
+  it('does not age a result', () => {
+    const tree = { components: [{ type: 'nosecone', id: 'n', length: 0.1 }] } as never;
+    const config = newFlightConfig();
+    const sim = (launch: CompleteLaunch) => newSimulation('A', config.id, launch);
+    expect(resultKey(tree, config, sim({ ...base, keptWindLevels: kept }), PREFS)).toBe(
+      resultKey(tree, config, sim(base), PREFS),
+    );
   });
 });

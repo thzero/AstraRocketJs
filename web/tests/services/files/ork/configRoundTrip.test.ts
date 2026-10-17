@@ -109,7 +109,8 @@ describe('per-configuration separation through a .ork', () => {
     const booster = boosterId(res.tree);
     const a = res.configs.find((c) => c.id === 'cfg-a')!;
     const b = res.configs.find((c) => c.id === 'cfg-b')!;
-    expect(a.separations[booster]).toMatchObject({ separationEvent: 'ejection', separationDelay: 0 });
+    // cfg-a stages as designed, so it holds no override (as desktop keeps none).
+    expect(a.separations[booster]).toBeUndefined();
     expect(b.separations[booster]).toMatchObject({ separationEvent: 'burnout', separationDelay: 3 });
   });
 
@@ -131,8 +132,8 @@ describe('per-configuration separation through a .ork', () => {
     const xml = exportOrk({ name: 'Two stage', tree: staged, configs: staging, activeConfigId: 'cfg-a' });
     expect(xml).not.toContain('<separationconfiguration configid="cfg-a">');
     expect(xml).toContain('<separationconfiguration configid="cfg-b">');
-    // An imported configuration records the values it resolves to, which for
-    // cfg-a are the design's; a second save still writes no block for it.
+    // An imported configuration with no block records no override, so a
+    // second save still writes no block for it.
     const first = importOrk(xml);
     const again = exportOrk({ name: 'Two stage', tree: first.tree, configs: first.configs, activeConfigId: 'cfg-a' });
     expect(again).not.toContain('<separationconfiguration configid="cfg-a">');
@@ -175,9 +176,13 @@ describe('per-configuration deployment through a .ork', () => {
     const chute = chuteId(res.tree);
     const a = res.configs.find((c) => c.id === 'cfg-a')!;
     const b = res.configs.find((c) => c.id === 'cfg-b')!;
-    // The one that overrides nothing comes back with the design's own values,
-    // which is what it flies.
-    expect(a.deployments[chute]).toMatchObject({ deployEvent: 'apogee', deployAltitude: 200 });
+    // The one that overrides nothing comes back with no override: it flies the
+    // design's own values, which the part carries.
+    expect(a.deployments[chute]).toBeUndefined();
+    expect(res.tree.components[0]!.children![1]!.children![0]).toMatchObject({
+      deployEvent: 'apogee',
+      deployAltitude: 200,
+    });
     expect(b.deployments[chute]).toMatchObject({ deployEvent: 'altitude', deployAltitude: 150, deployDelay: 2 });
   });
 
@@ -263,10 +268,8 @@ describe('the lower stage separation deploy event at the .ork boundary', () => {
     const res = importOrk(respelled('lowerstageseparation'));
     const chute = chuteId(res.tree);
     expect(chuteNode(res.tree)['deployEvent']).toBe('lower_stage_separation');
-    // cfg-a has no block of its own and takes the re-spelled bare tag.
-    expect(res.configs.find((c) => c.id === 'cfg-a')!.deployments[chute]).toMatchObject({
-      deployEvent: 'lower_stage_separation',
-    });
+    // cfg-a has no block of its own, so it flies the design's re-spelled bare tag.
+    expect(res.configs.find((c) => c.id === 'cfg-a')!.deployments[chute]).toBeUndefined();
   });
 
   it('reads the underscored spelling too', () => {

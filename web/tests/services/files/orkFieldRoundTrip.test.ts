@@ -317,12 +317,15 @@ describe('shared defaults', () => {
   it('agrees with the kernel on the nose cone', () => {
     const nc = importOrk(
       `<openrocket><rocket><name>N</name><subcomponents><stage><name>S</name><subcomponents><nosecone/>` +
-        `<bodytube><length>0.3</length><radius>0.012</radius></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>`,
+        `<bodytube><length>0.3</length><radius>0.015</radius></bodytube></subcomponents></stage></subcomponents></rocket></openrocket>`,
     );
     const n = findByType(nc.tree, 'nosecone')!;
     expect(n['length']).toBe(KERNEL_DEFAULTS.nosecone.length);
     expect(n['thickness']).toBe(KERNEL_DEFAULTS.nosecone.thickness);
-    expect(n['aftRadius']).toBe(KERNEL_DEFAULTS.nosecone.aftRadius);
+    // A nose with no <aftradius> is read as automatic and resolves to the tube
+    // behind it, so its stored radius is that tube's, not a fallback.
+    expect(n['aftRadiusAuto']).toBe(true);
+    expect(n['aftRadius']).toBe(0.015);
   });
 });
 

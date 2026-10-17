@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
  * The two gate workflows divide the work by trigger, and between them they have
  * to leave no branch push unchecked: `ci.yml` is `pull_request`-only and master
  * is reached through a pull request, so `dev.yml` has to cover a push to every
- * other branch. With
+ * other branch but `beta`, which carries only work already gated on dev. With
  * a branch allowlist there, a push to an unlisted branch runs no format, spell,
  * typecheck, lint, knip or unit-test gate at all.
  *
@@ -22,11 +22,11 @@ const wf = (name: string) =>
   readFileSync(fileURLToPath(new URL(`../../.github/workflows/${name}`, import.meta.url)), 'utf8');
 
 describe('CI trigger coverage', () => {
-  it('checks a push to every branch except master', () => {
+  it('checks a push to every branch except master and beta', () => {
     const dev = wf('dev.yml');
     // `branches-ignore`, not `branches`: an allowlist leaves every unlisted branch
     // unchecked.
-    expect(dev).toMatch(/push:\s*\n\s*branches-ignore:\s*\[master\]/);
+    expect(dev).toMatch(/push:\s*\n\s*branches-ignore:\s*\[master, beta\]/);
     expect(dev).not.toMatch(/push:\s*\n\s*branches:/);
   });
 
@@ -39,6 +39,36 @@ describe('CI trigger coverage', () => {
     // dev.yml calls gates.yml rather than listing its own steps, so a push and a
     // PR cannot drift. If this ever needs its own steps, the drift is the finding.
     expect(wf('dev.yml')).toContain('uses: ./.github/workflows/gates.yml');
+  });
+});
+
+/**
+ * The catalog sync runs when the pipeline changes. Its header states the
+ * policy: the Monday schedule, a manual run, and a push to master that changes
+ * `web/scripts/**` or the workflow itself, so a pipeline change republishes the
+ * catalogs when it lands instead of waiting up to a week. Master only, and
+ * those paths only, because the run publishes to the branch the live app
+ * reads; a push run carries no `inputs.target`, so the target has to default.
+ */
+describe('the catalog sync trigger', () => {
+  const sync = wf('sync-catalogs.yml');
+
+  it('runs on a push to master that changes the scripts or the workflow', () => {
+    expect(sync).toMatch(
+      /^on:\s*\n\s*push:\s*\n\s*branches:\s*\[master\]\s*\n\s*paths:\s*\n\s*- 'web\/scripts\/\*\*'\s*\n\s*- '\.github\/workflows\/sync-catalogs\.yml'\s*\n/m,
+    );
+  });
+
+  it('keeps the schedule, the manual run and the no-cancel concurrency group', () => {
+    expect(sync).toMatch(/^\s*schedule:\s*\n(?:\s*#.*\n)*\s*- cron:/m);
+    expect(sync).toMatch(/^\s*workflow_dispatch:\s*\n\s*inputs:\s*\n\s*target:/m);
+    expect(sync).toMatch(/concurrency:\s*\n\s*group: sync-catalogs\s*\n\s*cancel-in-progress: false/);
+  });
+
+  it('regenerates both catalogs when no target is given', () => {
+    // The one place the input is read; a push run has none.
+    expect(sync.match(/inputs\.target/g)).toHaveLength(1);
+    expect(sync).toContain("TARGET: ${{ inputs.target || 'both' }}");
   });
 });
 

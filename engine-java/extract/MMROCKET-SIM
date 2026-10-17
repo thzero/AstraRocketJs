@@ -106,7 +106,37 @@
 #
 # OPEN: their SEMROC BTC-20BB [R] mass correction (a971add0, the maker's
 # 0.82 oz against the database's 0.21 oz). Our catalog still carries 0.21 oz.
+#
+# 2026-10-15: reviewed e9d0c9b6 through 362b6c04 (v0.191, 2026-10-14), 364
+# commits, 34 engine-java files.
+#
+# TAKEN: `FlightConfiguration.motors` as a LinkedHashMap. Their DataBranch
+# evidence found same-time IGNITION, BURNOUT and EJECTION_CHARGE events from
+# separate mounts reordering between runs, because the map's key hashes each
+# mount's random UUID. They left it open; it is patched here, in a file that
+# was already a TeaVM patch.
+#
+# NO ENGINE CHANGE NEEDED: OpenRocket PR #2909 (DataBranch read-only views) and
+# the geopotential ISA altitudes (issue #2731, PR #2997) are already in our
+# pin; they gate the second to their non-Classic aero models, and we fly
+# upstream's everywhere. Their build-linearity patches (RocketComponent,
+# FinSetCalc sibling scan, CenteringRing, Rocket stage numbers, a discarding
+# ignoreWarningSet) change no number and matter only at thousands of parts
+# under one parent; not taken. The TubeFinSetCalc NaN format failure does not
+# occur here: our debug line concatenates, it does not format. Their
+# ActiveLengthListener series and their Kbf/Supersonic aero entries are their
+# own features.
+#
+# APP-SIDE, FOUND IN THEIR COMMITS AND DONE HERE: the mount's own ignition
+# (desktop's `getDefaultMotorConfig()`, the bare `<motormount>` tags) kept on
+# the mount and round-tripped, with desktop's ignition scope and Reset
+# ignition. Tab slots on the fin marking guide, after their tube wraps; their
+# vent and marking holes are not taken, being file metadata desktop drops.
+#
+# OPEN: the SEMROC BTC-20BB [R] mass. Their 9fd9ed20 retires their correction
+# because openrocket-database's semroc.orc gives 0.82 oz; our copy still has
+# 0.21 oz.
 repo    = https://github.com/mtnmanak/mmrocket-sim.git
-ref     = e9d0c9b6628bdb526fbcb23b398be212842530da
-version = 0.171
-dated   = 2026-10-09
+ref     = 362b6c0446ff6e8fcfe22863b5d402f521e58bef
+version = 0.191
+dated   = 2026-10-14

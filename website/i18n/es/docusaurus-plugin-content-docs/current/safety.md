@@ -17,10 +17,10 @@ La física es el propio núcleo de OpenRocket, compilado para ejecutarse en tu n
 - La **aerodinámica** por el método Barrowman extendido, que da el CP, la resistencia y la estabilidad.
 - La **masa y el CG** a partir de la geometría de cada pieza por la densidad de su material, más cualquier [anulación](#before-you-fly) que introduzcas.
 - El **vuelo** como movimiento de cuerpo rígido integrado con RK4, gobernado por la curva de empuje real del motor que elegiste.
-- La **atmósfera** como el modelo estándar ISA, o con tu propia temperatura y presión, con un modelo de gravedad WGS o constante y una Tierra plana, esférica o WGS84.
+- La **atmósfera** como el modelo estándar ISA, con tu propia temperatura, presión y humedad, o como una atmósfera pronosticada que cambia con la altitud (consulta [Ejecutar una simulación](./running-a-simulation.md)), con un modelo de gravedad WGS o constante y una Tierra plana, esférica o WGS84.
 - El **viento** como una media única con una desviación estándar de ráfagas, o como un perfil multinivel que cambia con la altitud, ambos con turbulencia de ruido rosa.
 
-La aplicación también muestra los avisos de vuelo del propio núcleo: apertura a alta velocidad, un principal que se abre demasiado rápido o demasiado lento, un piloto sin principal, ausencia de sistema de recuperación, una apertura estando aún en la guía, un ángulo de ataque grande, y vuelo supersónico donde el método aerodinámico pasa a ser aproximado. Léelos.
+La aplicación también muestra los avisos de vuelo del propio núcleo: apertura a alta velocidad, un principal que se abre demasiado rápido o demasiado lento, un piloto que se abre demasiado lento, un piloto sin principal, ausencia de sistema de recuperación, una apertura estando aún en la guía, un volteo con el motor encendido, etapas que se separan fuera de orden o antes de tiempo, un evento después del aterrizaje, un ángulo de ataque grande, y vuelo supersónico donde el método aerodinámico pasa a ser aproximado. Léelos.
 
 ## Qué no sabe el modelo {#what-the-model-does-not-know}
 

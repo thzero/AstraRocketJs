@@ -1,8 +1,9 @@
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { samplesToMotorSpec, fetchMotorSpec, isCachedMotorSpec } from '../../../src/services/motors/thrustcurve';
 import { PLUGGED_DELAY } from '../../../src/engine/openRocketEngine';
 import type { CatalogMotor } from '../../../src/services/motors/motorDb';
-import { getMotorStore } from '../../../src/services/motors/motorStore';
+import { getMotorStore, KeyValueMotorStore, setMotorStore } from '../../../src/services/motors/motorStore';
+import type { KeyValueStore } from '../../../src/services/storage/keyValueStore';
 
 // samplesToMotorSpec's TcMotor param is module-internal; build a shaped literal.
 const motor = (over: Record<string, unknown> = {}) =>
@@ -495,6 +496,102 @@ describe('fetchMotorSpec - search.json hit without a motorId', () => {
     expect(spec.designation).toBe('H999');
     const meta = write.mock.calls.find(([key]) => key.includes(':meta:'));
     expect((meta?.[1] as { motorId?: unknown })?.motorId).toBe('h999-ok');
+  });
+});
+
+/**
+ * A catalog can list one maker's motor under one common name in two diameters
+ * (a 29 mm and a 38 mm case of the same propellant load), or under two codes.
+ * They are different motors, with their own thrustcurve records, and each
+ * caches under its own key, so the second pick is not served the first's
+ * length, masses and curve for the life of the cache.
+ */
+describe('fetchMotorSpec caches each catalog row apart', () => {
+  const kv = new Map<string, string>();
+  const memory: KeyValueStore = {
+    get: (k) => Promise.resolve(kv.get(k) ?? null),
+    set: (k, v) => Promise.resolve(!!kv.set(k, v)),
+    remove: (k) => Promise.resolve(void kv.delete(k)),
+    update: (k, fn) => {
+      const next = fn(kv.get(k) ?? null);
+      if (next === null) kv.delete(k);
+      else kv.set(k, next);
+      return Promise.resolve(true);
+    },
+  };
+  const row = (diameter: number, code?: string) =>
+    ({
+      designation: 'K550',
+      manufacturer: 'Nobody',
+      class: 'K',
+      diameter,
+      impulse: 1500,
+      burn: 3,
+      mass: 1000,
+      ...(code ? { code } : {}),
+    }) as CatalogMotor;
+  // Two thrustcurve records, told apart by diameter, as search.json returns them.
+  const record = (diameter: number) => ({
+    motorId: `k550-${diameter}`,
+    designation: 'K550',
+    commonName: 'K550',
+    manufacturerAbbrev: 'Nobody',
+    diameter,
+    length: diameter * 10,
+    totalWeightG: 1000,
+    propWeightG: 500,
+    availability: 'regular',
+  });
+
+  beforeEach(() => {
+    kv.clear();
+    setMotorStore(new KeyValueMotorStore(memory));
+    const json = (body: unknown) =>
+      Promise.resolve({ ok: true, headers: { get: () => null }, json: () => Promise.resolve(body) });
+    vi.stubGlobal('fetch', (url: string) =>
+      String(url).includes('search.json')
+        ? json({ results: [record(29), record(38)] })
+        : json({
+            results: [
+              {
+                format: 'RASP',
+                samples: [
+                  { time: 0, thrust: 0 },
+                  { time: 1, thrust: 500 },
+                  { time: 3, thrust: 0 },
+                ],
+              },
+            ],
+          }),
+    );
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    setMotorStore(new KeyValueMotorStore());
+  });
+
+  it('serves each diameter its own motor after the other is cached', async () => {
+    const narrow = await fetchMotorSpec(row(29), 0);
+    const wide = await fetchMotorSpec(row(38), 0);
+    expect(narrow.diameter).toBeCloseTo(29 / 1000, 12);
+    expect(narrow.length).toBeCloseTo(290 / 1000, 12);
+    expect(wide.diameter).toBeCloseTo(38 / 1000, 12);
+    expect(wide.length).toBeCloseTo(380 / 1000, 12);
+    // And the repeat pick of each still comes from the cache, not the network.
+    vi.stubGlobal('fetch', () => Promise.reject(new Error('offline')));
+    expect((await fetchMotorSpec(row(38), 0)).length).toBeCloseTo(380 / 1000, 12);
+    expect((await fetchMotorSpec(row(29), 0)).length).toBeCloseTo(290 / 1000, 12);
+  });
+
+  it('keeps two codes of one common name under separate keys', async () => {
+    await fetchMotorSpec(row(38, 'K550W'), 0);
+    const afterFirst = [...kv.keys()];
+    await fetchMotorSpec(row(38, 'K550X'), 0);
+    const added = [...kv.keys()].filter((k) => !afterFirst.includes(k));
+    // A second motor record and a second spec, not a hit on the first's.
+    expect(added.filter((k) => k.includes(':meta:'))).toHaveLength(1);
+    expect(added.filter((k) => k.includes(':motor:'))).toHaveLength(1);
   });
 });
 

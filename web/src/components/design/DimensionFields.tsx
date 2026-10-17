@@ -12,10 +12,16 @@ import { shapeSelect } from '../../tree/shapeProfile';
 import { FIELDS, type Field, type PanelSection } from '../../services/design/componentFields';
 import { DERIVED } from '../../services/design/derivedFields';
 import { clampToBounds, type DimensionBounds } from '../../services/design/linkedDimensions';
-import { KERNEL_AUTO_KEYS, fieldApplies, fieldRange, fieldValue, liveBounds } from '../../services/design/fieldRange';
+import {
+  KERNEL_AUTO_KEYS,
+  fieldApplies,
+  fieldOptions,
+  fieldRange,
+  fieldValue,
+  liveBounds,
+} from '../../services/design/fieldRange';
 import { parentRadiusOf } from '../../tree/finPlanform';
 import { PropSection } from './PropSection';
-import { isClosedEnd } from '../../services/design/requiredComponent';
 import { rebaseTabOffset } from '../../tree/axialRebase';
 import { useWorkspaceStore } from '../../state/store';
 
@@ -121,6 +127,13 @@ export interface NodeEditProps {
   onChange: (patch: Partial<ComponentNode>) => void;
   /** Closes the undo entry the edits since the last commit opened. */
   onCommit?: () => void;
+  /**
+   * Whether the part's stage has a stage below it (`fieldRange.hasStageBelow`),
+   * which decides whether a recovery device is offered the lower-stage
+   * separation event. Undefined for a part outside a design, which is offered
+   * every option.
+   */
+  stageBelow?: boolean;
 }
 
 /**
@@ -161,10 +174,9 @@ export function NumberField({
   unit,
   value,
   step,
-  min = 0,
+  min,
   max,
   required,
-  zeroAllowed,
   auto,
   onChange,
   onCommit,
@@ -173,16 +185,12 @@ export function NumberField({
   unit?: ReactNode;
   value: number;
   step: number;
+  /** Lower bound; absent, the box takes any number (a signed length, an angle the kernel wraps). */
   min?: number;
   /** Upper bound, forwarded to the input so the spinner respects it too. */
   max?: number;
-  /** A zero here is degenerate geometry; see the `Field` type. */
+  /** A zero here is a value the kernel cannot fly; see the `Field` type. */
   required?: boolean;
-  /**
-   * A typed 0 the run accepts here, such as the closed end of a transition
-   * whose other end has a radius: the box is still required, not missing.
-   */
-  zeroAllowed?: boolean;
   /**
    * A "follows something else" switch. While it is on the number is derived
    * and the box is read-only, so the checkbox is the control and the box is
@@ -196,7 +204,7 @@ export function NumberField({
   const { t } = useTranslation();
   // No separate "blank" state to check for: 0 is exactly what is wrong here, so
   // an emptied box and a typed zero collapse into one condition.
-  const missing = required && !(Number.isFinite(value) && (value > 0 || (zeroAllowed && value === 0)));
+  const missing = required && !(Number.isFinite(value) && value > 0);
   /**
    * An empty required box writes nothing at all.
    *
@@ -279,7 +287,7 @@ function selectPatch(node: ComponentNode, key: string, value: string): Partial<C
  * switch lives here, rather than as inline branches in the panel's render loop,
  * so the panel body reads as a list of rows.
  */
-export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps & { field: Field }) {
+export function FieldRow({ node, field: f, onChange, onCommit, stageBelow }: NodeEditProps & { field: Field }) {
   const { t } = useTranslation();
   const u = useUnits();
   const kernelAuto = useKernelAutoValue(node, f);
@@ -340,15 +348,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
     max?: number;
     auto?: { on: boolean; label: string; title: string; onToggle: (on: boolean) => void };
     onChange: (v: number) => void;
-  }) => (
-    <NumberField
-      label={label}
-      required={f.required}
-      zeroAllowed={isClosedEnd(node, f.key)}
-      onCommit={onCommit}
-      {...props}
-    />
-  );
+  }) => <NumberField label={label} required={f.required} onCommit={onCommit} {...props} />;
   /** The field's own stored SI number, edited in its unit with a unit chip. */
   const inUnit = (quantity: Quantity, stepSi: number, min?: (fu: FieldUnit) => number, maxSi?: number) => {
     const fu = u.at(scope, quantity);
@@ -379,7 +379,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
             onChange={(e) => commitChange(selectPatch(node, f.key, e.target.value))}
             className="w-32 rounded-md bg-raised px-2 py-1 text-sm text-ink-strong ring-1 ring-line/10 focus:outline-none focus:ring-accent-500"
           >
-            {f.options.map((o) => (
+            {fieldOptions(node, f, stageBelow).map((o) => (
               <option key={o} value={o}>
                 {f.optLabel ? f.optLabel(o, t) : f.optI18n ? t(`${f.optI18n}.${o}`) : o}
               </option>
@@ -427,9 +427,16 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
       });
     }
     case 'mass':
-      return inUnit('mass', 0.0005);
-    case 'distance':
-      return inUnit('distance', f.step ?? 10);
+    case 'distance': {
+      // The floor goes into the box, converted like the value: `fieldRange`
+      // declares both kinds non-negative, and the bridge refuses a negative mass
+      // or deploy altitude (ComponentFactory NON_NEGATIVE) while the kernel keeps
+      // a negative separation altitude and never fires the trigger. Without the
+      // floor here, `parseFieldValue` clamps nothing and a typed -150 lands.
+      const { min } = fieldRange(node, f);
+      const floor = min === undefined ? undefined : (fu: FieldUnit) => fu.toUi(min);
+      return f.kind === 'mass' ? inUnit('mass', 0.0005, floor) : inUnit('distance', f.step ?? 10, floor);
+    }
     case 'number': {
       const { min, max } = fieldRange(node, f);
       return numeric({
@@ -477,6 +484,7 @@ export function FieldRow({ node, field: f, onChange, onCommit }: NodeEditProps &
         unit: <UnitChip quantity="length" scope={scope} />,
         value: fu.toUi(Math.max(0, od - 2 * num(node, 'thickness'))),
         step: fu.step(0.0005),
+        min: 0,
         max: fu.toUi(od),
         onChange: (v) => {
           const si = fu.toSi(v);

@@ -15,10 +15,10 @@
  * rebuilt against a newer OpenRocket, and they are precached, so opening one
  * works on a first offline load.
  *
- * An opened example is an import, not a library entry: it lands as an unsaved
- * working copy with no `activeDesignId`, so editing it can never write back
- * over the bundled file, and opening the same example twice gives two
- * independent designs.
+ * An opened example goes through the ordinary import (`openExample` hands it
+ * to `openOrkFile`), so editing it can never write back over the bundled file.
+ * It becomes a library entry under its own name, and opening it again while
+ * that entry exists asks whether to overwrite it or save under another name.
  */
 
 import { fetchFailure, HttpError } from '../app/remoteData';

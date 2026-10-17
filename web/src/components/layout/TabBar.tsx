@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useWorkspaceStore } from '../../state/store';
 import { useShowResultsTab } from './useShowResultsTab';
@@ -38,7 +39,7 @@ export function TabBar() {
         active={tab === 'design' && pane === 'stats'}
         onClick={() => onPane('stats')}
         label={t('tabs.rocket')}
-        icon="🚀"
+        icon={<img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" className="h-5 w-5" />}
       />
       <TabButton
         active={tab === 'design' && pane === 'sketch'}
@@ -62,7 +63,7 @@ function TabButton({
   active: boolean;
   onClick: () => void;
   label: string;
-  icon: string;
+  icon: ReactNode;
 }) {
   return (
     <button

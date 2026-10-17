@@ -87,8 +87,9 @@ test('folded notes stay folded across a reload, and a new import opens them', as
   // Folded is a preference, so it outlives the card. Local state would be dropped
   // every time the card unmounts, and it unmounts on every tab change, every
   // Close and every reload. Reopening the app on the same design is not a new
-  // import, so the notes stay folded.
-  await autosaved(page, 'Launcher angle is 35');
+  // import, so the notes stay folded. The stored note is keyed, not the sentence
+  // on screen, so the key is what the autosave has to have written.
+  await autosaved(page, 'limits.rodAngle');
   await page.reload();
   await expect(toggle).toBeVisible({ timeout: 20_000 });
   await expect(note).toHaveCount(0);

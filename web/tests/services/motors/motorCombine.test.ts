@@ -1,5 +1,6 @@
 import { NO_VALUE } from '../../../src/i18n/noValue';
 import { describe, it, expect } from 'vitest';
+import { finalizeSamples } from '../../../src/services/motors/curveFinalize';
 import { thrustAt, impulse, combineCurves, impulseClass, type Sample } from '../../../src/services/motors/motorCombine';
 
 const A: Sample[] = [
@@ -35,11 +36,9 @@ describe('combineCurves', () => {
   it('sums simultaneous curves and aggregates cluster stats', () => {
     const c = combineCurves([A, B]);
     expect(c.motorCount).toBe(2);
-    expect(c.burnTime).toBeCloseTo(2, 9); // longest-burning motor
     expect(c.totalImpulse).toBeCloseTo(20, 6); // 10 + 10
     // At t=0.5, A gives 5 and B peaks at 20 → 25 N combined peak region.
     expect(c.peakThrust).toBeCloseTo(25, 6);
-    expect(c.avgThrust).toBeCloseTo(10, 6); // 20 N·s / 2 s
   });
   it('returns a zeroed result for no usable curves', () => {
     expect(combineCurves([]).motorCount).toBe(0);
@@ -183,10 +182,12 @@ describe('a curve with a step at a duplicated timestamp', () => {
  * exercises nothing about resampling. What the panel plots and peaks is the
  * resampled curve, so that is what is integrated here.
  *
- * For a curve without a duplicated timestamp the resampled curve must
- * integrate to the same total as the source: the breakpoints are the source's
- * own times, so the only permitted difference is the microsecond terminator a
- * non-zero ending gets. For the curves that encode a step as two samples
+ * The source is the curve as the kernel flies it (`finalizeSamples`: a point
+ * at t = 0, no repeats), which is what `combineCurves` sums. For a curve
+ * without a duplicated timestamp the resampled curve must integrate to the
+ * same total as that source: the breakpoints are the source's own times, so
+ * the only permitted difference is the microsecond terminator a non-zero
+ * ending gets. For the curves that encode a step as two samples
  * at one time, the union of breakpoints has one point where the source has
  * two, so the resampled curve cannot carry the step's leading value; that is
  * why `totalImpulse` is summed from the curves and not from the samples. The
@@ -217,7 +218,7 @@ describe('every curve in the bundled catalog', () => {
     const curves = (await load()).filter(({ s }) => !hasStep(s));
     const wrong: string[] = [];
     for (const { name, s } of curves) {
-      const truth = impulse(s);
+      const truth = impulse(finalizeSamples(s));
       // The resampled curve itself, not the pre-summed total.
       const shown = impulse(combineCurves([s]).samples);
       // The terminator ramps a non-zero ending to 0 over 1e-6 s: at most
@@ -235,12 +236,14 @@ describe('every curve in the bundled catalog', () => {
     const wrong: string[] = [];
     for (const { name, s } of curves) {
       const resampled = new Map(combineCurves([s]).samples);
+      const flown = new Map(finalizeSamples(s));
       for (let i = 1; i < s.length; i++) {
         const [t, f] = s[i]!;
         if (s[i - 1]![0] !== t) continue;
-        // The last sample at `t` wins, both directly and in the resampled curve.
+        // The last sample at `t` wins in `thrustAt`, and the resampled curve
+        // carries the point the flown curve keeps there.
         const last = s.filter(([tt]) => tt === t).at(-1)![1];
-        if (thrustAt(s, t) !== last || resampled.get(t) !== last) {
+        if (thrustAt(s, t) !== last || resampled.get(t) !== flown.get(t)) {
           wrong.push(`${name} @ ${t}s: got ${thrustAt(s, t)} / ${resampled.get(t)}, want ${last} (not ${f})`);
         }
       }

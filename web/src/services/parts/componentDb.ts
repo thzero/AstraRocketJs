@@ -22,6 +22,14 @@ interface ComponentBase {
    * part weighs.
    */
   mass?: number;
+  /** OpenRocket's own checksum for this part; the `.ork` link is invalid without it. */
+  digest?: string;
+  /**
+   * The part comes from one of the desktop library's legacy files
+   * (`ComponentPreset.LEGACY`), which desktop's chooser hides by default.
+   * Absent on every other row.
+   */
+  legacy?: true;
   /**
    * The three fields below are a saved part's, and absent on every catalog
    * row. They live here rather than in a row type of their own so that the
@@ -55,8 +63,6 @@ interface NoseConeComponent extends ComponentBase {
   material?: string;
   materialDensity: number;
   shape: NoseShape;
-  /** OpenRocket's own checksum for this part; the `.ork` link is invalid without it. */
-  digest?: string;
   filled: boolean;
   /** The wall a hollow part states; null when it states none. */
   thickness?: number | null;
@@ -255,15 +261,19 @@ const isShape = (v: unknown): boolean => typeof v === 'string' && KNOWN_SHAPES.h
  * The rows go straight into `treeEdit.catalogPatch`, which divides
  * `outerDiameter` by two and subtracts `innerDiameter` from it; a row missing
  * either would put a NaN radius in the design with no error. Each type
- * requires exactly the fields its `catalogPatch` case reads, every size it
- * builds from positive (a zero diameter is a zero-volume part that only shows
- * as wrong once applied), and a shape the editor knows.
+ * requires the sizes its `catalogPatch` case builds the part from, every one
+ * of them positive (a zero diameter is a zero-volume part that only shows as
+ * wrong once applied), and a shape the editor knows; every optional field it
+ * reads has to be absent or of its type.
  */
 export function isComponentRow(v: unknown): v is Component {
   if (!v || typeof v !== 'object') return false;
   const r = v as Record<string, unknown>;
   if (!isStr(r.mfr) || !isStr(r.partNo) || !isStr(r.desc)) return false;
   if (r.mass !== undefined && !isNonNegative(r.mass)) return false;
+  // The material name is written onto the node and the digest into the `.ork`.
+  if ([r.material, r.digest].some((s) => s !== undefined && !isStr(s))) return false;
+  if (r.legacy !== undefined && r.legacy !== true) return false;
   switch (r.type) {
     case 'bodytube':
     case 'tubecoupler':
@@ -301,7 +311,7 @@ export function isComponentRow(v: unknown): v is Component {
         [r.lineCount, r.lineLength, r.packedLength, r.packedDiameter, r.materialDensity, r.lineMaterialDensity].every(
           (v) => v === undefined || isNonNegative(v),
         ) &&
-        [r.material, r.lineMaterial].every((v) => v === undefined || isStr(v))
+        (r.lineMaterial === undefined || isStr(r.lineMaterial))
       );
     case 'transition':
       return (
@@ -335,6 +345,18 @@ export function isComponentRow(v: unknown): v is Component {
 }
 
 /**
+ * A row from the published catalog, without the fields only a saved part
+ * carries. `treeEdit.catalogPatch` applies a `custom` row's `patch` as a whole
+ * node, so a row arriving from the data host with those fields could write any
+ * node key it liked; a catalog row never states them.
+ */
+function catalogRow(v: unknown): unknown {
+  if (!v || typeof v !== 'object') return v;
+  const { custom: _custom, patch: _patch, id: _id, ...row } = v as Record<string, unknown>;
+  return row;
+}
+
+/**
  * The shape gate handed to `fetchCatalog`: an object carrying a `components`
  * array. The data host can serve `{"error":"rebuilding"}` with HTTP 200; a
  * looser check would let that be memoized for the session, and `projectByType`
@@ -353,7 +375,7 @@ export function loadCatalog(): Promise<ComponentCatalog> {
     // Row by row: keep every usable row, drop the rest (motorDb does the same
     // for motors). A single malformed part costs that part, not the picker.
     catalogP = fetchCatalog<ComponentCatalog & { components: unknown[] }>('components', isComponentCatalog).then(
-      (cat) => ({ ...cat, components: cat.components.filter(isComponentRow) }),
+      (cat) => ({ ...cat, components: cat.components.map(catalogRow).filter(isComponentRow) }),
     );
     // Don't memoize a failure: a cached rejected promise would replay the same
     // error on every retry, so the picker could never recover from one bad load.

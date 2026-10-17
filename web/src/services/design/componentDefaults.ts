@@ -6,9 +6,10 @@ import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
  * The `.ork` reader (what a missing tag becomes), the `.ork` writer (what an absent
  * node key is written as) and `dxfExport` (what an absent key is cut as), along with
  * the other readers, writers and views that need a fallback, read the same field from
- * here rather than each holding its own literal. Separate copies drift, and a part
- * that loses a tag on the way in then comes out a different size on the way out with
- * nothing reporting it.
+ * here rather than each holding its own literal. A literal in one of them is a
+ * defect: separate copies drift, and a part that loses a tag on the way in then
+ * comes out a different size on the way out with nothing reporting it, or is flown
+ * at one size by the kernel and written at another for the desktop.
  *
  * Where the kernel has a default for the field (`kernelDefaults.ts`, verified
  * against the real engine) it is the authority and is re-exported here rather
@@ -33,12 +34,18 @@ export const COMPONENT_DEFAULTS = {
     length: KERNEL_DEFAULTS.transition.length,
     thickness: KERNEL_DEFAULTS.transition.thickness,
   },
+  // BodyTube() (rocketcomponent/BodyTube.java:41) is 8 x DEFAULT_RADIUS by
+  // DEFAULT_RADIUS, the same numbers the kernel row holds.
   bodytube: {
+    length: KERNEL_DEFAULTS.bodytube.length,
+    outerRadius: KERNEL_DEFAULTS.bodytube.outerRadius,
     // The kernel is the authority for the wall (verified by
     // kernelDefaults.kernel.test.ts).
     thickness: KERNEL_DEFAULTS.bodytube.thickness,
   },
   innertube: {
+    length: KERNEL_DEFAULTS.innertube.length,
+    outerRadius: KERNEL_DEFAULTS.innertube.outerRadius,
     thickness: KERNEL_DEFAULTS.innertube.thickness,
   },
   tubecoupler: {
@@ -62,6 +69,32 @@ export const COMPONENT_DEFAULTS = {
     // The kernel's default for every planar fin type (ComponentFactory).
     thickness: KERNEL_DEFAULTS.trapezoidfinset.thickness,
   },
+  // TrapezoidFinSet() (rocketcomponent/TrapezoidFinSet.java:43) and
+  // EllipticalFinSet() (EllipticalFinSet.java:30, :32-34) build the same planform
+  // the kernel rows hold.
+  trapezoidfinset: {
+    rootChord: KERNEL_DEFAULTS.trapezoidfinset.rootChord,
+    tipChord: KERNEL_DEFAULTS.trapezoidfinset.tipChord,
+    sweep: KERNEL_DEFAULTS.trapezoidfinset.sweep,
+    height: KERNEL_DEFAULTS.trapezoidfinset.height,
+  },
+  ellipticalfinset: {
+    rootChord: KERNEL_DEFAULTS.ellipticalfinset.rootChord,
+    height: KERNEL_DEFAULTS.ellipticalfinset.height,
+  },
+  // No wall: a tube fin set with no thickness of its own takes its parent
+  // tube's (ComponentFactory.applyWallThickness), so neither the reader nor
+  // the writer has a number to fall back to.
+  tubefinset: {
+    finCount: KERNEL_DEFAULTS.tubefinset.finCount,
+    length: KERNEL_DEFAULTS.tubefinset.length,
+  },
+  // LaunchLug() (rocketcomponent/LaunchLug.java:35-37).
+  launchlug: {
+    length: KERNEL_DEFAULTS.launchlug.length,
+    outerRadius: KERNEL_DEFAULTS.launchlug.outerRadius,
+    thickness: KERNEL_DEFAULTS.launchlug.thickness,
+  },
   railbutton: {
     outerDiameter: KERNEL_DEFAULTS.railbutton.outerDiameter,
     // RailButton() (rocketcomponent/RailButton.java:60-66): total height
@@ -76,8 +109,34 @@ export const COMPONENT_DEFAULTS = {
     materialDensity: 1420,
     materialGroup: 'Plastics',
   },
+  // Parachute() (rocketcomponent/Parachute.java:27-30) and Streamer()
+  // (Streamer.java:20-22) hold the kernel rows' numbers.
+  parachute: {
+    diameter: KERNEL_DEFAULTS.parachute.diameter,
+    lineCount: KERNEL_DEFAULTS.parachute.lineCount,
+    lineLength: KERNEL_DEFAULTS.parachute.lineLength,
+  },
+  streamer: {
+    stripLength: KERNEL_DEFAULTS.streamer.stripLength,
+    stripWidth: KERNEL_DEFAULTS.streamer.stripWidth,
+  },
+  // ShockCord() (rocketcomponent/ShockCord.java:22).
+  shockcord: {
+    cordLength: KERNEL_DEFAULTS.shockcord.cordLength,
+  },
+  // MassComponent(): 0 kg (MassComponent.java:17), with MassObject()'s
+  // 0.025 by 0.0125 (MassObject.java:38).
   masscomponent: {
+    mass: KERNEL_DEFAULTS.masscomponent.mass,
+    length: KERNEL_DEFAULTS.masscomponent.length,
     radius: KERNEL_DEFAULTS.masscomponent.radius,
+  },
+  // The camera shroud is this app's own element; the kernel row is its only source.
+  fairing: {
+    length: KERNEL_DEFAULTS.fairing.length,
+    width: KERNEL_DEFAULTS.fairing.width,
+    height: KERNEL_DEFAULTS.fairing.height,
+    mass: KERNEL_DEFAULTS.fairing.mass,
   },
   // A recovery device's packed size. The length is the kernel's; the radius
   // is MassObject()'s 0.0125 (rocketcomponent/MassObject.java:37), which the

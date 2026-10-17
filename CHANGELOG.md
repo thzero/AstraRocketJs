@@ -8,7 +8,20 @@ so most entries describe getting a computation to match OpenRocket exactly.
 
 ## [Unreleased]
 
+### Added
+- **A mount has its own ignition.** The **Motor** section of a body tube or inner tube on the Design tab has **Ignition at** and a delay, as desktop OpenRocket's Motor tab does. A motor new to the mount, such as the one a new flight configuration starts with, lights that way. A `.ork` keeps it in the mount's own ignition tags, where desktop reads and writes it. Before, those tags were rewritten from the default configuration's motor on save, so a file whose mount said something else lost it.
+- **Ignition scope and Reset ignition.** The ignition control on the Configurations tab can change **This configuration** or **All configurations**; the second also sets the mount's own ignition. **Reset ignition** sets this configuration back to **Automatic** with no delay. Both work as they do on desktop.
+- **JSON export for Onshape.** **Menu → Export → JSON** writes the design as a `.json` file for the **[AstraRocketOnshapeImport](https://cad.onshape.com/documents/8e0814e355abcb7f2e678124/w/e2a90792fddced2ca802f65f/e/6eb2e92aea957e94a813c25e)** custom feature in Onshape, which builds the rocket as parts in a Part Studio (the [OpenRocket-Onshape](https://github.com/thzero/openrocket-onshape) payload, schema 1.2). The steps are in Files and exports. The sizes, positions, fin outlines, cluster and pod placements and the center of pressure come from the engine. Nose cone and transition walls are cut the way the engine weighs them, so each part has the volume the simulation uses. Packed recovery parts and mass components get a density that gives the packed cylinder the simulated mass. The selected flight configuration's motors go in their mounts. A camera shroud has no counterpart in the feature and is left out, with a note saying so.
+- **Tab slots on the fin marking guide.** A fin with a tab gets a box on its line, one fin thickness wide, running from the slot's aft end to its fore end as measured from the aft end of the fin's root, with both numbers printed after the fin's name. Canted fins and filled tubes get none. Desktop's guide marks lines only.
+
+### Fixed
+- **Motor overhang shows only on a motor mount**, with the mount's ignition, as desktop grays them out on a tube that is not one. Off a mount the box changed nothing that flew or saved.
+- **Motor events at the same moment keep one order.** Two motors in one stage that ignite or burn out at the same time were listed in a different order each time the design was opened, because the engine kept its motors in a map ordered by each mount's random id. They now come out in the same order every time.
+
+## [0.3.0]
+
 ### Changed
+- **The catalog sync also runs when its scripts change on master**, so a pipeline change republishes the catalogs when it lands instead of waiting for the weekly run.
 - **The accessibility scans open what the page keeps closed.** Every disclosure and popup (menus, the drift sweep, import notes, the flight picker, the folds) is listed and held to the source like the dialogs, and each is scanned open in all three themes, as are the location editor and the Landing estimator and Off the rail results.
 - **Two gate fixes.** The lint guard checks that the promise and hook rules are errors rather than merely present, and the em dash scan covers everything the project writes under `engine-java`.
 - **The catalog reads part descriptions as desktop does**, with XML entities decoded and the last of a repeated field kept, and the refresh names a part whose stated mass it cannot apply.
@@ -124,6 +137,17 @@ so most entries describe getting a computation to match OpenRocket exactly.
 - **Desktop's names for simulation extensions.** The note on opening a file that carries desktop simulation extensions names them as desktop does (Roll Control, Java code) instead of by their internal class names.
 
 ### Fixed
+- **Files open before the engine has loaded.** Opening a `.ork` or `.rkt` file, or a bundled example, in the first seconds after start installs the design and builds it when the engine arrives, instead of refusing with "the engine has not finished loading".
+- **An unknown deploy or separation event no longer refuses the file.** A `.ork` from a newer OpenRocket, or a hand-edited one, that names an event this app does not have opens with an import note and flies the default event, as desktop does.
+- **A part missing a size in a file is read and written at the size that flies.** A body tube, fin set, tube fin set, coupler, launch lug, shock cord or mass component with a field missing was written to `.ork` at one size and flown at another. Both now use the engine's own default, and a tube fin set with no wall of its own is saved without one, so desktop gives it the body's wall as the engine does.
+- **Mass, deploy altitude and separation altitude stop at zero** in the property panel, as every other size box does. A negative mass or deploy altitude stopped the design from building, and a negative separation altitude never separated the stage.
+- **Tube fins on a filled body tube are solid** when the fin set states no wall of its own, as the engine flies them.
+- **A fin with a negative root chord draws as a zero-length fin** instead of blanking the drawings.
+- **An edit made while the app was still loading is kept.** On a first visit, an edit made during the load could be treated as already stored and lost on close.
+- **Import notes about launch limits follow the app's language.** They stayed in the language the file was opened in.
+- **Embedded motors keep their type.** A reload or hybrid motor saved into a `.ork` reopens in desktop as that type, not as single-use.
+- **Failed saves in the library and material dialogs are announced** to screen readers.
+- **Two parachute presets that differ only in their lines or materials are both offered** in the parts catalog.
 - **Every catalog part has a weight.** 24 catalog parts (a balsa nose cone, an engine block, 8 streamers and 14 parachutes) name a material with no density, which desktop weighs at 0 g. The catalog now gives each the nearest built-in material: Balsa, Plywood (birch), Paper (office), Polyethylene (thin) or Ripstop nylon.
 - **The import banner judges every simulation.** A `.ork`'s own simulations are each checked on their own launch conditions when the file opens, as the run does, not only the first.
 - **The page states the language it shows.** The page's `lang` follows the language picked, so a screen reader reads Spanish text with Spanish pronunciation.

@@ -5,11 +5,12 @@ import { RocketConfigDialog } from '../design/RocketConfigDialog';
 import { useCanBuildDesign } from '../design/useCanBuildDesign';
 import { useSettings } from '../../state/SettingsProvider';
 import { importNoteText, type ImportNote } from '../../services/files/importNote';
+import type { DesignFormat } from '../../services/files/designFile';
 
 /**
  * The design card at the head of the center pane: the rocket's name, the ✎ that
- * opens its configuration, and, for an imported `.ork`, what the file could
- * not bring across, with a button to dismiss it.
+ * opens its configuration, and, for an imported `.ork` or `.rkt`, its format and
+ * what the file could not bring across, with a button to dismiss it.
  *
  * The name lives here and not in the component tree's header too, which would say
  * the same thing twice on one screen. Here it has the width for a long name and
@@ -38,8 +39,11 @@ export function LoadedBanner({
   loaded,
   onClose,
 }: {
-  /** Import metadata, or null for a design that did not come from a file. */
-  loaded: { name: string; notes: ImportNote[] } | null;
+  /**
+   * Import metadata, or null for a design that did not come from a file. The
+   * format is absent for an import stored before it was recorded.
+   */
+  loaded: { name: string; notes: ImportNote[]; format?: DesignFormat } | null;
   onClose: () => void;
 }) {
   const { t } = useTranslation();
@@ -80,7 +84,11 @@ export function LoadedBanner({
     <div className={shell}>
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          {loaded && <div className="text-[10px] uppercase tracking-wide text-ink-muted">{t('banner.loaded')}</div>}
+          {loaded && (
+            <div className="text-[10px] uppercase tracking-wide text-ink-muted">
+              {loaded.format ? t('banner.loaded', { ext: `.${loaded.format}` }) : t('banner.loadedFile')}
+            </div>
+          )}
           {/* A button or a title, never a button that does nothing: the ✎ and
               the sky tint are what say this line is a control, so both go with
               the action rather than being left as a dead affordance. */}
@@ -121,7 +129,7 @@ export function LoadedBanner({
             </button>
           )}
           {/* Only an imported file can be "closed": it drops the association
-              with the .ork, and there is nothing to drop otherwise. */}
+              with the file, and there is nothing to drop otherwise. */}
           {loaded && (
             <button
               onClick={onClose}

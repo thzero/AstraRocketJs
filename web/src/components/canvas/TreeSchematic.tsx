@@ -14,6 +14,7 @@ import {
   ZOOM_IDENTITY,
   zoomStep,
   MAX_ZOOM,
+  WHEEL_ZOOM_FACTOR,
   type MotorDims,
 } from '../../tree/schematicGeometry';
 import { buildSchematicShapes } from './schematicShapes';
@@ -50,7 +51,7 @@ const PAN_SLOP = 4;
  *  defeat it for every caller that leaves the prop off. */
 const DEFAULT_RULERS = { top: true, bottom: false, left: true, right: false };
 /** Wheel step and zoom ceiling; hoisted so the hook's options keep one identity. */
-const WHEEL_ZOOM = { factor: 1.2, max: MAX_ZOOM };
+const WHEEL_ZOOM = { factor: WHEEL_ZOOM_FACTOR, max: MAX_ZOOM };
 
 export function TreeSchematic({
   tree,

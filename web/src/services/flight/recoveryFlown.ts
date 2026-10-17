@@ -1,4 +1,6 @@
-import type { FlightResult } from '../../engine/openRocketEngine';
+import type { ComponentNode, FlightEvent, FlightResult } from '../../engine/openRocketEngine';
+import { kernelComponentName } from '../app/warningText';
+import { walkNodes } from '../../tree/treeWalk';
 import { seriesAt } from './flightEvents';
 import { flightBranches } from './flightColumns';
 
@@ -33,7 +35,7 @@ const TOGETHER_S = 0.2;
  * A charge that fires on the ground still raises its event (the kernel adds the
  * EventAfterLanding warning for it), but nothing descends under it.
  */
-function airborneDeployments(events: readonly { type: string; time: number; source?: string }[]) {
+function airborneDeployments(events: readonly FlightEvent[]) {
   const landed = events.find((e) => e.type === GROUND_HIT)?.time ?? Infinity;
   return events.filter((e) => e.type === DEPLOYMENT && e.time < landed);
 }
@@ -70,21 +72,66 @@ export interface DeviceDescent {
   rate: number | null;
 }
 
+/** The component types the kernel deploys as recovery devices. */
+const RECOVERY_DEVICES = new Set(['parachute', 'streamer']);
+
 /**
- * What the run reported for the recovery device named `deviceName`, or null when
- * no branch of it deployed that device.
- *
- * Matched on the event's `source`, which is the component's own name from the
- * design tree. Two devices sharing a name is a design the app allows, and the
- * first branch to deploy one wins: there is nothing else in the event to tell
- * them apart, and reporting one of them beats reporting neither.
+ * The names the kernel flies more than one of the design's recovery devices
+ * under. A result without node ids names its devices only this way, so a name
+ * in this set could be any of them. Unnamed devices of one type all fly under
+ * the kernel's default name (`kernelComponentName`).
  */
-export function deviceDescent(result: FlightResult | null | undefined, deviceName: string): DeviceDescent | null {
-  if (!result || !deviceName) return null;
-  for (const branch of flightBranches(result)) {
+export function sharedDeviceNames(nodes: readonly ComponentNode[]): Set<string> {
+  const seen = new Set<string>();
+  const shared = new Set<string>();
+  for (const n of walkNodes(nodes)) {
+    if (!RECOVERY_DEVICES.has(n.type)) continue;
+    const name = kernelComponentName(n);
+    if (seen.has(name)) shared.add(name);
+    seen.add(name);
+  }
+  return shared;
+}
+
+/**
+ * The recovery device a readout asks about: its app node id, the name the kernel
+ * flies it under (the user's, or the kernel's default for an unnamed part,
+ * `kernelComponentName`), and whether another recovery device in the design
+ * flies under that same name.
+ */
+export interface RecoveryDeviceRef {
+  id?: string;
+  name: string;
+  nameShared: boolean;
+}
+
+/**
+ * What the run reported for `device`, or null when no branch of it deployed that
+ * device.
+ *
+ * Matched on the event's `sourceId`, the app node id the bridge puts on each
+ * event raised by a part the design gave an id. A name cannot do that job: every
+ * unnamed parachute flies under the same kernel default, so a drogue and a main
+ * the user never named are indistinguishable by name. A result with no ids on
+ * its deployments (one read from a file) is matched on the event's `source`
+ * name instead, and only when no other recovery device in the design shares the
+ * name; a shared name could be either device, so it answers nothing and the
+ * estimate stands.
+ */
+export function deviceDescent(
+  result: FlightResult | null | undefined,
+  device: RecoveryDeviceRef,
+): DeviceDescent | null {
+  if (!result) return null;
+  const branches = flightBranches(result);
+  const byId = branches.some((b) => (b.events ?? []).some((e) => e.type === DEPLOYMENT && e.sourceId != null));
+  if (byId ? !device.id : !device.name || device.nameShared) return null;
+  const isDevice = (e: { sourceId?: string; source?: string }) =>
+    byId ? e.sourceId === device.id : e.source === device.name;
+  for (const branch of branches) {
     const events = branch.events ?? [];
     const deployments = airborneDeployments(events);
-    const opened = deployments.find((e) => e.source === deviceName);
+    const opened = deployments.find(isDevice);
     if (!opened) continue;
     const mass = seriesAt(branch.series, 'mass', opened.time);
     if (mass == null || !(mass > 0)) return null;

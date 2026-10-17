@@ -125,6 +125,33 @@ const SCREENS: { name: string; scan: (page: Page) => Promise<string[]>; timeout?
     },
   },
   {
+    // Two ticked and not flown: running them switches to Results, so the
+    // editor's multi-edit banner is on screen only before a run.
+    name: 'Simulate / two ticked',
+    scan: async (page) => {
+      await tap(page, BAR.sim);
+      await page.getByRole('button', { name: 'Duplicate simulation' }).click();
+      await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
+      await expect(page.getByRole('status').filter({ hasText: 'Editing 2 selected simulations.' })).toBeVisible();
+      return axeViolations(page, 'Simulate / two ticked');
+    },
+  },
+  {
+    // An edit after the flight: the header carries the Outdated marker. The
+    // launch angle is a flight input on the Simulate tab, which the phone
+    // reaches without the component tree.
+    name: 'Results / outdated',
+    scan: async (page) => {
+      await tap(page, BAR.sim);
+      const angle = page.getByLabel('Angle', { exact: true });
+      await angle.fill('7');
+      await angle.blur();
+      await tap(page, BAR.results);
+      await expect(page.getByText('Outdated', { exact: true }).first()).toBeVisible();
+      return axeViolations(page, 'Results / outdated');
+    },
+  },
+  {
     name: 'Menu and Settings',
     scan: async (page) => {
       await page.getByRole('button', { name: 'Menu' }).click();

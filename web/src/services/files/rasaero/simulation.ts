@@ -1,7 +1,9 @@
 import type { ComponentNode } from '../../../engine/openRocketEngine';
+import type { Keyed } from '../../../i18n/keyedError';
 import { escapeXml as esc } from '../xmlUtil';
 import { FT, IN, LB, fmt, type Cdx1Writer } from './units';
 import type { StageEngineSlot } from './engines';
+import type { StageLaunch } from './stageLaunch';
 import { num, str } from '../../../tree/nodeProps';
 
 /** Design-level `[mach, altitude m]` conditions table (RASAero's Mach-Alt table). */
@@ -19,26 +21,35 @@ export function writeMachAlt(w: Cdx1Writer, machAlt: MachAltTable | undefined): 
   }
 }
 
+/** The warning raised when the simulation block's weight and CG cells are written as 0. */
+export const RASAERO_STAGE_MASS_WARNING: Keyed = { key: 'errors.exportRasaeroStageMass' };
+
 /**
  * Simulation block: RASAero's loader dereferences every child without null
  * checks, so its own files always carry all of these. The *Engine elements are
  * the only optional ones and must be omitted (not written empty) when there is
- * no motor. The per-stage weight/CG cells are cumulative; we know only the
- * whole rocket's loaded mass/CG, so only the last stage's cell can be filled.
+ * no motor.
+ *
+ * The per-stage weight/CG cells are cumulative, each the stack from the
+ * sustainer through that stage with its motors, as desktop's `SimulationDTO`
+ * fills every one of them from `MassCalculator`. `stageLaunch` holds them by
+ * stage index (`cumulativeStageLaunch`); RASAero flies a stage at the weight
+ * its cell says, so a stage with no figure is written as 0 and the warning
+ * says so, the way desktop warns when it has no stage mass to write.
  */
 export function writeSimulationList(
   w: Cdx1Writer,
   stagesIn: ComponentNode[],
   slots: StageEngineSlot[],
-  launchMassKg: number | undefined,
-  launchCgM: number | undefined,
+  stageLaunch: readonly (StageLaunch | undefined)[],
+  warnings: Keyed[] | undefined,
 ): void {
   const { emit } = w;
   const stageEngines = slots.map((s) => s.engine);
   const stageIgnitionDelays = slots.map((s) => s.ignitionDelay);
-  const lastStage = stagesIn.length - 1;
-  const stackWt = (i: number): string => fmt((i === lastStage ? (launchMassKg ?? 0) : 0) * LB);
-  const stackCg = (i: number): string => fmt((i === lastStage ? (launchCgM ?? 0) : 0) * IN);
+  if (stagesIn.some((_, i) => stageLaunch[i] === undefined)) warnings?.push(RASAERO_STAGE_MASS_WARNING);
+  const stackWt = (i: number): string => fmt((stageLaunch[i]?.massKg ?? 0) * LB);
+  const stackCg = (i: number): string => fmt((stageLaunch[i]?.cgM ?? 0) * IN);
   const stageSeparationDelay = (i: number): string => {
     const st = stagesIn[i];
     return fmt(st && str(st, 'separationEvent', 'ejection') === 'burnout' ? num(st, 'separationDelay', 0) : 0);

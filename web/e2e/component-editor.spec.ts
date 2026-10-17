@@ -21,11 +21,15 @@ test('nose-cone editor exposes shoulder fields incl. the capped toggle', async (
   await expect(page.getByLabel('Shoulder capped')).toBeVisible(); // boolean field kind
 });
 
-test('body-tube editor exposes the motor-mount toggle + overhang', async ({ page }) => {
+test('body-tube editor exposes the motor-mount toggle, then overhang and ignition', async ({ page }) => {
   await page.locator('div[title="Body tube"]').click();
   const mount = page.getByLabel('Motor mount');
   await expect(mount).toBeVisible();
+  // Desktop grays these out until the tube is a mount; here they appear with it.
+  await expect(page.getByLabel('Motor overhang')).toHaveCount(0);
+  await mount.check();
   await expect(page.getByLabel('Motor overhang')).toBeVisible();
+  await expect(page.getByLabel('Ignition at')).toBeVisible();
 });
 
 test('fin editor exposes fin-tab fields', async ({ page }) => {

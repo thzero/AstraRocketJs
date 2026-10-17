@@ -82,16 +82,17 @@ describe('when it is offered at all', () => {
 describe('a parent with no length of its own', () => {
   it('places the fin against the kernel default length', () => {
     const bottomFin = fins({ position: { method: 'bottom', offset: 0 } });
-    // A 3 mm ring at 250 mm sits under the root of a fin flush with the aft
-    // end of a 300 mm tube, so the tab runs from the ring to the trailing edge;
-    // placed against no length at all, the root would sit ahead of the tube
-    // and miss the ring.
-    const inside = [mount(), ring('r1', 0.25)];
+    // A 3 mm ring 50 mm ahead of the aft end sits under the root of a fin
+    // flush with the aft end of a tube at the kernel's default length, so the
+    // tab runs from the ring to the trailing edge; placed against no length at
+    // all, the root would sit ahead of the tube and miss the ring.
+    const L = kernelLength('bodytube')!;
+    const inside = [mount(), ring('r1', L - 0.05)];
     const keyless = body(inside, bottomFin, { length: undefined });
-    const explicit = body(inside, bottomFin, { length: kernelLength('bodytube') });
+    const explicit = body(inside, bottomFin, { length: L });
     const t = autoFinTab(keyless, 'fins')!;
     expect(t).toEqual(autoFinTab(explicit, 'fins'));
-    expect(t['tabLength']).toBeCloseTo(0.3 - 0.253, 12);
+    expect(t['tabLength']).toBeCloseTo(0.05 - 0.003, 12);
   });
 });
 

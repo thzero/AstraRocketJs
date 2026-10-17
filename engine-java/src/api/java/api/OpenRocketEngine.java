@@ -648,7 +648,7 @@ public final class OpenRocketEngine {
         mc.setIgnitionDelay(ignitionDelay);
     }
 
-    private static IgnitionEvent ignitionEventOf(String name) {
+    static IgnitionEvent ignitionEventOf(String name) {
         switch (name.toLowerCase().replace("_", "")) {
             case "automatic": return IgnitionEvent.AUTOMATIC;
             case "launch": return IgnitionEvent.LAUNCH;
@@ -1910,7 +1910,7 @@ public final class OpenRocketEngine {
             BasicEventSimulationEngine engine = new BasicEventSimulationEngine();
             engine.simulate(conditions);
             FlightData data = engine.getFlightData();
-            return flightDataToJson(data, fullSeries);
+            return flightDataToJson(data, fullSeries, appIds(ctx));
         } catch (SimulationException e) {
             return errorJson(e);
         } catch (RuntimeException e) {
@@ -2023,7 +2023,26 @@ public final class OpenRocketEngine {
         }
     }
 
-    private static String flightDataToJson(FlightData data, boolean fullSeries) {
+    /**
+     * The app's node id for each kernel component that has one, keyed by the
+     * component's kernel ID. The simulation flies a copy of the rocket made with
+     * copyWithOriginalID, so an event's or warning's source is a different object
+     * from the one in `ctx.ids` but carries the same kernel ID.
+     */
+    private static Map<String, String> appIds(RocketCtx ctx) {
+        Map<String, String> out = new HashMap<>();
+        for (Map.Entry<String, RocketComponent> e : ctx.ids.entrySet()) {
+            out.put(e.getValue().getID().toString(), e.getKey());
+        }
+        return out;
+    }
+
+    /** The app node id of `c`, or null when the tree gave it none. */
+    private static String appId(Map<String, String> appIds, RocketComponent c) {
+        return c == null ? null : appIds.get(c.getID().toString());
+    }
+
+    private static String flightDataToJson(FlightData data, boolean fullSeries, Map<String, String> appIds) {
         StringBuilder sb = new StringBuilder("{\"summary\":{");
         num(sb, "maxAltitude", data.getMaxAltitude()).append(',');
         num(sb, "maxVelocity", data.getMaxVelocity()).append(',');
@@ -2036,11 +2055,11 @@ public final class OpenRocketEngine {
         num(sb, "deploymentVelocity", data.getDeploymentVelocity()).append(',');
         num(sb, "optimumDelay", data.getOptimumDelay());
         sb.append("},\"warnings\":");
-        appendWarnings(sb, data.getWarningSet());
+        appendWarnings(sb, data.getWarningSet(), appIds);
         sb.append(",\"warningTexts\":");
         appendWarningTexts(sb, data.getWarningSet());
         sb.append(",\"events\":");
-        appendEvents(sb, data.getBranch(0));
+        appendEvents(sb, data.getBranch(0), appIds);
         sb.append(",\"series\":");
         appendBranchSeries(sb, data.getBranch(0), fullSeries);
         // Staged flights: every branch (sustainer = branch 0, then each
@@ -2053,7 +2072,7 @@ public final class OpenRocketEngine {
                 FlightDataBranch b = data.getBranch(i);
                 sb.append("{\"name\":\"").append(escape(String.valueOf(b.getName())))
                         .append("\",\"events\":");
-                appendEvents(sb, b);
+                appendEvents(sb, b, appIds);
                 sb.append(",\"series\":");
                 appendBranchSeries(sb, b, fullSeries);
                 sb.append('}');
@@ -2067,9 +2086,12 @@ public final class OpenRocketEngine {
      * Simulation warnings (FlightData.getWarningSet()) as structured entries:
      * "key" is the stable machine identity (see warningKey), "message" the human
      * text (Warning.toString(), source component names included), "priority"
-     * LOW|NORMAL|HIGH (MessagePriority's own export labels).
+     * LOW|NORMAL|HIGH (MessagePriority's own export labels). "sourceIds" lists
+     * the app node id of each source component that has one, and is omitted when
+     * none does: the message carries only names, and two unnamed parts share the
+     * kernel's default name.
      */
-    private static void appendWarnings(StringBuilder sb, WarningSet warnings) {
+    private static void appendWarnings(StringBuilder sb, WarningSet warnings, Map<String, String> appIds) {
         sb.append('[');
         boolean first = true;
         for (info.openrocket.core.logging.Warning w : warnings) {
@@ -2078,7 +2100,19 @@ public final class OpenRocketEngine {
             sb.append("{\"key\":\"").append(escape(warningKey(w)))
                     .append("\",\"message\":\"").append(escape(String.valueOf(w)))
                     .append("\",\"priority\":\"")
-                    .append(w.getPriority().getExportLabel()).append("\"}");
+                    .append(w.getPriority().getExportLabel()).append('"');
+            RocketComponent[] sources = w.getSources();
+            boolean anyId = false;
+            if (sources != null) {
+                for (RocketComponent src : sources) {
+                    String id = appId(appIds, src);
+                    if (id == null) continue;
+                    sb.append(anyId ? "," : ",\"sourceIds\":[").append('"').append(escape(id)).append('"');
+                    anyId = true;
+                }
+            }
+            if (anyId) sb.append(']');
+            sb.append('}');
         }
         sb.append(']');
     }
@@ -2132,7 +2166,7 @@ public final class OpenRocketEngine {
         return "Other";
     }
 
-    private static void appendEvents(StringBuilder sb, FlightDataBranch branch) {
+    private static void appendEvents(StringBuilder sb, FlightDataBranch branch, Map<String, String> appIds) {
         sb.append('[');
         boolean first = true;
         for (FlightEvent ev : branch.getEvents()) {
@@ -2148,6 +2182,12 @@ public final class OpenRocketEngine {
             RocketComponent src = ev.getSource();
             if (src != null && src.getName() != null) {
                 sb.append(",\"source\":\"").append(escape(src.getName())).append('"');
+            }
+            // The app node id of the source: unlike the name, unique to one part,
+            // since every unnamed part of a type flies under the same default name.
+            String srcId = appId(appIds, src);
+            if (srcId != null) {
+                sb.append(",\"sourceId\":\"").append(escape(srcId)).append('"');
             }
             sb.append('}');
         }

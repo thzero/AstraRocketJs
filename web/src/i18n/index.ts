@@ -92,6 +92,11 @@ i18n
     // ship one ('es-MX' → 'es'), and to the first matching region when we ship
     // only regions ('pt' → 'pt-BR').
     interpolation: { escapeValue: false }, // React already escapes
+    // No suspending while a locale loads. No Suspense boundary sits above the
+    // app, so a component that suspends on a locale fetch that never settles
+    // keeps the whole UI from appearing. Not ready, `t` reads the English
+    // fallback, and the components render again when the bundle arrives.
+    react: { useSuspense: false },
     detection: {
       order: ['querystring', 'localStorage', 'navigator'],
       caches: ['localStorage'],
@@ -110,5 +115,54 @@ i18n
   .catch((e: unknown) => {
     console.error('i18n init failed; the UI will show raw keys', e);
   });
+
+/**
+ * The longest `languageReady` waits for a locale bundle. A bundle that has not
+ * arrived by then is stalled, and the boot carries on in English rather than
+ * hold the stored design back.
+ */
+export const LANGUAGE_WAIT_MS = 3000;
+
+/**
+ * Whether the language in use has its bundle, or its fetch has failed (which
+ * leaves English).
+ *
+ * Asked of `language` itself: until its bundle is in, i18next resolves to
+ * English and would report English as loaded. A change still loading leaves
+ * `language` on the one before; i18next marks it in `isLanguageChangingTo`,
+ * which its types leave out.
+ */
+export function isLanguageReady(instance: typeof i18n = i18n): boolean {
+  const changing = (instance as typeof instance & { isLanguageChangingTo?: string }).isLanguageChangingTo;
+  return instance.isInitialized && !changing && instance.hasLoadedNamespace('translation', { lng: instance.language });
+}
+
+/**
+ * Settles once {@link isLanguageReady}, or after `ceilingMs`, whichever is first.
+ *
+ * For text worked out once and kept as a string, such as a note or a warning
+ * in the store: `t` called before the bundle lands returns the English
+ * fallback, and nothing translates the kept string when the bundle arrives.
+ */
+export function languageReady(instance: typeof i18n = i18n, ceilingMs = LANGUAGE_WAIT_MS): Promise<void> {
+  if (isLanguageReady(instance)) return Promise.resolve();
+  return new Promise<void>((resolve) => {
+    const done = () => {
+      clearTimeout(timer);
+      instance.off('initialized', check);
+      instance.off('loaded', check);
+      instance.off('languageChanged', check);
+      resolve();
+    };
+    const check = () => {
+      if (isLanguageReady(instance)) done();
+    };
+    const timer = setTimeout(done, ceilingMs);
+    instance.on('initialized', check);
+    instance.on('loaded', check);
+    // Also emitted when the fetch failed, leaving the English fallback.
+    instance.on('languageChanged', check);
+  });
+}
 
 export default i18n;

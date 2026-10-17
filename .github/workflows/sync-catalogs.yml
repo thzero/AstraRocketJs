@@ -23,8 +23,17 @@ name: Sync Catalogs
 #
 # deploy.yml points the built app at this branch via VITE_DATA_BASE. The branch
 # has to exist: the deployed app has no other copy of the two catalogs.
+#
+# It runs on the Monday schedule, by hand, and on a push to master that changes
+# web/scripts/** or this file, so a pipeline change republishes the catalogs
+# when it lands instead of waiting out the schedule.
 
 on:
+  push:
+    branches: [master]
+    paths:
+      - 'web/scripts/**'
+      - '.github/workflows/sync-catalogs.yml'
   schedule:
     # Mondays 06:00 UTC. Scheduled runs always use the default branch (master).
     - cron: '0 6 * * 1'

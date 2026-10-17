@@ -153,7 +153,10 @@ describe('a freeform fin on a conical transition', () => {
     expect(fin?.kind).toBe('fin');
     if (fin?.kind !== 'fin') return;
     expect(fin.from).toBeCloseTo(R, 12);
-    expect(fin.to).toBeCloseTo(R + 0.03, 12);
+    // Out to the span the kernel reports, `FreeformFinSet.getSpan`
+    // (FreeformFinSet.java:428-436): the highest point less the trailing
+    // point's depth below the front, which the narrowing cone puts below it.
+    expect(fin.to).toBeCloseTo(R + 0.03 - Math.min(coneR(FRONT + 0.04) - R, 0), 12);
   });
 });
 
@@ -297,7 +300,8 @@ describe('a pod on a nose cone', () => {
   });
 
   it('rings the axis at that radius in the aft view', () => {
-    const hull = buildAftScene(tree.components, undefined, t).hulls.find((h) => h.key === 'pod-tube:0')!;
+    // The first pod instance's tube; each instance keys its parts by instance.
+    const hull = buildAftScene(tree.components, undefined, t).hulls.find((h) => h.key.startsWith('pod-tube:0'))!;
     expect(Math.hypot(hull.y, hull.z)).toBeCloseTo(center, 12);
   });
 });

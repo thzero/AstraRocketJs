@@ -1,6 +1,7 @@
 // Parser for RockSim `.rse` motor files, the XML thrust-curve format that
 // carries what RASP `.eng` cannot: the motor type (so a hybrid imports as a
-// hybrid) and the propellant mass sample by sample, rather than one header
+// hybrid) and the motor's mass sample by sample (`m`, the mass of the motor
+// at that instant, as RockSimMotorWriter writes it), rather than one header
 // number the mass curve has to be reconstructed from.
 //
 // A TypeScript port of OpenRocket's `file/motor/RockSimMotorLoader.java`, not

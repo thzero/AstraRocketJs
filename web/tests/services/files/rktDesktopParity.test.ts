@@ -3,6 +3,9 @@ import { describe, it, expect } from 'vitest';
 import { importRkt } from '../../../src/services/files/rktImport';
 import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { noteTexts } from '../../testing/importNotes';
+import { wireLoadedOrk } from '../../../src/services/files/wireLoadedOrk';
+import type { LoadedOrk } from '../../../src/services/files/loadOrk';
+import type { LaunchConditions } from '../../../src/services/design/orkTree';
 
 /**
  * Where our `.rkt` reader has to agree with OpenRocket's own, field by field.
@@ -395,6 +398,48 @@ describe('a pod', () => {
   });
 
   /**
+   * `PodHandler.endHandler` marks an ejected pod's stage inactive in the
+   * configuration desktop opens on (`getSelectedConfiguration()
+   * ._setStageActive(stage.getStageNumber(), false)`): the pod stays in the
+   * design and sits out the flight. A detachable pod that has not been ejected
+   * flies.
+   */
+  it('that RockSim marks ejected is grounded in the configuration the file opens on', () => {
+    const ejected = (pods: string) =>
+      doc(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts>${pods}</AttachedParts></BodyTube>`,
+      );
+    const podXml = (name: string, extra: string) =>
+      `<ExternalPod><Name>${name}</Name><RadialLoc>30</RadialLoc>${extra}<AttachedParts><BodyTube><Name>${name} tube</Name><Len>100</Len><OD>18</OD><ID>17</ID></BodyTube></AttachedParts></ExternalPod>`;
+    const res = importRkt(
+      ejected(
+        podXml('Gone', '<Detachable>1</Detachable><Removed>1</Removed>') +
+          podXml('Kept', '<Detachable>1</Detachable>') +
+          podXml('Also gone', '<Removed>1</Removed>'),
+      ),
+    );
+    const id = (name: string) => find(res.tree.components, name).id;
+    expect(res.configs).toHaveLength(1);
+    expect(res.chosenConfigId).toBe(res.configs[0]!.id);
+    expect(res.configs[0]!.grounded).toEqual([id('Gone'), id('Also gone')]);
+    expect(res.configs[0]!.grounded).not.toContain(id('Kept'));
+    // What the opened simulation flies.
+    const wired = wireLoadedOrk(res as unknown as LoadedOrk, {} as LaunchConditions);
+    const config = wired.configs.find((c) => c.id === wired.sims.find((s) => s.id === wired.activeId)!.configId)!;
+    expect(config.grounded).toEqual([id('Gone'), id('Also gone')]);
+  });
+
+  it('that no pod was ejected from declares no configuration', () => {
+    const res = importRkt(
+      doc(
+        `<BodyTube><Name>Air</Name><Len>300</Len><OD>24</OD><ID>23</ID><AttachedParts><ExternalPod><Name>P</Name><Detachable>1</Detachable><AttachedParts><BodyTube><Name>T</Name><Len>100</Len><OD>18</OD><ID>17</ID></BodyTube></AttachedParts></ExternalPod></AttachedParts></BodyTube>`,
+      ),
+    );
+    expect(res.configs).toEqual([]);
+    expect(res.chosenConfigId).toBeNull();
+  });
+
+  /**
    * `PodHandler.subtractAngleOffset`: RockSim stores a pod child's angle in
    * absolute coordinates and OpenRocket stores it relative to the assembly, so
    * without this every part inside a pod is rotated by the pod's angle twice.
@@ -584,19 +629,20 @@ describe('a RockSim point list', () => {
 
 describe('a shoulder RockSim gives a length to', () => {
   /**
-   * Neither RockSim nor its handlers have a cap flag: the kernel caps a shoulder
-   * itself when it first gains a length and desktop never turns it off, so every
-   * `.rkt` shoulder arrives capped. `ComponentFactory` sets the cap after the
-   * length from a key defaulting to false, so leaving the key out would undo it.
+   * Neither RockSim nor its handlers have a cap flag, and desktop 24.12's
+   * `Transition.setAftShoulderLength` / `setForeShoulderLength` store the length
+   * and nothing more, so a shoulder desktop reads from a `.rkt` is open. The
+   * node carries no cap key, and `ComponentFactory` then sets the cap off after
+   * the length (`rktShoulderCap.kernel.test.ts` holds the kernel to that).
    */
-  it('is capped, which is what makes its cap disc weigh anything', () => {
+  it('is open, as desktop 24.12 reads it', () => {
     const n = find(
       parts(
         '<NoseCone><Name>N</Name><Len>100</Len><BaseDia>24</BaseDia><ConstructionType>1</ConstructionType><WallThickness>1.5</WallThickness><ShoulderOD>23</ShoulderOD><ShoulderLen>20</ShoulderLen></NoseCone>',
       ),
       'N',
     );
-    expect(n['shoulderCapped']).toBe(true);
+    expect(n['shoulderCapped']).toBeUndefined();
   });
 
   it('says nothing about a cap when there is no shoulder', () => {
@@ -604,14 +650,14 @@ describe('a shoulder RockSim gives a length to', () => {
     expect(n['shoulderCapped']).toBeUndefined();
   });
 
-  it('is capped per side on a transition', () => {
+  it('is open on both sides of a transition', () => {
     const t = find(
       parts(
         '<Transition><Name>T</Name><Len>50</Len><FrontDia>18</FrontDia><RearDia>24</RearDia><FrontShoulderDia>17</FrontShoulderDia><FrontShoulderLen>15</FrontShoulderLen><RearShoulderDia>23</RearShoulderDia><RearShoulderLen>0</RearShoulderLen></Transition>',
       ),
       'T',
     );
-    expect(t['foreShoulderCapped']).toBe(true);
+    expect(t['foreShoulderCapped']).toBeUndefined();
     expect(t['aftShoulderCapped']).toBeUndefined();
   });
 });

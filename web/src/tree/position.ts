@@ -53,8 +53,9 @@ export const FREEFORM_SNAP_LARGER_THAN = 2.5;
  * value, after the translation, so a fin wider or taller than 2.5 m flies cut
  * to it. A point past it both ways keeps its x: the second `set` starts from
  * the unsnapped point and overwrites the first.
- * (`clampFirstPoint()`, which additionally folds xDelta into the offset, is the
- * desktop GUI's per-point edit path, not ours.)
+ * `update()` then runs `clampFirstPoint()` on every set (FreeformFinSet.java:464),
+ * which would fold an x shift into the axial offset; after the translation the
+ * first point is the origin, so it moves nothing.
  *
  * The through-the-wall tab is placed in root-relative coordinates (`finTabSpan`,
  * which measures from the root chord rather than from the first point). Raw

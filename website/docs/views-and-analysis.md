@@ -4,7 +4,7 @@ sidebar_position: 11
 ---
 The center pane's toolbar switches between views, and each tab has its own set. The **Design** tab has **2D**, **3D** and **Aero**. The **Results** tab, which appears once a simulation has produced a result, has **Flight**, **3D path**, **Ground track** and **Environment**.
 
-On a phone the design views live on the **Sketch** tab and the flight views on **Results**, which appears once a run has produced one; picking either from the toolbar takes you to its tab. The toolbar turns with the drawing so it always sits along the long edge of the screen. See [Getting Started](./getting-started.md#the-layout).
+On a phone the design views live on the **Sketch** tab and the flight views on **Results**, which appears once a run has produced one. Each tab's toolbar offers only its own views. The toolbar turns with the drawing so it always sits along the long edge of the screen. See [Getting Started](./getting-started.md#the-layout).
 
 ## 2D schematic
 
@@ -30,7 +30,7 @@ An interactive 3D model of the rocket: orbit to inspect the geometry from any an
 - **⟲ Reset** re-fits the current view.
 - **Side** and **Aft** move the camera to the side profile or behind the rocket, where clusters and the fin count show as they sit.
 - **Cutaway** opens the airframe along the centerline to show the internal parts.
-- **📷 Image** saves the current view as PNG or JPG at a width you choose, with the design data. Turn the model to the angle you want first.
+- **📷 Image** saves the current view as PNG or JPG at a width you choose, with the design data. Turn the model to the angle you want first. **Fit rocket to frame**, on by default, moves the camera in so the rocket fills the image; your viewing angle is kept.
 
 ## Aerodynamics (Aero)
 
@@ -42,12 +42,12 @@ Drag and stability vs Mach number, for analyzing high-speed behavior:
 
 A row of **flight conditions** sets what the whole sweep is flown at:
 
-- **AoA**: angle of attack in degrees. At 0 the rocket flies straight; raising it moves the CP.
-- **Wind dir**: the wind's direction about the roll axis. **Worst** sets it to the angle where this rocket's CP sits furthest forward, i.e. where it is *least* stable: the safety question "is it stable in any orientation". For a symmetric three-fin rocket the CP does not depend on this angle at all and Worst reports 0; on a two-fin or otherwise asymmetric design it matters a great deal.
+- **AoA**: angle of attack, in your angle unit. At 0 the rocket flies straight; raising it moves the CP.
+- **Wind dir**: the wind's direction about the roll axis, in your angle unit. **Worst** sets it to the angle where this rocket's CP sits furthest forward, i.e. where it is *least* stable: the safety question "is it stable in any orientation". For a symmetric three-fin rocket the CP does not depend on this angle at all and Worst reports 0; on a two-fin or otherwise asymmetric design it matters a great deal.
 - **Roll rate**: in your roll-rate unit, revolutions per second by default (set on **Settings ▸ Units**). Roll *damping* opposes an existing roll, so that column reads zero until you set one.
 - **Altitude**: the altitude the whole sweep is flown at, in your altitude unit. The air there sets the Reynolds number and so the skin friction; 0 is sea level.
 
-A **Charts / Per component** switch chooses what the panel shows: the three curves, or the tables below. The tables report at a single Mach: on the **Charts** pane the hover crosshair picks it, and on **Per component** a slider does, stepping only to Mach numbers the sweep actually computed. The two share one value, so switching panes lands on whatever you were just looking at.
+A **Charts / Per component** switch chooses what the panel shows: the three curves, or the tables below. The tables report at a single Mach: the hover crosshair on the **Charts** pane picks it, and so does a slider shown on both panes, which steps only to Mach numbers the sweep actually computed. The two share one value, so switching panes lands on whatever you were just looking at.
 
 **Drag by component** tabulates each part's drag at that Mach, split into **pressure / base / friction**: the same figures desktop OpenRocket shows in *Component Analysis ▸ Drag characteristics*. Rows are ordered worst-first and sum to the whole rocket. Cells are **shaded in proportion to their value** so the parts that cost you drag stand out without reading every figure, with the scale shown beneath the table. Two styles are offered, switched from the buttons beside the legend (or from **Settings ▸ Colors**: it is one preference, so either place sets it and it sticks): *By magnitude* (the default) is one color that strengthens with the value, scaled against the largest figure in the table; *By heat* is the desktop's green-to-red on its own fixed 0–1.5 Cd scale, with dark text on light cells, for anyone who reads that faster from having used it. *By heat* shades this drag table only: its scale is an absolute Cd one, and CNα and the roll coefficients are not on it, so those tables stay unshaded under that choice (the desktop colors only its drag tab for the same reason).
 
@@ -123,11 +123,11 @@ The flight **trajectory in 3D**: the rocket's path through space, including drif
 
 The **ground plane can carry the same aerial imagery**, laid at the launch site's coordinates so the trajectory arcs over the real field rather than over an empty grid. The same **None · Satellite · Street** buttons sit at the top left, starting on **None** and sharing their choice with the ground track and the launch-site map. The imagery covers a little past the furthest the rocket got from the pad rather than the whole plane, so a three-hundred-meter flight does not fetch a kilometer of scenery either side; the reference grid carries on beyond its edge.
 
-An **⬇ Export** button saves the flight path for mapping tools: **KML** (Google Earth), **GPX**, or a **waypoint CSV**, with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
+An **⬇ Export** button saves the flight path for mapping tools as **KML (Google Earth)**, **GPX track** or **Waypoint CSV**, with options for which waypoints and lines to include, and support for your own templates. See [Files & Exports](./files-and-exports.md#exporting-the-flight-path-kml--gpx--csv).
 
 ### Playing the flight back
 
-The 3D path replays the flight rather than only drawing it. **▶ Play flight** starts a T-minus countdown (5, 4, 3, 2, 1) and then launches; clicking again during the countdown cancels it, and during the flight pauses. Drag the **timeline** to scrub to any moment, and pick a **speed** from 0.25× to 4×. Speed is about wall-clock time, not simulated time, so the boost is not over before you have seen it.
+The 3D path replays the flight rather than only drawing it. **▶** (**Play flight**) starts a T-minus countdown (5, 4, 3, 2, 1) and then launches; clicking again during the countdown cancels it, and during the flight pauses. Drag the **timeline** to scrub to any moment, and pick a **speed** from ¼× to 4×. At 1× the whole flight plays in 8 seconds, whatever its length, at an even pace through flight time.
 
 Beside the play button, **⟲** (**Reset to launch**) stops playback and returns to liftoff, **⟳** (**Loop playback**) starts the flight again each time it ends, and **⊙ Follow** keeps the camera on the rocket as it flies.
 
@@ -145,11 +145,11 @@ The charts cover only the altitudes the flight reached. Values use your units, a
 
 ### Where it landed {#where-it-landed}
 
-Under the charts, **Landing** gives where each stage came down: its latitude and longitude, and its distance and bearing from the pad.
+Below the row along the top and above the charts, **Landing** gives where each stage came down: its latitude and longitude, and its distance and bearing from the pad.
 
 When the launch conditions came from an [Open-Meteo forecast](./running-a-simulation.md#weather), **Fly the hours around this forecast** flies this design again under the forecast for each hour from two before to two after. Every one of these flights uses the same random seed, so only the weather differs between them. They use the forecast as it stands now, which may have changed since it was applied. A map then shows the flight's path from above, a dot where each hour's flight landed and the 2σ ellipse around them, and a table lists each hour's landing.
 
-An hour whose wind or launch angle is over the safety limit is not flown, the same as a run, and its row says which. When the simulation's result is outdated, the button is disabled until you run the simulation again, so the hours are flown for the rocket and site as they are now.
+An hour whose wind or launch angle is over the safety limit is not flown, the same as a run, and its row says which. When the simulation's result is outdated, the button is disabled until you run the simulation again, so the hours are flown for the rocket and site as they are now. It is also disabled with no network connection.
 
 Without a forecast, the section says how to get one. For a rocket not designed here, the [landing estimator](./tools.md#landing-estimator) on the Tools tab gives an estimate from typed descent rates.
 
@@ -160,7 +160,7 @@ The bottom strip summarizes the current design as a grid of tiles (collapse it w
 - **Length**, **Max diameter**, **Fineness** (length / diameter).
 - **Mass** and **CG**, each shown **empty / loaded** (dry, and with the motor) in one tile.
 - **CP** (center of pressure).
-- **Mass (Recovery)**: the descent mass (loaded mass minus the propellant that burns off). Shown once a motor is loaded; this is the mass the parachute actually brings down. The tile reads **Mass (Recovery, est.)** while that figure is the app's own estimate from the design, and drops the marker once a simulation has deployed a recovery device and the engine's own mass has replaced it.
+- **Mass (Recovery)**: the descent mass (loaded mass minus the propellant that burns off). Before a motor is loaded the tile shows a dash and *load a motor*; this is the mass the parachute actually brings down. The tile reads **Mass (Recovery, est.)** while that figure is the app's own estimate from the design, and drops the marker once a simulation has deployed a recovery device and the engine's own mass has replaced it.
 - **Stability**: in **calibers** (on the pad) and as **% of length**.
 - **Drag coeff.**: the coast (power-off) drag coefficient at Mach 0.3.
 - **Normal-force slope**: CNα (per radian), the Barrowman normal-force-coefficient slope at Mach 0.3.

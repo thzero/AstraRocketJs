@@ -11,7 +11,7 @@ Cada magnitud tiene su propia unidad, configurable en la pestaña **Unidades**. 
 | Magnitud | Qué abarca | Métrico | Imperial |
 | --- | --- | --- | --- |
 | Dimensiones de componentes | longitudes, diámetros, espesores, CG / CP, las reglas del 2D | cm | in |
-| Dimensiones del motor | el diámetro y la longitud del propio motor | mm | in |
+| Dimensiones del motor | el diámetro y la longitud del propio motor, el filtro de diámetro del explorador de motores y el diámetro interior del soporte | mm | in |
 | Altitud / distancia | apogeo, alcance, altitudes de despliegue, altitud del campo | m | ft |
 | Área | el área de la tira de una cinta | cm² | in² |
 | Masa | masas de componentes y del cohete | g | oz |
@@ -30,7 +30,7 @@ Cada magnitud tiene su propia unidad, configurable en la pestaña **Unidades**. 
 
 Una instalación nueva arranca con los **valores métricos**, y los botones de restablecer restauran ese mismo conjunto.
 
-Todo sigue tu elección: los campos donde escribes, el árbol de componentes, la tira de estadísticas, las reglas y los calibres del 2D, las anotaciones del 3D, las gráficas de vuelo y de resistencia, el explorador de motores y las exportaciones a PDF y CSV (que indican la unidad utilizada y pueden fijarse en métricas o imperiales por su cuenta; consulta [Archivos y exportaciones](./files-and-exports.md)).
+Todo sigue tu elección: los campos donde escribes, el árbol de componentes, la tira de estadísticas, las reglas y los calibres del 2D, las anotaciones del 3D, las gráficas de vuelo y de resistencia, el explorador de motores y las exportaciones a PDF y CSV (que indican la unidad utilizada y pueden fijarse en métricas o imperiales por su cuenta; consulta [Archivos y exportaciones](./files-and-exports.md)). La unidad de **Dimensiones de componentes** también llega al vuelo: consulta [Lo que las unidades no cambian](#what-units-dont-change).
 
 ### Cambiar la unidad de un solo campo {#changing-a-unit-on-one-field}
 
@@ -66,19 +66,20 @@ Las unidades pertenecen **al navegador donde las configuras**, no a un diseño n
 
 ### Lo que las unidades no cambian {#what-units-dont-change}
 
-Las unidades son una preferencia de **visualización y entrada**. Tu diseño se guarda siempre en SI, así que cambiar de unidades nunca modifica un cohete ni vuelve a guardar un archivo:
+Las unidades son una preferencia de **visualización y entrada**. Tu diseño se guarda siempre en SI, así que cambiar de unidades nunca modifica un cohete ni vuelve a guardar un archivo. La única excepción es la unidad de **Dimensiones de componentes**: el núcleo compara en esa unidad los escalones de diámetro, los huecos y los solapes del fuselaje al decidir si avisa de ellos, igual que OpenRocket de escritorio lo hace en su propia unidad de longitud. Cambiarla puede cambiar los avisos que informa una simulación, así que marca como **desactualizadas** todas las simulaciones que ya se han ejecutado.
+
+Por lo demás:
 
 - Los archivos `.ork` se mantienen en metros y kilogramos, byte a byte como los escribe OpenRocket de escritorio.
 - Las exportaciones con unidades propias del formato conservan las suyas: RASAero (`.CDX1`) en pulgadas y libras, y las hojas de corte DXF y las mallas 3D en milímetros.
 - Las plantillas 1:1 del informe PDF y su regla impresa siguen en mm/cm: esa regla mide la **página**, así que debe coincidir con una regla real. (Por lo demás, el informe y el CSV de diseño siguen tus unidades, o pueden fijarse en métricas o imperiales desde el diálogo de exportación; consulta [Archivos y exportaciones](./files-and-exports.md).)
 - Las cifras sin unidad tampoco cambian: la estabilidad en calibres o en % de la longitud, los coeficientes de resistencia, el Mach, CNα y los tiempos en segundos.
-- Los diámetros de los porta-motores y del filtro de motores siguen en mm, porque 18 mm / 24 mm / 29 mm son en la práctica **nombres** de motor.
 
 ## Colores {#colors}
 
 La pestaña **Colores** tiene tres ajustes:
 
-- **Colores de piezas (modelo 3D)**: el color con el que se dibuja cada tipo de pieza en el modelo 3D. Cada fila tiene su propio botón de restablecer.
+- **Colores de piezas (modelo 3D)**: el color con el que se dibuja cada tipo de pieza en el modelo 3D. Una fila que hayas cambiado muestra un botón de restablecer que repone su color predeterminado.
 - **Colores de fase de la trayectoria**: los colores de los tramos de **Empuje**, **Inercia** y **Descenso** de la trayectoria de vuelo 3D.
 - **Sombreado de las tablas aerodinámicas**: consulta [más arriba](#aero-table-shading).
 
@@ -86,11 +87,11 @@ La pestaña **Colores** tiene tres ajustes:
 
 De qué está hecha una **pieza recién añadida**. Una fila por hueco de material: los catorce tipos de pieza estructural, más la tela y las cuerdas de un paracaídas, una cinta y un cordón de choque, porque una pieza puede llevar más de un tipo de material a la vez.
 
-La elección se gasta al añadir la pieza: el material se escribe en ella en ese momento, así que aparece en el panel de propiedades y viaja con el diseño en el `.ork`. Las piezas que ya están en el cohete no se tocan, ni tampoco un diseño que abras. Si dejas una fila sin poner, la pieza recibe el material de serie del motor para ese hueco (Cardboard, Ripstop nylon o Elastic cord), así que una pieza nueva siempre dice de qué está hecha.
+La elección se gasta al añadir la pieza: el material se escribe en ella en ese momento, así que aparece en el panel de propiedades y viaja con el diseño en el `.ork`. Las piezas que ya están en el cohete no se tocan, ni tampoco un diseño que abras. Si dejas una fila sin poner, la pieza recibe el material de serie del motor para ese hueco (Cardboard, Ripstop nylon o Elastic cord, y Delrin para un botón de riel), así que una pieza nueva siempre dice de qué está hecha.
 
-Eso no es como funciona la preferencia equivalente de OpenRocket de escritorio, y es a propósito. El escritorio deja la pieza sin asignar y aplica tu preferencia al calcular la masa, lo que significa que el mismo archivo pesa una cosa en la máquina que lo creó y otra en la máquina a la que se lo enviaste. Aquí lo que elegiste está en el archivo.
+La preferencia equivalente de OpenRocket de escritorio funciona igual: cada pieza nueva recibe el material preferido al crearse, así que lo que elegiste está en el archivo.
 
-Los materiales personalizados también pueden ser predeterminados, y los adhesivos igual. La primera opción de la lista de cada fila no fija ningún valor predeterminado para ese hueco, y ese tipo de pieza sigue recibiendo el material de serie indicado arriba.
+Los materiales personalizados también pueden ser predeterminados. Los adhesivos no se ofrecen, igual que en la lista de una pieza estructural. La primera opción de la lista de cada fila no fija ningún valor predeterminado para ese hueco, y ese tipo de pieza sigue recibiendo el material de serie indicado arriba.
 
 No hay fila para los filetes de las aletas. Un filete que añadas empieza como West System Six10, un epoxi espesado; un filete de un archivo que no indica material se lee como Cardboard, igual que lo lee OpenRocket de escritorio.
 
@@ -109,13 +110,15 @@ Estos valores están en la pestaña **Simulación** e inicializan cada nueva sim
 
 Cada simulación puede sobrescribir cualquiera de estos valores. Una sobrescritura **vacía** no está ausente: significa *seguir el valor global*, y el campo muestra ese valor global como marcador de posición. Por eso las opciones de ejecución nunca bloquean un vuelo: siempre hay un valor por defecto debajo. **Restablecer valores predeterminados** borra las sobrescrituras de una simulación; **Guardar como predeterminado** lleva lo que esa simulación usa ahora a estos valores globales.
 
+Cambiar el paso de tiempo, el tiempo máximo de simulación, el paso angular máximo o la semilla aleatoria marca como **desactualizadas** todas las simulaciones que ya se han ejecutado. Una simulación que sobrescribe ese ajuste no se toca, porque su propio valor sigue aplicándose.
+
 ## Lanzamiento {#launch}
 
 La pestaña **Lanzamiento** guarda las condiciones de lanzamiento con las que empieza una simulación nueva, en las mismas tarjetas que el panel de lanzamiento de una simulación (consulta [Ejecutar una simulación](./running-a-simulation.md)). Cambiarlas no afecta a las simulaciones que ya existen; edítalas en su propio panel de lanzamiento.
 
 ### Condiciones de lanzamiento obligatorias {#required-launch-conditions}
 
-Siete campos de lanzamiento no tienen un valor por defecto razonable, así que no pueden quedarse en blanco: **longitud de la guía**, **ángulo de la guía**, **velocidad del viento**, **desviación estándar del viento**, **altitud del sitio**, **latitud** y **longitud**. Se marcan con un **\*** rojo allá donde aparezcan, y se comportan igual que las [dimensiones obligatorias](./designing-a-rocket.md#required-dimensions) de un componente: borrar uno no guarda nada, y una simulación a la que le falte uno se nombra y se omite en lugar de volarse.
+Siete campos de lanzamiento no tienen un valor por defecto razonable, así que no pueden quedarse en blanco: **longitud de la guía**, **ángulo de la guía**, **velocidad del viento**, **desviación estándar del viento**, **altitud del sitio**, **latitud** y **longitud**. Se marcan con un **\*** rojo allá donde aparezcan, y se comportan igual que las [dimensiones obligatorias](./designing-a-rocket.md#required-dimensions) de un componente: borrar uno no guarda nada, y una simulación a la que le falte uno se nombra y se omite en lugar de volarse. La velocidad y la desviación estándar del viento solo son obligatorias con el modelo de viento **Promedio**: un perfil **Multinivel** no las usa, y el panel las oculta mientras hay uno.
 
 Ten en cuenta que estos siete son *obligatorios*, no *distintos de cero*: aire en calma, sin ráfagas, nivel del mar, el ecuador, el meridiano de Greenwich y una guía totalmente vertical son ajustes reales, y todos ellos valen cero. Solo la longitud de la guía tiene que ser positiva en la práctica.
 
@@ -183,6 +186,8 @@ También en la pestaña **Simulación**. Todo lo anterior decide cuándo *avisa*
 
   Es un ajuste y no una corrección porque el motor se comprueba contra OpenRocket de escritorio vuelo a vuelo. Desactivado, una ejecución coincide exactamente con OpenRocket.
 
+  Cambiarlo marca como **desactualizadas** todas las simulaciones que ya se han ejecutado.
+
 ## General {#general}
 
 - **Tema**: Oscuro, Claro, Según el sistema (claro u oscuro según esté configurado tu dispositivo, y cambia cuando él cambia) o Luz de día (alto contraste), un tema claro con texto negro y colores más oscuros para leer la pantalla al sol en el campo. Oscuro por defecto. Las vistas 3D y el esquema siguen el tema; un esquema descargado o impreso conserva sus propios colores de impresión sea cual sea el tema. El botón ☀ de la cabecera cambia a Luz de día con un toque, y un segundo toque vuelve al tema que tenías.
@@ -191,4 +196,4 @@ También en la pestaña **Simulación**. Todo lo anterior decide cuándo *avisa*
 
 ## Restablecer {#reset}
 
-Abajo en el diálogo hay dos botones: **Restablecer ‹pestaña›** repone solo la pestaña en la que estás (así que **Restablecer Unidades** toca las unidades y nada más), y **Restablecer todo** devuelve cada ajuste de cada pestaña a su valor por defecto. Restablecer todo pregunta antes, porque no se puede deshacer.
+Abajo en el diálogo hay dos botones: **Restablecer ‹pestaña›** repone solo la pestaña en la que estás (así que **Restablecer Unidades** toca las unidades y nada más), y **Restablecer todo** devuelve cada ajuste de cada pestaña a su valor por defecto. Restablecer todo pregunta antes, porque no se puede deshacer. **Restablecer Lanzamiento** y **Restablecer Materiales** también preguntan antes, porque esas pestañas guardan lo que introdujiste.

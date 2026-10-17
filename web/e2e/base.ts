@@ -203,6 +203,23 @@ export async function runFlight(page: Page): Promise<void> {
  * load, and a cold CI runner software-rendering WebGL beside it can take more
  * than the 5 s default.
  */
+/**
+ * Load the app, trying again when the connection is refused. With eight
+ * workers the local preview server can refuse one connection and serve the
+ * next; a server that has stopped refuses every try, and the last error is
+ * thrown.
+ */
+async function openApp(page: Page, tries = 3): Promise<void> {
+  for (let i = 1; ; i++) {
+    try {
+      await page.goto('/');
+      return;
+    } catch (e) {
+      if (i >= tries || !String(e).includes('ERR_CONNECTION_REFUSED')) throw e;
+    }
+  }
+}
+
 export async function ready(page: Page): Promise<void> {
   // Collected for the failure path only. A bare "element(s) not found" here says
   // nothing about why the numbers never appeared, and there is more than one way
@@ -215,7 +232,7 @@ export async function ready(page: Page): Promise<void> {
   });
   page.on('pageerror', (e) => problems.push(`pageerror: ${e.message}`));
 
-  await page.goto('/');
+  await openApp(page);
   try {
     await expect(page.getByText('L/D', { exact: true })).toBeVisible({ timeout: 20_000 });
   } catch (err) {

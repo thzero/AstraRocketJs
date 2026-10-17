@@ -144,7 +144,10 @@ export function parseWindProfileCsv(text: string): WindProfileCsvResult {
       altitudeM: cell(altIdx),
       speed: Math.abs(speed),
       directionDeg: speed < 0 ? norm360(directionDeg + 180) : directionDeg,
-      stddev: sdCell === '' ? 0 : cell(sdIdx),
+      // The kernel floors a negative deviation at 0 (`PinkNoiseWindModel.
+      // setStandardDeviation`, `Math.max(standardDeviation, 0)`), so the table
+      // shows the scatter it flies.
+      stddev: sdCell === '' ? 0 : Math.max(cell(sdIdx), 0),
     });
   }
 

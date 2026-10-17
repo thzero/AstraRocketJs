@@ -61,7 +61,9 @@ describe('the export banner, in German', () => {
         },
       ],
     } as unknown as RocketTree;
-    useWorkspaceStore.setState({ tree });
+    // Built, so the single stage's simulation cell has its figure and the only
+    // warning is the surface one.
+    useWorkspaceStore.setState({ tree, info: { mass: 0.1, cg: 0.2 } as never });
     await s().saveRasaero();
     expect(s().err).toBe(de.errors.exportRasaeroSurface);
   });

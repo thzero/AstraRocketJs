@@ -99,14 +99,17 @@ describe('a per-configuration override block merges over the bare defaults', () 
   const [cfg1, cfg2] = res.configs;
 
   it('keeps the default separation event when the block states only a delay', () => {
-    expect(booster['separationEvent']).toBe('burnout');
-    expect(booster['separationDelay']).toBe(1.5);
+    expect(cfg1!.separations[booster.id as string]).toEqual({ separationEvent: 'burnout', separationDelay: 1.5 });
   });
 
-  it('records each configuration as the default merged with its own block', () => {
-    expect(cfg1!.separations[booster.id as string]).toEqual({ separationEvent: 'burnout', separationDelay: 1.5 });
-    // No block of its own: the bare defaults.
-    expect(cfg2!.separations[booster.id as string]).toEqual({ separationEvent: 'burnout', separationDelay: 3 });
+  it('keeps the design on the bare defaults, whichever configuration opens', () => {
+    expect(booster['separationEvent']).toBe('burnout');
+    expect(booster['separationDelay']).toBe(3);
+  });
+
+  it('records an override only for a configuration with a block of its own', () => {
+    expect(cfg2!.separations[booster.id as string]).toBeUndefined();
+    expect(cfg1!.deployments[chute.id as string]).toBeUndefined();
   });
 
   it('keeps the default ignition event or delay the block leaves out', () => {

@@ -627,12 +627,14 @@ describe('no module grows its own fin sampler', () => {
    * mechanically. Add a module here when it starts drawing fins.
    */
   const OUTLINE_CONSUMERS = [
+    'components/canvas/AftView.tsx',
     'components/canvas/schematicShapes.tsx',
     'components/canvas/rocketPieces.ts',
     'services/report/reportGeometry.ts',
     'services/report/templatesSection.ts',
     'services/exports/solidMesh.ts',
     'services/exports/dxfExport.ts',
+    'services/files/onshapeExport.ts',
     'services/design/componentActions.ts',
   ];
 

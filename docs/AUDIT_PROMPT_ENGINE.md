@@ -108,7 +108,7 @@ where a behavior change hides best:
 - `PATCH(drogue-low-speed)` in `BasicEventSimulationEngine`, which the ledger
   describes as uncommenting upstream's own check. Confirm that is what it is.
 
-Cross-checks: every `PATCH(...)` marker in `src/java` (there are 34) should
+Cross-checks: every `PATCH(...)` marker in `src/java` (there are 35) should
 resolve to an entry in `patches/LEDGER.md`, and every one of the 18 patch files
 should be **load-bearing** by the ledger's own test (`src/java/X.java` differs
 from upstream `X.java`). A patch identical to upstream is a leftover that does

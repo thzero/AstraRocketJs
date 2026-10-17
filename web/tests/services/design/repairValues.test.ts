@@ -1,3 +1,5 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, it, expect } from 'vitest';
 import { repairedText, repairValues } from '../../../src/services/design/repairValues';
 import i18n from '../../../src/i18n';
@@ -97,5 +99,69 @@ describe('repairedText', () => {
     expect(
       repairedText({ type: 'bodytube', name: 'Body', field: 'density', was: 1e9, now: MAX }, t).startsWith('Body:'),
     ).toBe(true);
+  });
+});
+
+/**
+ * A fin set's fillet is a bulk material too, entered through the same material
+ * picker and its density limit, so a design arriving with an impossible one is
+ * repaired to the same ceiling and named in the banner.
+ */
+describe('repairValues on a fillet', () => {
+  const fins = (filletDensity: unknown): RocketTree =>
+    ({
+      name: 'T',
+      components: [
+        {
+          type: 'stage',
+          id: 's1',
+          children: [
+            {
+              type: 'bodytube',
+              id: 'tube',
+              length: 0.2,
+              outerRadius: 0.0124,
+              children: [{ type: 'trapezoidfinset', id: 'fins', name: 'Fins', filletRadius: 0.005, filletDensity }],
+            },
+          ],
+        },
+      ],
+    }) as unknown as RocketTree;
+  const finsOf = (t: RocketTree) =>
+    ((t.components[0] as unknown as { children: ComponentNode[] }).children[0]!.children as ComponentNode[])[0]!;
+
+  it.each([1e9, 3.1e4])('pulls a fillet density of %d kg/m³ back to the limit', (was) => {
+    const out = repairValues(fins(was));
+    expect(finsOf(out.tree)['filletDensity']).toBe(MAX);
+    expect(out.repaired).toEqual([{ type: 'trapezoidfinset', name: 'Fins', field: 'filletDensity', was, now: MAX }]);
+  });
+
+  it('leaves an ordinary fillet alone', () => {
+    const t = fins(1180);
+    expect(repairValues(t).tree).toBe(t);
+  });
+
+  it('names the value in the banner in every language, not by its key', () => {
+    const dir = join(__dirname, '../../../src/i18n/locales');
+    const files = readdirSync(dir).filter((f) => f.endsWith('.json'));
+    expect(files.length).toBeGreaterThanOrEqual(10);
+    for (const file of files) {
+      const strings = JSON.parse(readFileSync(join(dir, file), 'utf8')) as Record<string, unknown>;
+      const lookup = (key: string): unknown =>
+        key.split('.').reduce<unknown>((o, k) => (o as Record<string, unknown> | undefined)?.[k], strings);
+      // The banner's own sentence is not under test; every label it is handed is.
+      const labels: string[] = [];
+      const t = (key: string, opts?: Record<string, unknown>) => {
+        if (key === 'banner.repaired') return String(opts?.['field']);
+        labels.push(key);
+        const hit = lookup(key);
+        return typeof hit === 'string' ? hit : key;
+      };
+      for (const field of ['density', 'filletDensity']) {
+        labels.length = 0;
+        repairedText({ type: 'trapezoidfinset', name: 'Fins', field, was: 1e9, now: MAX }, t);
+        for (const key of labels) expect(typeof lookup(key), `${file} ${key}`).toBe('string');
+      }
+    }
   });
 });

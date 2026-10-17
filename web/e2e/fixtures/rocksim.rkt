@@ -1,4 +1,3 @@
-<?xml version="1.0" encoding="UTF-8"?>
 <RockSimDocument>
   <FileVersion>4</FileVersion>
   <DesignInformation>
@@ -33,10 +32,13 @@
           <IsInsideTube>0</IsInsideTube>
           <IsMotorMount>0</IsMotorMount>
           <FinishCode>2</FinishCode>
+          <Density>1250</Density>
+          <DensityType>0</DensityType>
           <Material>Kraft phenolic</Material>
           <AttachedParts>
             <FinSet>
               <Name>Fins</Name>
+              <FinishCode>1</FinishCode>
               <ShapeCode>0</ShapeCode>
               <FinCount>3</FinCount>
               <RootChord>60</RootChord>
@@ -51,16 +53,22 @@
               <TabOffset>10</TabOffset>
               <Xb>-60</Xb>
               <LocationMode>2</LocationMode>
+              <Density>420</Density>
+              <DensityType>0</DensityType>
               <Material>Basswood</Material>
             </FinSet>
             <LaunchLug>
               <Name>Lug</Name>
               <Len>35</Len>
+              <FinishCode>1</FinishCode>
               <OD>4.8</OD>
               <ID>4.0</ID>
               <RadialAngle>90</RadialAngle>
               <Xb>100</Xb>
               <LocationMode>0</LocationMode>
+              <Density>680</Density>
+              <DensityType>0</DensityType>
+              <Material>Cardboard</Material>
             </LaunchLug>
             <BodyTube>
               <Name>Motor mount</Name>
@@ -72,6 +80,9 @@
               <ID>18.0</ID>
               <Xb>-70</Xb>
               <LocationMode>2</LocationMode>
+              <Density>680</Density>
+              <DensityType>0</DensityType>
+              <Material>Cardboard</Material>
               <AttachedParts>
                 <Ring>
                   <Name>Aft ring</Name>
@@ -81,6 +92,9 @@
                   <ID>18.7</ID>
                   <Xb>0</Xb>
                   <LocationMode>2</LocationMode>
+                  <Density>680</Density>
+                  <DensityType>0</DensityType>
+                  <Material>Cardboard</Material>
                 </Ring>
                 <Ring>
                   <Name>Thrust ring</Name>
@@ -88,6 +102,9 @@
                   <Len>3</Len>
                   <OD>18.0</OD>
                   <ID>14.0</ID>
+                  <Density>680</Density>
+                  <DensityType>0</DensityType>
+                  <Material>Cardboard</Material>
                 </Ring>
               </AttachedParts>
             </BodyTube>

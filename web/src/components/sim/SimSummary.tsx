@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useLauncherT } from '../common/useLauncher';
 import { fmtNum } from '../../i18n/format';
 import { UnitChip } from '../common/UnitChip';
@@ -12,7 +13,8 @@ import { confirm } from '../../state/confirmStore';
 import { useHelpStore } from '../../state/helpStore';
 import { Stat } from '../common/Stat';
 import { WARNING_TONE } from './warningTone';
-import { deploymentVerdict } from './speedWarnings';
+import { deploymentVerdict, lastDeployment } from './speedWarnings';
+import { sharedDeviceNames } from '../../services/flight/recoveryFlown';
 import { selectShownSim, useWorkspaceStore } from '../../state/store';
 import { effectivePrefs, type SimPrefs } from '../../services/flight/simulations';
 
@@ -158,9 +160,9 @@ function SafetyCard() {
 }
 
 /**
- * The active simulation's summary tiles: rod exit, static margin at rail exit,
- * optimum delay, times, apogee, deploy and landing speeds, downrange, and the
- * peaks.
+ * The summary tiles of the flight the Results picker shows: rod exit, static
+ * margin at rail exit, optimum delay, times, apogee, deploy and landing speeds,
+ * downrange, and the peaks.
  *
  * Its own component because it is read in two places: the desktop Results
  * tab's right column, and the top of the mobile Results tab, where the numbers
@@ -192,9 +194,21 @@ export function SimSummary({ sim }: { sim: FlightResult | null }) {
     return shown.result === sim ? shown.prefs : undefined;
   });
   const { deploymentSpeedWarn } = effectivePrefs(settings.simulation, ownPrefs);
+  // Names more than one recovery device flies under: a warning without node
+  // ids that names one of them cannot be pinned to this branch.
+  const tree = useWorkspaceStore((st) => st.tree);
+  const sharedNames = useMemo(() => sharedDeviceNames(tree.components), [tree]);
   const s = sim?.summary;
   const deployVerdict =
-    s?.deploymentVelocity != null ? deploymentVerdict(s.deploymentVelocity, sim?.warnings, deploymentSpeedWarn) : null;
+    s?.deploymentVelocity != null
+      ? deploymentVerdict(
+          s.deploymentVelocity,
+          sim?.warnings,
+          deploymentSpeedWarn,
+          lastDeployment(sim?.events),
+          sharedNames,
+        )
+      : null;
   // Safe-if-green thresholds: fast off the rail (global setting), gentle at deploy.
   const goodTone = 'text-ok-400',
     warnTone = 'text-warn-400';

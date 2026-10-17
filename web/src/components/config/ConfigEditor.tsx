@@ -1,18 +1,13 @@
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
-import {
-  findMounts,
-  findRecoveryDevices,
-  findSeparators,
-  findStages,
-  isUpperStageMount,
-} from '../../services/design/treeEdit';
+import { findMounts, findRecoveryDevices, findSeparators, findStages } from '../../services/design/treeEdit';
 import { useWorkspaceStore, selectEditedConfig } from '../../state/store';
 import { MotorRow } from '../sim/MotorRow';
 import { DeploymentSection } from './DeploymentSection';
 import { SeparationSection } from './SeparationSection';
 import { partName } from './ConfigsTable';
 import { mountFit } from '../../services/motors/motorPicker';
+import { mountIgnition, sameIgnition } from '../../services/flight/flightConfigs';
 
 /**
  * One flight configuration: its name, and whichever part of it the tab's sub-tab
@@ -102,18 +97,25 @@ export function ConfigEditor() {
           const seated = config.motors[id];
           // The same numbers the file reader judges a fit by (motorPicker.mountFit).
           const mount = mountFit(mt);
+          const ignition = { event: seated?.ignitionEvent ?? 'automatic', delay: seated?.ignitionDelay ?? 0 };
+          const target = { ignitionEvent: ignition.event, ignitionDelay: ignition.delay };
           return (
             <MotorRow
-              key={id}
+              // Per configuration too: the ignition scope a card holds is about
+              // the configuration it was picked in.
+              key={`${config.id}:${id}`}
               title={mounts.length > 1 ? `${t('sims.motor')} - ${partName(mt, i, t)}` : undefined}
               motor={seated?.spec ?? null}
               onChange={(m) => setMountMotor(config.id, id, m)}
               onError={onError}
               mount={mount}
-              ignition={{ event: seated?.ignitionEvent ?? 'automatic', delay: seated?.ignitionDelay ?? 0 }}
-              onIgnitionChange={(e, d) => setMountIgnition(config.id, id, e, d)}
+              ignition={ignition}
+              onIgnitionChange={(e, d, scope) => setMountIgnition(config.id, id, e, d, scope)}
+              ignitionEverywhere={
+                sameIgnition(mountIgnition(mt), target) &&
+                configs.every((c) => !c.motors[id] || sameIgnition(c.motors[id], target))
+              }
               onCommit={onCommit}
-              upperStage={isUpperStageMount(tree, id)}
               used={configs.flatMap((c) => (c.id !== config.id && c.motors[id]?.spec ? [c.motors[id].spec] : []))}
             />
           );

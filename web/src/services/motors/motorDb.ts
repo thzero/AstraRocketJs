@@ -29,7 +29,7 @@ export interface CatalogMotor {
   manufacturer: string;
   /** Impulse class letter (A, B, … O). */
   class: string;
-  /** mm (rounded). */
+  /** mm, to a tenth. */
   diameter: number;
   /** Total impulse, Ns. */
   impulse: number;
@@ -202,10 +202,11 @@ const isDigestEntry = (v: unknown): boolean => {
 const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
 
 export async function loadCatalog(): Promise<CatalogMotor[]> {
-  // The ~1.4 MB catalog is a runtime file under public/data (see remoteData.ts),
-  // fetched only when something first needs it (e.g. the motor picker opens)
-  // rather than weighing down the initial app bundle, and refreshable without
-  // rebuilding the app.
+  // The ~1.4 MB catalog is a runtime file, from the data host when the build
+  // names one and from the build's own public/data otherwise (see
+  // remoteData.ts), fetched only when something first needs it (e.g. the motor
+  // picker opens) rather than weighing down the initial app bundle, and
+  // refreshable without rebuilding the app.
   const [custom, bundled] = await Promise.all([
     getMotorStore()
       .listCustomMotors()
@@ -465,7 +466,7 @@ export function matchCatalogMotor(
  * Whether a catalog maker answers to the one a file asked for (`asked` already
  * trimmed and lowercased): equal, or either name containing the other.
  */
-function sameMaker(catalogMaker: string, asked: string): boolean {
+export function sameMaker(catalogMaker: string, asked: string): boolean {
   const got = catalogMaker.toLowerCase();
   return got === asked || got.includes(asked) || asked.includes(got);
 }

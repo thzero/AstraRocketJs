@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { afterEach, describe, it, expect, vi } from 'vitest';
 import { dataHeaderLines, type ExportData } from '../../../src/services/exports/schematicExport';
 import { METRIC_UNITS } from '../../../src/prefs/units';
 import { appName } from '../../../src/services/app/appInfo';
@@ -31,7 +31,34 @@ describe('dataHeaderLines', () => {
     const lines = dataHeaderLines(data({ info: null }));
     expect(lines[0]).toBe('My Rocket');
     expect(lines).toHaveLength(2);
-    expect(lines[1]).toMatch(/v9\.9\.9, \d{4}-\d{2}-\d{2}$/);
+    expect(lines[1]).toMatch(/v9\.9\.9, .*\d{4}/);
+  });
+
+  /**
+   * The footer carries the day on the user's own clock. Late on the 15th in
+   * Los Angeles it is already the 16th in UTC; early on the 15th in Tokyo it
+   * is still the 14th. The expected day is the instant's own local date.
+   */
+  describe('dates the footer on the local day', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllEnvs();
+    });
+
+    it.each([
+      ['America/Los_Angeles', [2026, 9, 15, 23, 50]],
+      ['Asia/Tokyo', [2026, 9, 15, 0, 10]],
+    ])('in %s', (zone, [y, mo, d, h, mi]) => {
+      vi.stubEnv('TZ', zone);
+      const at = new Date(y!, mo!, d!, h!, mi!);
+      expect(at.getUTCDate()).not.toBe(at.getDate());
+      vi.useFakeTimers();
+      vi.setSystemTime(at);
+      const footer = dataHeaderLines(data({ info: null }))[1]!;
+      expect(footer).toContain(String(at.getFullYear()));
+      expect(footer).toMatch(new RegExp(`\\b${at.getDate()}\\b`));
+      expect(footer).not.toMatch(new RegExp(`\\b${at.getUTCDate()}\\b`));
+    });
   });
 
   it('names the app the way every other export does', () => {

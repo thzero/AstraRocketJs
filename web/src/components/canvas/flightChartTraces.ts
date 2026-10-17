@@ -260,11 +260,14 @@ export type Branch = {
  * chart itself is keyed on the simulation id by its host (CenterCanvas), which
  * is what gives a different flight a fresh selection and zoom.
  */
-export function buildTraces(flight: ChartFlight | null, stageLabel: (i: number) => string): Branch[] {
+export function buildTraces(
+  flight: ChartFlight | null,
+  stageLabel: (i: number, name: string | undefined) => string,
+): Branch[] {
   if (!flight) return [];
   return flightBranches(flight.result).map((b, i) => ({
     key: `${flight.id}:${i}`,
-    name: b.name || stageLabel(i),
+    name: stageLabel(i, b.name),
     color: STAGE_COLORS[i % STAGE_COLORS.length]!,
     events: b.events ?? [],
     // The derived panels ride as series of their own, so a panel reads them the

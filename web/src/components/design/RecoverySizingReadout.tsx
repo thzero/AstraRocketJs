@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { ComponentNode } from '../../engine/openRocketEngine';
+import type { ComponentNode, FlightResult } from '../../engine/openRocketEngine';
 import { useUnits } from '../../prefs/useUnits';
 import { unitScope } from '../../prefs/units';
 import { num } from '../../tree/nodeProps';
 import { useWorkspaceStore, selectActive, selectConfig, selectOutdated } from '../../state/store';
 import { motorSpecs } from '../../services/flight/flightConfigs';
-import { deviceDescent } from '../../services/flight/recoveryFlown';
+import { deviceDescent, sharedDeviceNames, type RecoveryDeviceRef } from '../../services/flight/recoveryFlown';
+import { isDefaultComponentName, kernelComponentName } from '../../services/app/warningText';
+import { flightBranches } from '../../services/flight/flightColumns';
+import { stageLabel } from '../../i18n/format';
 import { airDensity, descentMass } from '../../services/flight/recoverySizing';
 import { Dialog } from '../common/Dialog';
 import { SizingFigures } from '../tools/SizingFigures';
@@ -78,6 +81,11 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
   // figures are not this device's any more; the estimate is the honest fallback.
   const result = useWorkspaceStore((s) => (selectOutdated(s) ? null : selectActive(s).result));
 
+  // The stored Cd is the one the kernel flies, Auto or not: a parachute's
+  // `getComponentCD` returns its stored `cd` (Parachute.java), so `cdAuto` on
+  // this part changes nothing, and the kernel's default for a chute with no
+  // `cd` is the same 0.8 (RecoverySizingReadout.kernel.test pins both).
+  //
   // `num(..., 0.8)`, not `|| 0.8`: `nodeProps.num` already returns 0 for an
   // absent or non-finite value, so the truthiness fallback would also swallow a
   // deliberately stored `cd: 0` and report a finite descent rate for a canopy
@@ -86,14 +94,26 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
   const cd = num(node, 'cd', 0.8);
   const diameter = num(node, 'diameter');
 
-  const name = typeof node.name === 'string' ? node.name : '';
+  // The device as the run's deployment events know it: by its node id, and by
+  // the name the kernel flies it under for a result that carries no ids. For an
+  // unnamed device that name is the kernel's default, which every other unnamed
+  // device of its type shares.
+  const device = useMemo(() => {
+    const name = kernelComponentName(node);
+    return { id: node.id, name, nameShared: sharedDeviceNames(tree.components).has(name) };
+  }, [node, tree]);
   const sizing = useMemo(() => {
     // What the run recorded for this device, if it flew one.
-    const flown = deviceDescent(result, name);
+    const flown = deviceDescent(result, device);
     const mass = flown?.mass ?? descentMass(info?.mass, motorSpecs(tree, config));
     if (mass == null) return null;
-    return { mass, rate: flown?.rate ?? null, measured: flown != null, branch: flown?.branch ?? '' };
-  }, [info?.mass, tree, config, result, name]);
+    return {
+      mass,
+      rate: flown?.rate ?? null,
+      measured: flown != null,
+      branch: flown && result ? branchName(t, result, flown, device) : '',
+    };
+  }, [info?.mass, tree, config, result, device, t]);
 
   if (sizing == null) return <p className="mt-3 text-xs text-ink-muted">{t('recovery.needsMotor')}</p>;
   return (
@@ -118,4 +138,27 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
       />
     </div>
   );
+}
+
+/**
+ * The branch a device deployed on, as every other view names a stage. A stage
+ * whose name was cleared flies under the kernel's default, a bundle key the
+ * TeaVM kernel cannot look up, so it reads "Stage n" by its place in the flight
+ * instead. Empty for a single-branch flight, which has nothing to tell apart.
+ */
+function branchName(
+  t: (key: string, opts?: Record<string, unknown>) => string,
+  run: FlightResult,
+  at: { branch: string; time: number },
+  device: RecoveryDeviceRef,
+): string {
+  if (!at.branch) return '';
+  const index = flightBranches(run).findIndex(
+    (b) =>
+      b.name === at.branch &&
+      (b.events ?? []).some(
+        (e) => e.time === at.time && (e.sourceId != null ? e.sourceId === device.id : e.source === device.name),
+      ),
+  );
+  return stageLabel(t, Math.max(index, 0), isDefaultComponentName(at.branch) ? '' : at.branch);
 }

@@ -38,8 +38,9 @@ import type { AeroPane } from '../../state/tabs';
  * are `AeroCharts`, the tables are `AeroComponentTables`, and the number
  * boxes and the Worst button are `AeroInputs`.
  *
- * Colors use the dataviz skill's validated dark categorical order; every chart
- * ≥ 2 series carries a legend (identity is never color-alone).
+ * Colors follow `CATEGORICAL`, the chart palette each of the three themes
+ * defines (colorTokens.ts); every chart ≥ 2 series carries a legend (identity
+ * is never color-alone).
  */
 const POWER_OFF = CATEGORICAL[0]!;
 const POWER_ON = CATEGORICAL[7]!;

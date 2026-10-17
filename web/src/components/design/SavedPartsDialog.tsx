@@ -132,7 +132,7 @@ export function SavedPartsDialog({ onClose }: { onClose: () => void }) {
                               // Shown rather than hidden: this is the only list
                               // it can be deleted from, and the picker has
                               // already dropped it.
-                              <span className="text-warn-400">{t('picker.savedBrokenShort')}</span>
+                              <span className="text-warn-200">{t('picker.savedBrokenShort')}</span>
                             )}
                           </span>
                         </MasterRow>

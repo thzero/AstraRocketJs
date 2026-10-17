@@ -12,6 +12,7 @@ import { writeRecovery } from './rasaero/recovery';
 import { writeLaunchSite } from './rasaero/launchSite';
 import { KeyedError, type Keyed } from '../../i18n/keyedError';
 import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/simulation';
+import type { StageLaunch } from './rasaero/stageLaunch';
 
 /**
  * RASAero II (.CDX1) design export. Format knowledge mirrors the desktop's
@@ -22,8 +23,8 @@ import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/
  *   each with an absolute <Location>; fins nest inside their parent tube. A
  *   <Booster> element is a lower stage.
  * - RASAero is aerodynamics-only: masses/CG live in a mandatory <Simulation>
- *   block as cumulative per-stage launch weights (only the whole-rocket loaded
- *   mass/CG is known here, so it fills the last stage's cell; desktop parity).
+ *   block as cumulative per-stage launch weights, each stage's cell the stack
+ *   from the sustainer through it, from the kernel (`cumulativeStageLaunch`).
  *
  * This module is the orchestrator: the sustainer chain, boosters, recovery,
  * launch site, engines and simulation blocks each live under `rasaero/`.
@@ -32,9 +33,21 @@ import { writeMachAlt, writeSimulationList, type MachAltTable } from './rasaero/
 export interface Cdx1ExportInput {
   name: string;
   tree: RocketTree;
-  /** Loaded launch mass (kg) and CG (m), for the mandatory simulation block. */
+  /**
+   * The whole rocket's loaded launch mass (kg) and CG (m): the only stage's
+   * cell of a single-stage design. A design with more stages needs
+   * `stageLaunch`, since the cells are cumulative per stage and the whole
+   * rocket's figure is only the last one.
+   */
   launchMassKg?: number;
   launchCgM?: number;
+  /**
+   * Each top-level stage's cell, by stage index: the launch mass and CG of
+   * the stack from the sustainer through that stage with its motors, as the
+   * kernel weighs it (`cumulativeStageLaunch`). Wins over `launchMassKg` and
+   * `launchCgM` when given.
+   */
+  stageLaunch?: readonly StageLaunch[];
   /** Launch panel conditions (SI) for <LaunchSite>; RASAero defaults when absent. */
   launch?: Partial<LaunchConditions>;
   /** The design's Mach-Alt conditions table (SI); absent ⇒ empty <MachAlt>. */
@@ -57,6 +70,7 @@ export function exportCdx1({
   tree,
   launchMassKg,
   launchCgM,
+  stageLaunch,
   launch,
   motors,
   engineExport,
@@ -65,6 +79,11 @@ export function exportCdx1({
 }: Cdx1ExportInput): string {
   const stagesIn = asStageNodes(tree);
   if (stagesIn.length > 3) throw new KeyedError('errors.rasaero.tooManyStages', { max: 3 });
+  // A single stage's cell is the whole rocket; any other stage's needs its own
+  // cumulative figure, which the whole rocket's mass does not give.
+  const cells: readonly (StageLaunch | undefined)[] =
+    stageLaunch ??
+    (stagesIn.length === 1 && launchMassKg !== undefined ? [{ massKg: launchMassKg, cgM: launchCgM ?? 0 }] : []);
 
   const slots = stageEngineSlots(stagesIn, motors, engineExport ?? CDX1_ENGINE_EXPORT);
   const w = createCdx1Writer();
@@ -89,7 +108,7 @@ export function exportCdx1({
   writeLaunchSite(w, launch);
   writeRecovery(w, stagesIn);
   writeMachAlt(w, machAlt);
-  writeSimulationList(w, stagesIn, slots, launchMassKg, launchCgM);
+  writeSimulationList(w, stagesIn, slots, cells, warnings);
   emit('</RASAeroDocument>');
   return w.lines.join('\n');
 }

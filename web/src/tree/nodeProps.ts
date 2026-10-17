@@ -1,5 +1,5 @@
 import type { ComponentNode, ComponentPosition } from '../engine/openRocketEngine';
-import { KERNEL_BODYTUBE_OUTER_RADIUS } from './kernelDefaults';
+import { KERNEL_BODYTUBE_OUTER_RADIUS, KERNEL_DEFAULTS } from './kernelDefaults';
 
 /**
  * Typed accessors for a ComponentNode's open-ended parameter bag
@@ -56,6 +56,9 @@ export const MAX_FIN_COUNT = 8;
  */
 export const MAX_CANT = (15 * Math.PI) / 180;
 
+/** A fin set's cant as the kernel flies it: the stored one, clamped to {@link MAX_CANT}. */
+export const finCant = (node: ComponentNode): number => Math.max(-MAX_CANT, Math.min(MAX_CANT, num(node, 'cant', 0)));
+
 /**
  * An instance count (fins, tubes, pod instances): a whole number in
  * [1, {@link MAX_INSTANCE_COUNT}].
@@ -75,11 +78,12 @@ export const bool = (n: ComponentNode, key: string, fb = false): boolean => (typ
 /**
  * A chain member's outer radius (m), read from the key its type sizes by: a
  * nose cone's `aftRadius`, a body tube's `outerRadius`, a transition's larger
- * end. A body tube with no radius is the one it flies at ({@link bodyTubeRadius});
- * 0 for any other type or another missing value.
+ * end. A body tube or nose cone with no radius is the one it flies at
+ * ({@link bodyTubeRadius}, {@link noseConeAftRadius}); 0 for any other type or
+ * another missing value.
  */
 export const chainOuterRadius = (n: ComponentNode): number => {
-  if (n.type === 'nosecone') return num(n, 'aftRadius', 0);
+  if (n.type === 'nosecone') return noseConeAftRadius(n);
   if (n.type === 'bodytube') return bodyTubeRadius(n);
   if (n.type === 'transition') return Math.max(num(n, 'foreRadius', 0), num(n, 'aftRadius', 0));
   return 0;
@@ -88,19 +92,31 @@ export const chainOuterRadius = (n: ComponentNode): number => {
 /**
  * A body tube's radius, the same at every station (`BodyTube.getRadius(x)`).
  * A tube with no `outerRadius` is the bridge's default (`ComponentFactory`,
- * case "bodytube", 0.012 m), the radius it is flown at. Every reader that
+ * case "bodytube", 0.025 m), the radius it is flown at. Every reader that
  * stands a part on a tube or places an assembly against one goes through here.
  */
 export const bodyTubeRadius = (n: ComponentNode): number => num(n, 'outerRadius', KERNEL_BODYTUBE_OUTER_RADIUS);
 
 /**
+ * A nose cone's base radius. A cone with no `aftRadius` is the bridge's
+ * default (`ComponentFactory`, case "nosecone", 0.025 m), the radius it is
+ * flown at, so every reader sizes a keyless cone as the kernel does.
+ */
+export const noseConeAftRadius = (n: ComponentNode): number => num(n, 'aftRadius', KERNEL_DEFAULTS.nosecone.aftRadius);
+
+/**
  * The largest of a node's `outerRadius`, `aftRadius` and `foreRadius` (m),
- * whatever its type; 0 when it carries none. Unlike {@link chainOuterRadius}
- * it reads every radius key, so it also sizes non-chain parts and any node
- * that carries a key its type does not size by.
+ * whatever its type; 0 when it carries none, except a nose cone, whose missing
+ * `aftRadius` is the one it flies at ({@link noseConeAftRadius}). Unlike
+ * {@link chainOuterRadius} it reads every radius key, so it also sizes
+ * non-chain parts and any node that carries a key its type does not size by.
  */
 export const anyOuterRadius = (n: ComponentNode): number =>
-  Math.max(num(n, 'aftRadius', 0), num(n, 'outerRadius', 0), num(n, 'foreRadius', 0));
+  Math.max(
+    n.type === 'nosecone' ? noseConeAftRadius(n) : num(n, 'aftRadius', 0),
+    num(n, 'outerRadius', 0),
+    num(n, 'foreRadius', 0),
+  );
 
 const AXIAL_METHODS: ReadonlySet<string> = new Set<ComponentPosition['method']>([
   'top',

@@ -11,7 +11,7 @@ Every quantity has its own unit, set on the **Units** tab. **Metric defaults** a
 | Quantity | What it covers | Metric | Imperial |
 | --- | --- | --- | --- |
 | Component dimensions | lengths, diameters, thicknesses, CG / CP, the 2D rulers | cm | in |
-| Motor dimensions | a motor's own diameter and length | mm | in |
+| Motor dimensions | a motor's own diameter and length, the motor browser's diameter filter and mount bore | mm | in |
 | Altitude / distance | apogee, downrange, deployment altitudes, launch-site altitude | m | ft |
 | Area | a streamer's strip area | cm² | in² |
 | Mass | component and rocket masses | g | oz |
@@ -30,7 +30,7 @@ Every quantity has its own unit, set on the **Units** tab. **Metric defaults** a
 
 A fresh install starts on the **metric defaults**, and the reset buttons restore the same set.
 
-Everything follows your choice: the property fields you type into, the component tree, the stats strip, the 2D rulers and calipers, the 3D callouts, the flight and drag charts, the motor browser, and the PDF and CSV exports (which name the unit they used, and can be pinned to metric or imperial of their own: see [Files & Exports](./files-and-exports.md)).
+Everything follows your choice: the property fields you type into, the component tree, the stats strip, the 2D rulers and calipers, the 3D callouts, the flight and drag charts, the motor browser, and the PDF and CSV exports (which name the unit they used, and can be pinned to metric or imperial of their own: see [Files & Exports](./files-and-exports.md)). The **Component dimensions** unit also reaches the flight: see [What units don't change](#what-units-dont-change).
 
 ### Changing a unit on one field
 
@@ -66,19 +66,20 @@ Units belong to **the browser you set them in**, not to a design and not to a fi
 
 ### What units don't change
 
-Units are a **display and entry** preference. Your design is always stored in SI, so switching units never edits a rocket or re-saves a file:
+Units are a **display and entry** preference. Your design is always stored in SI, so switching units never edits a rocket or re-saves a file. The one exception is the **Component dimensions** unit: the kernel compares airframe diameter steps, gaps and overlaps in that unit when it decides whether to warn about them, as desktop OpenRocket does in its own length unit. Changing it can change the warnings a run reports, so it marks every simulation that has already run as **outdated**.
+
+Otherwise:
 
 - `.ork` files stay in meters and kilograms: byte-for-byte what desktop OpenRocket writes.
 - Format-defined exports keep their own units: RASAero (`.CDX1`) in inches/pounds, DXF cut sheets and 3D meshes in millimeters.
 - The PDF report's 1:1 templates and its printed scale bar stay in mm/cm: that bar measures the **page**, so it must match a real ruler. (The report and design CSV otherwise follow your units, or can be pinned to metric or imperial in the export dialog: see [Files & Exports](./files-and-exports.md).)
 - Unitless figures don't move either: stability in calibers or % of length, drag coefficients, Mach, CNα, times in seconds.
-- Motor mount and filter diameters stay in mm, since 18 mm / 24 mm / 29 mm are effectively motor **names**.
 
 ## Colors
 
 The **Colors** tab holds three settings:
 
-- **Part colors (3D model)**: the color each kind of part is drawn in on the 3D model. Each row has its own reset.
+- **Part colors (3D model)**: the color each kind of part is drawn in on the 3D model. A row you have changed gets a reset button that puts back its default color.
 - **Flight-path phase colors**: the colors of the **Boost**, **Coast** and **Descent** segments of the 3D flight path.
 - **Aero table shading**: see [above](#aero-table-shading).
 
@@ -86,11 +87,11 @@ The **Colors** tab holds three settings:
 
 What a **newly added part** is made of. A row per material slot: the fourteen structural part types, plus a parachute's canopy and shroud lines, a streamer and a shock cord, because a part can carry more than one kind of material at once.
 
-The choice is spent when you add the part: the material is written onto it there and then, so it shows in the property panel and travels with the design in the `.ork`. Parts already in the rocket are not touched, and neither is a design you open. Leave a row unset and the part gets the engine's own stock material for that slot instead (Cardboard, Ripstop nylon or Elastic cord), so a new part always names what it is made of.
+The choice is spent when you add the part: the material is written onto it there and then, so it shows in the property panel and travels with the design in the `.ork`. Parts already in the rocket are not touched, and neither is a design you open. Leave a row unset and the part gets the engine's own stock material for that slot instead (Cardboard, Ripstop nylon or Elastic cord, and Delrin for a rail button), so a new part always names what it is made of.
 
-That is deliberately not how desktop OpenRocket's equivalent preference works. Desktop leaves the part unset and applies your preference when it computes mass, which means the same file weighs one thing on the machine that made it and another on the machine you sent it to. Here what you chose is in the file.
+Desktop OpenRocket's equivalent preference works the same way: each new part takes the preferred material when it is created, so what you chose is in the file.
 
-Custom materials can be defaults too, and so can the adhesives. The first option in each row's list sets no default for that slot, and the part type keeps getting the stock material named above.
+Custom materials can be defaults too. The adhesives are not offered, as in a structural part's own list. The first option in each row's list sets no default for that slot, and the part type keeps getting the stock material named above.
 
 There is no row for fin fillets. A fillet you add starts as West System Six10, a thickened epoxy; a fillet in a file that names no material reads as Cardboard, as desktop OpenRocket reads it.
 
@@ -109,13 +110,15 @@ These are on the **Simulation** tab, and seed each new simulation's run (you can
 
 Each simulation can override any of these. An override left **empty** is not missing: it means *follow the global*, and the field shows the global value as its placeholder. That is why run options never block a flight: there is always a default underneath. **Reset to default** clears a simulation's overrides; **Save as default** pushes what it is currently running into these globals.
 
+Changing the time step, max sim time, max angle step or random seed marks every simulation that has already run as **outdated**. A simulation that overrides that setting is left alone, since its own value still applies.
+
 ## Launch
 
 The **Launch** tab holds the launch conditions a new simulation starts from, in the same cards as a simulation's own launch panel (see [Running a Simulation](./running-a-simulation.md)). Changing them does not touch simulations that already exist; edit those in their own launch panel.
 
 ### Required launch conditions
 
-Seven launch fields have no sensible default, so they cannot be left blank: **launcher length**, **launcher angle**, **wind speed**, **wind standard deviation**, **site altitude**, **latitude** and **longitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions): clearing one writes nothing, and a simulation missing one is named and skipped rather than flown.
+Seven launch fields have no sensible default, so they cannot be left blank: **launcher length**, **launcher angle**, **wind speed**, **wind standard deviation**, **site altitude**, **latitude** and **longitude**. They are marked with a red **\*** wherever they appear, and behave exactly like a component's [required dimensions](./designing-a-rocket.md#required-dimensions): clearing one writes nothing, and a simulation missing one is named and skipped rather than flown. Wind speed and wind standard deviation are required only with the **Average** wind model: a **Multi-level** profile does not use them, and the panel hides them while one is set.
 
 Note these seven are *required*, not *non-zero*: still air, no gusts, sea level, the equator, the prime meridian and a launcher straight up are all real settings, and all of them are zero. Only launcher length has to be positive in practice.
 
@@ -183,6 +186,8 @@ Also on the **Simulation** tab. Everything above decides when a flight *warns*. 
 
   It is a setting rather than a correction because the engine is checked against desktop OpenRocket flight for flight. Left off, a run matches OpenRocket exactly.
 
+  Changing it marks every simulation that has already run as **outdated**.
+
 ## General
 
 - **Theme**: Dark, Light, Follow system (light or dark as your device is set, changing when it does) or Daylight (high contrast), a light theme with black text and darker colors for reading a screen in sunlight at the field. Dark by default. The 3D views and the schematic follow the theme; a downloaded or printed schematic keeps its own print colors whatever the theme. The ☀ button in the header switches to Daylight in one tap, and a second tap goes back to the theme you had.
@@ -191,4 +196,4 @@ Also on the **Simulation** tab. Everything above decides when a flight *warns*. 
 
 ## Reset
 
-Two buttons sit at the bottom of the dialog: **Reset ‹tab›** puts back just the tab you are on (so **Reset Units** touches units and nothing else), and **Reset all** returns every setting on every tab to its default. Reset all asks first, since it cannot be undone.
+Two buttons sit at the bottom of the dialog: **Reset ‹tab›** puts back just the tab you are on (so **Reset Units** touches units and nothing else), and **Reset all** returns every setting on every tab to its default. Reset all asks first, since it cannot be undone. **Reset Launch** and **Reset Materials** also ask first, because those tabs hold what you entered.

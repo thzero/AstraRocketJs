@@ -7,6 +7,7 @@
 //
 // Replace it on the client, independently of the material store:
 //   setMotorStore(new MyMotorStore())
+import type { MotorType } from '../../engine/openRocketEngine';
 import type { KeyValueStore } from '../storage/keyValueStore';
 import { IndexedDbKeyValueStore } from '../storage/idbKeyValueStore';
 import { JsonListStore } from '../storage/jsonListStore';
@@ -55,7 +56,7 @@ export interface CustomMotor {
    */
   delayList?: string;
   /** What the file says the motor is. A hybrid is why `.rse` import exists. */
-  type?: 'SU' | 'reload' | 'hybrid';
+  type?: MotorType;
   /**
    * Mass at each sample, in grams, parallel to `samples`.
    *
@@ -157,7 +158,10 @@ function isCustomMotor(v: unknown): v is CustomMotor {
   );
 }
 
-const MOTOR_TYPES: ReadonlySet<unknown> = new Set(['SU', 'reload', 'hybrid']);
+const MOTOR_TYPES: ReadonlySet<unknown> = new Set<MotorType>(['SU', 'reload', 'hybrid']);
+
+/** A value that names a motor type, as a catalog row's free-text `type` may. */
+export const isMotorType = (v: unknown): v is MotorType => MOTOR_TYPES.has(v);
 
 /**
  * The per-sample mass column of a `.rse` motor: absent, or one finite

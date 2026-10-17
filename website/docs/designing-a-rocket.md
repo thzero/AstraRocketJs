@@ -27,13 +27,14 @@ The tree is fully keyboard-navigable: **Tab** into it, then **↑ / ↓** (and *
 
 Supported components include:
 
-- **Body components**: nose cone, body tube, transition (shoulder/boattail).
-- **Fins**: trapezoidal, elliptical, free-form, and tube fins.
-- **Inner structure**: inner tube (motor mount), centering rings, bulkheads, couplers, engine blocks.
+- **Body**: nose cone, body tube, transition (shoulder/boattail).
+- **Fins**: trapezoidal, elliptical, freeform, and tube fins.
+- **Inner**: inner tube (motor mount), tube coupler, centering ring, bulkhead, engine block.
 - **Recovery**: parachute, streamer, shock cord.
-- **Mass & external**: mass component, launch lug, rail button, pods and boosters.
+- **Other**: launch lug, rail button, mass component.
+- **Assembly**: pod, booster.
 
-Each part exposes the dimensions and options the engine needs (lengths, radii, thickness, fin geometry, etc.). Editing is debounced: the model rebuilds and the stats refresh as you type/drag.
+Each part exposes the dimensions and options the engine needs (lengths, diameters, thickness, fin geometry, etc.). Editing is debounced: the model rebuilds and the stats refresh as you type/drag.
 
 ### Dual deployment
 
@@ -65,51 +66,40 @@ Leave a shoulder's thickness blank and OpenRocket fills it from the part's own w
 
 ## Required dimensions
 
-Some dimensions define what a part *is*. A body tube with no diameter is not a narrow tube, it is nothing: so those fields are marked, and a design that is missing one cannot be flown.
+A few values are ones the engine cannot fly at zero, so those fields are marked, and a design with one at zero cannot be flown. Every other dimension can be zero. A nose cone, body tube or transition with no length, diameter or wall is built and flown, as desktop OpenRocket flies it: the pods example carries its stabilizer on a body tube with all three at zero.
 
 A required field carries a small red **\*** after its label, always, whether or not it is filled. That is there so you can see what a part needs *before* you have left anything blank.
 
-If a required dimension is **zero**, the field escalates: the label is boxed in red and the input gets a red outline. The tooltip says why.
+If a required value is **zero**, the field escalates: the label is boxed in red and the input gets a red outline. The tooltip says why.
 
-**You cannot leave one empty by accident.** Clearing the box shows it empty while you type, but nothing is written: tab away and the previous value is still there. (Focus is never trapped; you can always leave the field.) Typing an explicit **0** *is* stored, because that is a deliberate statement rather than a slip, and it is flagged and refused rather than silently flown.
+**You cannot leave one empty by accident.** Clearing the box shows it empty while you type, but nothing is written: tab away and the previous value is still there. (Focus is never trapped; you can always leave the field.) Typing an explicit **0** *is* stored, because that is a deliberate statement rather than a slip, and it is flagged and refused rather than flown. Clearing a box that is not required writes zero.
 
 ### Which dimensions are required
 
 | Component | Required |
 | --- | --- |
-| Nose cone | length, diameter, thickness |
-| Body tube | length, diameter, thickness |
-| Transition | length, fore diameter, aft diameter, thickness |
-| Trapezoidal / elliptical fin set | fin count, root chord, height, thickness |
-| Free-form fin set | fin count, thickness |
-| Tube fin set | tube count, length, tube diameter, thickness |
-| Inner tube | length, diameter, thickness |
-| Coupler, engine block | length, thickness |
-| Centering ring | thickness |
-| Bulkhead | thickness |
-| Launch lug | length, diameter |
-| Rail button | outer diameter |
-| Parachute | diameter, drag coefficient |
-| Streamer | length, width, drag coefficient |
-| Mass component | mass |
-| Pod set / parallel stage | instance count |
+| Trapezoidal / elliptical / free-form fin set | Fin count |
+| Tube fin set | Tube count, Length |
+| Centering ring, bulkhead, launch lug | Instance count |
+| Rail button | Outer diameter, Height, Instance count |
+| Pod set / parallel stage | Instance count |
 
-**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap: it is what `.ork` files call *auto*, and the value follows along when you resize the tube. In the editor it is the small checkbox beside the field, and a new coupler, engine block, centering ring or bulkhead arrives with it ticked, so the part is the right size for the airframe you dropped it into before you touch it. Untick it, or pick a part from the catalog, and the number you give is used instead. A centering ring with no motor tube running through it has an inner diameter of zero, which is a solid disc: that is what desktop OpenRocket gives too. An inner tube is the exception to all of it: it *is* the motor mount, so its size is the thing being stated.
+**Diameters that fill their parent are left blank.** A coupler, engine block, centering ring or bulkhead takes its outer diameter from whatever it sits in, and a centering ring takes its inner diameter from the motor mount running through it, so leaving those empty is a real answer rather than a gap: it is what `.ork` files call *auto*, and the value follows along when you resize the tube. In the editor it is the small checkbox beside the field, and a new coupler, engine block, centering ring or bulkhead arrives with it ticked, so the part is the right size for the airframe you dropped it into before you touch it. Untick it, or pick a part from the catalog, and the number you give is used instead. A centering ring with no motor tube running through it has an inner diameter of zero, which is a solid disc: that is what desktop OpenRocket gives too.
 
 **Airframe diameters can be automatic too.** A new body tube and both ends of a new transition arrive with **Auto** ticked, and a nose cone's base has the same checkbox. An automatic diameter follows the part next to it along the airframe, through other automatic tubes and across stages, so a tube added between two others matches them. With nothing to follow, it is 50 mm, as in desktop OpenRocket. A tube fin set's tube diameter can also be **Auto**, which sizes the tubes to touch each other around the body.
 
-Everything else may legitimately be zero, which is why it is not marked. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** and **angle offset** starts at 0. A stage has no required fields at all: its settings are triggers and delays.
+Many dimensions are zero as a matter of course. A **tip chord** of 0 is a delta fin; **sweep** or **cant** of 0 is a straight one; a **shoulder** or **fin tab** of 0 is simply absent; **motor overhang** 0 is flush; a centering ring's **inner diameter** of 0 is a solid disc; a mass component's **length** of 0 is a point mass; and every **delay** starts at 0, and a launch lug's or rail button's **angle offset** at 180° (the far side of the tube), as on the desktop. A stage has no required fields at all: its settings are triggers and delays.
 
 
 ## Fin fillets {#fin-fillets}
 
 A fin set's **Fillet** section takes the radius of the glue bead along the fin root and the material the bead is made of. Both count: the fillet's volume is added to every fin's mass and its centroid pulls the CG aft, the same way desktop OpenRocket computes it.
 
-The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. A fillet you add here starts as **Epoxy - West System Six10**, a thickened epoxy (1180 kg/m³), since fillets are made of epoxy; desktop OpenRocket starts one as cardboard. Pick another of the [adhesives](#adhesives), or add your own with the material picker. A fillet from a `.ork` that names no material is weighed as cardboard (680 kg/m³), which is what desktop reads such a file as.
+The material matters because a fillet is rarely the fin's own. A 6 mm bead on three fins around a 26 mm tube is about 1.1 g in cardboard and 2.0 g in something epoxy-dense, and the CG moves a couple of millimeters with it. A fillet you add here starts as **Epoxy - West System Six10**, a thickened epoxy (1180 kg/m³), since fillets are made of epoxy; desktop OpenRocket starts one as cardboard. Pick any other bulk material from the list, the [adhesives](#adhesives) included, or add your own with the material picker. A fillet from a `.ork` that names no material is weighed as cardboard (680 kg/m³), which is what desktop reads such a file as.
 
 **Tube fins have no fillet.** A tube fin set is a tube, not a fin, so the kernel has no fillet to give it and the section does not appear.
 
-**A fillet's material list holds adhesives only**, and a structural part's list holds everything but. To use something unusual, add it with **＋ Add custom…** and file it under Adhesives. A material a part already uses stays in its list either way.
+**A fillet's material list holds every bulk material**, adhesives included. A structural part's list leaves the adhesives out. A material a part already uses stays in its list either way.
 
 
 ## Freeform fins {#freeform-fins}
@@ -137,7 +127,7 @@ The outline drives the real thing, not just the drawing: mass, CG and the aerody
 A rocket can have more than one stage. **＋ Stage** (in the row above the component list) appends a **booster** below the current bottom stage; its parts (body, fins, motor mount, recovery) are built and edited exactly like the sustainer's. Select a **stage** node to set how it leaves the stack:
 
 - **Stage separation**: the event that releases the booster: **Upper-stage ejection charge**, **Upper-stage burnout**, **Launch**, **Upper-stage ignition**, **Next-stage ignition**, **Apogee**, **Altitude (ascending)**, **Altitude (descending)** or **Never**. A stage set to **Never** stays attached and comes down with the stage above it. An optional **delay** or **altitude** refines the trigger.
-- **Ignition**: an upper stage's motor lights on **Ejection of stage below** or **Burnout of stage below** (or **Never**). This is set on the motor card on the Configurations tab (see **[Flight Configurations](./flight-configurations.md#motors)**).
+- **Ignition**: a motor lights on **Automatic**, **Launch**, **Ejection of stage below** or **Burnout of stage below** (or **Never**). The two stage-below events fire from the stage under the motor's own (a strap-on booster counts), so on the bottom stage they never fire. Each configuration's motor has its own, set on the motor card on the Configurations tab (see **[Flight Configurations](./flight-configurations.md#motors)**). The mount's **Ignition at** and its delay, in the **Motor** section of the Design tab, appear once the tube is a motor mount and are the ignition a motor new to that mount starts with. Changing them also changes each configuration's motor there that is still on the mount's previous ignition; a motor whose ignition was set to something else keeps it.
 
 With a body tube selected, **＋ Add ▸ Assembly** adds a **Pod** or a **Booster** (a parallel, strap-on stage). Each starts with one body tube to build on, and a booster starts as two copies, as on desktop. After a staged flight, the **[Flight charts](./views-and-analysis.md#flight-after-a-simulation)** plot each stage's own trajectory.
 
@@ -145,7 +135,7 @@ With a body tube selected, **＋ Add ▸ Assembly** adds a **Pod** or a **Booste
 
 ## Undo / redo
 
-Every edit is undoable. Use the **↶ / ↷** buttons in the top bar, or `Ctrl/⌘+Z` to undo and `Ctrl+Shift+Z` (or `Ctrl+Y`) to redo. One interaction is one step: a whole slider drag or a typed value undoes in a single press, not character by character.
+Every edit is undoable. Use the **↶ / ↷** buttons in the top bar, or `Ctrl/⌘+Z` to undo and `Ctrl+Shift+Z` (or `Ctrl+Y`) to redo. One interaction is one step: a whole slider drag or a typed value undoes in a single press, not character by character. The keyboard shortcuts also work while the component editor is open as a dialog, as it is on windows too narrow for the property column; a dialog opened over it blocks them.
 
 Undo/redo covers the **whole workspace** on one timeline: adding, removing, moving, and editing components, **and** simulation changes (motor, ignition, launch conditions, and adding/renaming/deleting simulations). It restores your selection too, so you land back on the part that changed. Opening a `.ork` or starting a new design clears the history (a fresh document has nothing to undo across). Undo restores your *inputs*; flight results stay readable and show as **Outdated** until you run them again.
 
@@ -173,7 +163,7 @@ Instead of dialing in dimensions by hand, use the contextual **Select part…** 
 - A **streamer** prefills its strip length, width and material, and leaves the drag coefficient automatic, as desktop does.
 - A **rail button** prefills its size, and its mass with the screw and nut that hold it.
 
-These are the parts desktop OpenRocket's parts library offers: the community parts database, and the files desktop ships beside it (older manufacturer catalogs, several parachute makers and the rail buttons). Applying a preset just fills in the component's fields, and you can tweak it afterward. The catalog (~5,200 parts) comes with the app and is refreshed from OpenRocket's data each week.
+These are the parts desktop OpenRocket's parts library offers: the community parts database, and the files desktop ships beside it (older manufacturer catalogs, several parachute makers and the rail buttons). Applying a preset just fills in the component's fields, and you can tweak it afterward. Legacy catalog parts are hidden by default; tick the **Show legacy** checkbox in the picker to list them too. The catalog (~5,200 parts) comes with the app and follows the OpenRocket release the app is pinned to; the motor catalog is the one refreshed each week.
 
 ### Saving your own parts
 
@@ -203,14 +193,14 @@ The two suggested **diameters** stay estimates whatever happens, and are marked 
 
 ## Materials
 
-Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG. A part you add carries one from the moment it exists: whatever you set in [Settings ▸ Materials](./settings.md#materials), or else the stock material the engine would weigh it with anyway: **Cardboard** for a solid part, **Ripstop nylon** for a canopy, **Elastic cord** for shroud lines and shock cord. Those are OpenRocket's own defaults, the same ones it builds every new component with.
+Every structural component has a **material**, which the engine uses (by its **density**) to compute mass and CG. A part you add carries one from the moment it exists: whatever you set in [Settings ▸ Materials](./settings.md#materials), or else the stock material the engine would weigh it with anyway: **Cardboard** for a solid part (**Delrin** for a rail button), **Ripstop nylon** for a canopy, **Elastic cord** for shroud lines and shock cord. Those are OpenRocket's own defaults, the same ones it builds every new component with.
 
-A part can still read **Not specified** if its design names no material. It is not a weightless part: the engine falls back to the same three materials. Pick one from the list and the panel stops guessing.
+A part can still read **Not specified** if its design names no material. It is not a weightless part: the engine falls back to the same stock materials. Pick one from the list and the panel stops guessing.
 
 A part picked from the catalog carries its maker's material, such as "Balsa, bulk, BMS typical", at the maker's density. Most of those names are not in the list below, so the picker shows the part's own material under **From this part**, with its density, and that is what the part is weighed with. When the catalog also states the part's mass, as it does for many nose cones and transitions, the density is the one that spreads that mass over the part, so the part weighs what its maker says, as it does in desktop OpenRocket. A parachute with a stated mass takes it as its mass override instead.
 
 - **Built-in materials**: OpenRocket's full list (bulk / surface / line, with densities). Each kind has its own [density unit](./settings.md#units) (bulk stock by volume, parachute fabric by area, cord by length) and a custom material's density is read in whichever unit is shown.
-- **Custom materials**: define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice.
+- **Custom materials**: define your own (name, density and which group it belongs in); they're saved in your browser and reusable across designs. A custom material sits **in that group**, marked with a ★, rather than in a group of its own: it is usually a variant of something already in the list, and it reads better beside it. Give one the **same name as a built-in** and it replaces that entry at your density instead of appearing twice. **Delete custom material** removes it from the list on every design; a part that already uses it keeps its material.
 
 > Note: a material's **name and density** both survive a `.ork` round-trip, including for a material this app has and desktop OpenRocket does not. What does not travel is its membership of your own custom list: see the [FAQ](./faq.md).
 
@@ -255,4 +245,4 @@ Mounts and motors stay in sync automatically: add a mount and it comes pre-loade
 
 ## Stability at a glance
 
-The bottom **stats strip** always shows the current design's length, max diameter, fineness ratio, empty/loaded mass and CG, CP, recovery weight (descent mass), stability (in calibers on the pad and as % of length), the Mach-0.3 drag coefficient and normal-force slope, and the loaded roll/pitch moments of inertia. More detail is in **[Views & Analysis](./views-and-analysis.md)**.
+The bottom **Static statistics** strip shows the current design's length, max diameter, fineness ratio, empty/loaded mass and CG, CP, recovery weight (descent mass), stability (in calibers on the pad and as % of length), the Mach-0.3 drag coefficient and normal-force slope, and the loaded roll/pitch moments of inertia. Click its title to collapse it to the length and the on-pad stability, and again to expand it. More detail is in **[Views & Analysis](./views-and-analysis.md)**.

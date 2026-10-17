@@ -23,9 +23,9 @@
 //
 // Point it at the OpenRocket people actually run. A part whose `.orc` row states
 // a mass has its material replaced by one looked up by density, so its digest
-// depends on the material database that build ships. Measured on Estes PNC-50KA:
-// the 24.12 release says b3b5899e… and the 26.xx source tree says d1a20a7d…,
-// while the parts with no stated mass agree across both. A digest from the wrong
+// depends on the material database that build ships: a release and a source
+// checkout give such a part different digests, while the parts with no stated
+// mass agree across both. A digest from the wrong
 // build is a digest the desktop rejects, so `--jar` (a release, the usual case)
 // is the one to commit from. `--or` (a built source checkout, which also needs
 // its test classes for the preferences bindings) runs only with
@@ -38,7 +38,7 @@
 // classpath: the dumper reads the release's own `.orc` files, as the desktop's
 // system preset pass does, under the application's module so they are built
 // against the materials the desktop boots with. A bare file load disagrees for
-// some types (Estes PK-12 came out cd19839d… that way and e38b3873… in the app),
+// some types,
 // and the app's value is the one the desktop compares against.
 //
 // It never regenerates the catalog, only adds `digest` to rows already in it,
@@ -63,16 +63,24 @@
 //
 // It also carries a stated mass the way the desktop applies it, with the mass
 // read from the same loader. `ComponentPresetFactory` turns the mass of a tube,
-// ring, bulkhead, engine block, nose cone or transition into its material's
-// density (the mass spread over the part's volume), so the part weighs what the
-// catalog says. The volume is measured in the app's own engine
+// ring, bulkhead, engine block, nose cone, transition or rail button into its
+// material's density (the mass spread over the part's volume), so the part
+// weighs what the catalog says. A rail button's stated mass is the button's
+// own; the mass override it flies with adds its screw and nut, and comes from
+// sync-components. The volume is measured in the app's own engine
 // (lib/presetVolume.mjs), not taken from the desktop's density, because builds
 // disagree on it; the result replaces the row's `materialDensity`, and the mass
 // stays on the row as `mass` (lib/statedMass.mjs). A part the engine gives no
-// volume keeps its material's density and no `mass`, and the run lists it.
+// volume refuses the run, unless the desktop gives it none either (the dumper
+// reports an infinite density): then the mass applies in neither build, the row
+// keeps its material's density and no `mass`, and the run lists it.
 // `Parachute.loadPreset` instead takes the mass as a mass override, which the
 // app applies from `mass`. A streamer's mass is not applied by the desktop and
 // is not carried.
+//
+// A row from one of the library's legacy files is marked `legacy`
+// (`ComponentPreset.LEGACY`, which the dumper reads), so the picker can hide it
+// by default as desktop's chooser does.
 //
 // A parachute row also takes what `Parachute.loadFromPreset` applies besides
 // its canopy: the line count and length, the packed length and diameter, and
@@ -88,7 +96,7 @@ import { digestChanges, goneSection, partProblems } from './lib/digestCoverage.m
 import { builtInMaterials } from './lib/builtInMaterials.mjs';
 import { chooseBuild, runDumper } from './lib/openrocketJava.mjs';
 import { presetVolumes } from './lib/presetVolume.mjs';
-import { applyStatedMass } from './lib/statedMass.mjs';
+import { statedMassTally } from './lib/statedMass.mjs';
 import { nearestMaterial } from './lib/nearestMaterial.mjs';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
@@ -214,7 +222,7 @@ function parachuteFields(field, builtIn) {
 function dump(cp) {
   const builtIn = builtInMaterials(cp);
   const byPart = new Map();
-  for (const [type, names, partNo, digest, mass, geometry, chute, desc = ''] of runDumper({
+  for (const [type, names, partNo, digest, mass, geometry, chute, legacy, massDensity, desc = ''] of runDumper({
     cp,
     javaSrc: JAVA_SRC,
     className: 'PresetDump',
@@ -226,6 +234,9 @@ function dump(cp) {
       desc: descKey(desc),
       geometry: pairs(geometry),
       chute: chute ? parachuteFields(chute, builtIn) : null,
+      legacy: legacy === 'true',
+      // Whether that build gives a part stating a mass a volume to spread it over.
+      massHasVolume: massDensity === '' || Number.isFinite(Number(massDensity)),
     };
     for (const maker of new Set(names.split('|').map(makerKey))) {
       const key = JSON.stringify([appType(type), maker, partNo.trim()]);
@@ -284,12 +295,8 @@ async function main() {
     catalog.count = catalog.components.length;
   }
   let hit = 0;
-  let massed = 0;
-  // Parts that state a mass the engine gives no volume to spread it over (a
-  // degenerate upstream shape). They weigh what their material makes them,
-  // not what desktop says, so the run names them rather than dropping the mass
-  // without a word.
-  const noVolume = [];
+  // A stated mass with no volume to spread it over refuses the run (statedMassTally).
+  const masses = statedMassTally();
   for (const row of catalog.components) {
     const p = presetFor(row);
     if (p?.digest) {
@@ -299,20 +306,18 @@ async function main() {
     } else {
       delete row.digest;
     }
+    if (p?.legacy) row.legacy = true;
+    else delete row.legacy;
     if (row.type === 'parachute') {
       for (const k of PARACHUTE_FIELDS) delete row[k];
       Object.assign(row, p?.chute ?? {});
     }
-    const applied = applyStatedMass(row, p?.mass, volumeOf);
-    if (applied === 'applied') massed++;
-    else if (applied === 'no-volume') {
-      noVolume.push(`${row.type} ${row.mfr} ${row.partNo.trim()} (${Number((p.mass * 1000).toPrecision(4))} g)`);
-    }
+    masses.apply(row, p?.mass, volumeOf, p?.massHasVolume ?? true);
   }
-  if (noVolume.length) {
-    const text = `stated mass not applied, the engine gives these parts no volume: ${noVolume.join(', ')}`;
-    console.warn(text);
-    if (process.env.GITHUB_STEP_SUMMARY) appendFileSync(process.env.GITHUB_STEP_SUMMARY, `${text}\n`);
+  const refusal = masses.refusal();
+  if (refusal) throw new Error(refusal);
+  if (masses.degenerate.length) {
+    console.log(`stated masses the desktop gives no volume either, not applied: ${masses.degenerate.join(', ')}`);
   }
   // A part that kept its row and lost its digest is a broken classpath or a
   // changed matcher: refuse it, and a catalog under the floor however it got
@@ -343,7 +348,9 @@ async function main() {
   // The catalog changed, so its cache-bust hash has to as well.
   writeDataManifest(dirname(CATALOG));
   rmSync(STAGED_COMPONENTS, { force: true });
-  console.log(`digests: ${hit} of ${catalog.count} catalog rows (was ${before}); stated masses applied: ${massed}`);
+  console.log(
+    `digests: ${hit} of ${catalog.count} catalog rows (was ${before}); stated masses applied: ${masses.massed}`,
+  );
 }
 
 await main();

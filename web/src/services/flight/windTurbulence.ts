@@ -14,14 +14,9 @@
  * reading of values we already hold, mirrored function for function from the
  * kernel we ship (`PinkNoiseWindModel.getTurbulenceIntensity`,
  * `setTurbulenceIntensity`, `getIntensityDescription`) so the two cannot drift.
+ * The near-zero test `getTurbulenceIntensity` branches on is `MathUtil.equals(x, 0)`.
  */
-
-/**
- * `MathUtil.equals(x, 0)`: the kernel's near-zero test, which is what
- * `getTurbulenceIntensity` branches on. Its epsilon halves for a comparison
- * against zero (`MathUtil.EPSILON` is 1e-8), so the threshold is 5e-9.
- */
-const isZero = (x: number) => Math.abs(x) < 0.00000001 / 2;
+import { isZero } from '../motors/mathEquals';
 
 /**
  * Standard deviation over average.

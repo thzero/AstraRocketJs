@@ -28,7 +28,9 @@ const TONE: Record<SimStatus, string> = {
 
 /**
  * The simulations table: one row per flight setup over the shared design, with
- * the columns OpenRocket's own simulation tab carries.
+ * the figures OpenRocket's own simulation tab carries, less its Warnings, Motors,
+ * Velocity at deployment and Optimum delay columns, and with the rod exit after
+ * the acceleration.
  *
  * The tab gives room for the table and the editor beside it, so comparing two
  * motors is reading two rows rather than switching back and forth.

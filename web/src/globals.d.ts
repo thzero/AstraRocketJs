@@ -1,6 +1,8 @@
 /** Injected by Vite's `define` from package.json (see vite.config.ts). */
 declare const __APP_VERSION__: string;
-/** Help/docs URL: package.json repository + "/wiki", or the HELP_URL build override. */
+/** The release channel: '' for production, 'beta' for the beta site (vite.config.ts). */
+declare const __APP_CHANNEL__: '' | 'beta';
+/** Help/docs URL: the HELP_URL build override, else package.json `wiki.url`, else repository + "/wiki" (vite.config.ts). */
 declare const __HELP_URL__: string;
 /** Contributors page: repository + "/graphs/contributors", or the CONTRIBUTORS_URL override; '' hides the link. */
 declare const __CONTRIBUTORS_URL__: string;

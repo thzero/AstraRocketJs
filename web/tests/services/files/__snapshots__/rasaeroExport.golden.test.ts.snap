@@ -586,8 +586,8 @@ exports[`golden .CDX1 export > pins the three-stage design with engines, recover
 <Color>Black</Color>
 <ShoulderLength>1.5748</ShoulderLength>
 <NozzleExitDiameter>0</NozzleExitDiameter>
-<BoattailLength>1.1811</BoattailLength>
-<BoattailRearDiameter>1.5748</BoattailRearDiameter>
+<BoattailLength>0</BoattailLength>
+<BoattailRearDiameter>0</BoattailRearDiameter>
 <Fin>
 <Count>3</Count>
 <Chord>4.7244</Chord>
@@ -612,12 +612,12 @@ exports[`golden .CDX1 export > pins the three-stage design with engines, recover
 <RailGuideDiameter>0</RailGuideDiameter>
 <RailGuideHeight>0</RailGuideHeight>
 <LaunchShoeArea>0</LaunchShoeArea>
-<Location>48.0314</Location>
+<Location>46.8503</Location>
 <Color>Black</Color>
 <ShoulderLength>0</ShoulderLength>
 <NozzleExitDiameter>0</NozzleExitDiameter>
-<BoattailLength>0</BoattailLength>
-<BoattailRearDiameter>0</BoattailRearDiameter>
+<BoattailLength>1.1811</BoattailLength>
+<BoattailRearDiameter>1.5748</BoattailRearDiameter>
 <Fin>
 <Count>4</Count>
 <Chord>3.937</Chord>
@@ -673,15 +673,15 @@ exports[`golden .CDX1 export > pins the three-stage design with engines, recover
 <SimulationList>
 <Simulation>
 <SustainerEngine>J350W  (AT)</SustainerEngine>
-<SustainerLaunchWt>0</SustainerLaunchWt>
+<SustainerLaunchWt>2.4251</SustainerLaunchWt>
 <SustainerNozzleDiameter>0</SustainerNozzleDiameter>
-<SustainerCG>0</SustainerCG>
+<SustainerCG>17.7165</SustainerCG>
 <SustainerIgnitionDelay>1.2</SustainerIgnitionDelay>
 <Booster1Engine>K550W  (AT)</Booster1Engine>
-<Booster1LaunchWt>0</Booster1LaunchWt>
+<Booster1LaunchWt>4.1888</Booster1LaunchWt>
 <Booster1SeparationDelay>1.5</Booster1SeparationDelay>
 <Booster1IgnitionDelay>0</Booster1IgnitionDelay>
-<Booster1CG>0</Booster1CG>
+<Booster1CG>27.559</Booster1CG>
 <Booster1NozzleDiameter>0</Booster1NozzleDiameter>
 <IncludeBooster1>True</IncludeBooster1>
 <Booster2Engine>L1000  (CTI)</Booster2Engine>
@@ -779,9 +779,9 @@ exports[`golden .CDX1 export > writes a bare single-stage design with RASAero de
 <MachAlt></MachAlt>
 <SimulationList>
 <Simulation>
-<SustainerLaunchWt>0</SustainerLaunchWt>
+<SustainerLaunchWt>0.6614</SustainerLaunchWt>
 <SustainerNozzleDiameter>0</SustainerNozzleDiameter>
-<SustainerCG>0</SustainerCG>
+<SustainerCG>7.874</SustainerCG>
 <SustainerIgnitionDelay>0</SustainerIgnitionDelay>
 <Booster1LaunchWt>0</Booster1LaunchWt>
 <Booster1SeparationDelay>0</Booster1SeparationDelay>

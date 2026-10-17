@@ -2,6 +2,7 @@ import type { StaticInfo } from '../../engine/openRocketEngine';
 import { siToUi, type UnitSelection } from '../../prefs/units.js';
 import { appName } from '../app/appInfo.js';
 import { escapeXml } from '../files/xmlUtil.js';
+import i18n from '../../i18n';
 import { KeyedError } from '../../i18n/keyedError';
 import { fmtList, fmtNum, fmtUpTo, ladderDigits, withUnit } from '../../i18n/format';
 import { staticInfoRows } from '../report/designInfo';
@@ -57,9 +58,20 @@ export function dataHeaderLines(d: ExportData): string[] {
         : t('export.headerCg', { cg: length(i.cg) }),
     );
   }
-  lines.push(`${appName()} v${d.appVersion}, ${new Date().toISOString().slice(0, 10)}`);
+  lines.push(`${appName()} v${d.appVersion}, ${exportDate(new Date())}`);
   return lines;
 }
+
+/**
+ * The day the drawing is exported, on the user's own clock and in the UI
+ * language: the UTC date is a day off for an evening export in the Americas
+ * or an early one east of Greenwich.
+ */
+/** The header font for an export of the given width, the same for the SVG and the raster. */
+const headerFontPx = (widthPx: number): number => Math.max(12, Math.round(widthPx * 0.016));
+
+const exportDate = (at: Date): string =>
+  new Intl.DateTimeFormat(i18n.resolvedLanguage || 'en', { dateStyle: 'medium' }).format(at);
 
 /** Light-theme values for the CSS variables the schematic markup uses
  *  (--accent = the selection outline when a component is selected;
@@ -148,7 +160,7 @@ export function schematicSvg(
 
   // Header band: proportional to drawing width so it stays readable at any
   // physical size (a 4 m rocket printed 1:1 gets 4 m of banner).
-  const fs = Math.max(11, Math.round(viewW * 0.016));
+  const fs = headerFontPx(viewW);
   const lineH = Math.round(fs * 1.45);
   const lines = dataHeaderLines(d);
   const headerH = lineH * (lines.length + 1);
@@ -246,7 +258,7 @@ export function snapshotWithHeader(
   format: ImageFormat = 'png',
 ): Promise<Blob> {
   const w = glCanvas.width;
-  const fs = Math.max(12, Math.round(w * 0.016));
+  const fs = headerFontPx(w);
   const lineH = Math.round(fs * 1.45);
   const lines = dataHeaderLines(d);
   const headerH = lineH * (lines.length + 1);

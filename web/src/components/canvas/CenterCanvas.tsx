@@ -142,9 +142,8 @@ export function CenterCanvas({
           {pathResult ? (
             <>
               <LazyBoundary fallback={loading}>
-                {/* One rocket is animated, so this follows the picker's
-                      first choice rather than overlaying like the charts and
-                      the ground track do. */}
+                {/* The flight the picker shows, as the chart and the
+                      ground track draw it: one flight per view. */}
                 <FlightPath3D
                   result={pathResult}
                   tree={tree}

@@ -1,8 +1,8 @@
 // Build-time extractor for OpenRocket components (what OpenRocket calls
 // "component presets"). Reads OpenRocket's own `.orc` files (XML) of real
-// manufacturer parts, and writes an SI-normalized JSON catalog the app loads at
-// run time from public/data (like sync-motors.mjs, but from local OpenRocket data instead of the
-// thrustcurve API; no network).
+// manufacturer parts, and writes an SI-normalized JSON catalog to a staging file;
+// `sync-preset-digests.mjs` adds the digests and stated masses and writes the
+// catalog the app loads from public/data. Local OpenRocket data only, no network.
 //
 // Desktop's parts library is two sets of files, and this reads both: the
 // community database (`--src`, below) and the files OpenRocket ships inside its
@@ -39,6 +39,8 @@ import { arg } from './lib/args.mjs';
 import { builtInMaterials } from './lib/builtInMaterials.mjs';
 import { installedJar } from './lib/openrocketJava.mjs';
 import { checkJar, RELEASE, UNPINNED } from './lib/openrocketRelease.mjs';
+import { lenM, num, str, tag, xmlText } from './lib/orcText.mjs';
+import { uniqueRows } from './lib/partRows.mjs';
 
 // Source: the OpenRocket-Components DB (openrocket/openrocket-database), the
 // parts database OpenRocket builds its own library from,
@@ -51,42 +53,9 @@ const SRC = arg('src') ?? (process.env.OPENROCKET_PRESETS || DEFAULT_SRC);
 const DATA_DIR = fileURLToPath(new URL('../public/data', import.meta.url));
 const OUT = resolve(DATA_DIR, 'components.generated.json');
 
-// Unit → SI factors.
-const LEN = { in: 0.0254, mm: 0.001, cm: 0.01, m: 1, ft: 0.3048, '': 1 };
+// Unit → SI factors for a stated mass; lengths are read by lib/orcText.mjs.
 const MASS = { g: 0.001, kg: 1, oz: 0.028349523125, lb: 0.45359237, '': 1 };
 
-/** Element text with its XML entity and character references resolved, as an XML parser reads it. */
-const XML_ENTITIES = { lt: '<', gt: '>', amp: '&', quot: '"', apos: "'" };
-const xmlText = (s) =>
-  s.replace(/&(#x[0-9a-f]+|#[0-9]+|[a-z]+);/gi, (whole, ref) => {
-    if (ref[0] !== '#') return XML_ENTITIES[ref] ?? whole;
-    const code = ref[1] === 'x' || ref[1] === 'X' ? parseInt(ref.slice(2), 16) : parseInt(ref.slice(1), 10);
-    return String.fromCodePoint(code);
-  });
-
-/**
- * An element's text and unit. A part that repeats an element keeps the last
- * one, as desktop's JAXB loader does: each occurrence sets the same field.
- */
-function tag(block, name) {
-  const all = [...block.matchAll(new RegExp(`<${name}(\\s+[^>]*)?>([^<]*)</${name}>`, 'g'))];
-  const m = all.at(-1);
-  if (!m) return null;
-  const unit = (m[1] || '').match(/Unit="([^"]*)"/)?.[1] ?? '';
-  return { value: xmlText(m[2]).trim(), unit };
-}
-const lenM = (block, name) => {
-  const t = tag(block, name);
-  if (!t || t.value === '') return null;
-  const n = Number(t.value);
-  return Number.isFinite(n) ? n * (LEN[t.unit] ?? 1) : null;
-};
-const num = (block, name) => {
-  const t = tag(block, name);
-  const n = t ? Number(t.value) : NaN;
-  return Number.isFinite(n) ? n : null;
-};
-const str = (block, name) => tag(block, name)?.value ?? null;
 /** A part's material: its name and the `Type` attribute desktop looks it up by. */
 const materialRef = (block) => {
   const m = [...block.matchAll(/<Material(\s+[^>]*)?>([^<]*)<\/Material>/g)].at(-1);
@@ -198,17 +167,10 @@ for (const { name: file, text } of sources) {
   }
 }
 
-// Pass 2: parts.
-const components = [];
-const seen = new Set();
-// Only a row identical in every field is dropped: desktop keeps two parts that
-// share a part number but differ in size, and tells them apart by digest.
-const push = (p) => {
-  const k = JSON.stringify(p);
-  if (seen.has(k)) return;
-  seen.add(k);
-  components.push(p);
-};
+// Pass 2: parts. A row that repeats an earlier one in every field is dropped
+// and every other row is kept, as desktop keeps every preset and tells them
+// apart by digest (lib/partRows.mjs has the key).
+const { rows: components, push } = uniqueRows();
 // The part number is trimmed here, and the desktop keeps trailing spaces;
 // sync-preset-digests gives a row it matches the desktop's own spelling, which
 // is the string a saved `.ork` has to carry for the desktop to find the part.
@@ -274,10 +236,12 @@ for (const { name: f, text } of sources) {
 
   // The canopy only. Its lines, packed size and materials are what the
   // desktop's loader resolves, and sync-preset-digests adds them from there.
+  // The element goes with the row so a part that differs from an earlier one
+  // only in those keeps its row (lib/partRows.mjs).
   for (const b of blocks(text, 'Parachute')) {
     const diameter = lenM(b, 'Diameter');
     if (!diameter) continue;
-    push({ type: 'parachute', ...common(b), diameter, cd: num(b, 'DragCoefficient') });
+    push({ type: 'parachute', ...common(b), diameter, cd: num(b, 'DragCoefficient') }, b);
   }
 
   // Inner structural parts (placed inside a body tube by the component-tree

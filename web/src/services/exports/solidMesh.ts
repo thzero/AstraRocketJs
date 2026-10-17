@@ -6,7 +6,7 @@ import { finCutContour, finRootChord, finSpan, mountRadius, type FinParent } fro
 import { freeformPoints, partLength } from '../../tree/position';
 import { nodeShape, outerProfile, profileEnds } from '../../tree/shapeProfile';
 import { tubeFinRadius } from '../../tree/tubefins';
-import { FIN_DEFAULTS, KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
+import { FIN_DEFAULTS, KERNEL_DEFAULTS, kernelDefault } from '../../tree/kernelDefaults';
 import { directedEdges, edgeKey, meshTolerances, undirectedEdgeCounts, validateSolid } from './meshValidate';
 import { KeyedError } from '../../i18n/keyedError';
 
@@ -352,7 +352,10 @@ export function discSolid(outerR: number, innerR: number, length: number): THREE
 /** One fin as a flat, watertight extruded solid at the origin (planform in XY,
  *  thickness centered on Z), ready to lay on a print bed. */
 function oneFinSolid(child: ComponentNode, parent: FinParent): THREE.BufferGeometry | null {
-  const root = finRootChord(child, 0);
+  // The root chord the kernel flies: a trapezoidal or elliptical set with no
+  // key flies the bridge's default, and a freeform outline with no root has
+  // none.
+  const root = child.type === 'freeformfinset' ? finRootChord(child, 0) : finRootChord(child);
   const height = finSpan(child);
   const thickness = num(child, 'thickness', FIN_DEFAULTS.thickness);
 
@@ -428,18 +431,6 @@ function validated(geo: THREE.BufferGeometry | null): THREE.BufferGeometry | nul
 const TUBE_FIN_WALL = KERNEL_DEFAULTS.innertube.thickness;
 
 /**
- * The kernel's own default for one field of one component type.
- *
- * `NaN` when the factory reads no default for it, which makes the caller's
- * `!(R > 0)` guard skip the part instead of inventing a size, so the export
- * never writes a part at a size the simulation did not fly.
- */
-function kernelDefault(type: ComponentNode['type'], key: string, fallback = NaN): number {
-  const row = KERNEL_DEFAULTS[type] as Readonly<Record<string, number | undefined>>;
-  return row[key] ?? fallback;
-}
-
-/**
  * A disc/ring solid through the same validation, for the callers that resolve
  * the dimensions themselves because they are already walking the tree.
  */
@@ -496,8 +487,11 @@ function buildSolid(node: ComponentNode, parent: FinParent): THREE.BufferGeometr
       const R =
         node.type === 'tubefinset'
           ? (numOpt(node, 'outerRadius') ?? (parentRadius != null ? tubeFinRadius(node, parentRadius) : NaN))
-          : num(node, 'outerRadius', kernelDefault(node.type, 'outerRadius'));
-      const wall = num(node, 'thickness', kernelDefault(node.type, 'thickness', TUBE_FIN_WALL));
+          : // `NaN` where the factory reads no default, so the `!(R > 0)` guard
+            // below skips the part instead of inventing a size: the export never
+            // writes a part at a size the simulation did not fly.
+            num(node, 'outerRadius', kernelDefault(node.type, 'outerRadius') ?? NaN);
+      const wall = num(node, 'thickness', kernelDefault(node.type, 'thickness') ?? TUBE_FIN_WALL);
       // A zero/negative outer radius (or length) revolves to an empty mesh that
       // still reads as "watertight"; return null so it's skipped from export
       // rather than handed over as a hollow non-solid (matches nose/transition/fin).

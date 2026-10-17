@@ -7,7 +7,8 @@ import { DialogButton } from '../common/DialogButton';
 
 /**
  * The design-level "Rocket configuration" editor (OpenRocket's dialog of the
- * same name): design name, designer, design type, comments and revision history.
+ * same name): design name, designer, kit name, design type, comments and
+ * revision history.
  * These live on the RocketTree and round-trip through .ork import/export. Applied
  * as one undoable step via {@link useWorkspaceStore.updateDesignMeta}.
  *
@@ -22,6 +23,7 @@ export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
 
   const [name, setName] = useState(() => tree.name ?? '');
   const [designer, setDesigner] = useState(() => tree.designer ?? '');
+  const [kitName, setKitName] = useState(() => tree.kitName ?? '');
   const [designType, setDesignType] = useState<string>(() => tree.designType ?? 'original');
   const [comment, setComment] = useState(() => tree.comment ?? '');
   const [revision, setRevision] = useState(() => tree.revision ?? '');
@@ -37,6 +39,7 @@ export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
     updateDesignMeta({
       name: name.trim() || undefined,
       designer: clean(designer),
+      kitName: clean(kitName),
       designType,
       comment: clean(comment),
       revision: clean(revision),
@@ -78,6 +81,12 @@ export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
             {t('config.designer')}
           </label>
           <input id="cfg-designer" value={designer} onChange={(e) => setDesigner(e.target.value)} className={field} />
+        </div>
+        <div className="flex gap-3">
+          <label className={label} htmlFor="cfg-kit">
+            {t('config.kitName')}
+          </label>
+          <input id="cfg-kit" value={kitName} onChange={(e) => setKitName(e.target.value)} className={field} />
         </div>
         <div className="flex gap-3">
           <label className={label} htmlFor="cfg-type">

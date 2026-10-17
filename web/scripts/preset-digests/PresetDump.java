@@ -38,20 +38,19 @@ import java.util.List;
  * files, the system pass of `ComponentPresetDatabaseLoader`, but with the
  * application's Guice module installed, so the presets are built against the
  * material database and preferences the desktop boots with. A bare file load
- * disagrees for some types: measured on Estes PK-12, it gave cd19839d… where the
- * application's database gives e38b3873…, and the application's is the one the
+ * disagrees for some types, and the application's database is the one the
  * desktop compares against.
  *
  * WHY THE BUILD MATTERS. A part whose `.orc` row states a MASS has its material
  * replaced by one looked up by density, so its digest depends on the material
- * database that build ships. Measured on Estes PNC-50KA: 24.12 says
- * b3b5899e… and the 26.xx source tree says d1a20a7d…, while parts with no stated
- * mass agree across both. So the digests are only as right as the build this is
+ * database that build ships: a release and a source checkout give such a part
+ * different digests, while parts with no stated mass agree across both. So the
+ * digests are only as right as the build this is
  * pointed at, which is why the script that drives this takes that path.
  *
  * Output: one TAB-separated row per preset,
  *
- *   TYPE  names  partNo  digest  mass  geometry  parachute  description
+ *   TYPE  names  partNo  digest  mass  geometry  parachute  legacy  massDensity  description
  *
  * - names: every name the maker goes by (`Manufacturer.getAllNames()`), joined
  *   by `|`. The desktop folds aliases into one maker ("LOC Precision" and "LOC"
@@ -64,6 +63,14 @@ import java.util.List;
  * - parachute: empty for any other type; otherwise what `Parachute.loadFromPreset`
  *   leaves on a new parachute, as `Key=value` pairs joined by `;` (see
  *   {@link #parachute}).
+ * - legacy: `true` for a preset from one of the library's legacy files
+ *   (`ComponentPreset.LEGACY`, set from the file's `<Legacy/>`), which the
+ *   desktop's chooser hides until "Show Legacy Database" is checked; `false`
+ *   otherwise.
+ * - massDensity: for a preset that states a mass, the density
+ *   `ComponentPresetFactory` gave its material (the mass over the part's
+ *   volume), `Infinity` when that build gives the part no volume; empty when
+ *   the preset states no mass.
  * - description: last because it is free text; tabs and line breaks in it are
  *   flattened to spaces.
  */
@@ -123,6 +130,10 @@ public class PresetDump {
                         p.has(ComponentPreset.MASS) ? Double.toString(p.get(ComponentPreset.MASS)) : "",
                         geometry(p),
                         p.getType() == ComponentPreset.Type.PARACHUTE ? parachute(p) : "",
+                        Boolean.toString(p.has(ComponentPreset.LEGACY) && p.get(ComponentPreset.LEGACY)),
+                        p.has(ComponentPreset.MASS) && p.has(ComponentPreset.MATERIAL)
+                                ? Double.toString(p.get(ComponentPreset.MATERIAL).getDensity())
+                                : "",
                         p.has(ComponentPreset.DESCRIPTION)
                                 ? flat(p.get(ComponentPreset.DESCRIPTION))
                                 : ""));

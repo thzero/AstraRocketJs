@@ -46,12 +46,12 @@ describe('migrateWorkspace', () => {
     // An installed PWA can have an older build cached, so a newer workspace is a
     // live possibility. Reading it as far as it parses would overwrite the user's
     // design with a partial copy of itself.
-    expect(migrateWorkspace({ ...v1(), version: 3 })).toBeNull();
+    expect(migrateWorkspace({ ...v1(), version: 4 })).toBeNull();
   });
 
-  it('keeps a version-2 workspace as it is', () => {
+  it('keeps a version-3 workspace as it is', () => {
     const w2 = {
-      version: 2,
+      version: 3,
       tree,
       sims: [{ id: 'a', name: 'A', configId: 'c1', launch: {}, result: null }],
       configs: [{ id: 'c1', name: null, motors: {} }],
@@ -77,7 +77,7 @@ describe('migrateWorkspace', () => {
         ],
       }),
     )!;
-    expect(w.version).toBe(2);
+    expect(w.version).toBe(3);
     expect(w.configs).toHaveLength(1);
     const c = w.configs[0]!;
     expect(c.name).toBeNull(); // unnamed: naming it would invent a name nobody typed
@@ -146,7 +146,7 @@ describe('migrateWorkspace', () => {
 describe('migrateWorkspace linked dimensions', () => {
   const stored = (parts: object[]) =>
     ({
-      version: 2,
+      version: 3,
       tree: {
         components: [
           node({

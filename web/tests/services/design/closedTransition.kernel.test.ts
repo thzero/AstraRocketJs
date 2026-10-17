@@ -13,7 +13,8 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS });
 
 /**
  * A transition that closes to a point at one end is a part the kernel builds
- * and flies, so the run check lets it through. Both ends at 0 is no part.
+ * and flies, so the run check lets it through. So is one closed at both ends,
+ * which the kernel builds with no volume.
  */
 const design = (transition: ComponentNode): RocketTree =>
   ({
@@ -75,7 +76,7 @@ describe('a transition with one end at 0', () => {
     expect(badDimensions(tree)).toEqual([]);
   });
 
-  it('still refuses a transition with both ends at 0', () => {
+  it('lets a transition with both ends at 0 through, as the kernel builds it', async () => {
     const tree = design({
       ...defaultNode('transition'),
       foreRadius: 0,
@@ -83,6 +84,8 @@ describe('a transition with one end at 0', () => {
       aftRadius: 0,
       aftRadiusAuto: false,
     });
-    expect(badDimensions(tree).map((b) => b.field)).toEqual(['foreRadius', 'aftRadius']);
+    const engine = await loadEngine();
+    expect(flies(engine, tree).error).toBeUndefined();
+    expect(badDimensions(tree)).toEqual([]);
   });
 });

@@ -16,11 +16,10 @@ import { ADHESIVE_GROUP } from '../../../src/services/materials/materialTypes';
  * component would block real builds to save a little scrolling, and OpenRocket
  * does not do it either.
  *
- * Adhesives are the exception, and they cut both ways: nothing is built out of
- * glue, and a fin fillet is made of nothing else. So a structural part's list
- * has no adhesives in it and a fillet's list has only adhesives. A bead of
- * something unusual is not shut out by that: a thickened mix or a putty is a
- * custom material, and the add form asks which group it goes in.
+ * Adhesives are the exception on a structural part: nothing is built out of
+ * glue, so its list has no adhesives in it. A fin fillet is offered the whole
+ * bulk list, adhesives included, as desktop's fin fillet material box is
+ * (FinSetConfig.java:632 in 24.12, a `MaterialModel` over the bulk database).
  */
 
 /**
@@ -55,12 +54,12 @@ describe('MaterialPicker, by use', () => {
     expect(optionNames()).toContain('Plywood (birch)');
   });
 
-  it('offers a fillet the adhesives and nothing else', async () => {
+  it('offers a fillet the adhesives and every other bulk material', async () => {
     renderWithProviders(<MaterialPicker value={undefined} onChange={() => {}} use="fillet" />);
-    expect(await groupsOf()).toEqual([ADHESIVE_GROUP]);
+    expect(await groupsOf()).toContain(ADHESIVE_GROUP);
     expect(optionNames()).toContain('Epoxy - RocketPoxy G5000');
-    expect(optionNames()).not.toContain('Plywood (birch)');
-    expect(optionNames()).not.toContain('Aluminum');
+    expect(optionNames()).toContain('Plywood (birch)');
+    expect(optionNames()).toContain('Aluminum');
   });
 
   it('still shows a non-adhesive a fillet already uses', async () => {

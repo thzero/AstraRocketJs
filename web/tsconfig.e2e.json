@@ -9,13 +9,14 @@
   // DOM stays in `lib` because code inside `page.evaluate()` runs in the
   // browser; Playwright types those callbacks itself.
   //
-  // The two ambient declarations are what `src/engine/openRocketEngine.ts`
-  // needs to typecheck, and a spec keyed on its `ComponentType` reaches it.
+  // The ambient declarations are what `src/engine/openRocketEngine.ts` and
+  // `src/services/storage/storageKeys.ts` need to typecheck; a spec keyed on
+  // the engine's `ComponentType` reaches the one, `e2e/base.ts` the other.
   "extends": "./tsconfig.json",
   "compilerOptions": {
     "lib": ["ES2022", "DOM", "DOM.Iterable"],
     "types": ["node"],
     "noEmit": true
   },
-  "include": ["e2e", "src/vite-env.d.ts", "src/engine/openrocket-engine.d.ts"]
+  "include": ["e2e", "src/vite-env.d.ts", "src/engine/openrocket-engine.d.ts", "src/globals.d.ts"]
 }

@@ -21,10 +21,12 @@ Below the desktop breakpoint the part columns drop away and the editor moves und
 
 ## Motors
 
-One card per motor mount, aft to nose. **Change…** opens the [motor picker](./motors.md), 📈 shows the seated motor's thrust curve, and **Ignition** sets when that motor lights:
+One card per motor mount, nose to aft. **Change…** opens the [motor picker](./motors.md), 📈 shows the seated motor's thrust curve, and **Ignition** sets when that motor lights:
 
 - **Automatic** is the low and mid-power pattern: the launch stage lights at launch, an upper stage on the ejection charge of the stage below.
-- **Launch**, **Ejection of stage below**, **Burnout of stage below** and **Never**, each with a delay in seconds (except **Never**), are what an electronically-timed sustainer or an air-start needs. **Launch** is offered on every mount. **Ejection of stage below**, **Burnout of stage below** and **Never** only appear on a mount that has a stage below it, since nothing else can fire them.
+- **Launch**, **Ejection of stage below**, **Burnout of stage below** and **Never**, each with a delay in seconds (except **Never**), are what an electronically-timed sustainer or an air-start needs. All five are offered on every mount, as on the desktop. **Ejection of stage below** and **Burnout of stage below** fire from the stage under the mount's own (a strap-on booster counts), so on a mount with nothing below it they never fire and the motor stays unlit, as it does on **Never**.
+
+The choice under the ignition says which configurations a change reaches. **This configuration** changes only the one you are editing, and is where the choice starts each time you open a configuration. **All configurations** changes this mount's ignition in every configuration and also sets the mount's own ignition, the **Ignition at** on the mount in the Design tab; **Apply to all configurations** does that with the ignition as it already stands here. A motor new to the mount, such as the one a new configuration starts with, lights the way the mount's own ignition says. **Reset ignition** sets this configuration back to **Automatic** with no delay. These follow desktop OpenRocket's ignition dialog and its **Reset ignition** button.
 
 Editing a motor here changes it for **every** simulation flying this configuration. That is what sharing a setup means, and it is why motors are edited here and nowhere else: two surfaces writing the same loadout under different rules is how they come to disagree.
 
@@ -49,4 +51,4 @@ Each row of the [Simulations](./running-a-simulation.md) table has a **Configura
 
 ## In the file
 
-A `.ork` carries its configurations, and so does this app: every one the file declares comes in with its motors, its recovery, its staging and its grounded stages, and each arrives as a simulation of its own so there is a run to put numbers against. Each keeps the file's own configuration id, so a design opened here and saved back is the same set of configurations rather than a rewrite of them. See [Files & Exports](./files-and-exports.md).
+A `.ork` carries its configurations, and so does this app: every one the file declares comes in with its motors, its recovery, its staging and its grounded stages. The file's own simulations come in as they are, each flying the configuration it named; a file with no simulations gets one per configuration, so there is a run to put numbers against. Each keeps the file's own configuration id, so a design opened here and saved back is the same set of configurations rather than a rewrite of them. See [Files & Exports](./files-and-exports.md).

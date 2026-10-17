@@ -50,6 +50,8 @@ export interface KernelGeometry {
    * settles (`MassObject.getRadius`), and `length` above is read before that.
    */
   settledLength?: number;
+  /** The part's own mass from `getComponentInfo` (`RocketComponent.getMass`, override-aware). */
+  mass?: number;
   /**
    * Every field the kernel holds for the part (`getComponentFields`), read last
    * and only when asked for: the angles, counts and spacings a part flies with
@@ -108,11 +110,13 @@ export function kernelGeometry(
     const info = JSON.parse(engine.getComponentInfo(handle, id) as string) as {
       positionX?: number;
       length?: number;
+      mass?: number;
       error?: string;
     };
     if (info.error) throw new Error(`${id}: ${info.error}`);
     geometry.positionX = info.positionX;
     geometry.settledLength = info.length;
+    geometry.mass = info.mass;
   }
   if (options.fields) {
     for (const [id, geometry] of out) {

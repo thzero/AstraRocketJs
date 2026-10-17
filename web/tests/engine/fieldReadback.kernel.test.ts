@@ -1,4 +1,6 @@
 import { describe, it, expect, vi } from 'vitest';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { ComponentNode, ComponentType, RocketTree } from '../../src/engine/openRocketEngine';
 import { FIELDS, type Field } from '../../src/services/design/componentFields';
 import {
@@ -39,8 +41,8 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  * altitude event) into them; the test fails if any field is never compared.
  * Expected values are the kernel's, never an app constant.
  *
- * KNOWN lists accepted disagreements by `type.key`, each citing a finding in
- * docs/AUDIT.md and matching only the disagreement that finding describes. The
+ * KNOWN lists accepted disagreements by `type.key`, each stating in words what
+ * the kernel or the panel cannot carry and matching only that disagreement. The
  * list is checked both ways: a new disagreement fails, and so does an entry
  * that has stopped disagreeing.
  */
@@ -52,7 +54,10 @@ const KNOWN: Record<string, Known> = {};
 /**
  * Fields the kernel reads only in some states of the part, by the condition. The
  * panel still shows them; outside the condition the kernel keeps whatever it
- * holds and nothing flies it. SEEDS put every one of them into its state.
+ * holds and nothing flies it. SEEDS put every one of them into its state. The
+ * deploy and separation altitudes, read only by the altitude events, are not
+ * here: the panel hides them under any other event (`fieldApplies`), which the
+ * altitude seeds in SEEDS then have to bring on screen.
  */
 const hasTab = (n: ComponentNode) => num(n, 'tabHeight') > 0 && num(n, 'tabLength') > 0;
 const READ_ONLY_WHEN: Record<string, (n: ComponentNode) => boolean> = {
@@ -61,11 +66,6 @@ const READ_ONLY_WHEN: Record<string, (n: ComponentNode) => boolean> = {
   tabHeight: hasTab,
   tabOffset: hasTab,
   tabOffsetMethod: hasTab,
-  // Read only by the altitude events (DeployEvent.ALTITUDE, SeparationEvent's
-  // two altitude events). FlightConfigurableParameterSet.setDefault also keeps
-  // the old default when only the altitude differs from it.
-  deployAltitude: (n) => n['deployEvent'] === 'altitude',
-  separationAltitude: (n) => typeof n['separationEvent'] === 'string' && n['separationEvent'].startsWith('altitude'),
 };
 
 /** States beyond the editor's new part, so that every field applies in at least one. */
@@ -85,7 +85,11 @@ const SEEDS: Record<string, Record<string, Partial<ComponentNode>>> = {
     'parabolic shape': { shape: 'parabolic' },
     'haack shape': { shape: 'haack' },
   },
-  innertube: { '3-ring cluster': { cluster: '3-ring' } },
+  innertube: {
+    '3-ring cluster': { cluster: '3-ring' },
+    'own ignition': { motorMount: true, ignitionEvent: 'burnout', ignitionDelay: 2.5 },
+  },
+  bodytube: { 'own ignition': { motorMount: true, ignitionEvent: 'ejectioncharge', ignitionDelay: 1 } },
   trapezoidfinset: { 'with a tab': TAB },
   ellipticalfinset: { 'with a tab': TAB },
   freeformfinset: { 'with a tab': TAB },
@@ -151,9 +155,68 @@ const PAST_OPEN_MAX: Partial<Record<Field['kind'], number>> = {
   mass: 0.5,
 };
 
-type Case = { label: string; node: ComponentNode };
+/**
+ * How far below the panel's floor the out-of-range probe goes, by kind. Far
+ * enough that a kernel setter which keeps the value shows it kept, and that one
+ * which clamps shows the clamp. Counts have no probe: the bridge refuses one
+ * outside its range by throwing (`ComponentFactory.count`), and a thrown build
+ * leaves the engine answering later builds with stale defaults.
+ */
+const BELOW_FLOOR: Partial<Record<Field['kind'], number>> = {
+  angle: 0.5,
+  length: 0.01,
+  number: 0.5,
+  distance: 50,
+  mass: 0.1,
+};
 
-/** A seed as it is, with each key left out in turn, at each end of each range the panel allows, and on Auto. */
+/**
+ * The keys the bridge refuses below 0 by throwing (`ComponentFactory.NON_NEGATIVE`),
+ * read from the Java so the list cannot drift from it. A floor the bridge
+ * shares needs no probe, and sending one would throw inside the kernel.
+ */
+const BRIDGE_NON_NEGATIVE: ReadonlySet<string> = (() => {
+  const java = readFileSync(join(process.cwd(), '../engine-java/src/api/java/api/ComponentFactory.java'), 'utf8');
+  const from = java.indexOf('NON_NEGATIVE = ');
+  const list = java.slice(from, java.indexOf('));', from));
+  const keys = [...list.matchAll(/"([A-Za-z]+)"/g)].map((m) => m[1]!);
+  if (keys.length < 10) throw new Error('ComponentFactory.NON_NEGATIVE not found');
+  return new Set(keys);
+})();
+
+/**
+ * Fields whose box stops at a bound the kernel's setter does not have, by
+ * `type.key`, each with the reason the panel keeps the bound. Most are
+ * desktop's own spinner floors (a four-argument `DoubleModel` whose last
+ * argument is the minimum, read with javap from the jar class named here), so
+ * the floor is the spec's, not a clamp narrower than the kernel's. Any other
+ * bound the panel sets has to be one the kernel clamps or the bridge refuses
+ * too: a bound the kernel does not share and the spec does not set is a value
+ * the part can fly and the panel cannot enter. The list is checked both ways:
+ * an entry the kernel has started clamping fails.
+ */
+const BOUNDED_PAST_KERNEL: Record<string, string> = {
+  'stage.separationDelay': 'SeparationSelectionDialog floors SeparationDelay at 0',
+  'stage.separationAltitude': 'SeparationSelectionDialog floors SeparationAltitude at 0',
+  'parallelstage.separationDelay': 'SeparationSelectionDialog floors SeparationDelay at 0',
+  'parallelstage.separationAltitude': 'SeparationSelectionDialog floors SeparationAltitude at 0',
+  'podset.radiusOffset': 'ComponentAssemblyConfig floors RadiusOffset at 0',
+  'parallelstage.radiusOffset': 'ComponentAssemblyConfig floors RadiusOffset at 0',
+  // The panel keeps a fin tab within the root it is cut from (`signedWithinLength`);
+  // FinSetConfig leaves TabOffset unbounded and FinSet.setTabOffset stores any offset.
+  'trapezoidfinset.tabOffset': 'the panel keeps the tab within the root chord',
+  'ellipticalfinset.tabOffset': 'the panel keeps the tab within the root chord',
+  'freeformfinset.tabOffset': 'the panel keeps the tab within the root chord',
+};
+
+type Case = {
+  label: string;
+  node: ComponentNode;
+  /** The one field this case sends below the panel's floor, and the value sent. */
+  probe?: { key: string; value: number };
+};
+
+/** A seed as it is, with each key left out in turn, at each end of each range the panel allows, past its floor, and on Auto. */
 function cases(type: string, fields: Field[], seedLabel: string, seed: ComponentNode): Case[] {
   const out: Case[] = [{ label: seedLabel, node: seed }];
   for (const f of fields) {
@@ -174,6 +237,20 @@ function cases(type: string, fields: Field[], seedLabel: string, seed: Component
     for (const v of ends.filter((e) => !(refusedAtZero && e === 0)))
       out.push({ label: `${seedLabel}, ${f.key} = ${+v.toFixed(6)}`, node: { ...unflagged, [f.key]: v } });
     if (f.auto) out.push({ label: `${seedLabel}, ${f.key} on Auto`, node: { ...seed, [f.auto.flag]: true } });
+    // Past the floor. An angle range closed at both ends over a whole turn has
+    // no outside: every angle has a representative inside it, which is how
+    // desktop's -180..180 spinners and the kernel's reducePi agree. A range
+    // closed at one end only does have an outside, and the probe goes there.
+    const below = BELOW_FLOOR[f.kind];
+    const wholeTurn = f.kind === 'angle' && r.max !== undefined && r.max - (r.min ?? -Infinity) >= 2 * Math.PI - 1e-9;
+    if (r.min !== undefined && below !== undefined && !wholeTurn && !BRIDGE_NON_NEGATIVE.has(f.key)) {
+      const v = r.min - below;
+      out.push({
+        label: `${seedLabel}, ${f.key} = ${+v.toFixed(6)} (below the floor)`,
+        node: { ...unflagged, [f.key]: v },
+        probe: { key: f.key, value: v },
+      });
+    }
   }
   return out;
 }
@@ -211,6 +288,7 @@ describe('the panel shows what the kernel flies', () => {
     const engine = await loadEngine();
     const misses: Miss[] = [];
     const compared = new Set<string>();
+    const boundedPastKernel = new Set<string>();
     for (const [type, fields] of Object.entries(FIELDS)) {
       for (const [seedLabel, seed] of seeds(type)) {
         for (const c of cases(type, fields, seedLabel, seed)) {
@@ -219,6 +297,26 @@ describe('the panel shows what the kernel flies', () => {
           engine.reset();
           const handle = engine.buildRocket(JSON.stringify(tree));
           const built = JSON.parse(engine.getComponentFields(handle, 'p')) as Record<string, unknown>;
+          if (c.probe) {
+            // Below the panel's floor, the kernel has to refuse the part, clamp
+            // the value, or be known to keep it where the panel stops on
+            // purpose. Otherwise the panel stops short of a value the part can fly.
+            const f = fields.find((x) => x.key === c.probe!.key)!;
+            if (typeof built.error === 'string' || !fieldApplies(app, f)) continue;
+            if (READ_ONLY_WHEN[f.key] && !READ_ONLY_WHEN[f.key]!(app)) continue;
+            const rule = `${type}.${f.key}`;
+            if (agrees(c.probe.value, built[f.key], f.kind === 'angle')) {
+              if (BOUNDED_PAST_KERNEL[rule]) boundedPastKernel.add(rule);
+              else
+                misses.push({
+                  rule: `${rule} stops short of what the kernel keeps`,
+                  label: c.label,
+                  app: 'stopped',
+                  kernel: built[f.key],
+                });
+            }
+            continue;
+          }
           if (typeof built.error === 'string') {
             misses.push({ rule: `${type} builds`, label: c.label, app: 'builds', kernel: built.error });
             continue;
@@ -257,6 +355,7 @@ describe('the panel shows what the kernel flies', () => {
     const report = unknown.map((m) => `${m.rule} [${m.label}]: app ${String(m.app)}, kernel ${String(m.kernel)}`);
     expect(report, report.join('\n')).toEqual([]);
     expect(Object.keys(KNOWN).filter((rule) => !matched.has(rule))).toEqual([]);
+    expect(Object.keys(BOUNDED_PAST_KERNEL).filter((rule) => !boundedPastKernel.has(rule))).toEqual([]);
     // Every field the panel edits has to be compared in at least one case, or a
     // field that never reaches the state it applies in passes unseen.
     const never = Object.entries(FIELDS).flatMap(([type, fields]) =>

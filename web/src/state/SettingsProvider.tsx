@@ -5,6 +5,7 @@ import {
   loadSettings,
   loadStoredSettings,
   saveSettings,
+  unknownStoredSettings,
   type Settings,
 } from '../services/storage/settings';
 import { applyTheme, followSystemTheme } from '../services/app/theme';
@@ -62,8 +63,9 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
   // first run to skip.
   //
   // A change is laid over what storage holds now, not over this tab's copy,
-  // so it writes only the keys it changes even when another tab's write has
-  // not reached this one yet.
+  // so another tab's write that has not reached this one yet is kept. The
+  // whole object is rewritten, so the keys this build does not know (a newer
+  // build's) are written back as storage holds them.
   //
   // Stable identities, so a consumer can list `update` in an effect's deps
   // (or leave it out) without the effect re-running on every settings change.
@@ -71,7 +73,7 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     (patch: Partial<Settings>) =>
       setSettings((s) => {
         const next = { ...(loadStoredSettings() ?? s), ...patch };
-        if (!saveSettings(next)) reportRefused();
+        if (!saveSettings({ ...unknownStoredSettings(), ...next })) reportRefused();
         return next;
       }),
     [],

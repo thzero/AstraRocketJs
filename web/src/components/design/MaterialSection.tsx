@@ -1,14 +1,16 @@
 import { useTranslation } from 'react-i18next';
 import type { ComponentNode } from '../../engine/openRocketEngine';
 import { MaterialPicker } from './MaterialPicker';
+import { FieldRow, sectionFields } from './DimensionFields';
 
 /**
  * The property panel's material sections: the bulk material a structural part
- * is made of, and the surface (fabric) + line (cord) materials of a recovery
- * device. Each picker commits its choice in one shot.
+ * is made of, with the surface finish of an external part under it, and the
+ * surface (fabric) + line (cord) materials of a recovery device. Each picker
+ * commits its choice in one shot.
  */
 
-/** The bulk material of a structural part. */
+/** The bulk material of a structural part, and the finish of an external one. */
 export function MaterialSection({
   node,
   onCommitChange,
@@ -18,7 +20,7 @@ export function MaterialSection({
   onCommitChange: (patch: Partial<ComponentNode>) => void;
 }) {
   return (
-    <div className="border-t border-line/5 pt-3">
+    <div className="space-y-2 border-t border-line/5 pt-3">
       <MaterialPicker
         value={typeof node.materialName === 'string' ? node.materialName : undefined}
         density={typeof node.density === 'number' ? node.density : undefined}
@@ -33,6 +35,10 @@ export function MaterialSection({
           })
         }
       />
+      {/* The finish is a select, so it closes its own undo entry as it changes. */}
+      {sectionFields(node, 'material').map((f) => (
+        <FieldRow key={f.key} node={node} field={f} onChange={onCommitChange} />
+      ))}
     </div>
   );
 }

@@ -14,6 +14,9 @@ import type { LoadedOrk } from '../../../src/services/files/loadOrk';
 import type { OrkExportSimulation } from '../../../src/services/files/orkTypes';
 import { noteTexts } from '../../testing/importNotes';
 import i18n from '../../../src/i18n';
+import { importNoteText } from '../../../src/services/files/importNote';
+import en from '../../../src/i18n/locales/en.json';
+import fr from '../../../src/i18n/locales/fr.json';
 
 /**
  * Every simulation, with its result summary, through a .ork and back.
@@ -192,19 +195,21 @@ describe('desktop simulation extensions', () => {
     expect(noteTexts(odd.notes).join(' ')).not.toContain('native code');
   });
 
-  it('translates the names desktop translates, and names a script by its language', async () => {
+  it('translates the names desktop translates in the language the note is read in, and names a script by its language', async () => {
     const xml = new TextDecoder()
       .decode(Object.values(unzipSync(new Uint8Array(example)))[0])
       .replace(
         /<extension extensionid="[^"]*RollControl">[\s\S]*?<\/extension>/,
         '<extension extensionid="info.openrocket.core.simulation.extension.impl.ScriptingExtension"><entry key="language" type="string">Python</entry></extension>',
       );
+    // Opened in English, read in French: the note follows the language shown.
+    const notes = importOrk(xml).notes;
     await i18n.changeLanguage('fr');
     try {
-      const note = noteTexts(importOrk(xml).notes).join(' ');
-      expect(note).toContain('Allumage en vol');
-      expect(note).toContain('Script Python');
-      expect(note).not.toContain('Air-start');
+      const note = notes.map((n) => importNoteText(n, i18n.t)).join(' ');
+      expect(note).toContain(fr.importNote.extensionName.airStart);
+      expect(note).toContain(fr.importNote.extensionName.script.replace('{{language}}', 'Python'));
+      expect(note).not.toContain(en.importNote.extensionName.airStart);
     } finally {
       await i18n.changeLanguage('en');
     }

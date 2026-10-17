@@ -246,12 +246,32 @@ describe('fin tab section', () => {
 describe('motor section', () => {
   const motor = () => screen.getByText('Motor').parentElement!;
 
-  it("groups an inner tube's mount, overhang and cluster", () => {
-    show({ id: 'm1', type: 'innertube' } as unknown as ComponentNode);
+  it("groups an inner tube's mount, overhang, ignition and cluster", () => {
+    show({ id: 'm1', type: 'innertube', motorMount: true } as unknown as ComponentNode);
     const box = within(motor());
     expect(box.getByLabelText('Motor mount')).toBeTruthy();
     expect(box.getByLabelText('Motor overhang')).toBeTruthy();
+    expect(box.getByLabelText('Ignition at')).toBeTruthy();
+    expect(box.getByLabelText('Ignition delay')).toBeTruthy();
     expect(box.getByLabelText('Cluster')).toBeTruthy();
+  });
+
+  // Desktop grays them out until the tube is a mount, and the file carries them
+  // only for a mount, so off one they would edit nothing.
+  it('shows the overhang and ignition only on a motor mount', () => {
+    show({ id: 'm1', type: 'innertube' } as unknown as ComponentNode);
+    const box = within(motor());
+    expect(box.getByLabelText('Motor mount')).toBeTruthy();
+    expect(box.queryByLabelText('Motor overhang')).toBeNull();
+    expect(box.queryByLabelText('Ignition at')).toBeNull();
+    expect(box.queryByLabelText('Ignition delay')).toBeNull();
+  });
+
+  it('drops the ignition delay when the mount never ignites', () => {
+    show({ id: 'm1', type: 'innertube', motorMount: true, ignitionEvent: 'never' } as unknown as ComponentNode);
+    const box = within(motor());
+    expect(box.getByLabelText('Ignition at')).toBeTruthy();
+    expect(box.queryByLabelText('Ignition delay')).toBeNull();
   });
 
   it('gives a body tube the same section, without a cluster', () => {

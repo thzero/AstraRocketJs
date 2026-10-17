@@ -1,40 +1,11 @@
-import { fmtList, partLabel } from '../../../i18n/format';
-import i18n from '../../../i18n';
-import type { ComponentNode } from '../../../engine/openRocketEngine';
 import type { OrkFlightConfig } from '../orkTypes';
-import { walkNodes } from '../../../tree/treeWalk';
 import { keyedNote, type ImportNote } from '../importNote';
 
 /**
- * The honesty notes an import surfaces: what the app shows differently from the
- * file, and what the file's flight configurations mean for the one that was
- * opened.
+ * The notes an import surfaces about the file's parts and flight
+ * configurations: the component tags a reader skipped, and what the file's
+ * configurations mean for the one that was opened.
  */
-
-/**
- * Honesty note for repeated instances (other than pod sets and boosters). The
- * simulation counts every instance, but the drawing shows one, so a design whose
- * mass and stability come out right still looks short of parts.
- */
-export function modelingNotes(components: ComponentNode[]): ImportNote[] {
-  const notes: ImportNote[] = [];
-  const allNodes = [...walkNodes(components)];
-  const instanced = allNodes.filter(
-    (nd) =>
-      typeof nd['instanceCount'] === 'number' &&
-      nd['instanceCount'] > 1 &&
-      nd.type !== 'parallelstage' &&
-      nd.type !== 'podset',
-  );
-  if (instanced.length > 0) {
-    notes.push(
-      keyedNote('importNote.instanced', {
-        names: fmtList([...new Set(instanced.map((nd) => partLabel(i18n.t, nd)))]),
-      }),
-    );
-  }
-  return notes;
-}
 
 /**
  * One note per component tag a reader skipped. The readers are the only source

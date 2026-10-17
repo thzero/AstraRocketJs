@@ -25,7 +25,7 @@ const ADD_GROUPS: { group: string; items: ComponentType[] }[] = [
  * The component tree for the left panel: an OpenRocket-style indented
  * hierarchy of the rocket's parts (stage > components > sub-components). Renders
  * the same `RocketTree` the 2D/3D views draw, so it works for a loaded `.ork`
- * design as well as the built-in editor design. Each row shows a category dot,
+ * design as well as the built-in editor design. Each row shows a per-type glyph,
  * the part name, a "motor" tag on motor mounts, and a key dimension.
  *
  * Selection is two-way with the 2D schematic: clicking a row selects the part

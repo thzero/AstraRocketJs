@@ -23,6 +23,7 @@ import { DEFAULT_HEADING_DEG } from '../../services/flight/simulations';
 import { Check } from '../common/Check';
 import { useFilePick } from '../common/useFilePick';
 import { polylinePath } from '../common/svgPath';
+import { useSettings } from '../../state/SettingsProvider';
 
 /**
  * The altitude-layered wind profile, as OpenRocket's Wind Profile Editor: one
@@ -38,8 +39,22 @@ import { polylinePath } from '../common/svgPath';
  * line and the row keys start fresh per opening.
  */
 
-/** A default level, matching the kernel's `addInitialLevel` (still air at the pad). */
-const initialLevel = (): WindLevel => ({ altitudeM: 0, speed: 0, directionDeg: DEFAULT_HEADING_DEG, stddev: 0 });
+/**
+ * The level a reset leaves, as the kernel's `resetLevels` does through
+ * `addInitialLevel`: one level at altitude 0 carrying the preferences' average
+ * wind (its speed, direction and deviation). The app's preferences for that are
+ * the launch defaults new simulations start from.
+ */
+const initialLevel = (defaults: {
+  windAverage: number | null;
+  windStdDev: number | null;
+  windDirectionDeg?: number;
+}): WindLevel => ({
+  altitudeM: 0,
+  speed: defaults.windAverage ?? 0,
+  directionDeg: defaults.windDirectionDeg ?? DEFAULT_HEADING_DEG,
+  stddev: defaults.windStdDev ?? 0,
+});
 
 const cell = 'rounded bg-raised px-1 py-1 text-right text-xs tabular-nums text-ink-strong ring-1 ring-line/10';
 const btn = 'rounded-md bg-raised px-2 py-1.5 text-xs font-medium text-ink-soft ring-1 ring-line/10 hover:bg-elevated';
@@ -140,6 +155,7 @@ export function WindProfileDialog({
 }) {
   const { t } = useTranslation();
   const u = useUnits();
+  const { settings } = useSettings();
   const [showVectors, setShowVectors] = useState(true);
   const [error, setError] = useState<string | null>(null);
   // Which CSV import is current: a file read outlives this dialog.
@@ -162,11 +178,13 @@ export function WindProfileDialog({
   const surfaceLevel = levels.length
     ? levels.reduce((lowIdx, l, i) => (l.altitudeM < levels[lowIdx]!.altitudeM ? i : lowIdx), 0)
     : -1;
+  /** The wind speed cap, which holds on the ground layer only; aloft the turbulence box can set more. */
+  const windCap = (i: number) => (i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined);
   /**
-   * The rows sharing an altitude with an earlier row. The kernel refuses a
-   * profile like that outright, in its own words, half way into a run
-   * (`Wind level already exists for altitude: 0.0`), so the editor that let it
-   * be typed is where it has to be said. Flagged rather than prevented: a row
+   * The rows sharing an altitude with an earlier row. The run refuses a
+   * profile like that outright (the bridge says the altitude repeats, before
+   * the kernel's `addWindLevel` would throw), so the editor that let it be
+   * typed is where it has to be said. Flagged rather than prevented: a row
    * passes through a collision on the way to a legal value - clearing 300 to
    * type 3000 goes past 0 - and refusing the keystroke would make the column
    * unusable.
@@ -333,7 +351,7 @@ export function WindProfileDialog({
                     <NumberInput
                       step={u.step('windspeed', 0.5)}
                       min={0}
-                      max={i === surfaceLevel ? u.toUi('windspeed', MAX_WIND_SPEED_MS) : undefined}
+                      max={windCap(i)}
                       ariaLabel={t('windProfile.levelField', { field: t('launch.speed'), n: i + 1 })}
                       value={u.toUi('windspeed', l.speed)}
                       // A cleared box writes nothing, as the altitude column:
@@ -357,7 +375,7 @@ export function WindProfileDialog({
                     <NumberInput
                       step={u.step('windspeed', 0.5)}
                       min={0}
-                      max={u.toUi('windspeed', MAX_WIND_SPEED_MS)}
+                      max={windCap(i)}
                       ariaLabel={t('windProfile.levelField', { field: t('windProfile.deviation'), n: i + 1 })}
                       value={u.toUi('windspeed', l.stddev)}
                       onChange={onSi(u.plain('windspeed'), (si) => patchLevel(i, { stddev: si ?? 0 }))}
@@ -404,7 +422,7 @@ export function WindProfileDialog({
               <button
                 className={btn}
                 onClick={() => {
-                  replaceLevels([initialLevel()]);
+                  replaceLevels([initialLevel(settings.launchDefaults)]);
                   setError(null);
                   onCommit?.();
                 }}

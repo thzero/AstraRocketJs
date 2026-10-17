@@ -25,6 +25,7 @@ import { RecoverySizingReadout } from './RecoverySizingReadout';
 import { ConfigOverrideNote } from './ConfigOverrideNote';
 import { useUnits } from '../../prefs/useUnits';
 import { num } from '../../tree/nodeProps';
+import { freeformPoints } from '../../tree/position';
 import { tubeFinMaxCount, tubeFinMaxRadius } from '../../tree/tubefins';
 import { FieldRow, FieldSection, ShoulderSections, sectionFields, visibleFields } from './DimensionFields';
 import { CordMaterialSection, MaterialSection, RecoveryMaterialSection } from './MaterialSection';
@@ -82,6 +83,7 @@ export function PropertyPanel({
   coveredBy,
   parentRadius = 0,
   fit,
+  stageBelow,
   flush = false,
 }: {
   node: ComponentNode | null;
@@ -103,6 +105,8 @@ export function PropertyPanel({
   parentRadius?: number;
   /** Geometry around this part, so the catalog picker can rank what fits it. */
   fit?: FitContext;
+  /** Whether the part's stage has a stage below it; see `NodeEditProps`. */
+  stageBelow?: boolean;
   /**
    * Drop the panel's own card, for a host that already is one. The right column
    * needs the card to read as a panel against the pane behind it; the component
@@ -235,7 +239,7 @@ export function PropertyPanel({
           panel puts it below them. */}
       {fields.map((f) => (
         <Fragment key={f.key}>
-          <FieldRow node={node} field={f} onChange={onChange} onCommit={onCommit} />
+          <FieldRow node={node} field={f} onChange={onChange} onCommit={onCommit} stageBelow={stageBelow} />
           {f.key === shapeAnchor && <ShapeDescription node={node} />}
         </Fragment>
       ))}
@@ -333,8 +337,11 @@ export function PropertyPanel({
           graphically rather than as scalar fields. */}
       {node.type === 'freeformfinset' && (
         <div className="border-t border-line/5 pt-3">
+          {/* The outline the kernel flies, not the stored list: setPoints moves
+              the first point to the origin and cuts any coordinate past 2.5 m
+              to 2.5 m, and the editor holds its first vertex at the origin. */}
           <FreeformFinEditor
-            points={(node.points as [number, number][] | undefined) ?? []}
+            points={freeformPoints(node)}
             onChange={(pts) => onChange({ points: pts })}
             onCommit={onCommit}
           />

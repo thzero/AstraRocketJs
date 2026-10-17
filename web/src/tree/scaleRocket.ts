@@ -5,7 +5,7 @@ import { chainOuterRadius, numOpt, positionOf } from './nodeProps';
 import { walkNodes } from './treeWalk';
 import { partLength } from './position';
 import { roundTo } from '../services/app/numbers';
-import { KERNEL_DEFAULTS } from './kernelDefaults';
+import { kernelDefault } from './kernelDefaults';
 
 /**
  * Scale a whole rocket by one factor: the "upscale/downscale a plan" workflow.
@@ -181,12 +181,6 @@ export interface ScaleOptions {
   offsets?: boolean;
   masses?: boolean;
 }
-
-/** The kernel's value for a key a node of `type` leaves out, where it has one. */
-const kernelDefault = (type: string, key: string): number | undefined => {
-  const row = (KERNEL_DEFAULTS as Record<string, Record<string, number> | undefined>)[type];
-  return typeof row?.[key] === 'number' ? row[key] : undefined;
-};
 
 /** Twelve places: past any real dimension, short of float noise. */
 const round = (x: number, places = 12): number => roundTo(x, places);

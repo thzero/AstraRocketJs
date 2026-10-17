@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { StrictMode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, screen, waitFor, within } from '@testing-library/react';
 import { LocationPicker } from '../../../src/components/sim/LocationPicker';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 import {
@@ -248,6 +248,35 @@ describe('LocationPicker', () => {
     // The elevation is formatted in the user's own unit, so it carries a
     // thousands separator, matched loosely rather than pinned to a locale.
     expect(dialog.textContent).toMatch(/1[,. ]?830\s*m/);
+  });
+
+  /**
+   * "Use" in the manage dialog writes the fields of the picker that opened it.
+   * The picker sits in Settings and in the tools as well as the launch panel,
+   * and from there the active simulation is not what is being edited.
+   */
+  it('applies a location from the manage dialog to its own fields, not the active simulation', async () => {
+    const { useWorkspaceStore } = await import('../../../src/state/store');
+    act(() => {
+      useWorkspaceStore.getState().resetWorkspace();
+    });
+    const st = () => useWorkspaceStore.getState();
+    const activeBefore = st().sims.find((x) => x.id === st().activeId)!.launch;
+    const { onChange, onCommit } = render();
+    await waitFor(() => screen.getByRole('option', { name: 'Home field' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage saved locations' }));
+    const dialog = await screen.findByRole('dialog', { name: 'Manage saved locations' });
+    fireEvent.click(await within(dialog).findByText('Home field'));
+    fireEvent.click(within(dialog).getByRole('button', { name: 'Use' }));
+
+    expect(onChange).toHaveBeenCalledWith({
+      latitudeDeg: HOME.latitudeDeg,
+      longitudeDeg: HOME.longitudeDeg,
+      launchAltitudeM: HOME.launchAltitudeM,
+    });
+    expect(onCommit).toHaveBeenCalled();
+    expect(st().sims.find((x) => x.id === st().activeId)!.launch).toEqual(activeBefore);
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: 'Manage saved locations' })).toBeNull());
   });
 
   it('has nothing to manage before anything is saved', async () => {

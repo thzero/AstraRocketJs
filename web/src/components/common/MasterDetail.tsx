@@ -105,13 +105,19 @@ export function MasterRow({
   );
 }
 
-/** The dialog footer line that reports a failed write. */
+/**
+ * The dialog footer line that reports a failed write.
+ *
+ * Always mounted, empty until there is something to say: a live region created
+ * together with its text is not announced by most screen readers (see
+ * UpdateToast), and this line is the dialog's only word on a refused write.
+ */
 export function MasterStatus({ err }: { err: string | null }) {
-  return err ? (
+  return (
     <p role="status" aria-live="polite" className="px-4 py-2 text-xs text-warn-400">
       {err}
     </p>
-  ) : null;
+  );
 }
 
 /**

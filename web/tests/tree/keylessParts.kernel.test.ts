@@ -3,7 +3,7 @@ import type { ComponentNode, ComponentType, RocketTree } from '../../src/engine/
 import { defaultNode, findNode, syncDerived } from '../../src/services/design/treeEdit';
 import { stageParts } from '../../src/services/report/reportModel';
 import { axialFrames } from '../../src/tree/axialRebase';
-import { chainOuterRadius } from '../../src/tree/nodeProps';
+import { anyOuterRadius, chainOuterRadius } from '../../src/tree/nodeProps';
 import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
 import { kernelGeometry, loadEngine } from '../testing/kernelGeometry';
 
@@ -62,6 +62,21 @@ describe('a body tube with no radius key', () => {
     const tree = stage([NOSE, { type: 'bodytube', id: 'tube', length: 0.3, thickness: 0.001 }]);
     const kernel = kernelGeometry(await loadEngine(), tree).get('tube')!.outerRadius!;
     expect(chainOuterRadius(findNode(tree, 'tube')!)).toBeCloseTo(kernel, 12);
+  });
+});
+
+describe('a nose cone with no radius key', () => {
+  it('reads as the base radius the kernel builds it at, by every radius reader', async () => {
+    const tree = stage([
+      { type: 'nosecone', id: 'nose', shape: 'ogive', length: 0.1, thickness: 0.002 },
+      { type: 'bodytube', id: 'tube', length: 0.3, outerRadius: 0.012, thickness: 0.001 },
+    ]);
+    const kernel = kernelGeometry(await loadEngine(), tree, { fields: true }).get('nose')!;
+    const nose = findNode(tree, 'nose')!;
+    expect(kernel.aftRadius).toBeGreaterThan(0);
+    expect(kernel.fields!['aftRadius']).toBeCloseTo(kernel.aftRadius!, 12);
+    expect(chainOuterRadius(nose)).toBeCloseTo(kernel.aftRadius!, 12);
+    expect(anyOuterRadius(nose)).toBeCloseTo(kernel.aftRadius!, 12);
   });
 });
 

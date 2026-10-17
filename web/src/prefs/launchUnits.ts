@@ -10,7 +10,8 @@ import { degToRad, radToDeg } from './units';
  * and nowhere else.
  *
  * It lives in its own module rather than inside LaunchPanel because it is pure
- * arithmetic (including the app's only offset conversion outside units.ts),
+ * arithmetic (an offset conversion for the temperature, like the .ork writer's
+ * and reader's for the launch temperature),
  * and out of a component it can be unit-tested without rendering anything.
  */
 export interface LaunchUnitBridge {

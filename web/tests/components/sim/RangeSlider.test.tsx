@@ -27,3 +27,21 @@ describe('RangeSlider thumb names', () => {
     }
   });
 });
+
+/** A screen reader hears the stop's label, not the thumb's index among the stops. */
+describe('RangeSlider thumb values', () => {
+  const stops = ['6 mm', '10.5 mm', '13 mm', '18 mm', '24 mm'];
+
+  it('announces each thumb as the label of its stop, at every position', () => {
+    for (let lo = 0; lo < stops.length; lo++) {
+      for (let hi = lo; hi < stops.length; hi++) {
+        const { unmount } = renderWithProviders(
+          <RangeSlider count={stops.length} low={lo} high={hi} onChange={() => {}} label="Diameter" stops={stops} />,
+        );
+        expect(screen.getByLabelText('Diameter min').getAttribute('aria-valuetext')).toBe(stops[lo]);
+        expect(screen.getByLabelText('Diameter max').getAttribute('aria-valuetext')).toBe(stops[hi]);
+        unmount();
+      }
+    }
+  });
+});

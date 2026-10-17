@@ -2,6 +2,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import type { ComponentNode } from '../../src/engine/openRocketEngine';
+import { KERNEL_DEFAULTS } from '../../src/tree/kernelDefaults';
 import {
   assemblyChainLength,
   assemblyBoundingRadius,
@@ -37,11 +38,12 @@ describe('assemblyChainLength', () => {
   });
 
   it('counts a member with no length at the length the bridge builds it with', () => {
-    // ComponentFactory gives a body tube with no length 0.3 m and a nose cone
-    // 0.07 m; the pod's chain is that long in the kernel, not zero.
+    // ComponentFactory gives a body tube and a nose cone with no length their
+    // constructors' (KERNEL_DEFAULTS); the pod's chain is that long in the
+    // kernel, not zero.
     const p = pod([{ type: 'nosecone' }, { type: 'bodytube', length: 0.1 }]);
-    expect(assemblyChainLength(p)).toBeCloseTo(0.07 + 0.1, 12);
-    expect(assemblyChainLength(pod([{ type: 'bodytube' }]))).toBeCloseTo(0.3, 12);
+    expect(assemblyChainLength(p)).toBeCloseTo(KERNEL_DEFAULTS.nosecone.length + 0.1, 12);
+    expect(assemblyChainLength(pod([{ type: 'bodytube' }]))).toBeCloseTo(KERNEL_DEFAULTS.bodytube.length, 12);
   });
 });
 

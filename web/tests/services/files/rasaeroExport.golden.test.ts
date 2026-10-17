@@ -7,9 +7,10 @@ import type { Keyed } from '../../../src/i18n/keyedError';
 /**
  * Golden output of the .CDX1 writer, covering the sustainer, booster, recovery,
  * launch-site and simulation writers. A three
- * stage design exercises every branch: each nose shape, a shoulder and a boat
- * tail on a booster, fins on a transition, rail buttons and lugs, two chutes,
- * a Mach-Alt table, custom launch conditions and per-stage engines.
+ * stage design exercises every branch: each nose shape, a shoulder on the
+ * first booster and a boat tail on the last, fins on a transition, rail
+ * buttons and lugs, two chutes, a Mach-Alt table, custom launch conditions,
+ * per-stage engines and per-stage launch cells.
  */
 
 const node = (o: object) => o as unknown as ComponentNode;
@@ -118,7 +119,6 @@ const threeStage = (): RocketTree =>
               node({ type: 'innertube', id: 'b1Mount', length: 0.3 }),
             ],
           }),
-          node({ type: 'transition', id: 'bt1', length: 0.03, foreRadius: 0.038, aftRadius: 0.02 }),
         ],
       }),
       node({
@@ -138,6 +138,7 @@ const threeStage = (): RocketTree =>
               node({ type: 'innertube', id: 'b2Mount', length: 0.3 }),
             ],
           }),
+          node({ type: 'transition', id: 'bt2', length: 0.03, foreRadius: 0.038, aftRadius: 0.02 }),
         ],
       }),
     ],
@@ -149,8 +150,12 @@ describe('golden .CDX1 export', () => {
     const xml = exportCdx1({
       name: 'Golden <Triple> & co',
       tree: threeStage(),
-      launchMassKg: 2.5,
-      launchCgM: 0.9,
+      // Cumulative per stage: the sustainer, then with booster 1, then with both.
+      stageLaunch: [
+        { massKg: 1.1, cgM: 0.45 },
+        { massKg: 1.9, cgM: 0.7 },
+        { massKg: 2.5, cgM: 0.9 },
+      ],
       launch: {
         launchAltitudeM: 1400,
         pressureHPa: 850,
@@ -184,7 +189,14 @@ describe('golden .CDX1 export', () => {
         node({ type: 'bodytube', id: 'b', length: 0.3, outerRadius: 0.02, children: [fins('bare')] }),
       ],
     } as unknown as RocketTree;
-    const xml = exportCdx1({ name: 'Bare', tree, warnings, motors: { b: { designation: 'X' } } });
+    const xml = exportCdx1({
+      name: 'Bare',
+      tree,
+      launchMassKg: 0.3,
+      launchCgM: 0.2,
+      warnings,
+      motors: { b: { designation: 'X' } },
+    });
     expect(xml).toMatchSnapshot();
     expect(warnings).toEqual([RASAERO_SURFACE_WARNING]);
   });

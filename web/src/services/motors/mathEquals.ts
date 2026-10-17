@@ -11,3 +11,11 @@ export function mathEquals(a: number, b: number, epsilon = MATH_EPSILON): boolea
   if (absb < epsilon / 2) return Math.abs(a) < epsilon / 2;
   return Math.abs(a - b) < epsilon * absb;
 }
+
+/**
+ * `MathUtil.equals(x, 0)`: the kernel's near-zero test. Against zero the
+ * epsilon halves, so the threshold is 5e-9, not `MathUtil.EPSILON` itself.
+ */
+export function isZero(x: number): boolean {
+  return mathEquals(x, 0);
+}

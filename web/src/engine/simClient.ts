@@ -416,7 +416,8 @@ export function warmSimWorker(): void {
 }
 
 /** Run a flight simulation off the main thread. Rejects with the engine error
- *  message, or {@link SimTimeoutError} if the worker doesn't answer in time.
+ *  message, {@link SimTimeoutError} if the worker doesn't answer in time, or
+ *  {@link SimCanceledError} when the run is canceled under it.
  *
  *  Several calls run concurrently, up to the pool limit; the rest queue. */
 export function simulateInWorker(payload: SimPayload, opts: SimCallOptions = {}): Promise<WorkerResults['simulate']> {

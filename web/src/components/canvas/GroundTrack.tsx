@@ -70,7 +70,9 @@ export function GroundTrack({
 
   const lines = useMemo<GroundTrackLine[]>(
     () =>
-      buildTraces(flight, (i) => stageLabel(t, i)).map((tr) => groundTrackLine(tr.key, tr.name, tr.color, tr.series)),
+      buildTraces(flight, (i, name) => stageLabel(t, i, name)).map((tr) =>
+        groundTrackLine(tr.key, tr.name, tr.color, tr.series),
+      ),
     [flight, t],
   );
   const drawn = lines.filter((l) => l.points.length >= 2);

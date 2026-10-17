@@ -45,10 +45,33 @@ function motorCoverage(motors) {
   return { rows: motors.length, digests: motors.filter((m) => m.digests?.length).length };
 }
 
+/**
+ * Every digest carried by more than one row, with the rows that carry it.
+ *
+ * A digest names one desktop preset. Two rows of different sizes under one
+ * digest make a saved .ork link the second part to the first preset, and
+ * desktop then loads that preset's dimensions over the part. The digest step
+ * can produce this when its matcher keys two rows to one preset, so it is
+ * refused here rather than published.
+ */
+function sharedDigests(components) {
+  const rows = new Map();
+  for (const row of components) {
+    if (!row.digest) continue;
+    if (!rows.has(row.digest)) rows.set(row.digest, []);
+    rows.get(row.digest).push(row);
+  }
+  return [...rows].filter(([, r]) => r.length > 1);
+}
+
+const rowName = (row) => [row.type, row.mfr, row.partNo ?? row.desc].filter(Boolean).join(' ');
+
 /** Why a parts catalog fails its floors; empty when it passes. */
 export function partProblems(components) {
   const c = partCoverage(components);
   const problems = [];
+  for (const [digest, rows] of sharedDigests(components))
+    problems.push(`digest ${digest} is carried by ${rows.length} rows (${rows.map(rowName).join('; ')})`);
   if (share(c.digests, c.rows) < PART_FLOOR)
     problems.push(
       `parts: ${c.digests} of ${c.rows} carry a digest (${pct(share(c.digests, c.rows))}, floor ${pct(PART_FLOOR)})`,

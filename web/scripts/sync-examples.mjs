@@ -37,6 +37,7 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { arg } from './lib/args.mjs';
+import { xmlText } from './lib/orcText.mjs';
 
 const OUT_DIR = fileURLToPath(new URL('../public/examples', import.meta.url));
 const UPSTREAM = fileURLToPath(new URL('../../engine-java/extract/UPSTREAM', import.meta.url));
@@ -95,14 +96,7 @@ function headerTag(xml, tag) {
   const head = xml.match(/<rocket>[\s\S]*?<subcomponents>/)?.[0] ?? '';
   const raw = head.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1];
   if (raw == null) return null;
-  const text = raw
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&amp;/g, '&')
-    .replace(/\s+/g, ' ')
-    .trim();
+  const text = xmlText(raw).replace(/\s+/g, ' ').trim();
   return text || null;
 }
 

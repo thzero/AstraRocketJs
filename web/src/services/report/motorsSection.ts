@@ -1,6 +1,7 @@
 import type { ReportModel } from './reportModel';
 import { fmtNum } from '../../i18n/format';
 import { NO_VALUE } from '../../i18n/noValue';
+import { G0 } from '../motors/motorMath';
 import {
   ensure,
   g,
@@ -61,7 +62,7 @@ function writeFlightSummary(p: PdfPage, flight: NonNullable<MotorConfig['flight'
  * mass the kernel could not give has no ratio.
  */
 export function twRatio(avgThrust: number, loadedMass: number): string {
-  const ratio = avgThrust / (loadedMass * 9.80665);
+  const ratio = avgThrust / (loadedMass * G0);
   return Number.isFinite(ratio) && loadedMass > 0 ? `${fmtNum(ratio, 2)}:1` : NO_VALUE;
 }
 
@@ -90,8 +91,8 @@ function writeMotorTable(p: PdfPage, c: MotorConfig): void {
     `${m.manufacturer ? m.manufacturer + ' ' : ''}${m.designation}`,
     q(p, 'force', m.avgThrust),
     Number.isFinite(m.burnTime) ? `${fmtNum(m.burnTime, 2)} s` : NO_VALUE,
-    q(p, 'force', m.maxThrust, 0),
-    q(p, 'impulse', m.totalImpulse, 0),
+    q(p, 'force', m.maxThrust),
+    q(p, 'impulse', m.totalImpulse),
     twRatio(m.avgThrust, m.loadedMass),
     g(p, m.weight),
     `${qv(p, 'motorDimensions', m.diameter, sizeDigits)}/${qv(p, 'motorDimensions', m.length, sizeDigits)} ${units.motorDimensions}`,
@@ -105,7 +106,6 @@ function writeMotorTable(p: PdfPage, c: MotorConfig): void {
       p,
       'impulse',
       c.motors.reduce((a, m) => a + m.totalImpulse, 0),
-      0,
     ),
     '',
     g(

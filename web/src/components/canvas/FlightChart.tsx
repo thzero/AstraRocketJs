@@ -62,7 +62,7 @@ export function FlightChart({ flight }: { flight: ChartFlight }) {
   const [expanded, setExpanded] = useState<Key | null>(null);
 
   // Every branch as a colored, selectable trace.
-  const branches = useMemo(() => buildTraces(flight, (i) => stageLabel(t, i)), [flight, t]);
+  const branches = useMemo(() => buildTraces(flight, (i, name) => stageLabel(t, i, name)), [flight, t]);
   const multistage = branches.length >= 2;
 
   // Which traces are hidden. Exclusions rather than inclusions: a new set of

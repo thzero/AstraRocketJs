@@ -8,10 +8,11 @@ import type { Settings } from '../../services/storage/settings';
  *
  * The preference is spent at creation: the new part carries the material
  * outright, shows it in the panel and writes it to the `.ork`. Desktop
- * OpenRocket keeps the part unset and applies its equivalent preference when it
- * computes mass, which means the same file weighs one thing on the machine that
- * made it and another on the machine it was sent to. Existing parts are never
- * touched by a change here; it only applies from the next part you add.
+ * OpenRocket does the same: each component's constructor takes its material
+ * from the equivalent preference (ExternalComponent, StructuralComponent,
+ * RecoveryDevice, ShockCord). With no default set here, the part gets the
+ * kernel's stock material. Existing parts are never touched by a change here;
+ * it only applies from the next part you add.
  *
  * One row per material slot rather than per part, because a part can have more
  * than one: a parachute has a canopy and its shroud lines, and they are

@@ -1,6 +1,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import type { ComponentNode, StaticInfo } from '../../../src/engine/openRocketEngine';
 import { stageParts, finSetPositions, restoringEngine } from '../../../src/services/report/reportModel';
+import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import { motorSpecs, newFlightConfig } from '../../../src/services/flight/flightConfigs';
 
 const node = (o: object): ComponentNode => o as unknown as ComponentNode;
@@ -78,7 +79,7 @@ describe('stageParts', () => {
   });
   it('gives a part with no length the length the bridge builds it with, not 0', () => {
     const s = node({ type: 'stage', children: [node({ type: 'bodytube', name: 'B', outerRadius: 0.012 })] });
-    expect(stageParts(s, rocket)[0]!.length).toBeCloseTo(0.3, 12);
+    expect(stageParts(s, rocket)[0]!.length).toBeCloseTo(KERNEL_DEFAULTS.bodytube.length, 12);
   });
   it('leaves mass 0 for a part the engine cannot weigh (no id / throw)', () => {
     const s = node({ type: 'stage', children: [node({ type: 'masscomponent', name: 'Ballast' })] }); // no id

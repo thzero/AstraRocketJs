@@ -10,6 +10,8 @@ import { fmtUpTo } from '../../i18n/format';
 import { partName } from './ConfigsTable';
 // The design field's list, so the override offers every event the part can.
 import { DEPLOY_EVENTS } from '../../services/design/componentFields';
+import { LOWER_STAGE_SEPARATION, hasStageBelow } from '../../services/design/fieldRange';
+import { findNode } from '../../services/design/treeEdit';
 
 /**
  * When one recovery device opens under this configuration.
@@ -36,11 +38,20 @@ export function DeploymentSection({
   const onCommit = useWorkspaceStore((s) => s.commitEdit);
 
   const id = device.id as string;
+  // Whether the device's stage has one below it; undefined for a device the
+  // design does not hold, which is offered every event.
+  const stageBelow = useWorkspaceStore((s) => (findNode(s.tree, id) ? hasStageBelow(s.tree, id) : undefined));
   const over = deployOverride(config, id);
   // What the design says, which is what an un-overridden field falls through to.
   const design = designDeployment(device);
   const baseEvent = design.deployEvent;
   const event = over?.deployEvent ?? baseEvent;
+  // The lower-stage separation never fires on the bottom stage (the design field
+  // drops it there too, fieldRange.fieldOptions); a value the flight already
+  // holds stays on offer so an imported file shows as itself.
+  const events = DEPLOY_EVENTS.filter(
+    (ev) => ev !== LOWER_STAGE_SEPARATION || stageBelow !== false || event === LOWER_STAGE_SEPARATION,
+  );
   const scope = unitScope('prop', device.type, 'deployAltitude');
   const alt = u.at(scope, 'distance');
 
@@ -53,33 +64,36 @@ export function DeploymentSection({
         label={t('prop.deployEvent')}
         value={over?.deployEvent}
         designed={t(`deployEvent.${baseEvent}`)}
-        options={DEPLOY_EVENTS.map((ev) => ({ value: ev, label: t(`deployEvent.${ev}`) }))}
+        options={events.map((ev) => ({ value: ev, label: t(`deployEvent.${ev}`) }))}
         onChange={(v) => {
           setDeployment(config.id, id, 'deployEvent', v);
           onCommit();
         }}
       />
 
-      {/* Altitude is only read by the altitude trigger, and the property panel
-          shows it unconditionally for the same reason: the value survives a trip
-          through another event and is there when you come back. */}
-      <OverrideNumber
-        name={name}
-        label={t('prop.deployAltitude')}
-        value={over?.deployAltitude == null ? null : alt.toUi(over.deployAltitude)}
-        placeholder={alt.fmt(design.deployAltitude)}
-        step={alt.step(10)}
-        // Floored at zero, as the design-side field is by `NumberField`'s own
-        // `min = 0` default. `onSi` rejects only a null or a failed conversion,
-        // not a negative, so a typed or pasted -150 would commit into the flight
-        // configuration: the kernel's altitude trigger then never fires and the
-        // design flies ballistic under that one configuration, with nothing on
-        // screen marking the field.
-        min={alt.toUi(0)}
-        unit={alt.sym}
-        onChange={onSi(alt, (si) => setDeployment(config.id, id, 'deployAltitude', si))}
-        onCommit={onCommit}
-      />
+      {/* Altitude is read by the altitude trigger only, so the box is offered
+          under that event alone, as the property panel and desktop do; a stored
+          override survives a trip through another event and is back with it. */}
+      {event === 'altitude' && (
+        <OverrideNumber
+          name={name}
+          label={t('prop.deployAltitude')}
+          value={over?.deployAltitude == null ? null : alt.toUi(over.deployAltitude)}
+          placeholder={alt.fmt(design.deployAltitude)}
+          step={alt.step(10)}
+          // Floored at zero, as the design-side box is by `fieldRange` (a
+          // `distance` field is non-negative; the bridge refuses a negative
+          // deploy altitude). `onSi` rejects only a null or a failed conversion,
+          // not a negative, so a typed or pasted -150 would commit into the flight
+          // configuration: the kernel's altitude trigger then never fires and the
+          // design flies ballistic under that one configuration, with nothing on
+          // screen marking the field.
+          min={alt.toUi(0)}
+          unit={alt.sym}
+          onChange={onSi(alt, (si) => setDeployment(config.id, id, 'deployAltitude', si))}
+          onCommit={onCommit}
+        />
+      )}
 
       <OverrideNumber
         name={name}
@@ -88,7 +102,7 @@ export function DeploymentSection({
         placeholder={fmtUpTo(design.deployDelay, 2)}
         step={0.5}
         min={0}
-        unit="s"
+        unit={t('units.second')}
         onChange={(v) => setDeployment(config.id, id, 'deployDelay', v)}
         onCommit={onCommit}
       />

@@ -6,29 +6,37 @@
 // the desktop computes it for the OpenRocket build that loads the database, and
 // builds disagree. The engine here is newer than the 24.12 release, and since
 // then `Transition.loadFromPreset` gives a preset's shoulders the part's wall
-// (upstream 90a57aa33), so the same nose cone has more volume. A density taken
-// from 24.12 and flown here weighs up to a third more than the catalog states.
+// (upstream's loader, not 24.12's), so the same nose cone has more volume. A density taken
+// from 24.12 and flown here can weigh several times what the catalog states.
 // Measured in the engine the app flies, the part weighs its stated mass.
 //
-// The node built here has to be the node the app builds from the row
-// (`catalogPatch` in src/services/design/treeEdit.ts). It cannot import that
-// TypeScript, so it repeats the geometry it states; `catalogPatch.kernel.test.ts`
-// applies every massed row through `catalogPatch` and requires the kernel mass to
-// equal the stated one, which fails if the two drift apart.
+// The node built here has to be the node the app flies once a pick is applied
+// (`catalogPatch` in src/services/design/treeEdit.ts, through `updateNode`). It
+// cannot import that TypeScript, so it repeats the geometry the patch states;
+// `catalogPatch.kernel.test.ts` picks every massed row onto a part through
+// `updateNode` and requires the kernel mass to equal the stated one, which fails
+// if the two drift apart.
 // A URL rather than a path: a Windows drive letter is not an import scheme.
 const ENGINE = new URL('../../src/engine/vendor/openrocket-engine.mjs', import.meta.url).href;
 
 /** `SymmetricComponent.DEFAULT_THICKNESS`: a new part's wall (m). */
 const DEFAULT_WALL = 0.002;
 
-/** A shoulder as `Transition.loadFromPreset` applies it: solid when filled, else the stated wall. */
-function shoulder(prefix, diameter, length, row) {
+/**
+ * A shoulder as `Transition.loadFromPreset` applies it: its radius held to the
+ * end radius `end` it plugs (24.12's shoulder radius setters clamp it to that
+ * end), solid when filled, else the stated wall, and never capped (the 24.12
+ * shoulder length setter leaves the cap alone, and `ComponentPresetFactory`
+ * measures a new part, which has none).
+ */
+function shoulder(prefix, diameter, length, end, row) {
   if (diameter == null) return {};
   const key = (k) => (prefix ? `${prefix}${k}` : k.charAt(0).toLowerCase() + k.slice(1));
-  const radius = diameter / 2;
-  const wall = row.filled ? radius : row.thickness;
+  const radius = Math.min(diameter / 2, end);
+  const wall = row.filled ? diameter / 2 : row.thickness;
   return {
     [key('ShoulderRadius')]: radius,
+    [key('ShoulderCapped')]: false,
     ...(length == null ? {} : { [key('ShoulderLength')]: length }),
     ...(wall == null ? {} : { [key('ShoulderThickness')]: wall }),
   };
@@ -50,7 +58,7 @@ function partNode(row) {
         aftRadius: radius,
         filled: !!row.filled,
         thickness: row.filled ? radius : (row.thickness ?? DEFAULT_WALL),
-        ...shoulder('', row.shoulderDiameter, row.shoulderLength, row),
+        ...shoulder('', row.shoulderDiameter, row.shoulderLength, radius, row),
       };
     }
     case 'transition':
@@ -63,8 +71,8 @@ function partNode(row) {
         aftRadius: row.aftOuterDiameter / 2,
         filled: !!row.filled,
         ...(row.thickness != null && !row.filled ? { thickness: row.thickness } : {}),
-        ...shoulder('fore', row.foreShoulderDiameter, row.foreShoulderLength, row),
-        ...shoulder('aft', row.aftShoulderDiameter, row.aftShoulderLength, row),
+        ...shoulder('fore', row.foreShoulderDiameter, row.foreShoulderLength, row.foreOuterDiameter / 2, row),
+        ...shoulder('aft', row.aftShoulderDiameter, row.aftShoulderLength, row.aftOuterDiameter / 2, row),
       };
     case 'bodytube':
     case 'tubecoupler':
@@ -81,6 +89,19 @@ function partNode(row) {
       };
     case 'bulkhead':
       return { ...unit, type: 'bulkhead', outerRadius: row.outerDiameter / 2, length: row.length };
+    // The button's own volume, with no mass override: `makeRailButton` divides
+    // the stated mass by `RailButton.getComponentVolume`.
+    case 'railbutton':
+      return {
+        ...unit,
+        type: 'railbutton',
+        outerDiameter: row.outerDiameter,
+        height: row.height,
+        ...(row.innerDiameter != null ? { innerDiameter: row.innerDiameter } : {}),
+        ...(row.baseHeight != null ? { baseHeight: row.baseHeight } : {}),
+        ...(row.flangeHeight != null ? { flangeHeight: row.flangeHeight } : {}),
+        ...(row.screwHeight != null ? { screwHeight: row.screwHeight } : {}),
+      };
     default:
       return null;
   }

@@ -3,6 +3,7 @@ package info.openrocket.core.rocketcomponent;
 import java.util.ArrayDeque;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Queue;
@@ -68,7 +69,16 @@ public class FlightConfiguration implements FlightConfigurableParameter<FlightCo
 	/* Cached data */
 	final protected Map<Integer, StageFlags> stages = new HashMap<>(); // Map of stage number to StageFlags of the
 																		// corresponding stage
-	final protected Map<MotorConfigurationId, MotorConfiguration> motors = new HashMap<>();
+	// PATCH(astrarrocketjs): HashMap -> LinkedHashMap. A MotorConfigurationId hashes
+	// its mount's id, a UUID.randomUUID() minted per component, so HashMap order is
+	// random per load. SimulationStatus builds its motor list from values(), and two
+	// mounts in one stage that ignite, burn out or eject at the same time tie in
+	// FlightEvent.compareTo, so the queue's insertion order decides which event comes
+	// first. The same order sets the order thrust and motor mass are summed in
+	// (AbstractRKSimulationStepper, MassCalculation), so with three or more motors
+	// it can move a flight by an ulp. LinkedHashMap iterates in insertion order,
+	// which is the tree walk in updateMotors. Same reason as the InstanceMap patch.
+	final protected Map<MotorConfigurationId, MotorConfiguration> motors = new LinkedHashMap<>();
 	private Map<Integer, Boolean> preloadStageActiveness = null;
 	// PATCH(astrarrocketjs): ConcurrentLinkedQueue -> LinkedList. TeaVM's classlib
 	// lacks ConcurrentLinkedQueue; the engine is single-threaded in the browser and

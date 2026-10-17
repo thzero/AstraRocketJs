@@ -72,6 +72,11 @@ declare module '*openrocket-engine.mjs' {
   export function getStaticInfo(rocket: number): string;
   export function getComponentInfo(rocket: number, componentId: string): string;
   export function getComponentGeometry(rocket: number, componentId: string): string;
+  export function getComponentFields(rocket: number, componentId: string): string;
+  export function setShoulderLength(rocket: number, componentId: string, side: string, length: number): string;
+  export function setRogersModifiedBarrowman(rocket: number, enabled: boolean): void;
+  export function setSupersonicAero(rocket: number, enabled: boolean): void;
+  export function runParity(): void;
   export function simulate(
     rocket: number,
     launchRodLength: number,

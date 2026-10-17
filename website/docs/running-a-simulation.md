@@ -10,7 +10,7 @@ A row that has a result ends in a 📊 button, **View results**, which opens the
 
 The tick boxes choose which rows **Run** flies, and also which rows the editor changes. With more than one ticked, the editor says *Editing N selected simulations*, and a field you change is set on all of them. Names and motors stay per simulation. A field where the ticked simulations differ says so, and changing it sets them all to the new value.
 
-**⬇ CSV** in the toolbar downloads the **run table**: every simulation as one row, with its configuration, motors, status and results (apogee, speeds, times, Max-Q, max q·α and max roll rate) in your units. A simulation that has not flown is listed with its figures blank, and an outdated one is marked as such, since its figures describe the design before your latest edits.
+**⬇ CSV** in the toolbar downloads the **run table**: every simulation as one row, with its configuration, motors, status and results (apogee, speeds, times, Max-Q, max q·α and max roll rate) in your units; max q·α is in your pressure unit times your angle unit, as its column header says. A simulation that has not flown is listed with its figures blank, and an outdated one is marked as such, since its figures describe the design before your latest edits.
 
 ## Pick what it flies
 
@@ -37,9 +37,9 @@ The launch site is a property of the **field**, not of a flight, so it does not 
 - **🔍 Find a place** sets the site from a place name, a postal code, pasted coordinates or a map link. A name or postal code is looked up with Open-Meteo's place search, the same way the weather is fetched, and lists the matches with their elevation; choosing one sets latitude, longitude and elevation as one edit. Coordinates and map links from Google, Apple, OpenStreetMap or Bing are read in the app and never sent anywhere, and only the elevation at that point is looked up. When no elevation is found, as when you are offline, the elevation is left blank rather than kept from the previous site. A shortened link (`maps.app.goo.gl/…`) hides the place behind a redirect, so open it and paste the full address instead. Place names come from GeoNames, under CC BY 4.0.
 - **💾 Save this location** stores the three site fields under a name. Saving under a name you already used updates that location instead of adding a second one you could not tell apart in the list.
 - The **dropdown** applies a saved location's latitude, longitude and elevation. It is one ordinary edit, so it undoes like any other. It reads **Custom location** whenever the fields match no saved location, recognized from the numbers themselves, so it stays right whether you typed them, imported them from a `.ork` or used 📍 **Use my location**. Picking **Custom location** yourself returns the three site fields to your [Settings](./settings.md) launch defaults: the **Kennedy Space Center** unless you have changed them. That is for when you are somewhere new and would rather start from a known place than edit a saved location's numbers one at a time: the map has somewhere to open, and all three fields stay filled, so the run is never refused for a blank. It is an ordinary edit too, so undo brings the old site back.
-- **⚙ Manage saved locations** is a two-pane library: the locations on the left with their coordinates, so two fields with similar names can be told apart, and the selected one open on the right. The editor is the whole location (name, latitude, longitude, elevation and the map) because a mistyped coordinate is the thing you most often want to fix. **Save** writes it and leaves it selected, **Discard** puts it back as it was stored, and moving to another location with unsaved edits asks first. **Use** applies the selected location to the simulation you have open, and is refused while you have unsaved edits, since what it offers is one of the sites you have *saved*. **New location** creates one by typing the numbers in. The same library is in the **menu → Launch locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
+- **⚙ Manage saved locations** is a two-pane library: the locations on the left with their coordinates, so two fields with similar names can be told apart, and the selected one open on the right. The editor is the whole location (name, latitude, longitude, elevation and the map) because a mistyped coordinate is the thing you most often want to fix. **Save** writes it and leaves it selected, **Discard** puts it back as it was stored, and moving to another location with unsaved edits asks first. **Use** applies the selected location to the simulation you have open, and is refused while you have unsaved edits, since what it offers is one of the sites you have *saved*. **New location** creates one by typing the numbers in. The same library is in the **menu → Launch Locations**, beside the Motor Dashboard, so you can look at your locations without first opening a simulation, and **New location** is the way to add one from there, where no launch fields are on screen to capture.
 
-Elevation is shown and edited in whatever unit your launch site card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required: 0°, 0° is a point in the Gulf of Guinea, not "unset". Beside each one, the unit names the hemisphere the sign puts the site in (**° N** or **° S**, **° E** or **° W**) as you type, so a dropped minus sign shows at once.
+Elevation is shown and edited in whatever unit your **Launch site** card uses, so a field at 6,004 ft reads that way in both places. Latitude and longitude are always degrees, and both are required: 0°, 0° is a point in the Gulf of Guinea, not "unset". Beside each one, the unit names the hemisphere the sign puts the site in (**° N** or **° S**, **° E** or **° W**) as you type, so a dropped minus sign shows at once.
 
 ### The map
 
@@ -85,7 +85,7 @@ The forecast atmosphere is this app's addition. Desktop OpenRocket uses the ISA 
 
 ## Run it
 
-Press **Run flight simulation**. The flight runs in a background **Web Worker**, so the interface stays responsive: a spinner shows while it computes (typically well under a second). When it finishes, the **Results** tab opens with its **Flight**, **3D path**, **Ground track** and **Environment** views (see [Views & Analysis](./views-and-analysis.md)).
+Press **Run flight simulation**. The flight runs in a background **Web Worker**, so the interface stays responsive. While it computes (typically well under a second), the button reads **Cancel run** and the simulation's row shows **Running**. When it finishes, the **Results** tab opens with its **Flight**, **3D path**, **Ground track** and **Environment** views (see [Views & Analysis](./views-and-analysis.md)).
 
 ### When a run is refused
 
@@ -97,11 +97,13 @@ Two kinds of problem, which behave differently:
 
 - **No motor mount**: nowhere to seat a motor. Add one (see [Designing a Rocket](./designing-a-rocket.md#motor-mount)).
 - **A required dimension is zero**: the part is named, along with which of its dimensions. See [Required dimensions](./designing-a-rocket.md#required-dimensions).
+- **The fin cant turns the root inside the body**: a fin set's **Cant angle** puts the front of its root chord inside the body tube. The fin set is named. Reduce the **Cant angle** or shorten the **Root chord**.
 
 **Faults in one simulation** only skip that row. Select six and run them: the good ones fly, and the button tells you which are being left out and why.
 
 - **No usable motor**: nothing loaded on the primary mount, or an imported `.ork` whose motor could not be matched to a thrust curve.
-- **A required launch field is blank**: rail or rod length, rail or rod angle, wind speed, wind standard deviation, site altitude, latitude or longitude. These have no sensible default, so a blank one is named rather than guessed at.
+- **A required launch field is blank**: rail or rod length, rail or rod angle, site altitude, latitude or longitude, and, with single-level wind, wind speed and wind standard deviation (a wind profile replaces those two). These have no sensible default, so a blank one is named rather than guessed at.
+- **Two wind levels at the same altitude**: the multi-level wind profile has two rows at one altitude. Change or remove one in the **Wind Profile Editor**.
 - **Launch conditions outside the safety codes**: a launcher more than 30° from vertical for a model rocket or 20° for a high power one, or surface wind above 20 mph. See [Safety limits](#safety-limits) below.
 
 The button only goes dead when *nothing* selected can fly. Otherwise it stays live, counts the rows that will actually run, and names the ones it is skipping. A row that cannot fly does not stop the others.
@@ -141,7 +143,7 @@ Under it, results are shown as tiles, in roughly chronological flight order, inc
 - **Apogee** (max altitude) and **max velocity / acceleration / Mach**
 - **Deploy speed** (flagged if above your warning threshold; green when safely low). On a [dual-deployment](./designing-a-rocket.md#dual-deployment) design the flight engine judges the main and the drogue against their own thresholds instead, and reports a warning for each.
 - **Landing** (the landing speed), **Flight time**, and **Downrange** distance
-- **Max-Q**, the peak dynamic pressure of the boost. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the peak load the airframe has to withstand. A result with no stored air density reports no Max-Q rather than a zero.
+- **Max-Q**, the peak dynamic pressure over the whole flight. The engine does not record it, so it is derived from the air density and speed of sound the run already carries; it is the peak load the airframe has to withstand. A result with no stored air density reports no Max-Q rather than a zero.
 - **Max q·α**, the largest dynamic pressure times angle of attack while the rocket still flies forward (up to deployment, else apogee), in the Max q pressure unit times your angle unit (kPa·° or psi·°, for example). The side load on fins and couplers follows it. Derived the same way as Max-Q.
 - **Max roll rate**, the fastest the rocket rolled during the flight, read from the engine's roll rate series.
 
