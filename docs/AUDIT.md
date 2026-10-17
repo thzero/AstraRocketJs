@@ -1,6 +1,6 @@
 # AstraRocketJs `web/` engineering audit
 
-<!-- cspell:ignore Rocketarium bulkplate -->
+<!-- cspell:ignore Rocketarium bulkplate Restablecer encendido Przywróć zapłon Automatyczny Automatycznie Ontsteking herstellen -->
 
 Date: 2026-10-15. Scope: the `web/` package per `docs/AUDIT_PROMPT.md`. Eight slice agents read every file in their slice (files and exports, state and engine, canvas components, other components, tree and geometry, flight and design services, dead code and tooling, reference data) and every finding below was re-checked by the lead against the source lines, the Java and the bridge. Kernel math under `web/src/tree` and `web/src/services/design` was compared term by term with the committed Java, never with another copy in `web/`. Line numbers are as of this date.
 

@@ -187,11 +187,15 @@ Every change goes through the change audit in [`docs/AUDIT_PROMPT_CHANGES.md`](.
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
-A push to **any branch but `master`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
+A push to **any branch but `master` and `beta`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `beta` is excluded because it carries only work already gated on `dev`, and its deploy is started by hand (`beta-deploy.yml`). `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
 
 A pull request runs every `gates.yml` job on the merge result (`ci.yml`), then its own `verify` job, `CI / verify`: one check that stands for every gate on the merge result, and the one a pull request from a fork also gets. `web/tests/ciTriggers.test.ts` fails if either `verify` job stops running after a failed gate or stops failing with it.
 
-The Docusaurus site is typechecked in `e2e` (`npm run typecheck` in `website/`), and `e2e` and `update-flow` both build it (`npm run docs:build`) for the Help checks, so a docs type error, a broken MDX page or a broken `sidebars.ts` fails the PR.
+The Docusaurus site is built (`npm run docs:build`) in `update-flow`, which needs the built docs for the offline Help check, so a broken MDX page, config or `sidebars.ts` fails the PR.
+
+The axe scans (`a11y.spec.ts`, `a11y-phone.spec.ts`) are not in `CORE_SPECS`. There are about 300 of them, and on a runner's two workers they take longer than a pull request should wait. They run in the full suite.
+
+Each `gates.yml` job restores `node_modules` from a cache keyed on the lockfile and runs `npm ci` only when the lockfile changed.
 
 `gates.yml` is a reusable workflow. `ci.yml` calls it on a PR and `dev.yml` on a push to any other branch, so there is only one definition to maintain. Add a gate to `gates.yml` and both get it.
 

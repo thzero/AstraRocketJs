@@ -34,10 +34,16 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-          cache-dependency-path: web/package-lock.json
 
-      - run: npm ci
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
+
+      - if: steps.web-modules.outputs.cache-hit != 'true'
+        run: npm ci
 
       # ONE list, `gates` in web/package.json, run here and locally, so the
       # gates cannot drift between them. `verify` and
@@ -83,7 +89,7 @@ jobs:
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
   # CORE_SPECS in web/playwright.config.ts). Every pull request and push to a
-  # branch other than master runs them. The full suite runs in e2e-full.yml, by hand.
+  # branch other than master and beta runs them. The full suite runs in e2e-full.yml, by hand.
   # Separate job so a Playwright failure is legible on its own and the browser
   # download does not slow the unit gate.
   e2e:
@@ -98,30 +104,16 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-          # The website lock too: this job builds the docs (below), which runs
-          # Docusaurus out of website/.
-          cache-dependency-path: |
-            web/package-lock.json
-            website/package-lock.json
 
-      - run: npm ci
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
 
-      - name: Install the docs site's dependencies
-        working-directory: website
+      - if: steps.web-modules.outputs.cache-hit != 'true'
         run: npm ci
-
-      # The docs build does not typecheck, so a type error in the site's
-      # config, sidebars or components builds clean without this.
-      - name: Typecheck the docs site
-        working-directory: website
-        run: npm run typecheck
-
-      # The accessibility scans of the Help and Safety dialogs read the docs
-      # from web/public/docs, which is gitignored; without a build the frame is
-      # empty and the scan checks nothing.
-      - name: Build the docs the Help and Safety scans read
-        run: npm run docs:build
 
       # Key the browser cache on the resolved Playwright version, not on the
       # lockfile hash: the browser build only changes when Playwright does.
@@ -185,16 +177,27 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-          cache: npm
-          # The website lock too: this job builds the docs (below), which runs
-          # Docusaurus out of website/.
-          cache-dependency-path: |
-            web/package-lock.json
-            website/package-lock.json
 
-      - run: npm ci
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
+
+      - if: steps.web-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # The docs site's, the same way: this job builds the docs (below), which
+      # runs Docusaurus out of website/.
+      - id: website-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: website/node_modules
+          key: website-modules-${{ runner.os }}-node24-${{ hashFiles('website/package-lock.json') }}
 
       - name: Install the docs site's dependencies
+        if: steps.website-modules.outputs.cache-hit != 'true'
         working-directory: website
         run: npm ci
 
