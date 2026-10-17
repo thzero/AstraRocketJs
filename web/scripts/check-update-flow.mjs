@@ -7,11 +7,14 @@
 // here may need a hard reload.
 //
 // This builds version A into its own output directory, serves it, loads it in
-// Chromium until the worker controls the page, then rebuilds version B into the
-// same directory and expects, in order: a plain reload shows B; an update check
-// raises the toast; the toast's Reload keeps B on screen. Then it rebuilds
-// version C and expects an update nobody answers to be applied once the tab is
-// hidden. No hard reload anywhere.
+// Chromium until the worker controls the page, and opens a second, uncontrolled
+// first-visit tab. It rebuilds version B into the same directory and expects, in
+// order: the toast's Reload takes the first-visit tab to B; a plain reload
+// shows B; an update check raises the toast; the toast's Reload keeps B on
+// screen; Check for updates says B is current; offline, a reload still boots.
+// Then it rebuilds version C and expects an update nobody answers to be applied
+// once the tab is hidden, and a stale copy of B served again never to be
+// offered or applied. No hard reload anywhere.
 //
 //   npm run e2e:update
 //

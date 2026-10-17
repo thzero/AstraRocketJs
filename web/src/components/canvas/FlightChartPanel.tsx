@@ -57,8 +57,7 @@ export function FlightChartPanel({
   // Namespaced ids. With a fixed id, two charts in one document (a comparison
   // view, or the mobile and desktop copies during a breakpoint transition)
   // would make `url(#...)` resolve to whichever rendered first, clipping one
-  // chart's panels to the other's width. TreeSchematic uses useId() for the
-  // same hazard.
+  // chart's panels to the other's width.
   const uid = useId();
   const clipId = `${uid}-clip-${meta.key}`;
   const single = branches.length === 1;

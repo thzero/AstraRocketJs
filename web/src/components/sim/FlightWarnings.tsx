@@ -9,7 +9,7 @@ import { WARNING_ROW, WARNING_TONE } from './warningTone';
  * large angle of attack, no recovery device at all.
  *
  * This is the other half of the deployment-speed threshold settings: without
- * it they could be tuned all day without a user ever seeing their output.
+ * it a user would never see what those thresholds produce.
  */
 export function FlightWarnings({ sim }: { sim: FlightResult | null }) {
   const t = useLauncherT();

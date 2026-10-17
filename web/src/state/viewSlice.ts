@@ -38,8 +38,6 @@ export interface ViewSlice {
  * Results tab with no result and an empty view switch.
  */
 export function showing(s: { tab: Tab; designPane: DesignPane }, view: ViewMode): Partial<WorkspaceState> {
-  // The Simulate tab and the phone's Rocket pane show stats and the run, not a
-  // view at all, so a caller sitting on either is left where it is.
   if (s.tab === 'sim' || (s.tab === 'design' && s.designPane === 'stats')) return { view };
   return isResultView(view)
     ? { view, tab: 'results' }

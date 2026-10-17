@@ -164,8 +164,8 @@ describe('GroundTrack imagery', () => {
   });
 
   /**
-   * The case a plain run actually produces, and the one this feature is judged
-   * on: still air lands the rocket a tenth of a meter from the pad.
+   * The case a plain run in still air produces: the rocket lands a tenth of a
+   * meter from the pad.
    *
    * Sized to the flight alone, the zoom runs past what any provider holds and the
    * result is an empty box under a Satellite button that looks pressed. The floor
@@ -368,9 +368,7 @@ describe('GroundTrack drift region', () => {
 
     useWorkspaceStore.setState({ driftSweep: { ...sweep('sim-1'), tree: { ...st().tree } } });
     renderWithProviders(<GroundTrack flight={flight()} {...HOME} />);
-    // Still drawn: the landings are the honest answer for the rocket that flew
-    // them, and re-flying a few dozen sims to get the picture back is not a
-    // price to pay for a fin tweak.
+    // Still drawn, with the stale note on the panel.
     expect(shapes()).toHaveLength(2);
     fireEvent.click(screen.getByRole('button', { name: /^Drift/ }));
     expect(screen.getByText(/design or its simulation settings have changed/i)).toBeTruthy();

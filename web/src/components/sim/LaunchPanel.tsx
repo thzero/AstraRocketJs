@@ -46,8 +46,9 @@ import { seaLevelExcessPa } from '../../services/flight/sitePressure';
 
 /**
  * A launch-condition field in the user's chosen unit. `value`/`onChange` speak
- * the stored convention (see `LAUNCH_SI` in `launchUnits.ts`); `stepSi`/`minSi` are given in SI, so a
- * sensible 0.5 m/s or 10 m stays sensible once it is shown in ft/s or ft.
+ * the stored convention (see `LAUNCH_SI` in `launchUnits.ts`); `stepSi`/`minSi`
+ * are given in SI, so a sensible 0.5 m/s or 10 m stays sensible once it is
+ * shown in ft/s or ft.
  */
 export function QNum({
   label,
@@ -266,8 +267,8 @@ export function LaunchPanel({
     // edited (React's onBlur bubbles from the focused input).
     // No padding of its own: every caller already sits in a padded column (the
     // sim editor, the Settings dialog body), and a second p-3 would inset this
-    // panel's cards relative to their siblings. The gap matches the sim editor's, so one
-    // column of cards reads as one rhythm.
+    // panel's cards relative to their siblings. The gap matches the sim
+    // editor's, so one column of cards reads as one rhythm.
     <div
       className="space-y-4"
       onBlur={() => {
@@ -487,7 +488,8 @@ export function LaunchPanel({
           u={u}
           stepSi={100}
           // Stored in hPa; bounds are SI (Pa), as for every QNum. 300 hPa is
-          // the top of Everest, 1100 hPa is past any recorded surface high.
+          // below the pressure at the top of Everest, 1100 hPa is past any
+          // recorded surface high.
           minSi={30_000}
           maxSi={110_000}
           placeholder={t('launch.isa')}
@@ -623,7 +625,7 @@ export function LaunchPanel({
             />
             {/* The same scatter as a percentage of the wind, which is the number
                 the hobby actually quotes. Editable, as the desktop has it: the
-                three fields are one value seen two ways, so typing 10% here
+                two fields are one value seen two ways, so typing 10% here
                 rewrites the deviation exactly as typing the deviation rewrites
                 this. Its descriptive name sits under it, as OpenRocket does. */}
             <NumberRow

@@ -43,9 +43,9 @@ import { lenM, num, str, tag, xmlText } from './lib/orcText.mjs';
 import { uniqueRows } from './lib/partRows.mjs';
 
 // Source: the OpenRocket-Components DB (openrocket/openrocket-database), the
-// parts database OpenRocket builds its own library from,
-// cloned into web/openrocket-database by `npm run sync:database`. Override with
-// --src / OPENROCKET_PRESETS to point at another `.orc` tree.
+// parts database OpenRocket builds its own library from, cloned into
+// web/openrocket-database by `npm run sync:database`. Override with --src /
+// OPENROCKET_PRESETS to point at another `.orc` tree.
 const DEFAULT_SRC = fileURLToPath(new URL('../openrocket-database/orc', import.meta.url));
 const SRC = arg('src') ?? (process.env.OPENROCKET_PRESETS || DEFAULT_SRC);
 // public/data is served as-is (not bundled) so the catalog can be refreshed

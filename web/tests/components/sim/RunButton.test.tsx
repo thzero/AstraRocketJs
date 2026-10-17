@@ -30,11 +30,10 @@ const LAUNCH = {
 /**
  * What the button promises has to match what the run will do.
  *
- * Both questions go through `services/flight/runnability`. Judged on the active
- * simulation's motor alone, and only when exactly one row is selected, while the
- * safety codes block the whole batch, a twelve-row batch would be refused over one
- * bad row and a batch containing an unflyable row would start with the button
- * showing nothing wrong.
+ * Every selected row is judged by `services/flight/runnability`, the rule the
+ * run loop applies. The label counts the flyable rows, the notice names the ones
+ * that will be skipped, and the button goes dead only when no selected row can
+ * fly.
  */
 describe('RunButton over a selection', () => {
   beforeEach(() => {

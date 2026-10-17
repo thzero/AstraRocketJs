@@ -251,7 +251,7 @@ describe('freeformRootChord', () => {
     expect(Math.max(...overhanging.map((p) => p[0]))).toBeCloseTo(0.09, 9); // what Math.max over the x values returns
   });
 
-  it('agrees with Math.max for an ordinary fin, which is why this went unnoticed', () => {
+  it('agrees with Math.max for an ordinary fin', () => {
     const plain: [number, number][] = [
       [0, 0],
       [0.02, 0.04],

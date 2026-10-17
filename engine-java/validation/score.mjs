@@ -8,7 +8,7 @@
  *   node validation/score.mjs --supersonic  # score with the supersonicAero flag on
  *   node validation/score.mjs --strict      # exit 1 if any gate point fails
  *   node validation/score.mjs --record-expect  # re-record each fixture's _expect.aero (deliberate only)
- *   node validation/score.mjs [--supersonic] --check-floors  # the CI ratchet, from validation/floors.json
+ *   node validation/score.mjs [--supersonic] --check-floors  # the ratchet audit.mjs runs, from validation/floors.json
  *
  * Requires the engine to be built first (`npm run build` in engine-java).
  *
@@ -47,7 +47,7 @@ class OrkRocket {
 
 const anchors = JSON.parse(readFileSync(join(here, 'anchors.json'), 'utf8'));
 const strict = process.argv.includes('--strict');
-// A ratchet, so this can be wired into CI while the absolute score is still low.
+// A ratchet, so this can gate while the absolute score is still low.
 // --min <n> fails if the gate score drops below a recorded floor; --expect-gates
 // <n> fails if the number of gated points is not exactly n, which is what
 // catches a silently shrunken anchors.json (see the gateTotal check below).
@@ -63,7 +63,7 @@ const numArg = (flag) => {
 };
 const supersonic = process.argv.includes('--supersonic');
 // --check-floors takes the ratchet from validation/floors.json, the one place the
-// floors live, so no workflow or README keeps a second copy that could disagree.
+// floors live, so no script or README keeps a second copy that could disagree.
 // Explicit flags still override.
 const floors = process.argv.includes('--check-floors')
   ? JSON.parse(readFileSync(join(here, 'floors.json'), 'utf8'))
@@ -72,8 +72,8 @@ const minPass = numArg('--min') ?? (floors ? floors.min[supersonic ? 'supersonic
 const expectGates = numArg('--expect-gates') ?? (floors ? floors.gates : null);
 // The identity of the gated set, not only its size: --expect-gates holds when
 // nine hard points are switched off and nine easy ones switched on, or when a
-// tolerance is widened, and the score rises with CI green. A sha256 over every
-// gated point's series, Mach, anchor and tolerance pins all of it.
+// tolerance is widened, and the score rises with the gate green. A sha256 over
+// every gated point's series, Mach, anchor and tolerance pins all of it.
 const gateHashAt = process.argv.indexOf('--expect-gate-hash');
 const expectGateHash = gateHashAt < 0 ? (floors ? floors.gateHash : null) : process.argv[gateHashAt + 1];
 if (expectGateHash != null && !/^[0-9a-f]{64}$/.test(expectGateHash)) {
@@ -89,8 +89,8 @@ const recordExpect = process.argv.includes('--record-expect');
  * `length` and `refDiameter` are the two figures fin section, fin thickness and
  * finish cannot move, so a fixture could stop modeling its published rocket and
  * still pass them: renaming `crossSection` (drag +97% at Mach 0.5) would score 12
- * more gate points with CI green. Both models, because `airfoilSection` is read only
- * on the supersonic path. 0.1% is far below any corruption measured (7% and up)
+ * more gate points with the gate green. Both models, because `airfoilSection`
+ * is read only on the supersonic path. 0.1% is far below any corruption measured (7% and up)
  * and leaves room for no physics change at all: a deliberate one re-records with
  * --record-expect, which says so in the diff.
  */
@@ -262,7 +262,6 @@ console.log(out.join('\n'));
 // An empty gate set is a broken harness, not a perfect score. `--strict` alone
 // would pass on it, because `gatePass < gateTotal` is `0 < 0`: a truncated or
 // half-written anchors.json would score `0/0 (NaN%)` and exit 0. This runs
-
 // unconditionally, not only under --strict, because a scorecard reporting
 // success over nothing is wrong however it was invoked.
 if (gateTotal === 0) {

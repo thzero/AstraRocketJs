@@ -8,19 +8,13 @@ import { FIELDS, type Field } from '../../../src/services/design/componentFields
  * Every option in a `select` field has to be given a label.
  *
  * `DimensionFields` renders an option as `optLabel(o, t)`, else
- * `t(`${optI18n}.${o}`)`, else the raw value, and that last fallback is not a
- * default so much as an oversight with a rendering: a dropdown reading
- * `ogive / conical / ellipsoid`, in lower case and untranslated, beside fields
- * whose every other label is capitalized and translated. Nothing else fails,
- * because a raw enum value is a perfectly good string.
+ * `t(`${optI18n}.${o}`)`, else the raw value. The raw value renders as a
+ * dropdown reading `ogive / conical / ellipsoid`, lower case and untranslated,
+ * and nothing else fails, so a field in FIELDS without a label for each of its
+ * options fails here.
  *
- * So the fallback is fenced off here rather than removed: it stays in the
- * renderer for a field mid-edit, and a field that reaches FIELDS without a
- * label for each of its options fails.
- *
- * Every locale is read off disk. A key present in English and missing in
- * another language renders the English word inside a translated panel, which is
- * the same defect one language further along.
+ * Every locale is read off disk: a key missing in one language renders the
+ * English word inside a translated panel.
  */
 const LOCALES = ['en', 'de', 'es', 'fr', 'pt-BR', 'pt-PT', 'nl', 'pl', 'ru', 'ja'] as const;
 
@@ -54,7 +48,7 @@ describe('select fields', () => {
     expect(bare).toEqual([]);
   });
 
-  it('resolves every option to a string in both locales', () => {
+  it('resolves every option to a string in every locale', () => {
     const missing: string[] = [];
     for (const { type, f } of selects) {
       // An optLabel computes its text in code (the cluster patterns build
@@ -71,8 +65,7 @@ describe('select fields', () => {
   });
 
   it('capitalizes the English option text, the way the field labels are', () => {
-    // The defect this file exists for, stated directly: a dropdown of lower
-    // case enum values under a capitalized label.
+    // A dropdown of lower case enum values under a capitalized label.
     const lower: string[] = [];
     for (const { f } of selects) {
       if (!f.optI18n) continue;

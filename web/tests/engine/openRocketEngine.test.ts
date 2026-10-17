@@ -13,7 +13,7 @@ import {
 } from '../../src/engine/openRocketEngine';
 
 /**
- * The typed facade over the WASM kernel.
+ * The typed facade over the TeaVM kernel (WASM or JS).
  *
  * This is the one boundary where JS numbers become physics inputs, so a dropped
  * `?? default` in an options block would change every simulation. These tests
@@ -273,7 +273,7 @@ describe('backendPref', () => {
     vi.stubGlobal('localStorage', { getItem: (k: string) => store.get(k) ?? null });
     vi.stubGlobal('location', { search: '' });
     expect(backendPref()).toBe('auto');
-    store.set('engine', 'wasm'); // an override set before the key was namespaced
+    store.set('engine', 'wasm'); // the legacy bare key
     expect(backendPref()).toBe('wasm');
     store.set(ENGINE_PREF_KEY, 'js');
     expect(backendPref()).toBe('js');

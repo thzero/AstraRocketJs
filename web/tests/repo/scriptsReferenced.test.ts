@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
  * is correct - each one is a program, not a module someone imports - and an entry
  * is by definition reachable, so an orphan script is invisible to it. Narrowing the
  * pattern is not the fix either: they really are entries, and knip has no way to
- * know that `sync-motors.mjs` is reached by a line in a GitHub workflow.
+ * know that `sync-motors.mjs` is reached through a `package.json` script that a
+ * GitHub workflow runs.
  *
  * So the question is asked here instead: is each script named by a `package.json`
  * script, by a workflow, or by another script? A `.mjs` nothing runs is worse than
@@ -69,8 +70,8 @@ describe('no orphan build script', () => {
   });
 
   it('finds an importer for every scripts/lib module', () => {
-    // These are not entries: nothing runs them, so an unimported one is plain dead
-    // code that knip also cannot see, for the same reason.
+    // These are not programs: nothing runs them, so an unimported one is plain dead
+    // code. knip's entry glob covers them too, so it cannot see one either.
     expect(orphansIn('scripts/lib', libs, all)).toEqual([]);
   });
 

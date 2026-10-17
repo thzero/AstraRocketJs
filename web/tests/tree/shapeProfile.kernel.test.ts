@@ -193,9 +193,9 @@ describe('the shape parameter is the one the kernel defaults to', () => {
     ['parabolic', 1.0],
     // Zero, and checked because it is the one easy to get wrong. `HAACK` does not
     // override `defaultParameter()`, so it inherits the base class's `0.0`
-    // (Transition.java:1312) - an LD-Haack. Its `maxParameter()` is 1/3, and that is
-    // the number a reader reaches for: writing 1/3 here draws a Von Karman instead,
-    // and both curves pass every other assertion in this file.
+    // (Transition.java:1312), the LD-Haack or Von Karman. Its `maxParameter()` is
+    // 1/3, and that is the number a reader reaches for: writing 1/3 here draws an
+    // LV-Haack instead, and both curves pass every other assertion in this file.
     ['haack', 0.0],
     ['conical', 0.0],
     ['ellipsoid', 0.0],

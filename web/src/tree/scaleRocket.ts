@@ -23,9 +23,9 @@ import { kernelDefault } from './kernelDefaults';
  *
  * What doesn't scale: a part sized by something outside the rocket keeps its
  * size and only moves: a camera shroud (fairing). A rail button scales in
- * every dimension but its screw height, as desktop's RailButtonScaler does. Angles, counts,
- * densities, drag coefficients, finish, motor choice, deployment/separation and
- * the pad conditions are all untouched.
+ * every dimension but its screw height, as desktop's RailButtonScaler does.
+ * Angles, counts, densities, drag coefficients, finish, motor choice,
+ * deployment/separation and the pad conditions are all untouched.
  *
  * Mass: densities are left alone, so a solid part's computed mass follows its
  * volume and goes as k³, a canopy/streamer as k² (surface), a shock cord as k

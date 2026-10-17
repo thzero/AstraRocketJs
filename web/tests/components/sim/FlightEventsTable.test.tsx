@@ -121,7 +121,8 @@ describe('FlightEventsTable', () => {
         })}
       />,
     );
-    // 0.5 * 0.6 * 68^2 = 1387.2 Pa, shown in the metric default of hPa.
+    // Airspeed is mach * Vs = 0.2 * 340 = 68 m/s, so q = 0.5 * 0.6 * 68^2 =
+    // 1387.2 Pa, shown in the metric default of hPa.
     expect(within(rowFor('Max-Q')).getAllByRole('cell')[0]!.textContent).toBe('2.00');
     expect(screen.getByText('13.9 hPa · Mach 0.20')).toBeTruthy();
   });

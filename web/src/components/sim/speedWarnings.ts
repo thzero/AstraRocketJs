@@ -30,11 +30,11 @@ const TOO_SLOW = new Set(['RECOVERY_MAIN_LOW_SPEED']);
  * The warning list is the whole flight's, every stage's and every deployment's
  * devices together, so only a warning raised for one of `devices` counts: the
  * devices of the deployment whose speed the tile shows ({@link lastDeployment}).
- * A warning is matched to them by the
- * app node ids of its sources (`sourceIds`), since two unnamed devices in
- * different stages fly under the same kernel default name. A warning without
- * ids (a result read from a file, or stored before the engine sent ids) is
- * matched by name instead: the kernel names each source in the message
+ * A warning is matched to them by the app node ids of its sources
+ * (`sourceIds`), since two unnamed devices in different stages fly under the
+ * same kernel default name. A warning without ids (a result read from a file,
+ * or a stored result that carries none) is matched by name instead: the kernel
+ * names each source in the message
  * (`Message.toString` appends each as `"name"`). A name in `sharedNames` is
  * flown by more than one of the design's recovery devices, so a warning naming
  * it could be another stage's and does not count.

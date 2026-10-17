@@ -72,8 +72,8 @@ const upstream = {
   commitUrl: `${upstreamField('repo').replace(/\.git$/, '')}/commit/${upstreamRef}`,
 };
 
-// The docs site. Built separately from the app and copied into web/dist/docs by
-// the Pages deploy, so both live on the one GitHub Pages site:
+// The docs site. The Pages deploy builds it into web/public/docs before the app
+// build, which copies it into web/dist/docs, so both live on one Pages site:
 //   /AstraRocketJs/        the app
 //   /AstraRocketJs/docs/   these docs (…/docs/es/ for Spanish)
 // The app these docs belong to: the docs are built into the app at <app>/docs/,
@@ -113,8 +113,8 @@ const config: Config = {
   // NAVIGATING to /faq/ is a different request and does not hit the precache:
   // `directoryIndex` is switched off in web/vite.config.ts (left on, it also
   // answers the app's own root from the precache, so a reload never shows a new
-  // deploy), so Workbox never maps the trailing slash onto index.html. A runtimeCaching rule there covers that path for pages already
-  // visited.
+  // deploy), so Workbox never maps the trailing slash onto index.html. A
+  // runtimeCaching rule there covers that path for pages already visited.
   trailingSlash: true,
   // A broken internal link fails the build rather than shipping a dead page
   // reference. Broken anchors only warn (the Docusaurus default).

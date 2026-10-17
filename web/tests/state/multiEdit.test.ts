@@ -15,9 +15,8 @@ const ignitionOf = (n: string) => configOf(st().configs, byName(n)).motors[mount
 
 /**
  * Editing follows the selection: a tick means "fly these" and "delete these",
- * and "edit these" too. The property that makes it safe is that each mutator
- * merges into the target's own state, so only the field the
- * user touched moves.
+ * and "edit these" too. Each mutator merges into the target's own state, so
+ * only the field the user touched moves.
  */
 describe('editing across a selection', () => {
   beforeEach(() => {
@@ -71,8 +70,8 @@ describe('editing across a selection', () => {
   });
 
   it('moves ONLY the edited key, leaving each row its own other values', () => {
-    // The whole point. Merging `{...active.launch, ...p}` would copy the
-    // active simulation's rod length onto the others as a side effect.
+    // Merging `{...active.launch, ...p}` would copy the active simulation's rod
+    // length onto the others.
     st().setSimsSelected([byName('A').id, byName('B').id, byName('C').id]);
     st().patchLaunch({ windAverage: 42 });
     expect(byName('A').launch.launchRodLengthM).toBe(1);

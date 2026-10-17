@@ -67,11 +67,9 @@ export function specToTree(spec: RocketSpec): { tree: RocketTree; mountId: strin
    * one, and otherwise the stock material for every slot the type has
    * (`defaultMaterialPatch` with no user preference).
    *
-   * Never nothing. `RocketSpec` carries no density at all, so without the
-   * fallback every part of the first design anybody opens would read "Not
-   * specified" in the panel while the kernel flies it as cardboard: the editor
-   * disagreeing with the simulation about the same rocket. It is the same three
-   * materials either way, so no mass moves; the panel just says which.
+   * Never nothing. Without the fallback a part with no density would read "Not
+   * specified" in the panel while the kernel flies it on its default material:
+   * the editor disagreeing with the simulation about the same rocket.
    */
   const material = (type: string, m?: { materialDensity?: number; material?: string; materialGroup?: string }) =>
     m?.materialDensity

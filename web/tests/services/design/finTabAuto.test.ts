@@ -8,9 +8,9 @@ import { kernelLength } from '../../../src/tree/kernelDefaults';
  *
  * The tab has to fit between the centering rings, reach down to the motor mount
  * and no further, and stay inside the root chord. The cases below are the ones
- * upstream's own comment enumerates, which is where the interest is: a ring
- * straddling an end of the root, a ring outside it entirely, two rings glued
- * together, and a ring no wider than the tube it is centering.
+ * upstream's own comment enumerates: a ring straddling an end of the root, a
+ * ring outside it entirely, two rings glued together, and a ring no wider than
+ * the tube it is centering.
  *
  * All dimensions in meters. The body is a 300 mm tube of 26 mm radius and the
  * mount is a 19 mm-diameter tube, so a full-depth tab is 26 - 9.5 = 16.5 mm.

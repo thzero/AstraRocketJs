@@ -16,22 +16,18 @@ import { MAX_FIN_POINTS, MAX_LINE_COUNT, MAX_NESTING_DEPTH } from '../../src/ser
  * for marshaling, and useless for the thing these tests cover, which is what
  * the Java does when handed something bad. The `parsed.error` checks on the JS
  * side only work if the kernel answers with an `{"error": ...}` envelope rather
- * than throwing out of TeaVM as an opaque JS exception from inside a 2.9 MB
+ * than throwing out of TeaVM as an opaque JS exception from inside a 3 MB
  * bundle, where `JSON.parse` never runs.
  *
  * Loading the vendored module directly (rather than through `initEngine`, which
  * wants a browser) keeps this a plain node test.
  */
 /**
- * Real physics, so the 5 s default does not fit. `beforeAll` loads the 2.9 MB
+ * Real physics, so the 5 s default does not fit. `beforeAll` loads the 3 MB
  * TeaVM bundle, and the "accepts a well-formed motor" case flies a whole
  * trajectory through it: about 1 s on an idle machine, but several seconds under
- * `--coverage` with the rest of the suite running beside it.
- *
- * The cap and the reasoning for it live in `testing/kernelTimeout.ts`, shared with
- * the other files that fly the kernel. Still opted into per file: a global bump
- * would slacken the thousands of tests that have no business taking seconds, and
- * hide the thing a timeout is for.
+ * `--coverage` with the rest of the suite running beside it. The cap and its
+ * reasoning are in `testing/kernelTimeout.ts`.
  */
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -222,11 +218,11 @@ describe('error envelopes, from the Java side', () => {
   it('refuses an unbounded aero sweep instead of exhausting the heap', () => {
     // Unguarded, {"machMax":1e9} would build a List<Double> of 2e10 entries and
     // the tab would die with no recoverable error.
-    expect(() => build().aeroSweep({ machMin: 0, machMax: 1e9, machStep: 0.05 })).toThrow(/sweep|point/i);
-    expect(() => build().aeroSweep({ machMin: 2, machMax: 1 })).toThrow(/machMin|sweep/i);
+    expect(() => build().aeroSweep({ machMin: 0, machMax: 1e9, machStep: 0.05 })).toThrow(/over the/);
+    expect(() => build().aeroSweep({ machMin: 2, machMax: 1 })).toThrow(/finite machMin <= machMax/);
     // Infinity cannot even reach the kernel: JSON.stringify turns it into
-    // null, so JsonLite takes the default. Recorded because it looks like a
-    // hole and is not one; the finite guard covers a value that does arrive.
+    // null, so JsonLite takes the default. It looks like a hole and is not
+    // one; the finite guard covers a value that does arrive.
     expect(JSON.stringify({ machMax: Infinity })).toBe('{"machMax":null}');
   });
 
@@ -235,8 +231,8 @@ describe('error envelopes, from the Java side', () => {
     // `(long) Infinity + 1` wraps negative past the point cap. Unguarded, the JS
     // build throws a RangeError out of the bundle and the WASM build returns an
     // empty sweep with no error at all; both have to refuse it by name. The regex
-    // is deliberately not /sweep/: the wrapper prefixes every envelope with
-    // "Drag sweep failed", which would match a bare RangeError too.
+    // is deliberately not /sweep/i: the wrapper prefixes every message with
+    // "engine aeroSweep failed", which would match a bare RangeError too.
     expect(() => build().aeroSweep({ machMin: 0, machMax: 1, machStep: 5e-324 })).toThrow(/infinite number|over the/);
     expect(() => build().aeroSweep({ machMin: -1.7e308, machMax: 1.7e308, machStep: 0.05 })).toThrow(
       /infinite number|over the/,
@@ -576,8 +572,8 @@ describe('motor validation at the boundary', () => {
 describe('the 7-argument simulate() overload', () => {
   it('returns an error envelope for a non-finite option rather than a JSON parse failure', () => {
     // These are concatenated straight into JSON; NaN would emit
-    // `"windAverage":NaN`, which JsonLite rejects with an IllegalArgumentException
-    // that simulateJson's `catch (SimulationException)` does not cover.
+    // `"windAverage":NaN`, which JsonLite rejects with a message that names no
+    // option. The overload checks every option is finite before it builds the JSON.
     const h = engine.buildRocket(JSON.stringify(TREE));
     engine.setMotorById(h, 'tube', 'C6', 0.018, 0.07, C6.times, C6.thrusts, C6.masses, 0.035, 5);
     const raw = engine.simulate(h, 1, 0, Number.NaN, 0, 0, 0.05);
@@ -601,7 +597,7 @@ describe('the aero sweep does not fabricate zeros', () => {
       nonFinite?: number;
       components: { cd: (number | null)[] }[];
     };
-    // The field exists (an older kernel omits it) and this design is clean.
+    // The field is present and this design is clean.
     expect(sweep.nonFinite).toBe(0);
     expect(sweep.components.length).toBeGreaterThan(0);
   });
@@ -780,7 +776,7 @@ describe('a grounded stage leaves the flight', () => {
     ],
   } as unknown as RocketTree;
 
-  it('drops the stage"s mass and length from the static info', () => {
+  it("drops the stage's mass and length from the static info", () => {
     const whole = OpenRocketDesign.buildTree(TWO_STAGE).staticInfo();
     const design = OpenRocketDesign.buildTree(TWO_STAGE);
     design.setStageActiveById('booster', false);
@@ -790,7 +786,7 @@ describe('a grounded stage leaves the flight', () => {
     expect(sustainerOnly.length).toBeLessThan(whole.length);
   });
 
-  it('leaves the booster"s motor out of the loaded mass', () => {
+  it("leaves the booster's motor out of the loaded mass", () => {
     const design = OpenRocketDesign.buildTree(TWO_STAGE);
     design.setMotorById('lower', C6);
     const loaded = design.staticInfo().mass;
@@ -819,8 +815,8 @@ describe('a grounded stage leaves the flight', () => {
  * single-deployment to the kernel and the three dual-deployment thresholds would
  * be unreachable however they were set.
  *
- * The drogue-low-speed check is commented out upstream and is enabled by a patch
- * here, so this file is the only thing proving either half.
+ * The drogue-low-speed check is commented out upstream and enabled here by a
+ * patch (BasicEventSimulationEngine, PATCH(drogue-low-speed)).
  */
 describe('dual deployment reaches the kernel', () => {
   /** The TREE above plus a drogue at apogee and a main lower down. */
@@ -1097,7 +1093,8 @@ describe("a transition's shoulders weigh what they are built from", () => {
 
   it('flies an absent shoulder wall as the 0 the panel and the .ork state', () => {
     // Transition.setForeShoulderLength seeds a shoulder that grows from length 0
-    // with the part's own wall. The panel shows an absent wall as 0 and the
+    // with the neighbor's wall, or the part's own when it is set before the part
+    // is attached, as the build does. The panel shows an absent wall as 0 and the
     // .ork writes 0, which desktop flies, so the bridge sets it after the
     // length rather than leave the seeded wall in place.
     const caps = { foreShoulderCapped: true, aftShoulderCapped: true };
@@ -1329,7 +1326,7 @@ describe('a self-intersecting freeform fin outline is refused', () => {
       ],
     }) as unknown as RocketTree;
 
-  /** A plain trapezoid, 0.06 m root chord: legal, and 0.05 m shorter than the default fin. */
+  /** A plain trapezoid, 0.06 m root chord, nothing aft of the root: legal, and a 0.300 m rocket. */
   const VALID = [
     [0, 0],
     [0.02, 0.05],

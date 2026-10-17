@@ -136,7 +136,7 @@ describe('the design index survives two concurrent writers', () => {
 });
 
 describe('deleting a design never leaves the library pointing at nothing', () => {
-  it('removes the index entry before the bytes, and says so', async () => {
+  it('removes the design from the index and reports success', async () => {
     const kv = new FakeLocal();
     const lib = new DesignLibrary(kv);
     await lib.write('A', 'Alpha', ws());
@@ -231,7 +231,7 @@ const ws = (): Workspace =>
 
 /**
  * The material and template stores, like the motor store, must not swallow a
- * refused write: `kv.set` reports refusal by returning false, and a store that
+ * refused write: `kv.update` reports refusal by returning false, and a store that
  * discards it lets the dialog await the save, get a clean resolve, and re-render
  * a list without the thing the user just added.
  */

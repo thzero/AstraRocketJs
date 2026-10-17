@@ -86,11 +86,9 @@ function SizingBody({ node, onUse }: { node: ComponentNode; onUse: (diameterM: n
   // this part changes nothing, and the kernel's default for a chute with no
   // `cd` is the same 0.8 (RecoverySizingReadout.kernel.test pins both).
   //
-  // `num(..., 0.8)`, not `|| 0.8`: `nodeProps.num` already returns 0 for an
-  // absent or non-finite value, so the truthiness fallback would also swallow a
-  // deliberately stored `cd: 0` and report a finite descent rate for a canopy
-  // with no drag, instead of the infinite rate `descentRate`'s own guard exists
-  // to render as a dash.
+  // `num(..., 0.8)`, not `num(...) || 0.8`: the `||` fallback would also replace
+  // a stored `cd: 0`, whose infinite descent rate `descentRate` renders as a
+  // dash.
   const cd = num(node, 'cd', 0.8);
   const diameter = num(node, 'diameter');
 

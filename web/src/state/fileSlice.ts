@@ -58,7 +58,7 @@ import { holdSaves, markWritten, savesHeld, unchangedSinceWrite, voidPendingAuto
 export interface FileSlice {
   /** Open a `.ork`. A `Blob` rather than a `File` so a bundled example, which
    *  arrives as bytes from a fetch, takes the identical path a picked file does;
-   *  `.arrayBuffer()` is the only thing this needs from a File. */
+   *  `.size` and `.arrayBuffer()` are all this needs from a File. */
   openOrkFile: (file: Blob) => Promise<void>;
   /** Open one of the bundled OpenRocket examples by its file name. */
   openExample: (file: string) => Promise<void>;
@@ -341,7 +341,7 @@ export const createFileSlice =
       rebuildSeq: 0,
 
       openOrkFile: async (file) => {
-        // Three awaits before anything is written, and the file input has no busy
+        // Several awaits before anything is written, and the file input has no busy
         // gate, so a second import (or a library open) can land in between.
         const stale = claimWorkspace();
         // Whether `loadOrk` has run (which can reset the engine) without the

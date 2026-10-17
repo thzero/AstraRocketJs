@@ -351,9 +351,9 @@ const readRailbutton: NodeReader = (ctx, el) => {
   // and its material. The kernel bridge flies them; the writer falls back to
   // the desktop's constructor constants only when the node carries none, so
   // hard-writing those constants and a Delrin material would bring a 1010
-  // button sized by hand on the desktop back from a save as the stock one. The setters clamp the heights and bore
-  // against each other as they load, so a pair that disagrees arrives as the
-  // desktop holds it. Only carried when they differ from the defaults the
+  // button sized by hand on the desktop back from a save as the stock one. The
+  // setters clamp the heights and bore against each other as they load, so a
+  // pair that disagrees arrives as the desktop holds it. Only carried when they differ from the defaults the
   // writer falls back to, so an untouched design stays clean.
   const read: Partial<Record<keyof typeof RAIL_BUTTON_FALLBACK, number>> = {
     outerDiameter: nonNegTag(el, 'outerdiameter', rb.outerDiameter),
@@ -379,9 +379,8 @@ const readRailbutton: NodeReader = (ctx, el) => {
 };
 
 // Our extension element (the camera shroud): the desktop warns about the
-// unknown element and skips it. Nothing in
-// the editor can create a fairing, so this only ever reads one back out
-// of a file this app wrote. See openRocketEngine.ts ComponentType.
+// unknown element and skips it. Nothing in the editor can create a fairing, so
+// this only ever reads one back out of a file this app wrote. See openRocketEngine.ts ComponentType.
 const readFairing: NodeReader = (ctx, el) => {
   const n = base(ctx, el, 'fairing', true);
   const fr = COMPONENT_DEFAULTS.fairing;

@@ -4,7 +4,7 @@ declare const __APP_VERSION__: string;
 declare const __APP_CHANNEL__: '' | 'beta';
 /** Help/docs URL: the HELP_URL build override, else package.json `wiki.url`, else repository + "/wiki" (vite.config.ts). */
 declare const __HELP_URL__: string;
-/** Contributors page: repository + "/graphs/contributors", or the CONTRIBUTORS_URL override; '' hides the link. */
+/** Contributors page: the CONTRIBUTORS_URL override, else package.json `contributorsPage.url`, else repository + "/graphs/contributors"; '' hides the link. */
 declare const __CONTRIBUTORS_URL__: string;
 /**
  * The OpenRocket commit the bundled engine was extracted from, read at build

@@ -24,16 +24,14 @@ const show = (node: ComponentNode, extra: { parentRadius?: number } = {}) => {
   return onChange;
 };
 
-/**
- * The two design-panel validators the panel exposes.
- *
- * `tree/cluster.ts` and `tree/tubefins.ts` export tested helpers (the cluster
- * options list and the tube-fin collision limits). Both are wired into this
- * panel, and these tests check that they stay reachable.
- */
 // The panel renders a MaterialPicker, which fetches the material catalog.
 beforeAll(serveData);
 
+/**
+ * The cluster options list (`tree/cluster.ts`) and the tube-fin collision
+ * limits (`tree/tubefins.ts`) are wired into this panel; the next two groups
+ * check that they stay reachable.
+ */
 describe('cluster selection', () => {
   /**
    * `cluster` round-trips through .ork and every view (2D, aft, 3D) draws the
@@ -83,7 +81,8 @@ describe('tube fin collision warning', () => {
   });
 
   it('warns once they overlap, and says what does fit', () => {
-    // 12 tubes of r=20 mm around the same body cannot physically close.
+    // 12 tubes of r=20 mm around the same body overlap: the touching radius for
+    // 12 is about 17.5 mm.
     show(tubeFins(12, 0.02), { parentRadius: 0.05 });
     const w = warning();
     expect(w).toBeTruthy();
@@ -370,14 +369,6 @@ describe('appearance section', () => {
   });
 });
 
-/**
- * Fin fillets are editable, and only offer a material once there is a bead.
- *
- * The value round-trips through `.ork`, is scaled with the rocket, and the
- * engine bridge hands it to the kernel. See the fillet cases in
- * `engine/engineBoundary.test.ts` for the half that makes this one worth
- * having: a field that changed the file and nothing else would pass here.
- */
 describe('catalog part', () => {
   it('names a preset with no manufacturer by its part number alone', () => {
     show({ id: 'b1', type: 'bodytube', preset: { partNo: 'BT-50' } } as unknown as ComponentNode);
@@ -404,6 +395,15 @@ describe('fin cant', () => {
   );
 });
 
+/**
+ * Fin fillets are editable, and the fillet material row is shown whatever the
+ * radius.
+ *
+ * The value round-trips through `.ork`, is scaled with the rocket, and the
+ * engine bridge hands it to the kernel. The fillet cases in
+ * `engine/engineBoundary.test.ts` check the kernel half: a field that changed
+ * the file and nothing else would pass here.
+ */
 describe('fin fillet', () => {
   const fillet = () => screen.getByText('Fillet').parentElement!;
 
@@ -858,7 +858,7 @@ describe('catalog part link', () => {
    * The desktop's own config dialog names the preset, which is the whole point of
    * picking one.
    *
-   * The second test is the other half of the contract: the link is only true while
+   * The last test is the other half of the contract: the link is only true while
    * the dimensions are the part's, so the row has to go when an edit breaks it.
    */
 
@@ -1031,7 +1031,7 @@ describe('derived dimensions', () => {
   });
 
   describe('a mass component by density', () => {
-    // 12 mm across the packed lump, 20 mm long, 8 g: near enough to a steel slug.
+    // 12 mm across the packed lump, 20 mm long, 8 g.
     const lump = () =>
       node({ id: 'm', type: 'masscomponent', name: 'Ballast', mass: 0.008, radius: 0.006, length: 0.02 });
 
@@ -1138,7 +1138,7 @@ describe('required dimensions', () => {
    * Refusing to let focus leave the field would be a keyboard trap (WCAG 2.1.2)
    * and would fight anyone who clears a box in order to retype it. Withholding the
    * write gets the same guarantee (no accidental zero can reach the tree) without
-   * taking the keyboard hostage.
+   * trapping the keyboard.
    */
 
   describe('an emptied required dimension', () => {
@@ -1355,9 +1355,8 @@ describe('required fields', () => {
     });
 
     /**
-     * The other half of the judgment, and the half a regression would hide: these
-     * are all legitimately zero, so marking one would put a red box on a correct
-     * design.
+     * The other half of the judgment: these are all legitimately zero, so
+     * marking one would put a red box on a correct design.
      */
     it('leaves the legitimately-zero dimensions alone', () => {
       const optional: [string, string][] = [
@@ -1497,7 +1496,6 @@ describe('shape parameter', () => {
    * power/haack/ogive nose carries a parameter that changes its whole profile.
    * `shapeUsesParameter` and `shapeParamMax` are unit-tested in
    * `tree/shapeProfile`; what is tested here is the wiring into the panel.
-   * The 'unit scopes' and 'required fields' blocks render nothing.
    */
 
   const LABEL = 'Shape parameter';
@@ -1521,7 +1519,7 @@ describe('shape parameter', () => {
       expect(screen.queryByRole('spinbutton', { name: LABEL })).toBeNull();
     });
 
-    it('shows it for a power transition and hides it for a conical one', () => {
+    it('shows it for a power transition', () => {
       panel({ type: 'transition', shape: 'power', length: 0.05, foreRadius: 0.012, aftRadius: 0.02 });
       expect(screen.queryByRole('spinbutton', { name: LABEL })).not.toBeNull();
       screen.getByRole('spinbutton', { name: 'Length' }); // the panel really rendered

@@ -44,8 +44,7 @@ test('the tree column can be dragged, and keeps its width', async ({ page }) => 
   await drag(page, sep, 1595);
   expect(await width()).toBe(640);
 
-  // Keyboard-reachable, because a pointer-only control is no control at all for
-  // anyone driving this from the keyboard.
+  // Keyboard-reachable, for anyone driving this from the keyboard.
   await sep.focus();
   await page.keyboard.press('ArrowLeft');
   expect(await width()).toBe(624);

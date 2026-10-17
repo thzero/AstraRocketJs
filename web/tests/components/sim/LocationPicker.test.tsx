@@ -18,8 +18,7 @@ const DEFAULT_SITE = loadSettings().launchDefaults;
 /**
  * The picker, with an in-memory store so nothing touches IndexedDB.
  *
- * Rendered under StrictMode for the same reason MaterialPicker's test is: the
- * store round-trip (`useLocationList`) finishes after an await behind a
+ * Rendered under StrictMode because the store round-trip (`useLocationList`) finishes after an await behind a
  * `useLatest` guard, and the development double-invoke runs the cleanup once and
  * then the effect again. A guard that only ever goes stale in cleanup would stay
  * stale for the component's whole life, and the location list would never

@@ -46,12 +46,7 @@ const preset = (name: string) => screen.getByRole('button', { name }) as HTMLBut
 const pressed = () =>
   ['Drift cast', 'Flight path', 'Landing plots'].find((n) => preset(n).getAttribute('aria-pressed') === 'true') ?? null;
 
-/**
- * The placement options decide how the exported KML sits on the map. The button
- * that opens this dialog lives in the 3D path view, which needs WebGL and
- * crashes headless Chromium, so the wiring is checked here instead of in an
- * end-to-end test.
- */
+/** The placement options decide how the exported KML sits on the map. */
 describe('flight-path export dialog', () => {
   // The dialog persists its options, so cases would otherwise inherit each
   // other's choices through localStorage: the cross-export carry-over the
@@ -66,7 +61,7 @@ describe('flight-path export dialog', () => {
     expect(pressed()).toBe('Flight path');
   });
 
-  it('turns the shadow on from no placement at all', () => {
+  it('leaves the shadow off for every placement', () => {
     // A plumb line under one pin reads as a position; a curtain under the whole
     // length of an arcing flight path is a wall that buries the flight it is
     // meant to explain. The checkbox stays, for the case it is good at.

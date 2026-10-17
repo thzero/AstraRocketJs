@@ -34,7 +34,7 @@ describe('dueForCheck', () => {
 describe('the intervals themselves', () => {
   it('poll less often than the floor, so the floor never blocks a poll', () => {
     // A poll that arrived inside its own rate limit would silently do nothing,
-    // and the hourly check would become a no-op.
+    // and the periodic check would become a no-op.
     expect(UPDATE_POLL_MS).toBeGreaterThan(UPDATE_MIN_GAP_MS);
   });
 

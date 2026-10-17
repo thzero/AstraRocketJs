@@ -20,8 +20,8 @@ import { componentName } from '../../services/app/warningText';
  * whether each moment went well: how fast off the rail, how stable it was
  * there, what speed the chute actually saw.
  *
- * Its rows are the pure join in services/flight/flightEvents; this file is the markup,
- * the same split aeroTables.ts and AeroComponentTables make.
+ * Its rows are the pure join in services/flight/flightEvents; this file is the
+ * markup.
  *
  * Every branch, interleaved on the one launch clock, because the charts beside
  * it already draw every branch: a booster's landing missing from a table next

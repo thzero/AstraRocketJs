@@ -154,10 +154,9 @@ export function PaneSplitter({
       onPointerCancel={end}
       onKeyDown={onKeyDown}
       onDoubleClick={() => onCommit(clamp(fallback))}
-      // A 5px grab strip that looks like a 1px rule: a 1px target is one you
-      // have to hunt for, and a divider you have to hunt for is worse than no
-      // divider. `group` drives the inner line, so the whole strip
-      // lights up on hover rather than just the pixel under the cursor.
+      // A 5px grab strip that looks like a 1px rule, since a 1px target is hard
+      // to hit. `group` drives the inner line, so hovering anywhere on the strip
+      // lights it up.
       // `touch-none` keeps a touch drag from scrolling the pane instead.
       className="group hidden w-[5px] shrink-0 cursor-col-resize touch-none justify-center bg-transparent focus:outline-none lg:flex"
     >

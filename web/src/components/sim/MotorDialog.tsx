@@ -40,8 +40,9 @@ const DEFAULT_DELAY = 3;
  *
  * A MotorSpec's `code` is display-only and absent when it adds nothing, so a
  * spec is matched by its designation, which says "AeroTech F67" for both the
- * F67W and the F67C: one common name in one bore. Match on the common name OR the full code (a spec resolved from
- * thrustcurve.org carries the full designation), then narrow same-name pairs
+ * F67W and the F67C: one common name in one bore. Match on the common name OR
+ * the full code (a spec resolved from thrustcurve.org carries the full
+ * designation), then narrow same-name pairs
  * by bore and by the curve source the spec was built from. Two motors sharing
  * all of manufacturer, name, bore and curve label remain indistinguishable
  * from the spec alone, and the first catalog match wins.
@@ -62,12 +63,12 @@ function findSeated(catalog: CatalogMotor[], cur: MotorSpec): CatalogMotor | und
 /**
  * Modal motor picker. Filters the catalog by engine code (text), manufacturer(s),
  * impulse class, total impulse, diameter, whether the motor comes plugged, and
- * (by default) whether it fits the mount; imports a custom .eng or .rse; resolves the
- * chosen motor's thrust curve via `onSelect`.
+ * (by default) whether it fits the mount; imports a custom .eng or .rse;
+ * resolves the chosen motor's thrust curve and hands it to `onSelect`.
  *
  * Mounted only while open (`{open && <MotorDialog />}`), so every piece of
- * state here starts fresh per opening and nothing has to be reset on close, so
- * the last motor's ejection delay cannot carry into the next opening.
+ * state here starts fresh per opening and nothing has to be reset on close: the
+ * last motor's ejection delay cannot carry into the next opening.
  */
 export function MotorDialog({
   onClose,

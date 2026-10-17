@@ -1178,8 +1178,7 @@ function buildBranch(
      * `finiteOr0` is the right answer for a summary figure (a missing distance
      * reads as zero range) and the wrong one for a track point, where it plants
      * the rocket on the pad at sea level in the middle of the flight and draws a
-     * line down to it and back. The aero charts' `buildLinePath` breaks its path
-     * on a non-finite sample for the same reason.
+     * line down to it and back.
      *
      * Skipped rather than broken into separate track segments: a KML `LineString`
      * and a GPX `trkseg` are one polyline per branch by format, and the templates
@@ -1510,8 +1509,8 @@ function escaperFor(extension: string): (raw: string) => string {
       // template wraps values in quotes).
       //
       // The pre-formatted numeric fields (longitude, altitude, distance) go
-      // through this same escaper; the shared rule leaves a value that is a
-      // whole number alone, so `-80.600000` stays a number while
+      // through this same escaper; the shared rule leaves a value that is
+      // entirely a number alone, so `-80.600000` stays a number while
       // `-1+HYPERLINK(...)` is neutralized.
       return (raw) => neutralizeFormula(raw).replace(/"/g, '""');
     case 'tsv':

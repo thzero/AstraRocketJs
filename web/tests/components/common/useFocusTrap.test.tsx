@@ -55,6 +55,28 @@ describe('useFocusTrap', () => {
     expect(document.activeElement).toBe(frame);
   });
 
+  it('wraps past a control at tabindex=-1, which the browser never stops on', () => {
+    function RovingPanel() {
+      const ref = useFocusTrap<HTMLDivElement>(true);
+      return (
+        <div ref={ref} role="dialog">
+          <button tabIndex={-1}>skipped first</button>
+          <button>first</button>
+          <button>last</button>
+          <button tabIndex={-1}>skipped last</button>
+        </div>
+      );
+    }
+    render(<RovingPanel />);
+    const first = screen.getByRole('button', { name: 'first' });
+    const last = screen.getByRole('button', { name: 'last' });
+    expect(document.activeElement).toBe(first);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab', shiftKey: true });
+    expect(document.activeElement).toBe(last);
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Tab' });
+    expect(document.activeElement).toBe(first);
+  });
+
   /**
    * Tab inside an iframe is the frame document's keydown, which the panel never
    * hears, so the browser can move focus straight past the panel's edge.
@@ -87,7 +109,7 @@ describe('useFocusTrap', () => {
     inner.focus();
     expect(document.activeElement).toBe(inner);
   });
-  it('keeps the boolean signature: focuses the first control and wraps Tab', () => {
+  it('focuses the first control and wraps Tab', () => {
     render(<Panel active />);
     const first = screen.getByRole('button', { name: 'first' });
     const last = screen.getByRole('button', { name: 'last' });

@@ -18,16 +18,13 @@ import { PartMetaFields } from './PartMetaFields';
  *
  * Built out of the property panel's own pieces (`visibleFields` / `FieldRow`,
  * the shoulder, material, appearance and override sections) rather than a
- * second set of inputs, so
- * a saved body tube is edited with the same fields, the same units and the
- * same validation as a body tube in a design. All of those take a node and an
- * onChange and nothing else, which is what makes this possible at all.
+ * second set of inputs, so a saved body tube is edited with the same fields,
+ * the same units and the same validation as a body tube in a design. Each of
+ * those takes only a node and an onChange.
  *
- * What it deliberately does not show is the half of the panel that describes a
- * part's place in a rocket: position, move, the fit-ranked picker, the
- * descent-rate readout. A saved part has no parent, no siblings and no design
- * to be judged against, so those are not hidden features, they are questions
- * that do not apply until the part is applied to something.
+ * It does not show the half of the panel that describes a part's place in a
+ * rocket: position, move, the fit-ranked picker, the descent-rate readout. A
+ * saved part has no parent, no siblings and no design to be judged against.
  *
  * Edits are held locally and written on Save, so this is a form over a stored
  * record rather than the live design. The parent mounts it keyed on the part,

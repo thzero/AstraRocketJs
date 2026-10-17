@@ -129,9 +129,8 @@ describe('simConditions', () => {
     expect(c.recoverySpeedWarn).toBe(25);
     expect(c.mainHighSpeedWarn).toBe(40);
     expect(c.mainLowSpeedWarn).toBe(10);
-    // The drogue one raises nothing today: the block reading it in
-    // BasicEventSimulationEngine is commented out upstream. It is still carried
-    // rather than dropped, so re-enabling that block is a rebuild and no more.
+    // Upstream ships the BasicEventSimulationEngine block that reads this one
+    // commented out; the kernel patch PATCH(drogue-low-speed) enables it.
     expect(c.drogueLowSpeedWarn).toBe(4);
   });
 
@@ -174,11 +173,6 @@ describe('launch into the wind with a multilevel profile', () => {
 });
 
 /**
- * The kernel's `SimulationOptions` setter clamps the maximum angle step to 1 to
- * 20 degrees, but the bridge sets it on `SimulationConditions`, which does not.
- * A step outside that range flies a flight the desktop never can.
- */
-/**
  * A negative rod angle (launching with the wind while "into the wind" is set)
  * reaches the kernel signed. Checked against the Java rather than assumed:
  * desktop's `SimulationOptions.setLaunchRodAngle` admits -MAX_LAUNCH_ROD_ANGLE
@@ -213,6 +207,11 @@ describe('a negative rod angle', () => {
   });
 });
 
+/**
+ * The kernel's `SimulationOptions` setter clamps the maximum angle step to 1 to
+ * 20 degrees, but the bridge sets it on `SimulationConditions`, which does not.
+ * A step outside that range flies a flight the desktop never can.
+ */
 describe('simConditions max angle step', () => {
   it('flies the step inside the kernel range', () => {
     expect(simConditions(base, { ...PREFS, maxAngleStep: deg2rad(0.05) }).maxAngleStep).toBeCloseTo(deg2rad(1));
@@ -223,7 +222,7 @@ describe('simConditions max angle step', () => {
 
 /**
  * The desktop flies only the selected wind model (SimulationOptions.getWindModel,
- * SimulationOptions.java:220-228, cloned into the conditions at :924-926), so a
+ * SimulationOptions.java:212-220, cloned into the conditions at :798), so a
  * profile held under Average changes neither the flight nor whether a result is
  * current.
  */

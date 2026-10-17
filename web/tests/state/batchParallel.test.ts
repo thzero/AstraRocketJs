@@ -55,9 +55,9 @@ interface Call {
 /**
  * The batch runs every row concurrently.
  *
- * An `await` per sim inside a `for` loop is the bottleneck once there is a pool of
- * workers rather than one engine, so these assert the store submits them all and
- * lets the transport decide how many fly at once.
+ * An `await` per sim inside a `for` loop would fly one row at a time over a pool
+ * of workers, so these assert the store submits them all and lets the transport
+ * decide how many fly at once.
  */
 describe('a batch over the worker pool', () => {
   let calls: Call[];
@@ -81,7 +81,7 @@ describe('a batch over the worker pool', () => {
     st().renameSim(st().sims[2]!.id, 'C');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null })),
+      sims: st().sims.map((x) => ({ ...x, result: null })),
       err: null,
       simRuns: {},
     });
@@ -101,8 +101,7 @@ describe('a batch over the worker pool', () => {
   it('marks rows queued, then running as each reaches a worker', async () => {
     const run = st().runSims(st().sims.map((x) => x.id));
     // All three are submitted, so all three are queued; none has been handed to
-    // a worker yet. Queued and running stop being the same instant once there
-    // is a pool, which is the distinction the table's dot needs.
+    // a worker yet. The table's dot tells queued from running.
     expect(['A', 'B', 'C'].map(statusOf)).toEqual(['queued', 'queued', 'queued']);
 
     calls[0]!.opts.onStart?.();
@@ -117,8 +116,8 @@ describe('a batch over the worker pool', () => {
 
   it('installs each result by id, whatever order they land in', async () => {
     const run = st().runSims(st().sims.map((x) => x.id));
-    // Out of order on purpose: with a pool the fastest flight finishes first,
-    // and nothing may depend on submission order.
+    // Out of order: with a pool the fastest flight finishes first, and nothing
+    // may depend on submission order.
     calls[2]!.resolve(result(3));
     calls[0]!.resolve(result(1));
     calls[1]!.resolve(result(2));
@@ -168,9 +167,7 @@ describe('a batch over the worker pool', () => {
   });
 });
 
-/**
- * Cancel and "run outdated", the two batch controls a pool makes worth having.
- */
+/** Cancel stops what is still flying and keeps what landed. */
 describe('canceling a batch', () => {
   let calls: Call[];
 
@@ -194,7 +191,7 @@ describe('canceling a batch', () => {
     st().renameSim(st().sims[1]!.id, 'B');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null })),
+      sims: st().sims.map((x) => ({ ...x, result: null })),
       err: null,
       simRuns: {},
     });
@@ -249,7 +246,7 @@ describe('running everything outdated', () => {
     st().renameSim(st().sims[2]!.id, 'NeverFlown');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: x.name === 'NeverFlown' ? null : result(1) })),
+      sims: st().sims.map((x) => ({ ...x, result: x.name === 'NeverFlown' ? null : result(1) })),
       err: null,
       simRuns: {},
     });
@@ -312,7 +309,7 @@ describe('a simulation edited while it is in the air', () => {
     st().renameSim(st().sims[1]!.id, 'B');
     st().commitEdit();
     useWorkspaceStore.setState({
-      sims: st().sims.map((x) => ({ ...x, motor: C6, result: null })),
+      sims: st().sims.map((x) => ({ ...x, result: null })),
       err: null,
       simRuns: {},
     });

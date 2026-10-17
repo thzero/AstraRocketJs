@@ -55,8 +55,8 @@ describe('tracing a fin from an image', () => {
   const triangle = scaled(triangle1, 4);
 
   it('collapses a straight traced edge to its two ends', () => {
-    // A 40 x 24 mm rectangle: the trace is 128 pixels around it, and all four
-    // edges are exactly straight, so only the corners survive.
+    // A 40 x 16 mm rectangle: all four edges are exactly straight, so only the
+    // corners survive.
     const points = finPointsFromImage(image(scaled(['##########', '##########', '##########', '##########'], 4)));
     expect(points.length).toBeLessThan(8);
   });

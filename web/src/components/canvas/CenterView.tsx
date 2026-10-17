@@ -18,7 +18,7 @@ import { useMaximizeCenter } from './useMaximizeCenter';
 import { useAutoRunOutdated } from './useAutoRunOutdated';
 
 /**
- * The center workbench pane: an import banner, the 2D/3D/flight/path view switch,
+ * The center workbench pane: an import banner, the view switch,
  * the sized canvas box (with the 2D roll slider + Side/Aft/Reset presets), and the
  * stability readout. Reads the workspace store directly.
  *

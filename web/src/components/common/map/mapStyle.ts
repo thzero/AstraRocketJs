@@ -43,11 +43,10 @@ export const LINER = 'rgba(2,6,23,0.75)';
  * up eighty times: a smear at best, and in practice a box that draws nothing
  * at all while the Satellite button sits there looking pressed.
  *
- * Four, not two. A calm-day club flight lands twenty or thirty meters out, and
- * imagery four times coarser than the plot is blocky but still tells you
- * whether that is the mown strip or the beans beside it, which is the whole
- * job. Below about twenty meters across, a screen pixel is finer than anything
- * Esri holds and there is no ground left to show.
+ * Four: a calm-day club flight lands twenty or thirty meters out, and imagery
+ * four times coarser than the plot is blocky but still shows which part of the
+ * field the rocket came down in. Below about twenty meters across, a screen
+ * pixel is finer than anything Esri holds and there is no ground left to show.
  */
 export const MAX_MAGNIFICATION = 4;
 

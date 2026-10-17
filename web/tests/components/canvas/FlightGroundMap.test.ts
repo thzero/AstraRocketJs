@@ -9,9 +9,8 @@ import { MIN_EXTENT_M } from '../../../src/services/flight/groundTrack';
 /**
  * Where the ground map's tiles land in the 3D scene.
  *
- * This is the one part of that view worth a test and the one part a screenshot
- * cannot check: a map laid down mirrored, or rotated a quarter turn, is still a
- * convincing photograph of a field. The arc is placed through `sceneFromEnu`
+ * A screenshot cannot check this: a map laid down mirrored, or rotated a
+ * quarter turn, is still a convincing photograph of a field. The arc is placed through `sceneFromEnu`
  * (flightScene.ts), so the ground under it has to agree, and tile rows count
  * southward while the scene counts north.
  */
@@ -125,7 +124,7 @@ describe('groundMapLayout', () => {
 
   /**
    * The budget this exists to keep. Imagery is fetched from someone else's
-   * servers and kept in a capped offline cache shared with two other surfaces,
+   * servers and kept in a capped offline cache shared with the app's other maps,
    * so a single flight must not cost a screenful of tiles per view. Covering the
    * whole ground plane rather than the flight costs 36.
    */

@@ -73,7 +73,7 @@ describe('loadSettings', () => {
       localStorage.setItem(KEY, raw);
       expect(loadSettings().playbackSpeed, raw).toBe(DEFAULT_SETTINGS.playbackSpeed);
     }
-    // Infinity round-trips through JSON.stringify as null, so reach it directly.
+    // Infinity stringifies as null, so the largest finite number stands in for it.
     localStorage.setItem(KEY, JSON.stringify({ playbackSpeed: Number.MAX_VALUE }));
     expect(loadSettings().playbackSpeed).toBe(10); // clamped, not rejected
   });
@@ -88,10 +88,9 @@ describe('loadSettings', () => {
   });
 
   it('drops a partColors value that is not a hex string', () => {
-    // These reach a `style` attribute. The round-trip case below stores a valid
-    // '#123456' and so cannot see the filter at all - every rejected shape has
-    // to be passed in deliberately. Without the filter, a stored object, array or
-    // CSS payload would ride straight through the spread and into the renderer.
+    // These reach a `style` attribute. Without the filter, a stored object,
+    // array or CSS payload would ride straight through the spread and into the
+    // renderer.
     localStorage.setItem(
       KEY,
       JSON.stringify({
@@ -146,7 +145,7 @@ describe('loadSettings', () => {
     localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: 500 }));
     expect(loadSettings().treePaneWidth).toBe(500);
     // The value lands in a style attribute, so a hand-edited or corrupted one
-    // must not be able to render a column of 0 or of 90000 pixels - there would
+    // must not be able to render a column of 0 or of 90000 pixels: there would
     // be no way back to the splitter to fix it.
     localStorage.setItem(KEY, JSON.stringify({ treePaneWidth: 0 }));
     expect(loadSettings().treePaneWidth).toBe(300);
@@ -324,7 +323,7 @@ describe('loadSettings validates what reaches styles, jsPDF and the CSV writer',
     expect(loadSettings().flightCsv.separator).toBe(';');
   });
 
-  it('clamps railExitVelocityMin like the other simulation thresholds', () => {
+  it('falls back for an unusable railExitVelocityMin like the other simulation thresholds', () => {
     for (const raw of ['"fast"', '0', '-3', 'null']) {
       localStorage.setItem(KEY, `{"simulation":{"railExitVelocityMin":${raw}}}`);
       expect(loadSettings().simulation.railExitVelocityMin, raw).toBe(DEFAULT_SETTINGS.simulation.railExitVelocityMin);

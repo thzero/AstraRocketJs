@@ -72,8 +72,8 @@ const node = (o: object) => o as unknown as ComponentNode;
 const info = (scale: number) => ({
   length: 1.2 * scale,
   // Shorter than `length`, as it is on any design with a non-aerodynamic part
-  // outside the aerodynamic envelope, so the golden distinguishes the engine's
-  // stabilityPercent (13.6) from the wrong (cp - cg) / length (12.5).
+  // outside the aerodynamic envelope, so the drawn text distinguishes the
+  // engine's stabilityPercent (13.6) from the wrong (cp - cg) / length (12.5).
   lengthAerodynamic: 1.1 * scale,
   mass: 1.5 * scale,
   massEmpty: 1.1 * scale,
@@ -329,7 +329,7 @@ const everything = {
 
 /**
  * The marking guide's own tree, kept apart from the report-wide one so its
- * awkward cases do not perturb every other snapshot in this file:
+ * awkward cases do not change what the other tests in this file draw:
  *
  * - a 98 mm tube, whose 308 mm wrap no page here can hold in one piece
  * - canted fins, which mark on a slant with their own dashed fore/aft lines

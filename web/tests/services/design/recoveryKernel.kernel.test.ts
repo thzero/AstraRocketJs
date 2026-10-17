@@ -27,7 +27,7 @@ describe('the kernel reports a recovery device as it flies it', () => {
   /**
    * `Streamer.getComponentCD`, written out: 0.034 ((rho + 0.025) / 0.105)
    * (L + 1) / L, capped at 0.4, with rho the strip's surface density and L its
-   * length. A new streamer is a 0.4 m strip of the stock ripstop nylon.
+   * length. A new streamer is a 0.5 m strip of the stock ripstop nylon.
    */
   it(
     "gives a new streamer's automatic drag coefficient",

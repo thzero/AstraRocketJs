@@ -4,9 +4,8 @@ import { defineConfig, devices } from '@playwright/test';
  * End-to-end config. Playwright builds the app and serves the build with
  * `vite preview` on a fixed port (strictPort so it fails loudly rather than
  * drifting to 5174…), drives a headless Chromium, and tears the server down
- * when the run ends. The
- * SwiftShader flags software-render WebGL so the 3D views don't come up blank
- * on a headless/CI box with no GPU.
+ * when the run ends. The SwiftShader flags software-render WebGL so the 3D
+ * views don't come up blank on a headless/CI box with no GPU.
  */
 
 // The specs that exercise the phone layout. They set their own viewport, so
@@ -25,9 +24,8 @@ const MOBILE_SPECS = [
   '**/a11y-phone.spec.ts',
 ];
 
-// The specs every pull request and push to a branch other than master runs
-// (`npm run e2e:core`): the
-// paths a broken build breaks first. The app boots with and without the engine,
+// The specs every pull request and push to a branch other than master and beta
+// runs (`npm run e2e:core`): the paths a broken build breaks first. The app boots with and without the engine,
 // a part is selected and edited, a motor is picked, a simulation runs, and the
 // shell holds together on a phone and from the keyboard. The rest of the suite
 // runs by hand (e2e-full.yml), and locally with `npm run e2e`. That includes
@@ -101,8 +99,8 @@ export default defineConfig({
   // on request, so every fresh page in every worker pays for hundreds of them
   // and the one Vite process becomes the bottleneck. The build is also what
   // ships, with the timing that ships: the dev server's slower boot can hide
-  // ordering bugs. Built fresh each run, and never reused, so a
-  // server left on the port cannot serve an old build. The docs the Help dialog
+  // ordering bugs. Built fresh each run, and never reused, so a server left on
+  // the port cannot serve an old build. The docs the Help dialog
   // reads are copied in from public/docs by the build (npm run docs:build).
   webServer: {
     command: 'npx vite build && npx vite preview --port 5180 --strictPort',

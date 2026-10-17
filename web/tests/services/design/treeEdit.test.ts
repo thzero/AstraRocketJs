@@ -568,9 +568,10 @@ describe('catalogPatch for a centering ring', () => {
     expect(patch['innerRadiusAuto']).toBe(false);
   });
 
-  // RadiusRingComponent.setInnerRadius never leaves the bore past the outer
-  // radius, and the panel holds a typed bore inside it the same way. Quest
-  // CR2924 states a 28.8 mm bore in a 25.25 mm ring.
+  // RadiusRingComponent.loadFromPreset stores a stated bore unchecked, and
+  // getThickness reads a bore past the outer radius as no wall. The patch holds
+  // the bore at the outer radius, the bound the panel puts on a typed bore.
+  // Quest CR2924 states a 28.8 mm bore in a 25.25 mm ring.
   it('holds a stated bore inside the outer radius', () => {
     const patch = catalogPatch({ ...row, outerDiameter: 0.02525, innerDiameter: 0.0288 } as never);
     expect(patch['outerRadius']).toBe(0.02525 / 2);

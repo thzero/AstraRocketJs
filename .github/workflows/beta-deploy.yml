@@ -22,10 +22,10 @@ name: Beta deploy
 # read, which needs no token. `workflow_call` is the only trigger, so nothing in
 # this repository can start it and publish over the production site.
 #
-# The build matches deploy.yml's, with three differences: the source is this
-# repository's `beta` branch, the base paths name the beta site, and
+# The build matches deploy.yml's, with four differences: the source is this
+# repository's `beta` branch, the base paths name the beta site,
 # APP_CHANNEL=beta gives the app its own storage prefix and labels
-# (vite.config.ts). The beta site shares the thzero.github.io origin with
+# (vite.config.ts), and there is no contributor sync (see below). The beta site shares the thzero.github.io origin with
 # production, which is what the storage prefix is for.
 
 on:

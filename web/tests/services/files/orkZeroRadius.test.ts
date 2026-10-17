@@ -13,8 +13,8 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
  * takes `auto` as the automatic flag and any number as the value
  * (`BodyTube:radius` calls `setOuterRadius(0.0)`), so a stated 0 stays 0. The
  * bundled pods example carries its horizontal stabilizer on a phantom body tube
- * of radius 0; read as automatic, the tube took the pod's radius and moved the
- * stabilizer pod out by it. `npm run audit` compares desktop's read of that
+ * of radius 0; read as automatic, the tube would take the pod's radius and move
+ * the stabilizer pod out by it. `npm run audit` compares desktop's read of that
  * example with the app's import.
  */
 

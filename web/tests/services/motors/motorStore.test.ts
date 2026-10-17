@@ -125,8 +125,8 @@ describe('custom motors report refused writes', () => {
 });
 
 /**
- * Custom motors are the one store whose payload reaches `simulate()` without a
- * second gate, so what `isCustomMotor` lets through is what the kernel gets.
+ * What `isCustomMotor` lets through is built into a motor spec on every pick,
+ * and `samplesToMotorSpec` does not check each sample, so the store has to.
  */
 describe('isCustomMotor rejects what would reach the kernel broken', () => {
   const good = () => ({
@@ -208,8 +208,7 @@ describe('isCustomMotor rejects what would reach the kernel broken', () => {
 
   it('drops a dimension or weight that is absent, null or not a number', async () => {
     // Not tested with NaN: JSON.stringify writes it as null, so a NaN can never
-    // be read back out of the store, the same reason engineBoundary.test.ts
-    // records that Infinity cannot reach the kernel. These three can arrive.
+    // be read back out of the store. These three can arrive.
     for (const k of ['diameter', 'length', 'totalWeightG', 'propWeightG'] as const) {
       expect(await survives({ ...good(), [k]: null }), `${k}=null`).toBe(0);
       expect(await survives({ ...good(), [k]: '18' }), `${k}="18"`).toBe(0);

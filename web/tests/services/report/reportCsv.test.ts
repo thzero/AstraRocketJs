@@ -83,8 +83,8 @@ describe('design CSV', () => {
   it('has the Rocket summary in the chosen units with dot decimals', () => {
     expect(rows).toContainEqual(['Rocket', 'Length', '90', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Stability (on pad)', '3.14', 'cal']);
-    // The kernel's own figure. (cp - cg) / length would be 27.4: right shape,
-    // wrong denominator. Pinning it is what keeps that formula out.
+    // The kernel's own figure, over the aerodynamic length; (cp - cg) / length
+    // would be 27.4.
     expect(rows).toContainEqual(['Rocket', 'Stability (%)', '30.9', '%']);
     expect(rows).toContainEqual(['Rocket', 'CP', '162.9', 'cm']);
     expect(rows).toContainEqual(['Rocket', 'Normal-Force Slope (CNα)', '26.42', '/rad']);

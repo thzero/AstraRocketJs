@@ -13,7 +13,7 @@ import { MAX_PASSTHROUGH } from '../../../src/services/files/ork/importLimits';
 /**
  * What a `.ork` carries that this app has no model for.
  *
- * The desktop's Appearance tab is the case that exists today: paint, shine and a
+ * The desktop's Appearance tab is the main case: paint, shine and a
  * decal per part. Reading it would mean building an editor for it; ignoring it
  * would throw it away on every save, so a design that came here for one
  * dimension would go back stripped of its paint. It is carried as raw XML instead.

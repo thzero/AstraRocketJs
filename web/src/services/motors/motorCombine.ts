@@ -27,8 +27,8 @@ export function thrustAt(samples: Sample[], t: number): number {
   // A thrust curve can hold two samples at the same time to encode a vertical
   // step (an instant ignition spike, or a cut-off). Going forward from `t` the
   // curve's value is the last sample at that time, not the first. Returning
-  // the first would read a step-up as the value before it: K543 in the bundled
-  // catalog starts [0, 0] then [0, 2117] and would sum as if it made no thrust
+  // the first would read a step-up as the value before it: Cesaroni I195 in the
+  // catalog starts [0, 0] then [0, 10.17] and would sum as if it made no thrust
   // at ignition.
   let last: number | undefined;
   for (let i = 0; i < n; i++) if (samples[i]![0] === t) last = samples[i]![1];

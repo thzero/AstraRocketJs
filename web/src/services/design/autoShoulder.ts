@@ -93,8 +93,8 @@ const neighborOf = (
  * the neighbor's wall and a radius of the radius the neighbor offers at that
  * end less that wall, each only where it was 0, and is capped. With no
  * neighbor the wall is the part's own and the radius
- * `SymmetricComponent.DEFAULT_RADIUS` less it. A
- * shoulder set back to 0 loses its radius, wall and cap. A catalog pick states
+ * `SymmetricComponent.DEFAULT_RADIUS` less it. A shoulder set back to 0 loses
+ * its radius, wall and cap. A catalog pick states
  * its shoulder's radius and cap itself (`presetShoulder` in treeEdit). The
  * neighbor is the one the kernel finds ({@link neighborOf}), and the seeded
  * radius stops at the part's own end (`setForeShoulderRadius` and

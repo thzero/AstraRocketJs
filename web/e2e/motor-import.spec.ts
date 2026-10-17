@@ -33,8 +33,8 @@ test('a hybrid imports from a .rse file, which .eng could not describe', async (
   await expect(dialog.getByText('1 motor imported')).toBeVisible();
 
   // The default rocket has an 18 mm mount and this is a 54 mm hybrid, so the
-  // mount filter hides it: the honest order of events is importing the motor
-  // for a rocket you have yet to build. Turn the filter off to see it.
+  // mount filter hides it, as it would for a motor imported ahead of the rocket
+  // it is for. Turn the filter off to see it.
   await dialog.getByRole('checkbox', { name: /Fits the mount/ }).uncheck();
 
   // Listed with the star every imported motor carries.
@@ -60,8 +60,8 @@ test('a .rse holding several motors imports all of them, and says so', async ({ 
   await ready(page);
   const dialog = await openPicker(page);
 
-  // An engine-database file is a manufacturer's range, not one motor. One
-  // landing and forty landing look identical in a list of 800, so it counts.
+  // An engine-database file is a manufacturer's range, not one motor. One new
+  // row and forty look alike in a list of 800, so the import reports a count.
   const two = `<?xml version="1.0"?><engine-database><engine-list>
     <engine mfg="Bench" code="A1" Type="hybrid" dia="29" len="200" initWt="300" propWt="120"><data>
       <eng-data t="0" f="0"/><eng-data t="1" f="120"/><eng-data t="2" f="0"/>

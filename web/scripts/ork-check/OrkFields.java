@@ -48,9 +48,9 @@ import java.util.List;
  *            fields;
  *   configs  each flight configuration by id: the motor in each mount (by the
  *            mount's index in `parts`) with its designation, common name,
- *            digest, ejection delay and ignition, each recovery device's deployment, each lower
- *            stage's or booster's separation, and which stages fly, in tree
- *            order;
+ *            digest, ejection delay and ignition, each recovery device's
+ *            deployment, each lower stage's or booster's separation, and which
+ *            stages fly, in tree order;
  *   sims     each simulation's name, configuration and the conditions 24.12
  *            keeps (SimulationOptions).
  *

@@ -6,9 +6,10 @@ import { taskTabs } from '../src/components/layout/tabTable';
 
 /**
  * The phone layout through axe, in every theme: each button of the bottom tab
- * bar, each view, sub-tab and tool behind it, and the editor of every part type. The phone shows one pane at
- * a time and moves the editors under the tables, so its screens are not the
- * desktop's screens rearranged, and its contrast and names are scanned here.
+ * bar, each view, sub-tab and tool behind it, and the editor of every part
+ * type. The phone shows one pane at a time and moves the editors under the
+ * tables, so its screens are not the desktop's screens rearranged, and its
+ * contrast and names are scanned here.
  *
  * Runs under the Pixel 7 project only (MOBILE_SPECS, and the desktop project's
  * testIgnore, in playwright.config.ts): the desktop project scans the same

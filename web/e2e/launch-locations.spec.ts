@@ -3,10 +3,9 @@ import { test, expect, openTab, ready, runButton, type Page } from './base';
 /**
  * Saved launch locations, through the real app and real IndexedDB.
  *
- * `launchLocationStore.test.ts` covers the store and `LocationPicker.test.tsx` the component
- * against an in-memory one. What neither can reach is the thing that matters
- * most here: that a location survives a reload. A location you have to re-enter is the
- * problem this feature exists to remove.
+ * `launchLocationStore.test.ts` covers the store and `LocationPicker.test.tsx`
+ * the component against an in-memory one. What neither can reach is that a
+ * location survives a reload, which is what the feature is for.
  */
 
 /** The location row's controls, scoped past `getByLabel`'s substring matching. */

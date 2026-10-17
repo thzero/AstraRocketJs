@@ -12,14 +12,11 @@ import { ColorInput } from '../common/ColorInput';
  * Color is the only thing in here, and it does not belong in the Part section with
  * the name and the catalog picker: those say what the part is and what it is made
  * from, and both are written to the `.ork`, while this is a view preference that
- * changes nothing about the rocket. A section of its own says so, and leaves room
- * for the other appearance settings (texture) whenever they land. The surface
- * finish is not one of them: it sets the drag, so it sits with the material.
+ * changes nothing about the rocket. The surface finish is not an appearance
+ * setting: it sets the drag, so it sits with the material.
  *
- * Below the part's own sections, above the tree actions, Overrides and Comment,
- * for the same reason
- * Overrides is last: it is read far less often than anything describing the
- * part, so it sits below all of it and above the one thing read less still.
+ * Below the part's own sections and above the tree actions, Overrides and
+ * Comment.
  *
  * Not rendered for a stage, which has no color of its own: a stage is the
  * container its parts are drawn in.

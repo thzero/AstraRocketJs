@@ -11,8 +11,8 @@
 // from the jar's copy, so the commit cannot move the catalog off the release.
 //
 // OPENROCKET_UNPINNED=1 lets a different jar, or a built source tree, through
-// with a warning, for trying another build locally. Its digests are not the release's, so a
-// catalog made that way is not one to commit or publish.
+// with a warning, for trying another build locally. Its digests are not the
+// release's, so a catalog made that way is not one to commit or publish.
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 

@@ -264,10 +264,8 @@ export function PropertyPanel({
 
       {/* The glue bead along the fin root. Its material is rarely the fin's own
           (epoxy on plywood), so it carries its own, beside the radius.
-          The picker shows at any radius: you cannot find a control that is
-          not there, and the order you fill a section in is yours, not the
-          panel's. It stores fine at radius 0 and goes live the moment there
-          is a bead. */}
+          The picker shows at any radius, so the material can be set before the
+          radius; it stores at radius 0 and takes effect once there is a bead. */}
       <FieldSection
         node={node}
         title={t('prop.fillet')}
@@ -297,9 +295,8 @@ export function PropertyPanel({
 
       {/* Tube fins collide with each other once they are too fat, or too many,
           for the body they ring (geometry from tubefins.ts). Warn rather than
-          clamp: the user may be part-way
-          through a change, and both ways out (fewer tubes, thinner tubes) are
-          theirs to pick. */}
+          clamp: the user may be part-way through a change, and both ways out
+          (fewer tubes, thinner tubes) are theirs to pick. */}
       {node.type === 'tubefinset' && tubeFinsCollide(node, parentRadius) && (
         <p className="rounded-md bg-warn-500/10 px-2 py-1.5 text-[11px] leading-snug text-warn-300 ring-1 ring-warn-500/30">
           {t('prop.tubeFinsCollide', {
@@ -321,10 +318,7 @@ export function PropertyPanel({
 
           Below the material rather than above it, because everything above this
           point describes the tube itself (its dimensions, then what it is made
-          of) and this is the first section about the job it has been given.
-          Placed between the wall thickness and the material, these rows would
-          split the description of one object in half, and on an inner tube
-          the cluster rows would push the material six rows down. */}
+          of) and this is the first section about the job it has been given. */}
       <FieldSection
         node={node}
         title={t('prop.motor')}
@@ -393,16 +387,12 @@ export function PropertyPanel({
       {/* Overrides are the last thing about the rocket on every part, without
           exception. They are not a property of the part the way its dimensions,
           material and placement are: they are a deliberate override of what
-          those add up to, reached for rarely and after the part is described.
-          Between the material and the placement they would push the placement
-          rows below three rows nobody is looking for. */}
+          those add up to, reached for rarely and after the part is described. */}
       <OverridesSection node={node} onChange={onChange} onCommit={onCommit} coveredBy={coveredBy} />
 
-      {/* Notes on this part, which the desktop gives a tab of its own. Dead
-          last, below even the overrides: it is the only field here that is
-          about the builder rather than the rocket, so nothing the panel says
-          about the part should be under it, and a free-text box never sits
-          between the part's dimensions and what it is made of. */}
+      {/* Notes on this part, which the desktop gives a tab of its own. Last,
+          below the overrides: it is the only field here that is about the
+          builder rather than the rocket. */}
       <FieldSection
         node={node}
         title={t('prop.comment')}

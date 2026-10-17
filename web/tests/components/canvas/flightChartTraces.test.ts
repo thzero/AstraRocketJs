@@ -88,8 +88,7 @@ describe('visibleSeries', () => {
   });
 
   it('returns the panels in chart order, not the order they were saved in', () => {
-    // Otherwise the stack would reshuffle depending on the order you ticked
-    // them in, which is not something anyone chose.
+    // Otherwise the stack would follow the order the panels were ticked in.
     expect(visibleSeries(['mach', 'altitude'])).toEqual(['altitude', 'mach']);
   });
 

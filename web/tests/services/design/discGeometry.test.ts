@@ -83,10 +83,10 @@ describe('tubeRadii', () => {
 
 /**
  * A tube with no `thickness` key takes its own type's kernel wall, wherever its
- * bore is read. The kernel gives an inner tube and a coupler 0.5 mm
- * (ComponentFactory, cases "innertube" and "tubecoupler") and a body tube
- * 0.3 mm; reading the body tube's for all three would make a coupler's bore, as
- * the tube enclosing a ring, 0.2 mm wider than the coupler itself.
+ * bore is read. The kernel gives a body tube and a coupler a 2 mm wall and an
+ * inner tube 0.5 mm (ComponentFactory, cases "bodytube", "tubecoupler" and
+ * "innertube"); reading one type's wall for all three would put an inner
+ * tube's bore 1.5 mm off from the one the kernel flies.
  */
 describe('a keyless tube wall', () => {
   const tube = (type: string, outerRadius: number) => ({ type, id: type, outerRadius }) as unknown as ComponentNode;

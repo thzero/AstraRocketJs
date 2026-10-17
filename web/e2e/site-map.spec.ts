@@ -5,8 +5,8 @@ import { nsKey } from '../src/services/storage/storageKeys';
  * The launch-site map, through the real app.
  *
  * Tile requests are answered locally by the fixture in `base.ts`, so nothing
- * here depends on Esri being reachable. What that still
- * proves is the part unit tests cannot: that the map is reachable from both
+ * here depends on Esri being reachable. What this proves is the part unit
+ * tests cannot: that the map is reachable from both
  * places it is offered, that a click on it lands in the launch fields as
  * one undoable edit, and that the layer buttons change which provider is
  * asked.
@@ -89,10 +89,6 @@ test('the layer buttons switch which provider is asked', async ({ page }) => {
   // And nothing reaches OpenStreetMap's volunteer tile servers. Asserted on the
   // real network traffic, because that is the only place the mistake would show.
   expect(asked.filter((u) => u.includes('openstreetmap.org'))).toEqual([]);
-
-  // Put the layer back: it is remembered for the session, and the location editor
-  // opened later in this file expects to start on imagery.
-  await dialog.getByRole('button', { name: 'Satellite' }).click();
 });
 
 test('the location editor carries a map under its fields', async ({ page }) => {

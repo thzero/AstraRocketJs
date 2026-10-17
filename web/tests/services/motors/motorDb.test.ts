@@ -372,9 +372,8 @@ describe('findCatalogMotor: full .ork designations vs short catalog names', () =
 /**
  * One malformed row must cost that row, not the catalog.
  *
- * `isCatalog` must not be `every(isCatalogMotor)`: remoteData rejects a body its
- * predicate refuses, so a single bad row on the data host would throw the
- * whole ~1500-motor catalog away and leave the picker empty. Row by row instead: drop the bad rows, keep the rest.
+ * remoteData rejects a body its predicate refuses, so a predicate that needs
+ * every row usable would let one bad row on the data host empty the picker.
  */
 describe('loadCatalog with a malformed row', () => {
   const good = (designation: string): CatalogMotor => ({
@@ -388,11 +387,11 @@ describe('loadCatalog with a malformed row', () => {
   });
 
   beforeEach(() => {
-    // The real fetchCatalog rejects a body its `valid` predicate refuses; the
-    // stub keeps that contract so the gate is exercised, not bypassed.
     vi.mocked(fetchCatalog).mockReset();
   });
 
+  // The real fetchCatalog rejects a body its `valid` predicate refuses; the
+  // stub keeps that contract so the gate is exercised, not bypassed.
   const serve = (body: unknown) =>
     vi
       .mocked(fetchCatalog)
@@ -493,7 +492,6 @@ describe('matchCatalogMotor: how sure the match is', () => {
   });
 
   it('is what findCatalogMotor returns, without the doubt', () => {
-    // The callers that only want the row keep working unchanged.
     expect(findCatalogMotor(cat, 'I170', 'Kosdon')).toBe(matchCatalogMotor(cat, 'I170', 'Kosdon')!.motor);
   });
 });

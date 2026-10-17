@@ -62,14 +62,14 @@ export function dataHeaderLines(d: ExportData): string[] {
   return lines;
 }
 
+/** The header font for an export of the given width, the same for the SVG and the raster. */
+const headerFontPx = (widthPx: number): number => Math.max(12, Math.round(widthPx * 0.016));
+
 /**
  * The day the drawing is exported, on the user's own clock and in the UI
  * language: the UTC date is a day off for an evening export in the Americas
  * or an early one east of Greenwich.
  */
-/** The header font for an export of the given width, the same for the SVG and the raster. */
-const headerFontPx = (widthPx: number): number => Math.max(12, Math.round(widthPx * 0.016));
-
 const exportDate = (at: Date): string =>
   new Intl.DateTimeFormat(i18n.resolvedLanguage || 'en', { dateStyle: 'medium' }).format(at);
 

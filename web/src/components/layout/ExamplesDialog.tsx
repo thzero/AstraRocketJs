@@ -12,9 +12,8 @@ import { CatalogError } from '../common/CatalogLoading';
  *
  * Menu → Import → Examples is the primary one, and the semantically exact one:
  * opening an example is an import. It goes through `openOrkFile`, it lands as
- * its own design, saved to the library by the next autosave, and it raises the same notes banner a
- * picked `.ork` would. Anything that behaves like an import belongs beside the
- * import that reads a file.
+ * its own design, saved to the library by the next autosave, and it raises the
+ * same notes banner a picked `.ork` would.
  *
  * The library dialog shows the same list as its second tab, because that is the
  * dialog you open when you are looking for a rocket to work on, and on a first

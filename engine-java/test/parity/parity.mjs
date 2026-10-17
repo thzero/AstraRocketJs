@@ -48,8 +48,8 @@ const targets = wantJs === wantWasm ? ['js', 'wasm'] : wantJs ? ['js'] : ['wasm'
 const writeGolden = process.argv.includes('--golden');
 // The golden can be shrunk as well as moved: drop emissions from ParityMain,
 // re-record, and every remaining value still matches, so the gate reports "ok"
-// while the dropped physics goes unchecked. CI passes the expected count, so a
-// shrink (or a growth) has to be argued in the workflow diff, the way
+// while the dropped physics goes unchecked. audit.mjs passes the expected count,
+// so a shrink (or a growth) has to be argued in that file's diff, the way
 // validation's --expect-gates pins its anchor set.
 const expectLinesAt = process.argv.indexOf('--expect-lines');
 const expectLines = expectLinesAt === -1 ? null : Number(process.argv[expectLinesAt + 1]);
@@ -76,9 +76,9 @@ if (process.env.JAVA_HOME && !existsSync(process.env.JAVA_HOME)) delete gradleEn
 //
 // It has to be the command line. Gradle's precedence for `org.gradle.daemon` is
 // (highest first) command line, GRADLE_USER_HOME/gradle.properties, the project
-// gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS in the
-// workflow is not enough: engine-java/gradle.properties says daemon=true and
-// outranks it. `--no-daemon` cannot be overridden.
+// gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS is not
+// enough: engine-java/gradle.properties says daemon=true and outranks it.
+// `--no-daemon` cannot be overridden.
 //
 // Local runs keep the daemon, where a warm JIT across invocations is worth
 // having and nothing is watching a pipe for EOF.
@@ -119,7 +119,7 @@ const runnerPath = join(here, 'run-target.mjs');
 // Purely a backstop. A target run is 1-4 seconds and run-target.mjs SIGKILLs
 // itself the moment it has printed, so this only matters if a target wedges
 // before printing. The run then fails in a couple of minutes with a clear
-// message rather than sitting until the workflow's step cap.
+// message rather than hanging.
 const TARGET_TIMEOUT_MS = 2 * 60 * 1000;
 
 /**
@@ -198,8 +198,9 @@ const REL_TOL_DEFAULT = 1e-13;   // static/instantaneous calcs stay bit-identica
 // which the (deliberately under-damped) apogee turn amplifies. On the smooth
 // reference flight this reaches ~1.9e-3 relative by apogee (about 0.6 m of a 330 m
 // apogee, about 13 ms of a 7 s flight), which is physically negligible. It is not a
-// defect: the JVM is byte-identical run-to-run, and every static calc matches to 1e-13. The kernel's per-step damping
-// term makes the flight ULP-sensitive enough that a tighter bound such as 1e-9 fails.
+// defect: the JVM is byte-identical run-to-run, and every static calc matches to 1e-13.
+// The kernel's per-step damping term makes the flight ULP-sensitive enough that a
+// tighter bound such as 1e-9 fails.
 const REL_TOL_FLIGHT = 5e-3;     // smooth-flight cross-platform drift (worst observed 1.9e-3)
 const ABS_TOL_FLIGHT = 1e-4;     // near-zero flight quantities (small velocities/accels near apogee)
 const REL_TOL_TURBULENT = 5e-2;  // chaotic gusty wind: platforms take different valid trajectories (worst ~3.2e-2)
@@ -309,7 +310,7 @@ if (exceptions.length) {
 // accordingly:
 //
 //   - a missing golden.txt fails, rather than warning and exiting 0, which would
-//     let `git rm`ing it switch the physics gate off with CI still green;
+//     let `git rm`ing it switch the physics gate off with the audit still green;
 //   - the header carries a sha256 of the data lines, re-verified on every run,
 //     so hand-editing one value to make a regression pass fails instead;
 //   - --golden compares before it overwrites and prints what it is about to
@@ -409,7 +410,7 @@ if (writeGolden) {
   if (expectLines !== null && data.length !== expectLines) {
     console.error(`GOLDEN FAILURE: expected ${expectLines} reference value(s), golden.txt holds ${data.length}.`);
     console.error('  The set of checked values changed shape. If that was deliberate, update');
-    console.error('  --expect-lines in .github/workflows/gates.yml and say why in review.');
+    console.error('  --expect-lines in engine-java/audit.mjs and say why in review.');
     process.exit(1);
   }
   const { moved, gn, banded } = compareGolden(data, 'GOLDEN');
@@ -435,12 +436,11 @@ if (writeGolden) {
 //   waiting first hangs, and timers armed beforehand never fire, so a timeout
 //   fallback cannot help either. Only a signal ends it. Loading the module is
 //   enough; main() need not run. The JS target is fine. It does not reproduce on
-//   Windows, so it shows up only in CI.
+//   Windows, so it shows up only on Linux.
 //
 // The rule is therefore not "flush carefully" or "exit explicitly": it is that
 // this script must never load a TeaVM target. run-target.mjs does it in a process
 // built to be killed, and this one stays ordinary: every verdict goes out through
-
 // a synchronous write (see `say` at the top) so nothing is buffered here, and the
 // exit below is a bare statement.
 process.exit(0);

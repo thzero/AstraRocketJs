@@ -26,10 +26,10 @@ const CUSTOM_KEY = nsKey('materials:custom');
  * `density > 0`, not merely finite. Every reader of a density divides or
  * multiplies by it: a zero gives a part with no mass at all and a negative one
  * gives a part that lightens the rocket and drags the CG off the airframe. The
- * `.ork` reader (`matDensity`, `readSoftMaterial` in `ork/importTags.ts`) and the
- * `.rkt` reader both require `> 0` of a density off a file, and the kernel only calls `setMaterial`
- * when the node carries a positive one. This is the same rule for the entry that
- * comes back out of the user's own custom list.
+ * `.ork` reader (`matDensity`, `readSoftMaterial` in `ork/importTags.ts`) and
+ * the `.rkt` reader both require `> 0` of a density off a file, and the kernel
+ * only calls `setMaterial` when the node carries a positive one. This is the
+ * same rule for the entry that comes back out of the user's own custom list.
  */
 function isMaterial(v: unknown): v is Material {
   const m = v as Material;

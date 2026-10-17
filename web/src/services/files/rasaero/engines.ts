@@ -16,8 +16,10 @@ import { walkNodes } from '../../../tree/treeWalk';
 export const CDX1_ENGINE_EXPORT = true;
 
 /**
- * Our manufacturer names → RASAero's engine-file abbreviations, from the
- * desktop's RASAeroCommonConstants.OPENROCKET_TO_RASAERO_MANUFACTURER. Keys are
+ * Our manufacturer names → RASAero's engine-file abbreviations, after the
+ * desktop's RASAeroCommonConstants.OPENROCKET_TO_RASAERO_MANUFACTURER. It is a
+ * subset of that table (no NoThrust, EX or Historical rows), and where desktop
+ * writes an unmatched maker under its own name, this omits it. Keys are
  * matched normalized: uppercase, periods/commas stripped, whitespace collapsed.
  */
 const RASAERO_MFG: Array<[abbrev: string, names: string[]]> = [
@@ -48,7 +50,10 @@ const RASAERO_MFG: Array<[abbrev: string, names: string[]]> = [
   ['GM', ['GORILLA', 'GORILLA ROCKET MOTORS', 'GORILLA MOTORS', 'GM']],
   ['RTW', ['RATT', 'RATT WORKS', 'RTW', 'RT']],
   ['HT', ['HYPERTEK', 'HT']],
-  ['AMW', ['AMW', 'ANIMAL MOTOR WORKS', 'ANIMAL', 'AMW PROX', 'AMW/PROX']],
+  ['AMW', ['AMW', 'ANIMAL MOTOR WORKS', 'ANIMAL', 'AW']],
+  // Not an Animal Motor Works alias in desktop's Manufacturer table, so it
+  // reaches its own branch of the desktop map.
+  ['AMW/ProX', ['AMW PROX', 'AMW/PROX']],
 ];
 const RASAERO_MFG_LOOKUP: Record<string, string> = Object.fromEntries(
   RASAERO_MFG.flatMap(([abbrev, names]) => names.map((n) => [n, abbrev])),

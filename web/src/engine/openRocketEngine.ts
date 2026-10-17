@@ -185,8 +185,8 @@ async function loadJsEngine(): Promise<EngineApi> {
  * A retry has to request a different url or it is not a retry. The browser
  * coalesces a second `<script>` for a src already in flight onto the pending
  * request, so re-running a runtime load whose fetch has stalled attaches
- * straight back to the stall and issues no new request at all. The first attempt is left unadorned so
- * the ordinary path keeps a plain, cacheable url.
+ * straight back to the stall and issues no new request at all. The first
+ * attempt is left unadorned so the ordinary path keeps a plain, cacheable url.
  *
  * The service worker's precache must ignore the `retry` parameter
  * (`ignoreURLParametersMatching` in vite.config.ts). Offline, the precache is the
@@ -332,7 +332,8 @@ async function tryLoadWasm(onStatus?: (s: EngineLoadStatus) => void): Promise<En
     if (!res.ok) return null;
     watch.poke();
     // Stream it so the boot splash can show real bytes: this is several
-    // megabytes, the largest thing the app fetches, and on a slow link it is most of the wait.
+    // megabytes, the largest thing the app fetches, and on a slow link it is
+    // most of the wait.
     const streamed = res.body
       ? await readStreamWithProgress(res.body, declaredLength(res), (p) => {
           watch.poke();
@@ -636,9 +637,10 @@ export interface SimulationOptions {
    * is the forward one.
    *
    * Set true and the flight ends its guided phase when the aft-most lug, or a
-   * button line's second-to-last station, leaves the rod. The rocket is released at that moment as well as
-   * reported there, since reporting a departure the rocket has not made would
-   * leave it mechanically constrained past its own exit.
+   * button line's second-to-last station, leaves the rod. The rocket is
+   * released at that moment as well as reported there, since reporting a
+   * departure the rocket has not made would leave it mechanically constrained
+   * past its own exit.
    *
    * It is a choice rather than a fix because the engine is validated
    * bit-identical to upstream: off, the bridge attaches nothing and the flight

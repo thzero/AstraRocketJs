@@ -35,14 +35,10 @@ const RESULT = { summary: { maxAltitude: 100 }, events: [], series: {} } as unkn
 /**
  * A batch reports every row that did not fly, naming each one.
  *
- * A per-row `set({ err })` leaves only the last message, with no row name on it,
- * and the skip line emitted once the batch drains then overwrites whatever
- * survived. A batch with two timeouts and one row with no motor would report only
- * the missing motor, with nothing to say two flights had failed at all, while both
- * failed rows went red in the table with no reason attached to either.
- *
- * Failures are collected into an array and emitted as one named line, the way
- * `runSims` handles skips.
+ * A per-row `set({ err })` would leave only the last message, with no row name
+ * on it, and the skip line written once the batch drains would overwrite it: two
+ * timeouts and a row with no motor would report only the missing motor.
+ * Failures are collected and written as one named line beside the skips.
  */
 describe('a batch where rows FAIL', () => {
   beforeEach(() => {

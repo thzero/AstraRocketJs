@@ -279,8 +279,8 @@ export const SITE_ZOOM = 15;
  * the leftover fraction. Rounding up instead, to the first zoom at least as
  * detailed as the drawing, puts the leftover fraction in (0.5, 1], so the
  * layer has to be laid out at up to twice the box in each direction, which is
- * up to four times the tiles. Seven
- * rows of seven, measured, where nearest gives three or five. Those are real
+ * up to four times the tiles: seven rows of seven, measured, where nearest
+ * gives three or five. Those are real
  * fetches from someone else's servers and real entries in a capped offline
  * cache, against at most a 1.41x magnification of imagery that a 2x display is
  * already upscaling anyway.

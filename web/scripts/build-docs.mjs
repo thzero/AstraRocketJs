@@ -4,9 +4,9 @@
 //
 //   npm run docs:build
 //
-// The gates' e2e and update-flow jobs run it before their browser checks, and
-// it is how Help is worked on locally: public/docs is gitignored, and without it
-// the dialog can only offer the docs site. The deploy builds the same tree with
+// The e2e and update-flow jobs in e2e-full.yml run it before their browser
+// checks, and it is how Help is worked on locally: public/docs is gitignored,
+// and without it the dialog can only offer the docs site. The deploy builds the same tree with
 // its own docusaurus command (.github/workflows/deploy.yml).
 //
 // It exists instead of a one-line npm script because of DOCS_BASE_URL. The

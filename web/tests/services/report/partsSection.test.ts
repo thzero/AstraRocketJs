@@ -74,7 +74,7 @@ describe('the parts section', () => {
   });
 
   // The lightest line in the material catalog: a fixed count of decimals in
-  // kilograms per meter prints it as nothing at all.
+  // kilograms per meter rounds it to zero.
   it('prints a thread density to significant figures in every line unit', () => {
     const kevlar = (
       JSON.parse(readFileSync(join(__dirname, '../../../public/data/materials.generated.json'), 'utf8')) as {

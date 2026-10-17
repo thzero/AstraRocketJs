@@ -377,13 +377,16 @@ describe('LibraryWorkspaceStore', () => {
    *
    * `load()` returning null for both opens the hydration gate with the default
    * rocket, and the autosave writes it over the unreadable design at the same id
-   * 500 ms after the first edit. It throws instead - which the effects hook handles
-   * by raising the load-failed warning - and detaches, so the next save creates a
-   * new entry rather than finishing the overwrite.
+   * 500 ms after the first edit. It throws instead, which the effects hook turns
+   * into the load-failed warning, and detaches, so the next save creates a new
+   * entry rather than finishing the overwrite.
    */
   it.each([
     ['unparseable', '{bad json'],
-    ['a newer schema version', JSON.stringify({ version: 2, tree: { components: [] }, sims: [{ id: 's1' }] })],
+    [
+      'a version-2 blob with no configurations',
+      JSON.stringify({ version: 2, tree: { components: [] }, sims: [{ id: 's1' }] }),
+    ],
     ['no tree', JSON.stringify({ version: 1, sims: [{ id: 'x' }] })],
     ['a non-array tree.components', JSON.stringify({ version: 1, tree: {}, sims: [{ id: 's1' }] })],
     ['no sims', JSON.stringify({ version: 1, tree: { components: [] }, sims: [] })],

@@ -92,8 +92,7 @@ describe('computeStaticInfo', () => {
   });
 
   it('says nothing extra when the failure is not about a dimension', () => {
-    // An empty tree has no zero dimensions, so the engine's own message stands
-    // rather than being replaced by a reassuring list of nothing.
+    // An empty tree has no zero dimensions, so the engine's own message stands.
     const res = computeStaticInfo(tree, config, () => {
       throw new Error('engine not loaded');
     });

@@ -1065,11 +1065,9 @@ public class FinSetCalc extends RocketComponentCalc {
 		//  - Without it, most gated CD rows in validation/score.mjs move away
 		//    from the data and both tester flights over-predict further.
 		//
-		// Mach-flat is the measured answer, not a simplification. A fade toward
-		// 1.0 by M1.5-2, on the reasoning that junction / horseshoe-vortex
-		// interference is a subsonic boundary-layer effect, does not fit:
-		//  - This is not a junction term (see above), so that argument does not
-		//    apply to it.
+		// Why Mach-flat rather than fading toward 1.0 by M1.5-2:
+		//  - A fade assumes junction (horseshoe-vortex) interference, a subsonic
+		//    boundary-layer effect. This is not a junction term (see above).
 		//  - The only Mach-resolved measurement of the quantity is RASAero's
 		//    printed Fin Interference component, and its ratio barely moves:
 		//    0.042/0.050 = 0.840 at M0.50 (p.90) and 0.031/0.037 = 0.838 at M2.00

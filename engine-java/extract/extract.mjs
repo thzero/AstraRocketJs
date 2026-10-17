@@ -60,8 +60,8 @@ const check = args.includes('--check');
 const bless = args.includes('--bless');
 // --bless only re-records the baseline. It must not rewrite src/java: the
 // extractor writes upstream's bytes verbatim, so on a CRLF checkout an
-// incidental extraction rewrites every extracted file to LF. Blessing a number is a
-// review action, not a regeneration.
+// incidental extraction rewrites every extracted file to LF. Blessing a number
+// is a review action, not a regeneration.
 const readOnly = check || bless;
 const refresh = args.includes('--refresh');
 
@@ -78,7 +78,7 @@ const readPin = () => {
   // `describe` is how a reader interprets the pin, and nothing else checks it.
   // The clone is shallow, so `git describe` cannot verify its tag half here, but
   // its `-g<sha>` suffix has to name this ref: a bump that moves `ref` and forgets
-  // `describe` would otherwise ship the old commit's provenance with CI green.
+  // `describe` would otherwise ship the old commit's provenance with the check green.
   const describe = field('describe');
   if (describe) {
     const at = describe.lastIndexOf('-g');
@@ -383,9 +383,9 @@ if (bless) {
 // A shim is the only provider of a fully-qualified name that upstream also
 // defines, so a semantic gap between the two is invisible at compile time and
 // wrong at runtime. Checked here because nothing else looks at src/shims: --check
-// walks src/java against the manifest, and gates.yml never mentions shims, so an
-// upstream bump can re-extract every drifted manifest file without touching a single
-// shim.
+// walks src/java against the manifest, and no other gate reads the shims, so an
+// upstream bump can re-extract every drifted manifest file without touching a
+// single shim.
 //
 // For example, an ApplicationPreferences.getAverageWindModel() that returned a
 // dead-calm wind model, where the desktop seeds 2 m/s at 10% turbulence, would
@@ -393,8 +393,8 @@ if (bless) {
 //
 // A shim cannot be diffed against the class it replaces (that is the point of a
 // shim: a short class standing in for a much larger one). What can be checked is
-// whether the upstream class has moved since someone last read it. This records a hash of
-// each shadowed upstream file; when upstream changes, --check fails and asks a
+// whether the upstream class has moved since someone last read it. This records a
+// hash of each shadowed upstream file; when upstream changes, --check fails and asks a
 // human to re-read that class and confirm the shim still matches. It is the
 // same bargain as DIVERGENCE.txt: the tool cannot judge the semantics, but it
 // can refuse to let them change unobserved.
@@ -494,16 +494,17 @@ if (!hasBaseline) {
 //
 // `web/public/data/materials.generated.json` is the app's material catalog, and
 // the rows marked `upstream` in it are a copy of upstream's material database.
-// It is the one port in this repo that no Java file mirrors: upstream loads its
-// materials from a resource at startup, so the extraction replaces
-// `database/Databases.java` with a shim that synthesizes the handful of
+// It is the one port in this repo that no Java file mirrors: upstream builds its
+// material database in a static initializer that reaches the Guice-backed
+// Application for its translator and the user's materials, so the extraction
+// replaces `database/Databases.java` with a shim that synthesizes the handful of
 // materials the carved kernel asks for by name. The rest of the list exists
 // only on the app side, where nothing else compares it to anything.
 //
 // Unchecked it drifts silently, and a missing line material is most of what a
 // shock cord or a set of shroud lines is made of. Each absence is invisible
-// from inside the app: the picker simply does not offer
-// it, and a design that names one arrives from a `.ork` as a custom material.
+// from inside the app: the picker simply does not offer it, and a design that
+// names one arrives from a `.ork` as a custom material.
 //
 // So --check reads them both. `web/scripts/sync-materials.mjs` is what writes
 // the JSON; this only ever says whether it still matches. The app's own

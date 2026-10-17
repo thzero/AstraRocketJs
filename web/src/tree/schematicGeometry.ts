@@ -192,7 +192,8 @@ export function computeSchematicLayout(
 } {
   const { chPx, cw, maxHeight, fillHeight } = dims;
   // Stages flatten into one nose-to-tail chain (sustainer first, boosters
-  // after: the desktop's stacking order); a flat tree (no explicit stages) passes through.
+  // after: the desktop's stacking order); a flat tree (no explicit stages)
+  // passes through.
   const chain = axialChain(tree);
   let totalLen = 0;
   let maxR = 0.001;
@@ -405,7 +406,7 @@ const STABILITY_WORD: Record<StabilityState, string> = {
 
 /**
  * The margin readout every drawing prints beside its CP: glyph, calibers,
- * percent of length and the verdict word, e.g. "△ 7.00 cal · 12.0%" then "over-stable".
+ * percent of length and the verdict word, e.g. "△ 7.00 cal · 12.0% (over-stable)".
  * One builder, so the 2D overlay and the 3D callout cannot word it differently.
  * Null without a finite margin or percentage, rather than "NaN%".
  */

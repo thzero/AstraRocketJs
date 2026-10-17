@@ -373,13 +373,13 @@ export function shapeParamXml(w: OrkWriter, depth: number, node: ComponentNode):
 }
 
 /**
- * A radius that may be automatic: the number when the part carries one, the
- * sentinel `auto` when it does not.
+ * A packed radius that may be automatic: `auto <value>` when the part's
+ * `radiusAuto` flag is set, the plain number otherwise.
  *
- * Inner structure takes its outer radius from whatever it sits in, so `auto` is
- * a real answer rather than a missing one. Hard-wiring `auto` would throw away a
- * ring the user sized by hand: it would export as automatic and come back the
- * width of its body tube.
+ * A packed part takes an automatic radius from the tube it sits in, so `auto`
+ * is a real answer rather than a missing one. Hard-wiring `auto` would throw
+ * away a radius the user set by hand: it would export as automatic and come
+ * back the width of its tube.
  *
  * Emitted as `<packedradius>`, in the `auto <value>` form MassObjectSaver writes.
  */

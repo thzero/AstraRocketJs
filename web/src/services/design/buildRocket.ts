@@ -12,10 +12,10 @@ import { errorReason, type Keyed } from '../../i18n/keyedError';
  * `buildConfiguredRocket` reads three things off the configuration: the motors
  * (in `seatedMotorsKey`), their ignition and the grounded stages. Ignition is
  * left out on purpose, since it moves no static figure (see `seatedMotorsKey`).
- * Without
- * `grounded` in the key, grounding a booster would leave `info` describing the
- * whole stack while the worker flies the sustainer alone, and the mass, CG, CP
- * and caliber readouts would describe a different rocket from the flight.
+ * Without `grounded` in the key, grounding a booster would leave `info`
+ * describing the whole stack while the worker flies the sustainer alone, and
+ * the mass, CG, CP and caliber readouts would describe a different rocket from
+ * the flight.
  *
  * Sorted, because the key is about what is grounded and not the order the user
  * clicked. Combined with the tree's `components` identity by the caller.
@@ -92,8 +92,7 @@ export function builtFrom(rocket: OpenRocketDesign): RocketTree['components'] | 
  * A failure carries the engine's own message (as its key and values when it is
  * keyed, so the banner can show it in the app's language) and, where the
  * design explains itself, the dimensions that are zero. The engine's message
- * does not name a
- * part: a tube fin set with a zero length divides by its own chord for the
+ * does not name a part: a tube fin set with a zero length divides by its own chord for the
  * aspect ratio (`TubeFinSetCalc`), and what reaches the banner is "The number
  * NaN cannot be converted to a BigInt", which tells nobody which part to go and
  * fix. The app already knows (`badDimensions`), and the Run button already says

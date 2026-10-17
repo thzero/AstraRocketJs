@@ -95,8 +95,8 @@ describe('wireLoadedOrk', () => {
   });
 
   it('carries a configuration’s deployment overrides through untouched', () => {
-    // Not editable here yet, but dropping them would rewrite another
-    // configuration's recovery settings on the first save.
+    // Dropping them would rewrite another configuration's recovery settings on
+    // the first save.
     const deployments = { chute: { deployAltitude: 120 } };
     const w = wireLoadedOrk(loaded({ configs: [config({ deployments })] }), launchDefaults);
     expect(w.configs[0]!.deployments).toEqual(deployments);

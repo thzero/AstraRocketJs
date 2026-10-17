@@ -171,10 +171,11 @@ export const DEFAULT_PRESETS = {
  *
  * The size is that shape at 0.7, which is why the four dimensions are written as
  * the planform times one scale rather than as four numbers: a fin edited one
- * dimension at a time stops being the same shape, and this one has to stay it. At full size
- * the span would be 2.3 body diameters, which is a competition-class fin on a
- * sport model and 5.6 g of balsa at the very tail; at 0.7 it is 1.6 diameters and
- * 2.1 g, and the rocket flies 54 m higher on the same motor.
+ * dimension at a time stops being the same shape, and this one has to stay it.
+ * At full size the span would be 2.3 body diameters, which is a
+ * competition-class fin on a sport model and 5.6 g of balsa at the very tail;
+ * at 0.7 it is 1.6 diameters and 2.1 g, and the rocket flies 54 m higher on the
+ * same motor.
  *
  * 3/32 in sheet, which is what a fin this size is cut from: 2.38125 mm, the
  * exact conversion rather than a rounded 2.4, because balsa is sold by the

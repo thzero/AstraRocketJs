@@ -396,8 +396,8 @@ export function reconcileConfigs(tree: RocketTree, configs: FlightConfig[]): Fli
 }
 
 /**
- * What a configuration is called when nobody has named it: its motor list, aft
- * to nose.
+ * What a configuration is called when nobody has named it: its motor list, in
+ * tree order.
  *
  * The desktop's own rule. An unnamed configuration is the normal case - every
  * one this app mints is unnamed, and so is every one a `.ork` writes for a setup
@@ -510,8 +510,8 @@ export function seatedMotorsKey(tree: RocketTree, config: FlightConfig): string 
  * What makes two loadouts the same flight.
  *
  * Mount ids with the motor's identity (manufacturer, designation, delay,
- * diameter, length) and its ignition, sorted so key order cannot make two identical loadouts look
- * different. Not the thrust samples: two catalog fetches of one motor are the
+ * diameter, length) and its ignition, sorted so key order cannot make two
+ * identical loadouts look different. Not the thrust samples: two catalog fetches of one motor are the
  * same motor, and comparing curves would split them.
  */
 export function loadoutSignature(motors: Record<string, MountMotor>): string {

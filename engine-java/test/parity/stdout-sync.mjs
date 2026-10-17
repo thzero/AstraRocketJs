@@ -9,9 +9,8 @@
  * which is the property that is wanted.
  *
  * The loop and the catch are both required. writeSync assumes a blocking fd,
- * which fd 1 is in the two places this runs (a GitHub runner hands bash a plain
- * blocking pipe, and libuv clears O_NONBLOCK on the child's fds 0-2 when
- * spawnSync forks). On a fd that is somehow non-blocking anyway, writeSync can
+ * which fd 1 normally is where this runs (a shell's pipe is blocking, and libuv
+ * clears O_NONBLOCK on the child's fds 0-2 when spawnSync forks). On a fd that is somehow non-blocking anyway, writeSync can
  * come back having written only part of the buffer, or throw EAGAIN outright,
  * and an uncaught EAGAIN here would fail a parity run that had already passed.
  * The fallback covers both, and touching process.stdout sets the fd blocking on
@@ -57,7 +56,7 @@ export function writeStdoutSync(text) {
     process.stdout.write(buf.subarray(written));
   } catch {
     // stdout is gone (the reader closed, say). The exit code still carries the
-    // verdict, which is what CI reads; do not fail a passing run over a line of
-    // log output.
+    // verdict, which is what the caller reads; do not fail a passing run over a
+    // line of log output.
   }
 }

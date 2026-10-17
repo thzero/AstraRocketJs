@@ -440,7 +440,7 @@ const FIN: ComponentNode = {
   position: { method: 'top', offset: 0.01 },
 } as unknown as ComponentNode;
 
-/** Every node of the design with the fin set, so a reader can find it by id. */
+/** The fin set's node in a design. */
 const finIn = (tree: RocketTree): ComponentNode => {
   const walk = (nodes: ComponentNode[]): ComponentNode | undefined => {
     for (const n of nodes) {

@@ -18,7 +18,7 @@ import { join, relative } from 'node:path';
 
 const SRC = join(__dirname, '..', '..', 'src');
 
-/** Source with comments removed, so the prose explaining a fix cannot trip it. */
+/** Source with comments removed, so prose that names an idiom cannot trip it. */
 function code(text: string): string {
   return text
     .replace(/\/\*[\s\S]*?\*\//g, '')

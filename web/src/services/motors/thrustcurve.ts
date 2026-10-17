@@ -11,11 +11,10 @@ import { KeyedError } from '../../i18n/keyedError';
 
 /**
  * thrustcurve.org API v1 client (the API answers cross-origin requests). A
- * catalog row carries no thrustcurve motorId,
- * and one without a bundled curve may also lack length or propellant weight, so
- * at pick time we resolve the full motor via search.json, then pull its thrust
- * curve via download.json. API
- * units are mm / grams; converted to the engine's SI at the boundary here.
+ * catalog row carries no thrustcurve motorId, and one without a bundled curve
+ * may also lack length or propellant weight, so at pick time we resolve the
+ * full motor via search.json, then pull its thrust curve via download.json.
+ * API units are mm / grams; converted to the engine's SI at the boundary here.
  *
  * The resolved MotorSpec (metadata + curve) is cached through the MotorStore,
  * so a picked motor is fully available offline after the first fetch.
@@ -129,7 +128,7 @@ export function samplesToMotorSpec(
    * below. Only a `.rse` import has one: the format measures the mass curve
    * rather than leaving it to be reconstructed. Ignored unless it matches the
    * samples one for one, because a column that has to be stretched to fit is a
-   * guess wearing the clothes of a measurement.
+   * guess, not a measurement.
    */
   massSamples?: number[],
 ): MotorSpec {

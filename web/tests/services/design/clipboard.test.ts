@@ -42,7 +42,7 @@ describe('pastePlace', () => {
   });
 
   it('has nowhere to go when neither fits', () => {
-    // Fins may not sit in a transition, nor in the stage beside one.
+    // Fins may not sit in a nose cone, nor in the stage beside one.
     expect(pastePlace(makeTree(), part('trapezoidfinset'), 'n1')).toBeNull();
   });
 

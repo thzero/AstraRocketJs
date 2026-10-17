@@ -24,7 +24,7 @@ import {
  * works it out independently of the implementation.
  *
  * It matters because every failure mode here is invisible on paper. A strip cut
- * to the tube's circumference instead of the paper's is 0.6 mm short on a 38 mm
+ * to the tube's circumference instead of the paper's is 0.6 mm short on any
  * tube and looks perfect; a seam rule that drifts puts a fin line under the
  * tape, where it cannot be marked at all.
  */
@@ -35,7 +35,7 @@ const deg = (d: number) => (d * Math.PI) / 180;
 
 describe('guideCircumferenceMm', () => {
   it('wraps the PAPER, not the tube: one paper thickness further out', () => {
-    // 38 mm tube: the strip has to be 2*pi*0.1 mm longer than the tube itself,
+    // 38 mm radius: the strip has to be 2*pi*0.1 mm longer than the tube itself,
     // or its ends do not meet once it is wrapped.
     expect(guideCircumferenceMm(0.038)).toBeCloseTo(2 * Math.PI * 38.1, 9);
     expect(guideCircumferenceMm(0.038) - 2 * Math.PI * 38).toBeCloseTo(2 * Math.PI * 0.1, 9);
@@ -140,7 +140,8 @@ describe('cutPoints', () => {
   });
 
   it('never lets a piece outgrow the page to find a gap', () => {
-    // The only gaps are far from the even split; the window has to win.
+    // The marks crowd both ends of the wrap; every piece still has to fit in
+    // 160 mm, whichever gap the cut lands in.
     const marks = [5, 10, 15, 20, 290, 295];
     const cuts = cutPoints(marks, 300, 160);
     for (let i = 1; i < cuts.length; i++) expect(cuts[i]! - cuts[i - 1]!).toBeLessThanOrEqual(160);
@@ -334,7 +335,7 @@ describe('tab slots', () => {
   /**
    * The slot is the kernel's tab (`FinSet.getTabFrontEdge()`, which is
    * `AxialMethod.getAsPosition(tabOffset, tabLength, rootChord)`, to that plus
-   * the tab length), turned round to be measured forward from the root's aft
+   * the tab length), turned around to be measured forward from the root's aft
    * end. The expected numbers below are that arithmetic done by hand.
    */
   const slotOf = (fin: object, tubeProps: object = {}) =>

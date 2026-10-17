@@ -4,13 +4,12 @@ import { act, cleanup, screen } from '@testing-library/react';
 
 /**
  * The workspace effects: hydration gate, debounced autosave, unload journal,
- * engine rebuild and result invalidation.
+ * engine rebuild, and which edits age the results.
  *
- * None of this is reachable from `store.test.ts`, because it is about the order
- * and the guards around the async edges, not about what the store actions do.
- * So this drives the
- * real hook with the edges stubbed: a workspace store whose load can be made
- * to reject or to resolve late, and a `computeStaticInfo` that just counts.
+ * These are about the order and the guards around the async edges, not about
+ * what the store actions do, so this drives the real hook with the edges
+ * stubbed: a workspace store whose load can be made to reject or to resolve
+ * late, and a `computeStaticInfo` that just counts.
  */
 
 const load = vi.hoisted(() => vi.fn());
@@ -193,11 +192,11 @@ describe('hydration', () => {
    * A language switch must not touch the workspace.
    *
    * The load effect must not depend on `t`, whose identity changes on
-   * `i18n.changeLanguage`: that re-runs `load()` and re-hydrates, and `hydrate` runs
-   * `sanitizeSims`, which nulls every sim result. So switching language would throw
-   * away every flight the user had run. It can also re-hydrate the persisted design
-   * over a freshly imported .ork, because `openOrkFile` clears only the in-memory
-   * activeId.
+   * `i18n.changeLanguage`: that re-runs `load()` and hydrates the stored
+   * workspace over the one on screen, dropping whatever the store has not
+   * written yet, such as a flight just run. It can also re-hydrate the persisted
+   * design over a freshly imported .ork, because `openOrkFile` clears only the
+   * in-memory activeId.
    */
   it('does not reload or re-hydrate when the language changes', async () => {
     load.mockResolvedValue(saved());
@@ -356,7 +355,7 @@ describe('autosave', () => {
    * The header's save status reads `lastSavedAt`, and it is the only thing
    * that reports a save, since the File menu has no Save item. So it has to
    * be set where a write landed, not where one was asked for: a failed save
-   * that still said "Saved" would be worse than saying nothing.
+   * must not say "Saved".
    */
   it('records when the write landed, and not when it failed', async () => {
     await mount();
@@ -426,8 +425,8 @@ describe('autosave', () => {
    * ...but only that one. `markDegraded()` is one-way and never notifies twice
    * (idbKeyValueStore.ts), so clearing its message on the next successful
    * write would retire it for the whole session, one keystroke after it
-   * appeared. The user would then meet the 5 MB cap with nothing on screen to
-   * explain it, which is the exact outcome the warning exists to prevent.
+   * appeared, and the user would meet the 5 MB cap with nothing on screen to
+   * explain it.
    */
   it.each([
     ['degraded', () => degraded.fire!()],
@@ -490,8 +489,8 @@ describe('the unload journal', () => {
 describe('what triggers a rebuild', () => {
   /**
    * The rebuild must not key on `tree`, which every store action replaces: typing a
-   * designer name would run a full engine build plus an aero sweep, and the result
-   * invalidation, keyed the same way, would throw away every simulation result.
+   * designer name would run a full engine build plus an aero sweep. A result
+   * keyed the same way would read outdated for an edit that moves no number.
    */
   it('editing the design metadata neither rebuilds nor invalidates', async () => {
     await mount();
@@ -764,7 +763,7 @@ describe('what triggers a rebuild', () => {
 
 describe('a hydrate does not re-stamp the design', () => {
   /**
-   * `hydrate()` replaces tree/sims/extraMotors, which re-runs the autosave
+   * `hydrate()` replaces tree/sims/configs, which re-runs the autosave
    * effect and schedules a write of the bytes just read, and
    * `DesignLibrary.write` stamps `updatedAt: Date.now()`. Unless that write is
    * skipped, opening the app re-stamps the design, and the library's "most
@@ -984,8 +983,8 @@ describe('restoring a saved design does not invalidate its flights', () => {
     load.mockResolvedValue(savedWithFlight());
     await mount();
 
-    // The geometry really did change on hydrate, so this is the case that could
-    // trip the effect.
+    // The geometry changed on hydrate, so a comparison against the boot design
+    // would read this result as stale.
     expect(s().sims[0]!.result).not.toBeNull();
     expect(isStale(s().sims[0]!)).toBe(false);
   });
@@ -1011,7 +1010,7 @@ describe('restoring a saved design does not invalidate its flights', () => {
    * replaces; that difference must not age them.
    */
   it('keeps the results current when a library design is opened over the boot design', async () => {
-    await mount(); // boot on the default design; the baseline is now its key
+    await mount(); // boot on the default design
     const original = getDesignLibrary();
     const w = savedWithFlight();
     setDesignLibrary({

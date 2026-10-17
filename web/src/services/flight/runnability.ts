@@ -119,8 +119,7 @@ export function unflyableText(
  *
  * Separate from {@link unflyable} because these are facts about the rocket, not
  * about one row: every simulation shares the tree, so there is no "skip the bad
- * one and fly the rest" here. A design with a zero-radius body tube simulates
- * happily and hands back an apogee, which is a worse answer than none.
+ * one and fly the rest" here.
  */
 export type DesignBlocker =
   | { kind: 'noMount' }

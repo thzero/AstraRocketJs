@@ -19,7 +19,7 @@ vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIM
  *
  * The kernel places every instance as translate(offset) then
  * `getAxialRotation(angle)` and hands that transform to every child
- * (FlightConfiguration.java:456-462): a pod's or booster's instance angle
+ * (FlightConfiguration.java:466-485): a pod's or booster's instance angle
  * (`PodSet.getInstanceAngles`, `ParallelStage.getInstanceAngles`) turns
  * everything in it. A fin is turned by its cant about the middle of its root,
  * `rotate_y(cant)` (FinSet.java:1783-1791, Transformation.java:279-287), then by
@@ -224,7 +224,7 @@ const ancestors = (id: string): ComponentNode[] => {
  * Every frame a part sits in: one per combination of the instances of the pods
  * and boosters above it, as the axis of that frame in the rocket frame
  * (`[y, z]`), its turn about the axis, and the copy suffix the aft view keys
- * its shapes with. Composed outermost first as FlightConfiguration.java:456-462
+ * its shapes with. Composed outermost first as FlightConfiguration.java:466-485
  * composes it.
  */
 interface Frame {

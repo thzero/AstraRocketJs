@@ -271,16 +271,6 @@ describe('fetchCatalog: separate data host configured', () => {
   });
 });
 
-/**
- * The size cap has to apply to bytes received, not to a header the host may not
- * send, and `manifest()` is the call that proves it.
- *
- * `fetchCatalog` always passes an onProgress (it publishes progress per
- * catalog), so the catalog body is always streamed and capped. `manifest()`
- * passes none, and must still be metered: a chunked manifest has no
- * content-length, so the declared-size check cannot fire, and an unmetered
- * `res.json()` would buffer it without bound.
- */
 describe('hasDataHost', () => {
   it('is true only with a data host configured', async () => {
     expect((await loadHasDataHost())()).toBe(false);
@@ -291,6 +281,16 @@ describe('hasDataHost', () => {
   });
 });
 
+/**
+ * The size cap has to apply to bytes received, not to a header the host may not
+ * send, and `manifest()` is the call that proves it.
+ *
+ * `fetchCatalog` always passes an onProgress (it publishes progress per
+ * catalog), so the catalog body is always streamed and capped. `manifest()`
+ * passes none, and must still be metered: a chunked manifest has no
+ * content-length, so the declared-size check cannot fire, and an unmetered
+ * `res.json()` would buffer it without bound.
+ */
 describe('the manifest body is metered, not just the catalog', () => {
   it('stops pulling an endless chunked manifest instead of buffering it whole', async () => {
     const CHUNK = 4 * 1024 * 1024; // 4 MiB
@@ -309,9 +309,8 @@ describe('the manifest body is metered, not just the catalog', () => {
         ok: true,
         status: 200,
         headers: { get: () => null }, // no content-length: the declared check is blind here
-        // A real Response.json() drains the body. Modeling that is the whole
-        // point: a stub that ignores the body cannot tell a metered read from
-        // an unmetered one, and reports success either way.
+        // A real Response.json() drains the body. A stub that ignores the body
+        // cannot tell a metered read from an unmetered one.
         json: async () => {
           const r = body.getReader();
           for (;;) if ((await r.read()).done) break;

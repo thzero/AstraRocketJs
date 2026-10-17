@@ -1372,7 +1372,7 @@ describe('exportRkt, a freeform fin outline', () => {
  * RockSim has no automatic values, so a cord length, line length or Cd the
  * kernel works out is written as the number it flies (the kernel's figures, as
  * the app passes them), not the stored one, which is whatever it was when the
- * flag went on. A new shock cord stores 0.3 m and flies three rocket lengths.
+ * flag went on. The cord here stores 0.3 m and flies three rocket lengths.
  */
 describe('exportRkt, values the kernel works out', () => {
   const blocks = (out: string, tag: string): string[] =>

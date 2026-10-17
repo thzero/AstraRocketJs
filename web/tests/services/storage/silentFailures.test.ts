@@ -208,7 +208,7 @@ describe('the traced fin image is bounded', () => {
   it('still finds a root on a height that is not a multiple of the reduction', async () => {
     // What a plain stride would get wrong: with a 300-pixel image
     // reduced by 4, a stride samples rows 0, 4 ... 296, so a fin touching only
-    // rows 297 to 299 reads as not touching the bottom edge - a valid image
+    // rows 297 to 299 reads as not touching the bottom edge: a valid image
     // refused with the message for an invalid one. The mapping includes both
     // endpoints, so the reduced bottom row is the source bottom row.
     const { finPointsFromImage } = await import('../../../src/services/design/finImage');

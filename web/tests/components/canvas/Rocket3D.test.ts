@@ -8,12 +8,8 @@ import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * The export framing.
- *
- * `piecesBounds`, `isFittableBox`, `fitCameraToBox` and `exportCamera` live
- * outside the component so the numbers can be checked without mounting an R3F
- * canvas. No e2e test asserts the framing, so the corner-by-corner fit, the
- * degenerate-`up` nudge and the NaN-box guard are held here.
+ * The export framing: the corner-by-corner fit, the degenerate-`up` nudge and
+ * the NaN-box guard.
  */
 
 const boxOf = (min: [number, number, number], max: [number, number, number]) =>
@@ -162,11 +158,9 @@ describe('exportCamera', () => {
 });
 
 /**
- * The internals build. The airframe and the motor alone are enough for a
- * translucent shell but not for a cutaway: cutting a rocket open to find nothing
- * in it is not a feature. These hold the two things that make the cut worth
- * taking: tubes are hollow, and what the 2D schematic draws inside them is in the
- * 3D build too, at the dimensions the rest of the app agrees on.
+ * The internals build. A cutaway needs two things: tubes are hollow, and what
+ * the 2D schematic draws inside them is in the 3D build too, at the dimensions
+ * the rest of the app agrees on.
  */
 const tree = {
   name: 'Section',
@@ -393,8 +387,8 @@ describe('buildPieces shoulders', () => {
 
 /**
  * A nose cone, body tube or transition with no `length` key is laid out at the
- * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
- * transition 50 mm), not at zero. At zero the part would draw as nothing while
+ * kernel's length for its type (ComponentFactory: nose 150 mm, body 200 mm,
+ * transition 75 mm), not at zero. At zero the part would draw as nothing while
  * the engine flies it full length. An explicit 0 (the phantom tube a T-tail hangs
  * from) is still 0.
  */
@@ -421,12 +415,6 @@ describe('a chain part with no length key', () => {
   });
 });
 
-/**
- * An `absolute` part is measured from the nose tip, whatever holds it. Inside a
- * pod the pod's own parts are drawn in a turned and lifted copy of the rocket
- * frame, so the station of a part in its second tube still has to come out at
- * that offset (the kernel's station, pinned in axialAbsolute.kernel.test.ts).
- */
 describe('buildPieces rail buttons', () => {
   const withButton = (angleOffset: number) =>
     ({
@@ -481,6 +469,12 @@ describe('buildPieces rail buttons', () => {
   });
 });
 
+/**
+ * An `absolute` part is measured from the nose tip, whatever holds it. Inside a
+ * pod the pod's own parts are drawn in a turned and lifted copy of the rocket
+ * frame, so the station of a part in its second tube still has to come out at
+ * that offset (the kernel's station, pinned in axialAbsolute.kernel.test.ts).
+ */
 describe('buildPieces absolute placement', () => {
   const podded = {
     name: 'Pod',

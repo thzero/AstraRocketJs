@@ -406,10 +406,11 @@ public final class ParityMain {
     /**
      * Opt-in Rogers Modified Barrowman body-fin interference (rogersKbf). With
      * the flag on the fin set adds the Kbf body carryover (τ·cna at the fin root
-     * quarter-chord), so total CNα rises and CP moves slightly aft (more
-     * conservative margin) vs classic Barrowman. Flag off must reproduce the
+     * quarter-chord), so total CNα rises and CP moves slightly aft (a larger
+     * static margin) vs classic Barrowman. Flag off must reproduce the
      * plain-Barrowman CP exactly (covered by the aero.cp lines; here both
-     * states are printed side by side). The JVM and both TeaVM targets run the patched calc.
+     * states are printed side by side). The JVM and both TeaVM targets run the
+     * patched calc.
      */
     private static void rogersKbfScenarios() {
         Rocket rocket = buildReferenceRocket();

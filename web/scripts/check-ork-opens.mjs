@@ -8,8 +8,8 @@
 // prove the writer puts a part link or a motor digest into the file; they cannot
 // prove the desktop accepts it. The desktop rejects a `<preset>` with no digest,
 // and resolves a motor with no digest to whichever entry comes first, and both
-// failures are invisible from this side of the boundary: they show up
-// as a warning dialog on somebody's screen.
+// failures are invisible from this side of the boundary: they show up as a
+// warning dialog on somebody's screen.
 //
 // Prints how many components came back, every component carrying a catalog
 // part, every motor that resolved, and the loader's own warnings. Exits non-zero

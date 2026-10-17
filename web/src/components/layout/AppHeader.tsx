@@ -51,10 +51,10 @@ export function AppHeader() {
       {/* The mark, the name and the three badges are the app's identity, and they
           read the same at every width: no breakpoint takes one of them away, so
           nobody has to learn that a narrower window means a different header.
-          What gives when the row runs short is elsewhere - the save status' age
+          What gives when the row runs short is elsewhere (the save status' age
           and the menu's word below 2xl, the gaps and the icon buttons' padding
-          below xl - and below that the row wraps, which is
-          how it fits on a phone. */}
+          below xl), and below that the row wraps, which is how it fits on a
+          phone. */}
       {/* The mark opens About, as the version does. */}
       <button
         onClick={() => open('about')}
@@ -65,12 +65,11 @@ export function AppHeader() {
         <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" aria-hidden="true" className="h-6 w-6" />
       </button>
       <h1 className="text-base font-semibold tracking-tight">{t('app.title')}</h1>
-      {/* The three static badges - version, pre-release, engine backend - in one
-          pill rather than three: three cost two extra gaps and two extra sets of
-          padding to say one thing, and a row of small unrelated-looking chips
-          reads as clutter where a single grouped one reads as a stamp. The colors
-          separate them: the backend is emerald for WebAssembly and slate for the
-          JavaScript fallback, the pre-release word is amber. */}
+      {/* The three static badges (version, pre-release, engine backend) in one
+          pill rather than three, which would cost two extra gaps and two extra
+          sets of padding. The colors separate them: the backend is emerald for
+          WebAssembly and muted for the JavaScript fallback, the pre-release word
+          is amber. */}
       <span className="inline-flex items-center gap-1 rounded px-1 py-0.5 text-[10px] leading-none ring-1 ring-line/10">
         <button
           onClick={() => open('about')}
@@ -102,7 +101,7 @@ export function AppHeader() {
           actions={{
             // Through `fireAction`, not passed directly. `FileMenuButton` declares
             // these `() => void` and these store actions return promises, so a
-            // failure the action forgot to catch would have vanished.
+            // failure the action does not catch would otherwise vanish.
             onNew: () => fireAction(onNew()),
             onOpenLibrary: () => open('library'),
             onSaveAs: () => {

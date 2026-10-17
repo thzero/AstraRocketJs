@@ -137,7 +137,7 @@ export function OffTheRail() {
   const exit = ready ? railExit({ motor, dryMassKg, railLengthM }) : null;
   const ok = exit != null && typeof exit !== 'string' ? exit : null;
   const heaviest = ready && ok ? maxDryMassKg(motor, railLengthM, minExit) : null;
-  // The rail that reaches the minimum exit speed, in the rail length field's own unit.
+  // The rail that reaches the minimum exit speed, shown in the rail length field's own unit.
   const needed = ready && ok ? railNeededM(motor, dryMassKg, minExit) : null;
   const railUnit = u.at(unitScope('launch', 'railLength'), 'length');
   const angle = ok && windMs != null ? weathercockDeg(windMs, ok.exitSpeedMs) : null;

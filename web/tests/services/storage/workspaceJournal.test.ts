@@ -76,10 +76,10 @@ beforeEach(() => {
 });
 
 describe('unload journal', () => {
-  // `readJournal` only checks that the blob parses and has a `w`. A journal
-  // written by a different app build parses cleanly and is still not a workspace
-  // this build can open, and this is an installed PWA, so an older cached build
-  // is a live possibility, not a hypothetical. The journal must be validated
+  // `readJournalAt` only checks that the blob parses and has a `w`. A journal
+  // written by a different app build (an installed PWA can run an older cached
+  // build) parses cleanly and is still not a workspace this build can open.
+  // The journal must be validated
   // before it is written into the library: writing first would overwrite the real
   // stored design with the bad blob and clear the journal, so the design would be
   // gone for good and every later load would re-read the same bad blob.
@@ -178,11 +178,10 @@ describe('unload journal', () => {
  * A journal written before the first save carries a null id, because that is
  * all `saveSync` has to record at that point.
  *
- * Compared to the active id like any other journal, it would never be replayed
- * and never cleared, because `null !== null` is false. Work done before the
- * first debounced autosave would be lost on reload even though `saveSync` wrote
- * it, and the dead blob (a whole lean workspace) would sit in the ~5 MB
- * localStorage budget forever.
+ * It matches no design, so `load` replays it by creating one. Left unmatched,
+ * work done before the first debounced autosave would be lost on reload even
+ * though `saveSync` wrote it, and the dead blob (a whole lean workspace) would
+ * sit in the ~5 MB localStorage budget forever.
  */
 describe('unload journal written before the first save', () => {
   it('replays it into a NEW design instead of discarding the work', async () => {

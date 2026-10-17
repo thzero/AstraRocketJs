@@ -19,9 +19,9 @@ const LINE_INSTANCE_TYPES: ReadonlySet<string> = new Set(['centeringring', 'bulk
  * One node per copy of a part repeated along the body: `getInstanceOffsets`
  * puts copy i at `i × instanceSeparation` behind the first. A node with no
  * spacing of its own flies the kernel's (`defaultSeparation`): a lug's or rail
- * button's constructor spacing, and 0 for a ring part, whose copies coincide. Each copy is the part
- * with its axial offset moved by that much, whatever method it is placed by,
- * so a view that draws one part draws them all. Any other part is itself.
+ * button's constructor spacing, and 0 for a ring part, whose copies coincide.
+ * Each copy is the part with its axial offset moved by that much, whatever
+ * method it is placed by, so a view that draws one part draws them all. Any other part is itself.
  */
 export function lineInstances(node: ComponentNode): ComponentNode[] {
   if (!LINE_INSTANCE_TYPES.has(node.type)) return [node];
@@ -64,7 +64,7 @@ export function placementOffsets(node: ComponentNode, tubeOuterRadius: number): 
  * A place across the parent, `{ y, z }` in the kernel's frame, turned about the
  * axis by `angle` (rad): `Transformation.rotate_x` (Transformation.java:263-271).
  * Every part inside a pod or booster instance is turned by that instance's
- * angle (FlightConfiguration.java:456-462), and a view's roll turns the rest.
+ * angle (FlightConfiguration.java:466-472), and a view's roll turns the rest.
  */
 export function turnedOffset(off: { y: number; z: number }, angle: number): { y: number; z: number } {
   if (angle === 0) return { y: off.y, z: off.z };

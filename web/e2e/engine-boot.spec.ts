@@ -10,9 +10,9 @@ import { test, expect } from './base';
  *
  * Both tests here stall the engine the way the network does it (the route is
  * never fulfilled and never aborted), because a stall is the case that reports
- * nothing, where an abort raises an error. `waitUntil: 'domcontentloaded'`, not the default `load`, for the same
- * reason: a pending subresource holds the load event open, which is exactly the
- * condition under test rather than a problem with it.
+ * nothing, where an abort raises an error. `waitUntil: 'domcontentloaded'`,
+ * not the default `load`, for the same reason: a pending subresource holds the
+ * load event open, and that is the condition under test.
  */
 const stall = async (page: import('@playwright/test').Page, blocked: () => boolean) => {
   await page.route(/openrocket-engine|\.wasm/, async (route) => {

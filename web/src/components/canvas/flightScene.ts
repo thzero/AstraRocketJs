@@ -7,8 +7,7 @@ import { colorForType, type PartPalette } from '../../services/design/partColors
 import { colorOf } from '../../tree/schematicGeometry';
 
 /**
- * The trajectory geometry behind FlightPath3D, kept out of the component so
- * it can be tested without a WebGL context.
+ * The trajectory geometry behind FlightPath3D.
  *
  * Everything here is pure: samples in, scene points / vertex colors / callout
  * anchors out. The component keeps the camera, the transport and the HUD.

@@ -73,8 +73,9 @@ describe('changedPrefKeys', () => {
 
   /**
    * These three live in `SimulationSettings` and are deliberately not here:
-   * two are interface behavior and the third only colors the rod-exit tile.
-   * Listing them would age every result for a change that cannot move a number.
+   * two are interface behavior and the third is a display threshold (the
+   * rod-exit tile and the Off the Rail tool) that no flight reads. Listing them
+   * would age every result for a change that cannot move a number.
    */
   it('excludes the settings that never reach the engine', () => {
     const keys: readonly string[] = SIM_PREF_KEYS;
@@ -99,8 +100,7 @@ describe('a change to the global run preferences', () => {
 
   /**
    * A row with its own override for the changed key is unaffected: its override
-   * wins at run time, so its numbers still stand and flagging it would be a lie
-   * in the other direction.
+   * wins at run time, so its numbers still stand.
    */
   it('leaves a row that pins the changed key alone', () => {
     setGlobals({ timeStep: 0.01 });

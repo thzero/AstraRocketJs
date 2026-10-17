@@ -175,7 +175,7 @@ export function PlaceSearchDialog({ onPick, onClose }: { onPick: (pick: PlacePic
                     })
                   }
                   // Not before the elevation lookup has answered: picking then
-                  // would write a site with the previous field's elevation under it.
+                  // would write the site with no elevation while one is on its way.
                   disabled={r.elevationM === undefined}
                   className="w-full rounded-lg bg-raised/60 px-3 py-2 text-left ring-1 ring-line/10 hover:bg-elevated disabled:cursor-wait disabled:opacity-60"
                 >

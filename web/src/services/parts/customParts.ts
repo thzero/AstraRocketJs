@@ -57,11 +57,10 @@ function dia(node: Partial<ComponentNode>, key: string): number | null {
  * inverse of `treeEdit.catalogPatch`, per type, and the one piece of real
  * logic here.
  *
- * Null when the node cannot answer. That is not paranoia about a node the
- * editor built (the editor seeds every dimension), it is the gate on a blob
- * out of storage: these numbers are divided and subtracted by the picker's fit
- * ranking and sort, and a row with an undefined outer diameter sorts every
- * other part in the catalog around it.
+ * Null when the node cannot answer. The editor seeds every dimension, so this
+ * is the gate on a blob out of storage: these numbers are divided and
+ * subtracted by the picker's fit ranking and sort, and a row with an undefined
+ * outer diameter sorts every other part in the catalog around it.
  */
 function rowGeometry(node: Partial<ComponentNode>, type: string): Record<string, unknown> | null {
   const material = typeof node.materialName === 'string' ? node.materialName : undefined;

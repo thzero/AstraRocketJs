@@ -24,8 +24,7 @@ test('the dialog lists the parts that can actually be printed', async ({ page })
   for (const part of ['Nose cone', 'Body tube', 'Trapezoidal fin set', 'Centering ring']) {
     await expect(dlg.getByRole('checkbox', { name: part }).first(), part).toBeChecked();
   }
-  // …and not the parts with no body to print. Offering a parachute a tick box
-  // that does nothing is a worse answer than leaving it out.
+  // …and not the parts with no body to print.
   await expect(dlg.getByRole('checkbox', { name: 'Parachute' })).toHaveCount(0);
 });
 

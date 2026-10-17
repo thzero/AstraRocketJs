@@ -39,7 +39,7 @@ import type { AeroPane } from '../../state/tabs';
  * boxes and the Worst button are `AeroInputs`.
  *
  * Colors follow `CATEGORICAL`, the chart palette each of the three themes
- * defines (colorTokens.ts); every chart ≥ 2 series carries a legend (identity
+ * defines (index.css, read through colorTokens.ts); every chart ≥ 2 series carries a legend (identity
  * is never color-alone).
  */
 const POWER_OFF = CATEGORICAL[0]!;

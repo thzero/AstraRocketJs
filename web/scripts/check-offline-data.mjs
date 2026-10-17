@@ -96,7 +96,7 @@ const URL_ = `http://localhost:${PORT}/`;
 // The data host the second build reads. Never reached: the harness answers it.
 const HOST = 'https://cdn.jsdelivr.net/gh/astra-offline-check/catalogs@data/';
 // The catalogs a data-host build reads from the host (vite.config.ts
-// `hostedCatalogs`, remoteData.ts `BUILD_ONLY`), and the ones it keeps.
+// `hostedCatalogs`), and the ones it keeps (remoteData.ts `BUILD_ONLY`).
 const HOSTED = ['motors', 'components'];
 const IN_BUILD = ['materials', 'contributors'];
 // vite.config.ts names the runtime caches this way.

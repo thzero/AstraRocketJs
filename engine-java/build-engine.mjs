@@ -75,9 +75,9 @@ const TARGETS = {
 //
 // It has to be the command line. Gradle's precedence for `org.gradle.daemon` is
 // (highest first) command line, GRADLE_USER_HOME/gradle.properties, the project
-// gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS in the
-// workflow is not enough: engine-java/gradle.properties says daemon=true and
-// outranks it. `--no-daemon` cannot be overridden.
+// gradle.properties, then GRADLE_OPTS. Setting it via GRADLE_OPTS is not
+// enough: engine-java/gradle.properties says daemon=true and outranks it.
+// `--no-daemon` cannot be overridden.
 //
 // Local runs keep the daemon, where a warm JIT across invocations is worth
 // having and nothing is watching a pipe for EOF.

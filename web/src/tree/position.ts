@@ -60,9 +60,9 @@ export const FREEFORM_SNAP_LARGER_THAN = 2.5;
  * The through-the-wall tab is placed in root-relative coordinates (`finTabSpan`,
  * which measures from the root chord rather than from the first point). Raw
  * points agree with that only when `points[0].x === 0`, and `FreeformFinEditor`
- * lets the first vertex be dragged off it, so reading raw points would cut the
- * tab of a fin whose outline begins at x = 20 mm 20 mm out of place on the 1:1
- * PDF template and in the exported STL, on a part that has to pass through a slot.
+ * lets the first vertex be dragged off it. Read raw, a fin whose outline
+ * begins at x = 20 mm would have its tab cut 20 mm out of place on the 1:1 PDF
+ * template and in the exported STL, on a part that has to pass through a slot.
  */
 export function normalizeFreeformPoints(pts: [number, number][] | undefined): [number, number][] {
   const p = pts ?? [];

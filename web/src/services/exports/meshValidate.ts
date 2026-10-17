@@ -112,7 +112,7 @@ export function validateSolid(geo: THREE.BufferGeometry, areaTol = 0): MeshIssue
    * which way the surface faces, because flipping every triangle in a closed mesh
    * flips every directed edge too and the counts come out identical. Without this,
    * a solid wound entirely inside out would pass every other check, and a slicer
-   * reading it fills the room and leaves the part hollow.
+   * would treat the space outside the part as solid.
    */
   let volume6 = 0;
   /** Directed edge use count, to separate "shared" from "shared the same way". */

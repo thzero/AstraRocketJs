@@ -336,10 +336,10 @@ export function WindProfileDialog({
                       min={0}
                       ariaLabel={t('windProfile.levelField', { field: t('windProfile.altitude'), n: i + 1 })}
                       value={u.toUi('distance', l.altitudeM)}
-                      // No `?? 0`, unlike the direction and deviation columns: an altitude is
-                      // the level's identity to the kernel, not a quantity with
-                      // a harmless zero, so an emptied box writes nothing
-                      // rather than moving the layer down onto the pad.
+                      // No `?? 0`, unlike the direction and deviation columns:
+                      // an altitude is the level's identity to the kernel, not a
+                      // quantity with a harmless zero, so an emptied box writes
+                      // nothing rather than moving the layer down onto the pad.
                       onChange={onSi(u.plain('distance'), (si) => si !== null && patchLevel(i, { altitudeM: si }))}
                       invalid={dupeRows.has(i)}
                       // `markRing`, not another ring class appended: both are

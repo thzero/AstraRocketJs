@@ -98,8 +98,8 @@
         min-height: 20px;
         font-variant-numeric: tabular-nums;
       }
-      /* Determinate while the engine reports bytes; the .indeterminate sweep
-         takes over when the host declares no content-length. */
+      /* The bar is always the .indeterminate sweep: nothing reports a
+         download figure to it before React replaces the splash. */
       #boot .bar {
         width: min(280px, 72vw);
         height: 8px;

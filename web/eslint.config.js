@@ -69,11 +69,7 @@ export default tseslint.config(
       // The two classic hook rules, plus the React-Compiler lint set that v7
       // includes in "recommended". Each of the compiler rules is listed by name
       // rather than spreading reactHooks.configs.recommended, so a plugin bump
-      // that adds a rule is a decision here and not a surprise in CI. They are
-      // `error` and the code passes them: the fetch-status effects (useCatalog,
-      // ComponentPicker) and the aero sweep derive their pending flag from state
-      // instead of setting it in an effect, and no render helper receives a ref
-      // object as an argument.
+      // that adds a rule is a decision here and not a surprise in CI.
       'react-hooks/rules-of-hooks': 'error',
       'react-hooks/exhaustive-deps': 'warn',
       'react-hooks/set-state-in-effect': 'error',
@@ -104,9 +100,9 @@ export default tseslint.config(
       '@typescript-eslint/no-floating-promises': 'error',
       // `checksVoidReturn: { attributes: false }` because a JSX handler prop is
       // declared `() => void` and React never awaits one: `onClick={async
-      // () => ...}` is the ordinary way to write an async handler and flagging
-      // every one of them would be flagging React. The other `checksVoidReturn` cases,
-      // where a void-returning position is a real mistake, stay on.
+      // () => ...}` is the ordinary way to write an async handler. The other
+      // `checksVoidReturn` cases, where a void-returning position is a real
+      // mistake, stay on.
       '@typescript-eslint/no-misused-promises': ['error', { checksVoidReturn: { attributes: false } }],
       // The rest comes from `recommendedTypeChecked` above. The vendored engine
       // has a declaration file (src/engine/openrocket-engine.d.ts), so the

@@ -87,9 +87,8 @@ describe('tubeFinRadius numeric guard', () => {
  *
  * `<tubefinset>` ends in "finset" but `TubeFinSet extends Tube`, not FinSet,
  * so OpenRocket's `instanceof FinSet` excludes it and a string match would not.
- * That one-word difference would fabricate a 50 × 30 mm cutting template, a
- * made-up fin in the report silhouette, and a 50 mm root span, for a part that
- * is a tube.
+ * A string match would draw a cutting template, a fin in the report silhouette
+ * and a root span for a part that is a tube.
  */
 describe('isFinSet / isPlanarFinSet', () => {
   const PLANAR = ['trapezoidfinset', 'ellipticalfinset', 'freeformfinset'];

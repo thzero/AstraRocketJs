@@ -227,10 +227,10 @@ const writeTubeFinset: NodeWriter = (w, node, d) => {
   // radius and the fin count, so the flag has to survive the save.
   autoRadius(w, d, node, 'outerRadius', 'radius');
   w.emit(d, `<length>${num(node, 'length', COMPONENT_DEFAULTS.tubefinset.length)}</length>`);
-  // No wall is no tag: the bridge leaves a keyless tube fin set's wall to its
-  // parent tube (ComponentFactory.applyWallThickness), and desktop reads an
-  // absent <thickness> the same way, so a number here would fly one wall and
-  // save another.
+  // No wall is no tag: the bridge sets a tube fin set's wall only from a stated
+  // key (ComponentFactory.applyWallThickness) and otherwise leaves the kernel's
+  // unset NaN wall, and desktop reads an absent <thickness> the same way, so a
+  // number here would fly one wall and save another.
   if (typeof node['thickness'] === 'number') w.emit(d, `<thickness>${node['thickness']}</thickness>`);
 };
 
