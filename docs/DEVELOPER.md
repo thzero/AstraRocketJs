@@ -177,7 +177,6 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 | ---------------- | --------------------------------------------------------------------------------------------------------- |
 | `build-and-test` | `npm run verify` (the gate list and the unit suite, without coverage)                                     |
 | `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), in one job        |
-| `update-flow`    | `npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help` against production builds |
 
 The engine checks are not CI gates. After a change under `engine-java/` or to the vendored engine, run `npm run audit` in `engine-java/` (needs a JDK): parity, a rebuild that fails if the committed engine binaries differ, the extraction check, the pinned upstream date, and the aero scorecards. It stops at the first failure and names the step.
 
@@ -191,7 +190,7 @@ A push to **any branch but `master` and `beta`** runs every `gates.yml` job (`de
 
 A pull request runs every `gates.yml` job on the merge result (`ci.yml`), then its own `verify` job, `CI / verify`: one check that stands for every gate on the merge result, and the one a pull request from a fork also gets. `web/tests/ciTriggers.test.ts` fails if either `verify` job stops running after a failed gate or stops failing with it.
 
-The Docusaurus site is built (`npm run docs:build`) in `update-flow`, which needs the built docs for the offline Help check, so a broken MDX page, config or `sidebars.ts` fails the PR.
+The service worker checks (`npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help`, against production builds) are the `update-flow` job in `e2e-full.yml`, run by hand with the full suite. No PR job builds the Docusaurus site; a broken MDX page, config or `sidebars.ts` fails `e2e-full.yml` and the deploy.
 
 The axe scans (`a11y.spec.ts`, `a11y-phone.spec.ts`) are not in `CORE_SPECS`. There are about 300 of them, and on a runner's two workers they take longer than a pull request should wait. They run in the full suite.
 

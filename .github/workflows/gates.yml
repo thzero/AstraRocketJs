@@ -5,8 +5,8 @@ name: Gates
 # reusable workflow (`workflow_call`) is how GitHub shares jobs, and it is the
 # only way to avoid keeping copies of this in sync by hand.
 #
-# The web jobs (build-and-test, e2e, update-flow) run in parallel, and the PR
-# is gated on all of them. The engine checks (parity, the reproducible extract,
+# The web jobs (build-and-test, e2e) run in parallel, and the PR is gated on
+# both. The service worker checks (update-flow) run by hand in e2e-full.yml. The engine checks (parity, the reproducible extract,
 # the aero scorecards) are not here: they only move when the engine changes,
 # and are run by hand with `npm run audit` in engine-java.
 #
@@ -82,11 +82,6 @@ jobs:
       # runs `vite build` directly rather than `npm run build`, because that
       # script is `typecheck && lint && vite build` and `gates` has just run both.
 
-  # The Docusaurus site is built and typechecked on every run of these gates:
-  # e2e and update-flow both run `npm run docs:build` for the Help checks, and
-  # e2e runs the site's `typecheck`, so a broken docusaurus.config.ts,
-  # sidebars.ts or MDX page fails the pull request there.
-
   # The core end-to-end specs: the paths a broken build breaks first (the list is
   # CORE_SPECS in web/playwright.config.ts). Every pull request and push to a
   # branch other than master and beta runs them. The full suite runs in e2e-full.yml, by hand.
@@ -147,88 +142,3 @@ jobs:
           name: playwright-report-core
           path: web/playwright-report/
           retention-days: 7
-
-  update-flow:
-    # The service worker, against real production builds: the update path, and
-    # the runtime catalogs and the Help pages with the network off.
-    #
-    # Nothing else here can see any of these: the Playwright suite serves one
-    # build, so it never sees a deploy, and vitest has no browser. The update check
-    # proves what a deploy depends on: a tab open on the old build is offered
-    # the new one and, on Reload, comes back on it, with no hard reload. The
-    # offline-data check proves what a launch site depends on, in both catalog
-    # layouts. With no data host the catalogs are precached and requested with
-    # a `?v=<hash>` cache-buster, which Workbox does not strip when matching the
-    # precache, so a wrong precache entry leaves motors, components and
-    # materials unreachable offline with no error shown. With a data host, as
-    # the deploy builds it, motors and components exist offline only in the
-    # runtime cache, which the app writes itself on the first visit because the
-    # worker does not control that page yet. Six `vite build`s (three for
-    # the update flow, two for offline data, one for offline help) plus a
-    # headless Chromium.
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    defaults:
-      run:
-        working-directory: web
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 24
-
-      # node_modules from the cache; `npm ci` only when the lockfile changed.
-      - id: web-modules
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: web/node_modules
-          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
-
-      - if: steps.web-modules.outputs.cache-hit != 'true'
-        run: npm ci
-
-      # The docs site's, the same way: this job builds the docs (below), which
-      # runs Docusaurus out of website/.
-      - id: website-modules
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: website/node_modules
-          key: website-modules-${{ runner.os }}-node24-${{ hashFiles('website/package-lock.json') }}
-
-      - name: Install the docs site's dependencies
-        if: steps.website-modules.outputs.cache-hit != 'true'
-        working-directory: website
-        run: npm ci
-
-      # offline-help (the last step) needs the built docs: the in-app Help
-      # dialog reads web/public/docs, which is gitignored, and the check serves
-      # a production build with those docs precached. Both locales, as the
-      # deploy builds them, because the dialog can be opened in either.
-      - name: Build the docs the offline-help check reads
-        run: npm run docs:build
-
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
-
-      - run: npm run e2e:update
-
-      - run: npm run e2e:offline-data
-
-      # Help with the network off, which is the case the docs are built INTO the
-      # app for: a launch site with no signal. It is the one promise the
-      # precached docs make, gated beside its sibling (offline DATA).
-      - run: npm run e2e:offline-help
