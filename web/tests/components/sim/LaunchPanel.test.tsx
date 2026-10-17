@@ -89,6 +89,25 @@ describe('a site found by "Use my location"', () => {
 });
 
 /**
+ * The browser's permission prompt can sit unanswered for minutes, and `onChange`
+ * writes to whatever rows are the current edit targets. Allowing the prompt
+ * after the panel is gone must not write a launch site.
+ */
+it('drops a location that arrives after the panel was closed', () => {
+  let allow!: PositionCallback;
+  const getCurrentPosition = vi.fn((ok: PositionCallback) => {
+    allow = ok;
+  });
+  Object.defineProperty(navigator, 'geolocation', { value: { getCurrentPosition }, configurable: true });
+  const onChange = vi.fn();
+  const { unmount } = renderWithProviders(<LaunchPanel launch={LAUNCH} onChange={onChange} />);
+  fireEvent.click(screen.getByRole('button', { name: /use my location/i }));
+  unmount();
+  allow({ coords: { latitude: 39.5, longitude: -105.1, altitude: 1650 } } as GeolocationPosition);
+  expect(onChange).not.toHaveBeenCalled();
+});
+
+/**
  * Settings opens its own launch panel over the simulation editor's. Radios that
  * share a name are one group to the browser, so an arrow key in one panel's
  * wind model would check the other's and change the flight behind the dialog.

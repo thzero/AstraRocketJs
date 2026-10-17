@@ -6,7 +6,7 @@ import {
   LandingEstimator,
   minutesSeconds,
 } from '../../../src/components/tools/LandingEstimator';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { answer } from '../../testing/openMeteoFixture';
 import { resetWeatherState, setWeatherTransport } from '../../../src/services/weather/openMeteo';
 
@@ -43,7 +43,10 @@ beforeEach(() => {
     return Promise.resolve(new Response(JSON.stringify(body), { status: 200 }));
   }) as typeof fetch);
 });
-afterEach(() => setWeatherTransport(null));
+afterEach(() => {
+  setWeatherTransport(null);
+  localStorage.clear();
+});
 
 describe('LandingEstimator', () => {
   it('starts from a single chute, and gives a drogue its own faster rate', () => {
@@ -75,6 +78,15 @@ describe('LandingEstimator', () => {
     ).toBeTruthy();
     expect(screen.getByRole('link', { name: 'CC BY 4.0' })).toBeTruthy();
   });
+});
+
+/** The bearing is an angle held in degrees; it prints in the reader's angle unit. */
+it('prints the landing bearing in the angle unit', async () => {
+  seedSettings({ units: { angle: 'rad' } });
+  renderWithProviders(<LandingEstimator />);
+  fireEvent.click(screen.getByRole('button', { name: 'Estimate landing' }));
+  await screen.findByText('Lands at');
+  expect(screen.getByText('Bearing from the pad').nextElementSibling?.textContent).toMatch(/^[\d.,]+ rad$/);
 });
 
 const OUTDATED = /have changed since this estimate/;

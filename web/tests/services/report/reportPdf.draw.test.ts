@@ -4,10 +4,9 @@ import type { ReportModel } from '../../../src/services/report/reportModel';
 import type { UnitSelection } from '../../../src/prefs/units';
 
 /**
- * Golden drawing log of the PDF report. jsPDF's own bytes carry a creation date, so the
- * pin is the exact sequence of drawing calls (method, arguments, order) the
- * report makes against the document, which is what decides where every line
- * of text and every 1:1 template lands on the page.
+ * What the PDF report draws, read from the calls it makes against a stand-in
+ * jsPDF: every mark inside the page, templates and the ruler at 1:1, the
+ * engine's figures printed as given, and each section present when chosen.
  */
 
 const calls: string[] = [];
@@ -399,98 +398,130 @@ const markingModel = {
   finSetsByStage: [],
 } as unknown as ReportModel;
 
-describe('golden PDF report', () => {
-  it('pins every section, by stage, with filled templates', async () => {
-    calls.length = 0;
-    await downloadReportPdf(model, tree, t, everything, units);
-    expect(calls.join('\n')).toMatchSnapshot();
+type Call = { m: string; args: unknown[] };
+/** The drawing calls, each `method [args]`; the constructor and `output` lines are skipped. */
+const parsed = (): Call[] =>
+  calls
+    .filter((c) => c.includes(' ['))
+    .map((c) => {
+      const i = c.indexOf(' ');
+      return { m: c.slice(0, i), args: JSON.parse(c.slice(i + 1)) as unknown[] };
+    });
+const of = (m: string) => parsed().filter((c) => c.m === m);
+/** Every string `text` draws, a wrapped one joined back up. */
+const texts = () => of('text').map((c) => (Array.isArray(c.args[0]) ? c.args[0].join('') : String(c.args[0])));
+const colors = (m: string) => of(m).map((c) => JSON.stringify(c.args));
+const draw = async (opts: Partial<Parameters<typeof downloadReportPdf>[3]>, m = model, tr = tree, u = units) => {
+  calls.length = 0;
+  saved.length = 0;
+  await downloadReportPdf(m, tr, t, { ...everything, ...opts }, u);
+};
+
+/** Every text anchor and line end lies on the 210 x 297 mm page the stand-in reports. */
+function expectOnPage() {
+  const inside = (x: unknown, y: unknown) =>
+    (x as number) >= 0 && (x as number) <= 210 && (y as number) >= 0 && (y as number) <= 297;
+  for (const c of of('text')) expect(inside(c.args[1], c.args[2]), JSON.stringify(c.args)).toBe(true);
+  for (const c of of('line')) {
+    expect(inside(c.args[0], c.args[1]) && inside(c.args[2], c.args[3]), JSON.stringify(c.args)).toBe(true);
+  }
+}
+
+describe('the PDF report', () => {
+  it('draws every section by stage, on the page, with the chosen template colors', async () => {
+    await draw({});
     // "-report", the way the design CSV beside it is "-design": a name says
     // which rocket and which document, not only which rocket.
     expect(saved).toEqual(['Golden_Report_1_-report.pdf']);
+    expect(calls[0]).toBe('new jsPDF {"unit":"mm","format":"a4","orientation":"portrait"}');
+    expectOnPage();
+    const all = texts();
+    for (const key of ['report.title', 'report.stages', 'report.motors', 'report.partsDetail', 'report.templates']) {
+      expect(
+        all.some((s) => s.startsWith(key)),
+        key,
+      ).toBe(true);
+    }
+    // The engine's stabilityPercent, not (cp - cg) / length (12.5).
+    expect(all).toContain('13.6 %');
+    expect(all).not.toContain('12.5 %');
+    // The 70-row parts table runs onto pages of its own rather than off the bottom.
+    expect(all).toContain('Ring 69');
+    expect(of('addPage').length).toBeGreaterThan(2);
+    expect(colors('setFillColor')).toContain('[255,204,0]');
+    expect(colors('setDrawColor')).toContain('[18,52,86]');
   });
 
-  it('draws the flat (not by stage) report with outline templates on letter landscape', async () => {
-    calls.length = 0;
-    await downloadReportPdf(
-      model,
-      tree,
-      t,
-      {
-        ...everything,
-        showByStage: false,
-        templateFill: '',
-        templateStroke: 'bad',
-        paper: 'letter',
-        orientation: 'landscape',
-        stages: [
-          { parts: true, finTemplates: false },
-          { parts: false, finTemplates: true },
-        ],
-      },
-      units,
-    );
-    expect(calls.join('\n')).toMatchSnapshot();
+  it('draws the flat report on letter landscape with outline templates and only the chosen parts', async () => {
+    await draw({
+      showByStage: false,
+      templateFill: '',
+      templateStroke: 'bad',
+      paper: 'letter',
+      orientation: 'landscape',
+      stages: [
+        { parts: true, finTemplates: false },
+        { parts: false, finTemplates: true },
+      ],
+    });
+    expect(calls[0]).toBe('new jsPDF {"unit":"mm","format":"letter","orientation":"landscape"}');
+    expect(colors('setFillColor')).not.toContain('[255,204,0]');
+    // An unreadable stroke falls back to near-black.
+    expect(colors('setDrawColor')).toContain('[17,24,39]');
+    const all = texts();
+    expect(all).not.toContain('Ring 0');
+    // The booster's 500 x 300 mm fin cannot print 1:1, so it is named, not shrunk.
+    expect(all).toContain('report.tooLarge{"w":"500","h":"300"}');
   });
 
-  it('draws marking guides: an oversize tube in pieces, canted fins, and a footnote', async () => {
-    calls.length = 0;
-    await downloadReportPdf(
+  it('draws marking guides: a 1:1 ruler, an oversize tube in pieces, canted fins and footnotes', async () => {
+    await draw(
+      { designReport: false, includeMotors: false, noseTemplates: false, transitionTemplates: false, stages: [] },
       markingModel,
       markingTree,
-      t,
-      {
-        ...everything,
-        designReport: false,
-        includeMotors: false,
-        noseTemplates: false,
-        transitionTemplates: false,
-        stages: [],
-      },
-      units,
     );
-    expect(calls.join('\n')).toMatchSnapshot();
+    expectOnPage();
+    // The ruler is what a reader checks the print scale against: 100 mm long.
+    const ruler = of('line').find(
+      (c) => c.args[1] === c.args[3] && (c.args[2] as number) - (c.args[0] as number) === 100,
+    );
+    expect(ruler).toBeTruthy();
+    const all = texts();
+    expect(all).toContain('report.markingPart{"k":1,"n":2}');
+    expect(all).toContain('report.markingPart{"k":2,"n":2}');
+    // The 3 degree cant prints its fin line on the slant.
+    expect(of('text').some((c) => c.args[0] === 'Canted fins' && (c.args[3] as { angle?: number })?.angle === -3)).toBe(
+      true,
+    );
+    expect(of('setLineDashPattern').length).toBeGreaterThan(0);
+    expect(all).toContain('report.markingOmitted_noWrap{"names":"Nose button"}');
+    expect(all).toContain('report.markingOmitted_noFins{"names":"Upper lug"}');
   });
 
-  // The summary and motor tables in the two mass units that are a fraction
-  // of a gram-sized design: the ladder decides each figure's decimals.
   it.each([
-    ['kg', 'N·s'],
-    ['lb', 'lbf·s'],
-  ])('prints the summary and motor tables in %s and %s', async (mass, impulse) => {
-    calls.length = 0;
-    await downloadReportPdf(
-      model,
-      tree,
-      t,
-      {
-        ...everything,
-        noseTemplates: false,
-        transitionTemplates: false,
-        finMarkingGuide: false,
-        stages: [],
-      },
-      { ...units, mass, impulse },
-    );
-    expect(calls.join('\n')).toMatchSnapshot();
+    ['kg', 'N·s', '1.50 kg'],
+    ['lb', 'lbf·s', '3.31 lb'],
+  ])('prints the summary and motor tables in %s and %s', async (mass, impulse, loaded) => {
+    await draw({ noseTemplates: false, transitionTemplates: false, finMarkingGuide: false, stages: [] }, model, tree, {
+      ...units,
+      mass,
+      impulse,
+    } as UnitSelection);
+    const all = texts();
+    expect(all).toContain(loaded);
+    expect(all.some((s) => s.endsWith(` ${impulse}`))).toBe(true);
   });
 
-  it('draws only the fallback heading when nothing is selected', async () => {
-    calls.length = 0;
-    await downloadReportPdf(
-      model,
-      tree,
-      t,
-      {
-        ...everything,
-        designReport: false,
-        includeMotors: false,
-        noseTemplates: false,
-        transitionTemplates: false,
-        finMarkingGuide: false,
-        stages: [],
-      },
-      units,
-    );
-    expect(calls.join('\n')).toMatchSnapshot();
+  it('draws only the heading when nothing is selected', async () => {
+    await draw({
+      designReport: false,
+      includeMotors: false,
+      noseTemplates: false,
+      transitionTemplates: false,
+      finMarkingGuide: false,
+      stages: [],
+    });
+    expect(texts()).toEqual(['report.title']);
+    expect(of('addPage')).toHaveLength(0);
   });
 });

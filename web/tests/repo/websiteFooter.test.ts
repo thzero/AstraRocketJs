@@ -10,7 +10,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
  * locale's `docusaurus-theme-classic/footer.json` replaces the config's line,
  * and a translation file cannot carry the version, so none may have one.
  */
-const repo = fileURLToPath(new URL('../../', import.meta.url));
+const repo = fileURLToPath(new URL('../../../', import.meta.url));
 const { version } = JSON.parse(readFileSync(`${repo}web/package.json`, 'utf8')) as { version: string };
 
 type FooterConfig = { default: { themeConfig: { footer: { copyright: string } } } };

@@ -2,12 +2,12 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
-import { act, cleanup, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, screen } from '@testing-library/react';
 import i18n from '../../../src/i18n';
 import { __setEngineForTests } from '../../../src/engine/openRocketEngine';
 import { loadEngine } from '../../testing/kernelGeometry';
 import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 
@@ -56,6 +56,7 @@ beforeAll(async () => {
 
 afterEach(async () => {
   cleanup();
+  localStorage.clear();
   await act(() => i18n.changeLanguage('en'));
 });
 
@@ -80,5 +81,26 @@ describe('the off-the-rail figures', () => {
     } finally {
       i18n.addResource('en', 'translation', 'units.ratio', own);
     }
+  });
+});
+
+describe('the weathercock figures', () => {
+  it('print the angle in the angle unit', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<OffTheRail />);
+    const wind = screen.getByRole('spinbutton', { name: /Wind speed/ });
+    fireEvent.change(wind, { target: { value: '5' } });
+    fireEvent.blur(wind);
+    expect(statValue('Weathercock angle')).toMatch(/^[\d.,]+ rad( |$)/);
+  });
+});
+
+describe('the weathercock limit', () => {
+  it('prints in the angle unit, in the label and in the rules note', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<OffTheRail />);
+    // 20 degrees.
+    expect(screen.getByText('Strongest wind under 0.35 rad')).toBeTruthy();
+    expect(screen.getByText(/or a weathercock angle over 0.35 rad/)).toBeTruthy();
   });
 });

@@ -67,6 +67,16 @@ describe('ignition scope and reset', () => {
     expect(onIgnitionChange).toHaveBeenLastCalledWith('automatic', 0, 'config');
   });
 
+  // A zero committed on clear would light an air-start at separation.
+  it('commits no delay while the delay box is cleared to retype', () => {
+    const onIgnitionChange = row('burnout', 2);
+    const box = screen.getByRole('spinbutton', { name: 'Ignition delay (s)' });
+    fireEvent.change(box, { target: { value: '' } });
+    expect(onIgnitionChange).not.toHaveBeenCalled();
+    fireEvent.change(box, { target: { value: '3' } });
+    expect(onIgnitionChange).toHaveBeenLastCalledWith('burnout', 3, 'config');
+  });
+
   it('offers no reset when the ignition is already Automatic with no delay', () => {
     row('automatic', 0);
     expect((screen.getByRole('button', { name: 'Reset ignition' }) as HTMLButtonElement).disabled).toBe(true);

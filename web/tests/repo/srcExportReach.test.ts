@@ -23,7 +23,7 @@ import { fileURLToPath } from 'node:url';
  * caller looks covered.
  */
 
-const web = fileURLToPath(new URL('..', import.meta.url));
+const web = fileURLToPath(new URL('../..', import.meta.url));
 
 const walk = (dir: string, out: string[] = []): string[] => {
   for (const entry of readdirSync(dir)) {

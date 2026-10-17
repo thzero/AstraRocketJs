@@ -45,8 +45,8 @@ const searchable = (path: string, line: string): string =>
 
 // Forward slashes on every platform, so the path tests below read the same on Windows.
 const slashed = (url: URL): string => fileURLToPath(url).replace(/\\/g, '/');
-const web = slashed(new URL('..', import.meta.url));
-const repo = slashed(new URL('../..', import.meta.url));
+const web = slashed(new URL('../..', import.meta.url));
+const repo = slashed(new URL('../../..', import.meta.url));
 
 /** Locale files other than English carry each language's own punctuation. */
 const isForeignLocale = (path: string): boolean =>

@@ -34,7 +34,9 @@ vi.mock('../../../src/services/motors/motorDb', async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   loadCatalog: () => loadCatalog(),
   deleteCustomMotor: (id: string) => deleteCustomMotor(id),
+  importCustomMotors: () => importCustomMotors(),
 }));
+const importCustomMotors = vi.fn(async () => ({ catalog: [X, Y], imported: 1, failed: [] as string[] }));
 const fetchMotorSpec = vi.fn<(m: CatalogMotor, delay: number) => Promise<MotorSpec>>();
 vi.mock('../../../src/services/motors/thrustcurve', () => ({
   fetchMotorSpec: (m: CatalogMotor, d: number) => fetchMotorSpec(m, d),
@@ -76,6 +78,7 @@ const closePicker = () => fireEvent.click(screen.getByRole('button', { name: 'Cl
 beforeEach(() => {
   loadCatalog.mockClear();
   fetchMotorSpec.mockReset();
+  importCustomMotors.mockClear();
   localStorage.clear();
 });
 
@@ -120,6 +123,41 @@ describe('MotorDialog', () => {
       resolve(seatedX);
     });
     expect(onSelect).not.toHaveBeenCalled();
+  });
+
+  /**
+   * An import and a motor pick are different attempts: a catalog import that
+   * lands while a pick is still in flight must not cancel the pick.
+   */
+  it('keeps a pending pick when an import finishes meanwhile', async () => {
+    let resolve!: (m: MotorSpec) => void;
+    fetchMotorSpec.mockReturnValue(new Promise<MotorSpec>((r) => (resolve = r)));
+    const onSelect = vi.fn();
+    renderWithProviders(<Host current={null} onSelect={onSelect} />);
+    openPicker();
+    fireEvent.click(await row('X'));
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+
+    const file = new File(['x'], 'm.eng');
+    fireEvent.change(document.body.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    await waitFor(() => expect(importCustomMotors).toHaveBeenCalledTimes(1));
+    await screen.findByText(/1 motor imported/);
+
+    await act(async () => {
+      resolve(seatedX);
+    });
+    expect(onSelect).toHaveBeenCalledWith(seatedX);
+  });
+
+  // A zero committed on clear would fly the motor with a 0-second charge.
+  it('keeps the last delay when the delay box is cleared', async () => {
+    fetchMotorSpec.mockResolvedValue(seatedX);
+    renderWithProviders(<Host current={null} onSelect={() => {}} />);
+    openPicker();
+    fireEvent.click(await row('X'));
+    fireEvent.change(delayBox(), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Select' }));
+    expect(fetchMotorSpec).toHaveBeenCalledWith(X, 7);
   });
 
   it('applies a pick that resolves while the dialog is still open', async () => {

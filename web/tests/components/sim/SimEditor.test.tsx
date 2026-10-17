@@ -3,7 +3,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { act, fireEvent, screen } from '@testing-library/react';
 import { SimEditor } from '../../../src/components/sim/SimEditor';
 import { selectActive, useWorkspaceStore } from '../../../src/state/store';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { seedFromInput } from '../../../src/services/flight/simulations';
 
 const st = () => useWorkspaceStore.getState();
@@ -85,6 +85,18 @@ describe('the max angle step override', () => {
     const field = screen.getByLabelText('Max angle step') as HTMLInputElement;
     expect(Number(field.min)).toBeCloseTo(1);
     expect(Number(field.max)).toBeCloseTo(20);
+  });
+
+  it('shows the unit symbol and bounds in the angle unit when the unit is radians', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    try {
+      renderWithProviders(<SimEditor />);
+      const field = screen.getByLabelText('Max angle step') as HTMLInputElement;
+      expect(Number(field.min)).toBeCloseTo(Math.PI / 180, 4);
+      expect(field.parentElement?.textContent).toContain('rad');
+    } finally {
+      localStorage.clear();
+    }
   });
 
   it('shows a stored out-of-range override as the step the run flies', () => {

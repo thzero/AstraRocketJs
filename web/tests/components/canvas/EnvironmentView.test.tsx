@@ -1,9 +1,9 @@
 // @vitest-environment jsdom
 import { NO_VALUE } from '../../../src/i18n/noValue';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { screen, within } from '@testing-library/react';
 import { EnvironmentView } from '../../../src/components/canvas/EnvironmentView';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import type { ResultFlight } from '../../../src/services/flight/simulations';
 
 const n = 61;
@@ -30,6 +30,16 @@ const AIR = {
 };
 
 describe('EnvironmentView', () => {
+  afterEach(() => localStorage.clear());
+
+  it('prints the pad wind direction in the angle unit', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<EnvironmentView flight={flight(AIR)} />);
+    const pad = within(document.querySelector('dl')!);
+    // 350 degrees.
+    expect(pad.getByText('Wind direction').nextSibling?.textContent).toBe('6.11 rad');
+  });
+
   it('shows the air at the pad, the site elevation among it', () => {
     renderWithProviders(<EnvironmentView flight={flight(AIR)} />);
     const pad = within(document.querySelector('dl')!);

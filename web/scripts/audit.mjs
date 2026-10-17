@@ -8,8 +8,15 @@
 // (scripts/data/openrocket-release.json). Stops at the first failing step and
 // names it.
 //
+//   format      Prettier, cspell, knip and jscpd: formatting, US spelling,
+//   spell       dead exports and unimported modules, and copied blocks over
+//   knip        src. Housekeeping, so here rather than in CI.
+//   dupes
 //   coverage    The unit suite with coverage, against the floors in
 //               vitest.config.ts.
+//   repo        The repository convention checks under tests/repo: comment
+//               wording, no em dash, CI triggers, every script and src export
+//               reached, lint scope, docs footer.
 //   samples     The default design, every bundled example and a design with
 //               every part type, saved as .ork and .rkt the way the app saves
 //               them, each beside what the app's kernel flies for its parts.
@@ -27,6 +34,8 @@ import { chooseBuild } from './lib/openrocketJava.mjs';
 
 const WEB = fileURLToPath(new URL('..', import.meta.url));
 const VITEST = join(WEB, 'node_modules/vitest/vitest.mjs');
+/** An npm script, through the npm that launched this one: `npm.cmd` cannot be spawned without a shell. */
+const npmRun = (script) => run(process.execPath, [process.env.npm_execpath ?? 'npm', 'run', script]);
 const work = mkdtempSync(join(tmpdir(), 'web-audit-'));
 const samples = join(work, 'samples');
 
@@ -47,7 +56,12 @@ const filesIn = (dir, ext, out = []) => {
 const passthrough = process.argv.slice(2);
 
 const STEPS = [
+  ['format', () => npmRun('format:check')],
+  ['spell', () => npmRun('spell')],
+  ['knip', () => npmRun('knip')],
+  ['dupes', () => npmRun('dupes')],
   ['coverage', () => run(process.execPath, [VITEST, 'run', '--coverage'])],
+  ['repo', () => run(process.execPath, [VITEST, 'run', 'tests/repo'], { REPO_CHECKS: '1' })],
   [
     'samples',
     () =>

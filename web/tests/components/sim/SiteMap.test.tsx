@@ -2,7 +2,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { fireEvent, screen } from '@testing-library/react';
 import { SiteMap } from '../../../src/components/sim/SiteMap';
-import { renderWithProviders } from '../../testing/renderWithProviders';
+import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 
 /**
  * The map, without a network.
@@ -220,4 +220,37 @@ describe('SiteMap', () => {
     expect(document.querySelectorAll('img').length).toBeGreaterThan(0);
     expect(screen.queryByText(/No imagery offline/i)).toBeNull();
   });
+});
+
+/**
+ * The scale is a length readout like every other on the panel, so it follows the
+ * distance preference. A large value promotes to the next unit up ("1.2 km"
+ * beats "1234 m"): m to km, ft to mi.
+ */
+describe('SiteMap scale', () => {
+  const scale = () => screen.getByText(/^[\d.,]+ (m|km|ft|mi)$/).textContent;
+
+  it('reads in meters by default', () => {
+    renderWithProviders(<SiteMap {...HOME} />);
+    expect(scale()).toMatch(/ m$/);
+  });
+
+  it('reads in feet, then miles, when the distance unit is feet', () => {
+    seedSettings({ units: { distance: 'ft' } });
+    renderWithProviders(<SiteMap {...HOME} />);
+    expect(scale()).toMatch(/ ft$/);
+    for (let i = 0; i < 3; i++) fireEvent.click(screen.getByRole('button', { name: 'Zoom out' }));
+    expect(scale()).toMatch(/ mi$/);
+  });
+});
+
+/**
+ * Wheel zoom must stop the page behind the map from scrolling. React's `onWheel`
+ * is passive at the root, so only a native non-passive listener can prevent it.
+ */
+it('cancels the wheel so the form under the map does not scroll', () => {
+  renderWithProviders(<SiteMap {...HOME} />);
+  const map = screen.getByRole('group', { name: /Launch site map/ });
+  const notPrevented = fireEvent.wheel(map, { deltaY: -100 });
+  expect(notPrevented).toBe(false);
 });

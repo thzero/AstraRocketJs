@@ -29,8 +29,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # The three parts of `gates` in web/package.json, one runner each.
-        check: [gates:quick, typecheck, lint]
+        # The three parts of `build` in web/package.json, one runner each.
+        check: [npm run typecheck, npm run lint, npx vite build]
     defaults:
       run:
         working-directory: web
@@ -51,37 +51,16 @@ jobs:
       - if: steps.web-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      # ONE list, `gates` in web/package.json, run here (its three parts, one
-      # per runner) and locally, so the gates cannot drift between them. The unit suite that `verify` adds to it
-      # locally is the unit job below; a gate added to `verify` or `verify:ci`
-      # alone is not run by CI. Spelling the steps out here instead lets the hand-run
-      # list drift from this one. What the list holds, and why each is there:
+      # The three parts of `npm run build`, one per runner. `verify` runs the same
+      # three locally and adds the unit suite, which is the unit job below:
       #
-      #   format:check  Formatting. `.gitattributes` pins LF, without which a
-      #                 CRLF checkout fails `--check` on every tracked file, and
-      #                 `.prettierignore` excludes the generated artifacts
-      #                 (public/docs, the TeaVM output, the synced catalogs),
-      #                 leaving only authored code.
-      #   spell         US English, enforced. cspell's en-US dictionary catches
-      #                 a British spelling, and cspell.json's flagWords make the
-      #                 common ones (the -our, -re and -ise forms) forbidden
-      #                 outright, so no project-words entry can let one in.
       #   typecheck     All four tsconfig projects: src and tests, the app,
       #                 e2e, and the build config files (tsconfig.node.json).
       #   lint          ESLint, warnings included.
-      #   knip          Dead exports / unimported modules. Cheap, and it only
-      #                 stays useful if something runs it.
-      #   dupes         jscpd over src (`.jscpd.json`): any copied block of 45
-      #                 tokens and 5 lines fails, so two copies of a helper
-      #                 cannot drift apart.
       #   vite build    The production build.
-      - run: npm run ${{ matrix.check }}
-
-      # The production build is in `gates:quick`, so there is no build step
-      # here, and the push gate and the local pre-push command both catch a
-      # change that typechecks and tests clean but breaks the build. It runs
-      # `vite build` directly rather than `npm run build`, because that script
-      # is `typecheck && lint && vite build` and the other two parts run those.
+      #
+      # Formatting, spelling, knip and jscpd are housekeeping and run in `npm run audit`.
+      - run: ${{ matrix.check }}
 
   # The unit suite, without coverage, in three slices on three runners.
   # Coverage and its floors in vitest.config.ts are checked by hand with
@@ -115,19 +94,6 @@ jobs:
       - if: steps.web-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      # The docs site's too: websiteFooter.test.ts loads
-      # website/docusaurus.config.ts, whose tsconfig extends
-      # `@docusaurus/tsconfig`, which is in website/node_modules.
-      - id: website-modules
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: website/node_modules
-          key: website-modules-${{ runner.os }}-node24-${{ hashFiles('website/package-lock.json') }}
-
-      - if: steps.website-modules.outputs.cache-hit != 'true'
-        working-directory: website
-        run: npm ci
-
       - run: npx vitest run --shard=${{ matrix.shard }}/3
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
@@ -138,6 +104,12 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    # Chromium and the system libraries it needs come baked into the image, so
+    # the job installs nothing. The tag must match the @playwright/test version
+    # in web/package-lock.json; the first step fails when they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
     strategy:
       fail-fast: false
       matrix:
@@ -162,26 +134,10 @@ jobs:
       - if: steps.web-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      # Key the browser cache on the resolved Playwright version, not on the
-      # lockfile hash: the browser build only changes when Playwright does.
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      # Both projects in playwright.config.ts are Chromium. The browser restores
-      # from the cache, but the system libraries `--with-deps` apt-installs do
-      # not, so a cache hit still needs `install-deps`.
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      - name: Check the image matches Playwright
+        run: |
+          v=$(node -p "require('@playwright/test/package.json').version")
+          [ "$v" = "1.63.0" ] || { echo "::error::@playwright/test is $v; update the container image tag in gates.yml"; exit 1; }
 
       - run: npm run e2e:core -- --shard=${{ matrix.shard }}/3
 

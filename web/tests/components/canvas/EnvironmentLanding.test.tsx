@@ -37,6 +37,18 @@ describe('EnvironmentLanding', () => {
   });
 });
 
+/** The landing bearing is an angle held in degrees; it prints in the reader's angle unit. */
+describe('EnvironmentLanding bearing', () => {
+  beforeEach(() => localStorage.clear());
+
+  it('prints the landing bearing in the angle unit', () => {
+    seedSettings({ units: { angle: 'rad' } });
+    renderWithProviders(<EnvironmentLanding flight={flight} />);
+    // 300 m east and 400 m north of the pad: 36.87 degrees.
+    expect(screen.getByText(/^500 m, 0.64 rad/)).toBeTruthy();
+  });
+});
+
 /**
  * The landing coordinate of a simulated flight is the kernel's own: it records
  * latitude and longitude (φ, λ) at every step with the Earth model the

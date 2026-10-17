@@ -45,13 +45,10 @@ npm run test         # Vitest: unit tests (.test.ts) and component tests (.test.
 npm run test:watch   # Vitest in watch mode while developing
 npm run e2e          # Playwright end-to-end tests against a fresh production build on port 5180
                      # (run `npx playwright install chromium` once first; nothing installs the browser for you)
-npm run dupes        # jscpd copy-paste check over src (see below); part of verify
-npm run verify       # the pre-push gate: format, spell, typecheck, lint, knip,
-                     # dupes, the production build, and the unit suite. ~100 s.
-npm run verify:ci    # the same list, but the suite runs WITH coverage and fails if
-                     # it drops below the minimum percentages in vitest.config.ts
-                     # (lines 82, statements 81, branches 74, functions 76).
-                     # Not run by CI; `npm run audit` runs its coverage half.
+npm run dupes        # jscpd copy-paste check over src (see below); part of audit
+npm run verify       # the pre-push gate: typecheck, lint, the production build,
+                     # and the unit suite. Format, spell, knip and dupes run in
+                     # npm run audit.
 npm run audit        # every web check CI does not run: coverage, then the files
                      # the app saves opened in desktop OpenRocket, then every
                      # part of them read back and compared with what the app's
@@ -78,8 +75,8 @@ A few house rules that keep the codebase consistent:
 - **All user-facing text goes through i18n.** Add keys to `web/src/i18n/locales/en.json` **and** every other locale file (`web/tests/i18n/locales.test.ts` fails otherwise) - never hardcode strings in components. See [Translation](../CONTRIBUTING.md#translation).
 - **Never hardcode the app name, version, or the help/docs URL.** They come from `web/src/services/app/appInfo.ts` - name from i18n, version from `package.json`, and `HELP_URL` from `package.json`'s `wiki.url` (overridable at build time with `HELP_URL=…`).
 - **Match the surrounding code** - its naming, comment density, and style.
-- **No em dash (U+2014).** Prose takes a colon, comma, period or parentheses. `web/tests/noEmDash.test.ts` fails on the character or its HTML entity anywhere in the project's own text; its header lists what it scans.
-- **Comments and test titles state the present constraint.** A comment says what holds and why; a test title says what it guards, not the bug it came from. No change history, issue or PR tags, audit finding IDs, dates or named people. `web/tests/commentsStateTheConstraint.test.ts` scans comments and `describe`/`it`/`test` titles in `web/src` (not `src/engine/vendor`), `web/tests`, `web/e2e`, `web/scripts` and `engine-java/src/api` for issue references (`#123`, `PR #12`, `issue 12`, `openrocket#123`), audit IDs (`finding 12`, an ID beside the word audit or finding), ISO dates, and history phrases such as "until now", "previously", "used to be" and "we now". String literals and Markdown are not scanned. A line that needs one of these for a present-tense reason goes in the test's `ALLOWED` list with that reason.
+- **No em dash (U+2014).** Prose takes a colon, comma, period or parentheses. `web/tests/repo/noEmDash.test.ts` fails on the character or its HTML entity anywhere in the project's own text; its header lists what it scans.
+- **Comments and test titles state the present constraint.** A comment says what holds and why; a test title says what it guards, not the bug it came from. No change history, issue or PR tags, audit finding IDs, dates or named people. `web/tests/repo/commentsStateTheConstraint.test.ts` scans comments and `describe`/`it`/`test` titles in `web/src` (not `src/engine/vendor`), `web/tests`, `web/e2e`, `web/scripts` and `engine-java/src/api` for issue references (`#123`, `PR #12`, `issue 12`, `openrocket#123`), audit IDs (`finding 12`, an ID beside the word audit or finding), ISO dates, and history phrases such as "until now", "previously", "used to be" and "we now". String literals and Markdown are not scanned. A line that needs one of these for a present-tense reason goes in the test's `ALLOWED` list with that reason.
 
 ## Where a number comes from
 
@@ -175,7 +172,7 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
 | Job              | Runs                                                                                                      |
 | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `build-and-test` | `npm run gates` in three parts: `gates:quick` (format, spell, knip, dupes, build), `typecheck`, `lint`    |
+| `build-and-test` | `npm run build` in three parts: `typecheck`, `lint`, `vite build`                                         |
 | `unit`           | the unit suite, without coverage, split three ways (`vitest run --shard`)                                 |
 | `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), split three ways  |
 
@@ -187,9 +184,9 @@ Every change goes through the change audit in [`docs/AUDIT_PROMPT_CHANGES.md`](.
 
 The full Playwright suite is not a PR gate. It runs by hand from `.github/workflows/e2e-full.yml` (**Run workflow**), sharded two ways.
 
-A push to **any branch but `master` and `beta`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `beta` is excluded because it carries only work already gated on `dev`, and its deploy is started by hand (`beta-deploy.yml`). `web/tests/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
+A push to **any branch but `master` and `beta`** runs every `gates.yml` job (`dev.yml`), then a `verify` job that fails if any gate failed; branch protection requires `Dev / verify`. A broken test shows up on the push that broke it rather than when the PR to `master` is opened. `master` is excluded because it is reached through a PR, which `ci.yml` gates. `beta` is excluded because it carries only work already gated on `dev`, and its deploy is started by hand (`beta-deploy.yml`). `web/tests/repo/ciTriggers.test.ts` fails if the trigger is narrowed to a list of branch names.
 
-A pull request runs every `gates.yml` job on the merge result (`ci.yml`), then its own `verify` job, `CI / verify`: one check that stands for every gate on the merge result, and the one a pull request from a fork also gets. `web/tests/ciTriggers.test.ts` fails if either `verify` job stops running after a failed gate or stops failing with it.
+A pull request runs every `gates.yml` job on the merge result (`ci.yml`), then its own `verify` job, `CI / verify`: one check that stands for every gate on the merge result, and the one a pull request from a fork also gets. `web/tests/repo/ciTriggers.test.ts` fails if either `verify` job stops running after a failed gate or stops failing with it.
 
 The service worker checks (`npm run e2e:update`, `npm run e2e:offline-data` and `npm run e2e:offline-help`, against production builds) are the `update-flow` job in `e2e-full.yml`, run by hand with the full suite. No PR job builds the Docusaurus site; a broken MDX page, config or `sidebars.ts` fails `e2e-full.yml` and the deploy.
 
