@@ -5,8 +5,9 @@ name: Gates
 # reusable workflow (`workflow_call`) is how GitHub shares jobs, and it is the
 # only way to avoid keeping copies of this in sync by hand.
 #
-# The web jobs (build-and-test, e2e) run in parallel, and the PR is gated on
-# both. The service worker checks (update-flow) run by hand in e2e-full.yml. The engine checks (parity, the reproducible extract,
+# The web jobs (build-and-test, unit, e2e) run in parallel, and the PR is
+# gated on all of them. Each is split three ways, each slice on its own runner,
+# so the wait is one slice, not the whole job. The service worker checks (update-flow) run by hand in e2e-full.yml. The engine checks (parity, the reproducible extract,
 # the aero scorecards) are not here: they only move when the engine changes,
 # and are run by hand with `npm run audit` in engine-java.
 #
@@ -22,9 +23,14 @@ permissions:
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
-    # npm ci plus `verify` runs a few minutes. A cap sized just over the work
-    # fails on runner load, which a shared runner has.
-    timeout-minutes: 15
+    # A cap sized just over the work fails on runner load, which a shared
+    # runner has.
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # The three parts of `gates` in web/package.json, one runner each.
+        check: [gates:quick, typecheck, lint]
     defaults:
       run:
         working-directory: web
@@ -45,10 +51,10 @@ jobs:
       - if: steps.web-modules.outputs.cache-hit != 'true'
         run: npm ci
 
-      # ONE list, `gates` in web/package.json, run here and locally, so the
-      # gates cannot drift between them. `verify` and
-      # `verify:ci` are two endings on it: a gate added to `verify:ci` alone is
-      # not run by CI. Spelling the steps out here instead lets the hand-run
+      # ONE list, `gates` in web/package.json, run here (its three parts, one
+      # per runner) and locally, so the gates cannot drift between them. The unit suite that `verify` adds to it
+      # locally is the unit job below; a gate added to `verify` or `verify:ci`
+      # alone is not run by CI. Spelling the steps out here instead lets the hand-run
       # list drift from this one. What the list holds, and why each is there:
       #
       #   format:check  Formatting. `.gitattributes` pins LF, without which a
@@ -68,19 +74,61 @@ jobs:
       #   dupes         jscpd over src (`.jscpd.json`): any copied block of 45
       #                 tokens and 5 lines fails, so two copies of a helper
       #                 cannot drift apart.
-      #   vite build    The production build. Before the suite on purpose: it is
-      #                 ~20 s against the suite's ~5 min, so a broken build is
-      #                 reported early rather than after everything else passes.
-      #   vitest        The unit suite, without coverage. Coverage and its
-      #                 floors in vitest.config.ts are checked by hand with
-      #                 `npm run audit`, not here.
-      - run: npm run verify
+      #   vite build    The production build.
+      - run: npm run ${{ matrix.check }}
 
-      # The production build is inside `npm run gates`, so there is no build
-      # step here, and the push gate and the local pre-push command both catch
-      # a change that typechecks and tests clean but breaks the build. `gates`
-      # runs `vite build` directly rather than `npm run build`, because that
-      # script is `typecheck && lint && vite build` and `gates` has just run both.
+      # The production build is in `gates:quick`, so there is no build step
+      # here, and the push gate and the local pre-push command both catch a
+      # change that typechecks and tests clean but breaks the build. It runs
+      # `vite build` directly rather than `npm run build`, because that script
+      # is `typecheck && lint && vite build` and the other two parts run those.
+
+  # The unit suite, without coverage, in three slices on three runners.
+  # Coverage and its floors in vitest.config.ts are checked by hand with
+  # `npm run audit`, not here.
+  unit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      # One slice failing must not cancel the others, or the first red slice
+      # hides the rest of the failures.
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+
+      # node_modules from the cache; `npm ci` only when the lockfile changed.
+      - id: web-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: web/node_modules
+          key: web-modules-${{ runner.os }}-node24-${{ hashFiles('web/package-lock.json') }}
+
+      - if: steps.web-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      # The docs site's too: websiteFooter.test.ts loads
+      # website/docusaurus.config.ts, whose tsconfig extends
+      # `@docusaurus/tsconfig`, which is in website/node_modules.
+      - id: website-modules
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: website/node_modules
+          key: website-modules-${{ runner.os }}-node24-${{ hashFiles('website/package-lock.json') }}
+
+      - if: steps.website-modules.outputs.cache-hit != 'true'
+        working-directory: website
+        run: npm ci
+
+      - run: npx vitest run --shard=${{ matrix.shard }}/3
 
   # The core end-to-end specs: the paths a broken build breaks first (the list is
   # CORE_SPECS in web/playwright.config.ts). Every pull request and push to a
@@ -89,7 +137,11 @@ jobs:
   # download does not slow the unit gate.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     defaults:
       run:
         working-directory: web
@@ -131,7 +183,7 @@ jobs:
       - run: npx playwright install-deps chromium
         if: steps.playwright-cache.outputs.cache-hit == 'true'
 
-      - run: npm run e2e:core
+      - run: npm run e2e:core -- --shard=${{ matrix.shard }}/3
 
       # The HTML report, with the trace of every failed attempt in it, uploaded
       # when the job fails. A spec that passes on its retry leaves the job green
@@ -139,6 +191,6 @@ jobs:
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         if: failure()
         with:
-          name: playwright-report-core
+          name: playwright-report-core-${{ matrix.shard }}
           path: web/playwright-report/
           retention-days: 7

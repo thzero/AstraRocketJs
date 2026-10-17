@@ -49,6 +49,10 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'tests/**/*.test.tsx'],
     environment: 'node',
     setupFiles: ['tests/testing/allLocales.ts'],
+    // A passing test slower than this prints a yellow check instead of a green
+    // one. The 300 ms default marks most component tests on a CI runner, so the
+    // yellow stops pointing at anything.
+    slowTestThreshold: 2000,
     // Vitest isolates one worker per file, and this suite has hundreds of them.
     // Uncapped, a 32-core box starts one worker per file at ~9.5 s of startup
     // each, and under that load a file that drives the real TeaVM kernel can blow

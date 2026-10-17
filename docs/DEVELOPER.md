@@ -175,8 +175,9 @@ What CI gates on the PR itself (`.github/workflows/gates.yml`):
 
 | Job              | Runs                                                                                                      |
 | ---------------- | --------------------------------------------------------------------------------------------------------- |
-| `build-and-test` | `npm run verify` (the gate list and the unit suite, without coverage)                                     |
-| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), in one job        |
+| `build-and-test` | `npm run gates` in three parts: `gates:quick` (format, spell, knip, dupes, build), `typecheck`, `lint`    |
+| `unit`           | the unit suite, without coverage, split three ways (`vitest run --shard`)                                 |
+| `e2e`            | `npm run e2e:core`, the core Playwright specs (`CORE_SPECS` in `playwright.config.ts`), split three ways  |
 
 The engine checks are not CI gates. After a change under `engine-java/` or to the vendored engine, run `npm run audit` in `engine-java/` (needs a JDK): parity, a rebuild that fails if the committed engine binaries differ, the extraction check, the pinned upstream date, and the aero scorecards. It stops at the first failure and names the step.
 
