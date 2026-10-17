@@ -1,6 +1,6 @@
 import { afterEach, describe, it, expect, vi } from 'vitest';
 import { globSync, readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * The docs footer names the app version in every locale.
@@ -15,12 +15,19 @@ const { version } = JSON.parse(readFileSync(`${repo}web/package.json`, 'utf8')) 
 
 type FooterConfig = { default: { themeConfig: { footer: { copyright: string } } } };
 
+/**
+ * By URL, not a literal path: tsc would follow a literal into the config's
+ * Docusaurus types, which resolve only where website/ has its own
+ * node_modules, and the CI job that typechecks web/ installs web/ alone.
+ */
+const configUrl = pathToFileURL(`${repo}website/docusaurus.config.ts`).href;
+
 /** The footer line the config builds with DOCUSAURUS_CURRENT_LOCALE set to `locale`, or unset. */
 const footerFor = async (locale: string | undefined): Promise<string> => {
   if (locale === undefined) vi.stubEnv('DOCUSAURUS_CURRENT_LOCALE', undefined);
   else vi.stubEnv('DOCUSAURUS_CURRENT_LOCALE', locale);
   vi.resetModules();
-  const mod = (await import('../../website/docusaurus.config')) as unknown as FooterConfig;
+  const mod = (await import(configUrl)) as FooterConfig;
   return mod.default.themeConfig.footer.copyright;
 };
 
