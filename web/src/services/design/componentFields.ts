@@ -460,7 +460,7 @@ export const PANEL_SCOPE_KEYS = ['overrideMass', 'overrideCGX', 'offset'] as con
  * The fields per component type, before `required` is filled in. `label` is an
  * i18n key suffix under `prop.*` (resolved at render).
  *
- * `PropertyPanel.scopes.test.ts` checks (through {@link FIELDS}) that no two
+ * `PropertyPanel.test.tsx` checks (through {@link FIELDS}) that no two
  * fields of a type collide on a unit scope. The scopes are strings assembled
  * from (type, key), so a duplicated key would silently make two fields share
  * one unit choice.

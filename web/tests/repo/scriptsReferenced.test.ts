@@ -19,8 +19,8 @@ import { fileURLToPath } from 'node:url';
  * one that is working.
  */
 
-const web = fileURLToPath(new URL('..', import.meta.url));
-const repo = fileURLToPath(new URL('../..', import.meta.url));
+const web = fileURLToPath(new URL('../..', import.meta.url));
+const repo = fileURLToPath(new URL('../../..', import.meta.url));
 const read = (p: string) => readFileSync(p, 'utf8');
 
 /** Top-level programs: the `.mjs` files directly in `scripts`. `scripts/lib` holds

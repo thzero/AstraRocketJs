@@ -233,3 +233,22 @@ describe('the aft view pans from the keyboard', () => {
     expect(transform()).not.toBe(zoomed);
   });
 });
+
+/** The side view pans from the keyboard the same way once zoomed in. */
+describe('the side view pans from the keyboard', () => {
+  const svg = () => screen.getByLabelText(/^Rocket side view/);
+  const transform = () => svg().querySelector('g[transform^="translate"]')!.getAttribute('transform');
+
+  it('takes focus and the arrows only once zoomed in', () => {
+    renderWithProviders(<TreeSchematic tree={tree} info={null} />);
+    expect(svg().getAttribute('tabindex')).toBeNull();
+    const fitted = transform();
+    fireEvent.keyDown(svg(), { key: 'ArrowLeft' });
+    expect(transform()).toBe(fitted);
+    fireEvent.click(btn(ZOOM_IN));
+    expect(svg().getAttribute('tabindex')).toBe('0');
+    const zoomed = transform();
+    expect(fireEvent.keyDown(svg(), { key: 'ArrowLeft' })).toBe(false);
+    expect(transform()).not.toBe(zoomed);
+  });
+});

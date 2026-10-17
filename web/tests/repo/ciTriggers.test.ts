@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
  * which `knip` would then report as an unlisted dependency.
  */
 const wf = (name: string) =>
-  readFileSync(fileURLToPath(new URL(`../../.github/workflows/${name}`, import.meta.url)), 'utf8');
+  readFileSync(fileURLToPath(new URL(`../../../.github/workflows/${name}`, import.meta.url)), 'utf8');
 
 describe('CI trigger coverage', () => {
   it('checks a push to every branch except master and beta', () => {
@@ -115,7 +115,7 @@ describe('the verify checks', () => {
  */
 describe('every job has a timeout', () => {
   // Every workflow in the folder, so a new one is checked without being listed.
-  const FILES = readdirSync(fileURLToPath(new URL('../../.github/workflows/', import.meta.url))).filter((f) =>
+  const FILES = readdirSync(fileURLToPath(new URL('../../../.github/workflows/', import.meta.url))).filter((f) =>
     /\.ya?ml$/.test(f),
   );
 

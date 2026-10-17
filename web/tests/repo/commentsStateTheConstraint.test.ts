@@ -71,8 +71,8 @@ const ALLOWED: { file: string; text: string; reason: string }[] = [];
 
 // Forward slashes on every platform, so the path tests below read the same on Windows.
 const slashed = (url: URL): string => fileURLToPath(url).replace(/\\/g, '/');
-const web = slashed(new URL('..', import.meta.url));
-const repo = slashed(new URL('../..', import.meta.url));
+const web = slashed(new URL('../..', import.meta.url));
+const repo = slashed(new URL('../../..', import.meta.url));
 
 /** Trees that are generated, never edited by hand. */
 const skipped = ['/src/engine/vendor'];
@@ -276,7 +276,7 @@ const hits = (paths: string[], allowed = ALLOWED): string[] => {
 describe('comments and test titles state the constraint', () => {
   it('scans the trees it claims to', () => {
     expect(files.some((f) => f.endsWith('/web/src/main.tsx'))).toBe(true);
-    expect(files.some((f) => f.endsWith('/web/tests/noEmDash.test.ts'))).toBe(true);
+    expect(files.some((f) => f.endsWith('/web/tests/repo/noEmDash.test.ts'))).toBe(true);
     expect(files.some((f) => f.includes('/web/e2e/'))).toBe(true);
     expect(files.some((f) => f.includes('/web/scripts/'))).toBe(true);
     expect(files.some((f) => f.endsWith('/engine-java/src/api/java/api/OpenRocketEngine.java'))).toBe(true);

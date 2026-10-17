@@ -55,6 +55,17 @@ const fetchIt = async () => {
 };
 
 describe('WeatherDialog', () => {
+  it('prints the wind direction in the angle unit', async () => {
+    seedSettings({ units: { angle: 'rad' } });
+    try {
+      open();
+      await fetchIt();
+      expect(screen.getByText(/ from [\d.,]+ rad, /)).toBeTruthy();
+    } finally {
+      localStorage.clear();
+    }
+  });
+
   it('asks for the site first when it has no coordinates', () => {
     renderWithProviders(
       <WeatherDialog launch={{ ...SITE, latitudeDeg: null }} onChange={() => {}} onClose={() => {}} />,

@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
  * and a `files`/`ignores` interaction is exactly the thing a regex over the source
  * gets wrong.
  */
-const cwd = fileURLToPath(new URL('..', import.meta.url));
+const cwd = fileURLToPath(new URL('../..', import.meta.url));
 const eslint = new ESLint({ cwd });
 
 // The first query loads the whole config (typescript-eslint and every plugin):
@@ -42,7 +42,7 @@ describe('the generated trees are outside the linter', () => {
   });
 
   it('still lints the tests and the e2e specs', async () => {
-    for (const rel of ['tests/lintScope.test.ts', 'e2e/base.ts']) {
+    for (const rel of ['tests/repo/lintScope.test.ts', 'e2e/base.ts']) {
       expect(await eslint.isPathIgnored(rel), rel).toBe(false);
     }
   });

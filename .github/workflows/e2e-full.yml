@@ -21,6 +21,12 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    # Chromium and its system libraries come baked into the image. The tag must
+    # match @playwright/test in web/package-lock.json; the check step fails when
+    # they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
     strategy:
       # One shard failing must not cancel the other, or the first red shard
       # hides the rest of the failures.
@@ -54,21 +60,10 @@ jobs:
       - name: Build the docs the Help dialog reads
         run: npm run docs:build
 
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      - name: Check the image matches Playwright
+        run: |
+          v=$(node -p "require('@playwright/test/package.json').version")
+          [ "$v" = "1.63.0" ] || { echo "::error::@playwright/test is $v; update the container image tag in e2e-full.yml"; exit 1; }
 
       - run: npm run e2e -- --shard=${{ matrix.shard }}/${{ strategy.job-total }}
 
@@ -99,6 +94,12 @@ jobs:
     # headless Chromium.
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # Chromium and its system libraries come baked into the image. The tag must
+    # match @playwright/test in web/package-lock.json; the check step fails when
+    # they differ.
+    container:
+      image: mcr.microsoft.com/playwright:v1.63.0-noble
+      options: --user 1001
     defaults:
       run:
         working-directory: web
@@ -139,21 +140,10 @@ jobs:
       - name: Build the docs the offline-help check reads
         run: npm run docs:build
 
-      - name: Resolve Playwright version
-        id: pw
-        run: echo "version=$(node -p "require('@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        id: playwright-cache
-        with:
-          path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
-
-      - run: npx playwright install --with-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit != 'true'
-
-      - run: npx playwright install-deps chromium
-        if: steps.playwright-cache.outputs.cache-hit == 'true'
+      - name: Check the image matches Playwright
+        run: |
+          v=$(node -p "require('@playwright/test/package.json').version")
+          [ "$v" = "1.63.0" ] || { echo "::error::@playwright/test is $v; update the container image tag in e2e-full.yml"; exit 1; }
 
       - run: npm run e2e:update
 

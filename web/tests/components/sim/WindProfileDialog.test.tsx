@@ -2,7 +2,7 @@
 // cspell:ignore Schicht entfernen
 import { describe, it, expect, vi } from 'vitest';
 import { useState } from 'react';
-import { fireEvent, screen } from '@testing-library/react';
+import { act, fireEvent, screen } from '@testing-library/react';
 import { WindProfileDialog } from '../../../src/components/sim/WindProfileDialog';
 import { renderWithProviders, seedSettings } from '../../testing/renderWithProviders';
 import { launchPatchFor, type LaunchConditions, type WindLevel } from '../../../src/services/design/orkTree';
@@ -290,5 +290,30 @@ describe('WindProfileDialog deviation ceiling', () => {
     const deviation = screen.getByLabelText('Deviation 1') as HTMLInputElement;
     expect(deviation.getAttribute('max')).not.toBeNull();
     for (const n of [2, 3]) expect(screen.getByLabelText(`Deviation ${n}`).getAttribute('max')).toBeNull();
+  });
+});
+
+/**
+ * Reading the CSV resolves after the fact, and the import writes to whatever
+ * simulations are the current edit targets. Closing the dialog before the read
+ * finishes must not let it land on them.
+ */
+describe('WindProfileDialog CSV import', () => {
+  it('drops a file whose read finishes after the dialog was closed', async () => {
+    const csv = ['altitude,speed,direction,stddev', '0,4,90,0', '500,8,110,1'].join('\n');
+    const bytes = new TextEncoder().encode(csv);
+    let finish!: (b: ArrayBuffer) => void;
+    const file = new File([bytes], 'wind.csv', { type: 'text/csv' });
+    file.arrayBuffer = () => new Promise<ArrayBuffer>((r) => (finish = r));
+    const onChange = vi.fn();
+    const { unmount } = renderWithProviders(
+      <WindProfileDialog launch={{ windLevels: LEVELS } as LaunchConditions} onChange={onChange} onClose={() => {}} />,
+    );
+    fireEvent.change(document.body.querySelector('input[type="file"]')!, { target: { files: [file] } });
+    unmount();
+    await act(async () => {
+      finish(bytes.buffer.slice(0) as ArrayBuffer);
+    });
+    expect(onChange).not.toHaveBeenCalled();
   });
 });
