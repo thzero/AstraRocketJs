@@ -6,12 +6,12 @@ import { isMaterialType, type MaterialType } from '../materials/materialTypes';
  * What a part is made of by default: which material slots each type has, and
  * what goes in them when nobody has said.
  *
- * Its own module, and a leaf one. `services/materials/materials` reaches the material
- * catalog, which pulls in the remote-data fetch and the IndexedDB custom store,
- * and the default rocket is built in `services/design/defaultRocket`, where
- * none of that belongs.
- * Nothing here needs a catalog: the three stock materials are the kernel's own
- * and are named in `tree/kernelDefaults`.
+ * Its own module, and a leaf one. `services/materials/materials` reaches the
+ * material catalog, which pulls in the remote-data fetch and the IndexedDB
+ * custom store, and the default rocket is built in
+ * `services/design/defaultRocket`, where none of that belongs. Nothing here
+ * needs a catalog: the three stock materials are the kernel's own and are named
+ * in `tree/kernelDefaults`.
  */
 
 /**
@@ -106,10 +106,11 @@ const KERNEL_PART_MATERIALS: Record<
  * is written to the `.ork`.
  *
  * The kernel fallback is why a new part does not read "Not specified". An unset
- * material is not a lighter part: the kernel flies it as cardboard (a rail button
- * as Delrin), ripstop nylon or elastic cord, and the `.ork` writer fills the same
- * materials in. Stamping it here makes the panel say what the simulation is using before
- * the save rather than after it, which is also what the desktop shows: every
+ * material is not a lighter part: the kernel flies it as cardboard (a rail
+ * button as Delrin), ripstop nylon or elastic cord, and the `.ork` writer fills
+ * the same materials in. Stamping it here makes the panel say what the
+ * simulation is using before the save rather than after it, which is also what
+ * the desktop shows: every
  * OpenRocket component is constructed with one of these, so its own dropdown
  * never has an empty state to explain.
  *

@@ -110,7 +110,7 @@ test('folded notes stay folded across a reload, and a new import opens them', as
  *
  * Every other safety behavior in this file is a refusal: conditions outside the
  * codes, and no flight. This is the other half, and the one that applies to
- * every flight that does happen - the numbers are real and the launch is legal,
+ * every flight that does happen: the numbers are real and the launch is legal,
  * and they are still a model's answer rather than a flight card. It has to sit
  * with the measurements, because the moment it matters is the moment they are
  * being read.

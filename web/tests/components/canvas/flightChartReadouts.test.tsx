@@ -43,7 +43,7 @@ describe('the live region', () => {
     renderWithProviders(<FlightChart flight={flight} />);
     fireEvent.keyDown(screen.getByRole('group', { name: /Flight charts/ }), { key: 'End' });
     const text = screen.getByRole('status').textContent ?? '';
-    // The panel spans about 120 m/s, so its header carries no decimals; the
+    // The panel spans about 110 m/s, so its header carries no decimals; the
     // value under the crosshair (-5) must not pick up two of its own.
     expect(text).toMatch(/Velocity \S*5 m\/s/);
     expect(text).not.toContain('5.00');

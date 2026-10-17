@@ -30,7 +30,7 @@ describe('outerProfile on hostile lengths', () => {
     expect(Array.isArray(pts)).toBe(true);
   });
 
-  it('a sane transition still clips (the guard did not disable clipping)', () => {
+  it('still clips a sane transition under the guard', () => {
     const clipped = outerProfile('ellipsoid', undefined, 0.1, 0.01, 0.03, 8, undefined, true);
     const unclipped = outerProfile('ellipsoid', undefined, 0.1, 0.01, 0.03, 8, undefined, false);
     expect(clipped).not.toEqual(unclipped);

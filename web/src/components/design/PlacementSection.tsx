@@ -19,11 +19,9 @@ import { positionOf } from '../../tree/nodeProps';
  * the offset from it), and around it (the rotation, for the parts that have
  * one).
  *
- * The rotation belongs here, not in the dimension list, which puts a launch lug's
- * angle between its radius and its length and leaves the two names for one idea (a
- * lug's "Angle around body", a fin set's "Base rotation") rows apart in different
- * sections. They are one kernel property: `FinSet.getBaseRotation()` returns
- * `getAngleOffset()`.
+ * The rotation belongs here, not in the dimension list, so a lug's "Angle around
+ * body" and a fin set's "Base rotation" sit in the same section. They are one
+ * kernel property: `FinSet.getBaseRotation()` returns `getAngleOffset()`.
  */
 
 /** Placement: only meaningful for parts nested inside a tube. */

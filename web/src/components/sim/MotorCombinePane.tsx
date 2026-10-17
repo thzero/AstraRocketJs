@@ -21,7 +21,7 @@ import { useEngineStore } from '../../state/engineStore';
 
 /** Cluster chart: the summed total as a filled orange envelope with each motor's
  *  own curve overlaid on top (categorical colors), so you see each contribution.
- *  Legend + direct labels are the secondary encoding for the palette floor band. */
+ *  A legend and direct labels name the curves, so color is not the only cue. */
 function CombineChart({
   combined,
   series,
@@ -92,7 +92,7 @@ function CombineChart({
 
 /** The cluster summary: class chip, chart and the combined totals. `motors`
  *  must be referentially stable across renders (the dashboard memoizes it on
- *  the checked set) so the combine memo below is honest. */
+ *  the checked set) so the combine memo below holds. */
 export function MotorCombinePane({ motors }: { motors: CatalogMotor[] }) {
   const { t } = useTranslation();
   const u = useUnits();

@@ -13,12 +13,11 @@ import type { ComponentNode } from '../../src/engine/openRocketEngine';
  * `ComponentFactory`; this proves the consumers read the table. A consumer with
  * its own substitute builds a different part: a flat 12 mm outer radius for every
  * tube, where the kernel builds an inner tube at 9.5 mm and a launch lug at
- * 2.2 mm; a 0.5 mm wall for a body tube the kernel builds at 0.3 mm; a 3 mm
- * coupler length against the kernel's 50 mm; an 80 mm tube fin length against
- * the kernel's 100 mm.
+ * 5 mm; a 0.5 mm wall for a body tube the kernel builds at 2 mm; a 3 mm coupler
+ * length against the kernel's 60 mm.
  *
  * The consequence is specific to these consumers: they produce a part. A launch
- * lug exported at 5.5 times its flown radius does not fit the rocket that was
+ * lug exported at 2.4 times its flown radius does not fit the rocket that was
  * simulated, and nothing in the file says the two disagree.
  *
  * Measured off the geometry rather than asserted against a literal, so the test
@@ -67,8 +66,8 @@ describe('the printable solid uses the kernel default for an absent radius', () 
   });
 
   it('separates the three, which one flat literal could not', () => {
-    // A single 12 mm substitute would make the lug 5.5x too big and the inner
-    // tube 1.26x. If they ever collapse to one number, this fails whatever that
+    // A single 12 mm substitute would make the lug 2.4x too big and the inner
+    // tube 1.26x. If they collapse to one number, this fails whatever that
     // number is.
     const r = (t: string) => outerRadiusOf(solidForNode(tube(t))!);
     expect(r('innertube')).toBeLessThan(r('bodytube'));
@@ -76,8 +75,8 @@ describe('the printable solid uses the kernel default for an absent radius', () 
   });
 
   it('uses the kernel wall for a body tube, not the inner tube one', () => {
-    // 0.3 mm against 0.5 mm: on a 12 mm tube that is the difference between a
-    // 0.6 mm and a 1.0 mm wall on the printed part.
+    // 2 mm against 0.5 mm: the inner tube's wall would print a body tube at a
+    // quarter of the thickness the kernel flies.
     const geo = solidForNode(tube('bodytube'))!;
     const wall = outerRadiusOf(geo) - innerRadiusOf(geo);
     expect(wall).toBeCloseTo(KERNEL_DEFAULTS.bodytube.thickness, 5);
@@ -91,8 +90,7 @@ describe('the printable solid uses the kernel default for an absent radius', () 
 
   it('skips a type the kernel states no radius for rather than inventing one', () => {
     // A tube fin set with no radius and no parent: the kernel auto-sizes it from
-    // the body, so the size is unknowable here. Skipped, which is what the
-    // surrounding code already documents.
+    // the body, so the size is unknowable here.
     expect(solidForNode(tube('tubefinset'), null)).toBeNull();
   });
 });
@@ -104,7 +102,7 @@ describe('the disc sketch uses the kernel length for an absent coupler length', 
   it('sizes a tube coupler at the length the kernel builds', () => {
     const d = discDims(coupler('tubecoupler'), null, []);
     expect(d!.length).toBe(KERNEL_DEFAULTS.tubecoupler.length);
-    // Not a bare 3 mm: 3 mm against 50 mm is a sixteenth of the part.
+    // Not a bare 3 mm: 3 mm against 60 mm is a twentieth of the part.
     expect(d!.length).not.toBe(0.003);
   });
 

@@ -45,8 +45,8 @@ import java.util.List;
  * replaced by one looked up by density, so its digest depends on the material
  * database that build ships: a release and a source checkout give such a part
  * different digests, while parts with no stated mass agree across both. So the
- * digests are only as right as the build this is
- * pointed at, which is why the script that drives this takes that path.
+ * digests are only as right as the build this is pointed at, which is why the
+ * script that drives this checks that build against the pinned release.
  *
  * Output: one TAB-separated row per preset,
  *

@@ -34,7 +34,7 @@ const PARTNER: Record<string, Record<string, unknown>> = {
  * loads before its base and flange, so the setter clamps it against the
  * constructor's 2 mm each (as the desktop loader does): a height under 4 mm
  * does not survive a reopen on either side. A fin cant reads back clamped to
- * the kernel's 15 degrees (FinSet.setCantAngle), so its probe stays inside them.
+ * the kernel's 15 degrees (FinSet.MAX_CANT_RADIANS), so its probe stays inside it.
  */
 const VALUES: Record<string, unknown[]> = {
   'railbutton.height': [0.0131],
@@ -43,7 +43,10 @@ const VALUES: Record<string, unknown[]> = {
   'freeformfinset.cant': [0.23],
 };
 
-/** Two values per field, so a field stuck at either default still fails. */
+/**
+ * Probe values by field kind. Numbers are offset by the field's index; a bool
+ * or select takes two values, so one stuck at either default still fails.
+ */
 const valuesFor = (f: Field, i: number): unknown[] => {
   switch (f.kind) {
     case 'length':

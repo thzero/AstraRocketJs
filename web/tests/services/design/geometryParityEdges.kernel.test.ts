@@ -350,8 +350,8 @@ function edges(node: ComponentNode, k: KernelGeometry, parentLength: number, fro
 /**
  * A tab the kernel cuts deeper than the limit it settles at (`getMaxTabHeight`)
  * would fly a tab the body has no room for; `settleFinTabs` re-clamps each tab
- * once its fin set stands at its station. Accepted disagreements, each with its
- * reason; none today.
+ * once its fin set stands at its station. `KNOWN` holds accepted disagreements,
+ * each with its reason.
  */
 const DEEP_TAB = 'tab deeper than the kernel limit it settles at';
 const KNOWN: Record<string, string> = {};

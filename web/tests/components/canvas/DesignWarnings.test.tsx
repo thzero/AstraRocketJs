@@ -11,8 +11,7 @@ const setInfo = (warningTexts: string[]) =>
 
 /**
  * The kernel's design warnings arrive in `StaticInfo.warningTexts`, and this panel
- * is where they are shown. They are the class of warning OpenRocket shows most
- * often, so an unread field would hide them silently.
+ * is where they are shown; an unread field would hide them silently.
  */
 describe('DesignWarnings', () => {
   beforeEach(() => setInfo([]));

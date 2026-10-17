@@ -13,16 +13,16 @@ import { loadOrk } from '../../../src/services/files/loadOrk';
  * Which motor desktop OpenRocket flies for the `<motor>` block a save writes.
  *
  * The lookup below is desktop's own, written out from the Java:
- * MotorHandler.endHandler (core/.../file/openrocket/importt/MotorHandler.java:65)
+ * MotorHandler.getMotor (core/.../file/openrocket/importt/MotorHandler.java:65)
  * passes the file's type (null when absent), manufacturer (null when absent,
- * :31 and :171-174), designation and digest, with NaN diameter and length, to
- * ThrustCurveMotorSetDatabase.findMotors
- * (core/.../database/motor/ThrustCurveMotorSetDatabase.java:25-77), which
+ * :31 and :174), designation and digest, with NaN diameter and length, through
+ * the motor finder to ThrustCurveMotorSetDatabase.findMotors
+ * (core/.../database/motor/ThrustCurveMotorSetDatabase.java:25-78), which
  * returns the full matches, else the digest matches, else the description
- * matches. A manufacturer filters only when it is non-null (:47), through
+ * matches. A manufacturer filters only when it is non-null (:48), through
  * Manufacturer.matches (core/.../motor/Manufacturer.java:215-219, search string
  * at :262-264). A designation matches when either name contains the other
- * (:49-51).
+ * (:50-52).
  *
  * The database is OpenRocket's own: the digests the catalog carries are synced
  * from it, one entry per desktop motor, and a catalog row with none is a motor

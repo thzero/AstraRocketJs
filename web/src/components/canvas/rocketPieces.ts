@@ -36,7 +36,7 @@ import { railButtonSize } from './railButton';
  * Owns the 3D geometry of the rocket: the component tree to Piece list build
  * (`buildPieces`, shared with the flight path view), the
  * bounds of that list, and the marker size rule the callouts hang off. Pure
- * three.js, no React, so every number here is testable without a canvas.
+ * three.js, no React.
  * Rocket axis = +X (nose tip at x=0, aft increasing), matching the engine.
  */
 
@@ -116,10 +116,9 @@ function lathePoints(
  * bore is where every internal part has to fit.
  *
  * The dimensions come from the same `resolveDisc` the DXF cut sheet and the
- * print solids use. The revolve is the view's own because `solidMesh.ts` says
- * in its header that its geometry is built watertight for printing and does
- * not serve the view; this is the same rectangle at the view's segment count,
- * with no welding or manifold checks.
+ * print solids use. The revolve is the view's own: `solidMesh.ts` builds
+ * watertight geometry for printing, and this is the same rectangle at the
+ * view's segment count, with no welding or manifold checks.
  */
 function annulusGeometry(outerR: number, innerR: number, length: number): THREE.BufferGeometry {
   // A wall at least as thick as the radius leaves no bore. `discSolid` returns
@@ -585,7 +584,7 @@ export const markerRadius = (totalLen: number, maxR: number): number => Math.max
  * World-space bounds of the rendered rocket, straight off the Piece list.
  * `Box3.setFromObject(scene)` would also work, but the pieces are what the
  * scene is built from, so this needs no world matrices to be up to date, is
- * deterministic outside a mounted canvas (hence testable), and leaves out the
+ * deterministic outside a mounted canvas, and leaves out the
  * CG/CP marker spheres (annotations, not rocket). Pieces carrying a bake-in
  * transform already have it applied to their geometry; the rest get their
  * position/rotation applied here as T·R, exactly as <mesh> composes it. A

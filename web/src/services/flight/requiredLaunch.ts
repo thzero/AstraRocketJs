@@ -11,8 +11,8 @@ import type { LaunchConditions } from '../design/orkTree';
  * Stored as null when cleared, never coerced with `v ?? 0`: zero reads as a real
  * value to everything downstream, and six of these seven are legitimately zero
  * (rod angle straight up, still air, no gusts, sea level, the equator, the prime
- * meridian), so a
- * coerced field makes "the user cleared it" and "the user meant 0" the same state.
+ * meridian), so a coerced field makes "the user cleared it" and "the user meant
+ * 0" the same state.
  */
 export const REQUIRED_LAUNCH_KEYS = [
   'launchRodLengthM',

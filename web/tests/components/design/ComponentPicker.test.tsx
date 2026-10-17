@@ -332,7 +332,7 @@ describe('ComponentPicker', () => {
     });
   });
 
-  describe('sorting the columns that were not sortable', () => {
+  describe('sorting the type-specific columns', () => {
     it('sorts a nose cone by shape', async () => {
       const { dialog } = await open('nosecone');
       fireEvent.click(head(dialog, 'Shape'));
@@ -353,8 +353,8 @@ describe('ComponentPicker', () => {
   });
 
   it('marks a drag coefficient the catalog did not publish as a default', async () => {
-    // A row that omits its Cd shows the default it applies in brackets, so a bare
-    // "0.80" would not read as a manufacturer spec; a stated Cd is shown as is.
+    // A row that omits its Cd shows the default it applies in brackets, so the
+    // value does not read as a manufacturer spec; a stated Cd is shown as is.
     const { dialog } = await open('parachute');
     const cells = [...dialog.querySelectorAll('tbody tr')].map((tr) => [...tr.querySelectorAll('td')][3]!);
     const defaulted = cells.filter((c) => c.textContent === '(0.80)');
@@ -404,7 +404,7 @@ describe('ComponentPicker', () => {
     const cells = [...dialog.querySelectorAll('tbody tr')[0]!.querySelectorAll('td')];
     for (const td of cells) expect(td.className).toContain('truncate');
     // The material names run to `Paper, spiral kraft glassine, Estes avg, bulk`,
-    // which no sane column width fits.
+    // which no fixed column width fits.
     const material = cells[5]!;
     expect(material.getAttribute('title')).toBeTruthy();
     expect(material.getAttribute('title')!.length).toBeGreaterThanOrEqual(material.textContent!.length);

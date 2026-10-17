@@ -694,8 +694,7 @@ function Streamer({ length, width, color }: { length: number; width: number; col
   }, [w, L]);
   // R3F does not dispose geometry it did not construct, and this one is passed
   // in via the `geometry` prop, so without this each unmount and each w/L
-  // change would leak one GPU buffer. Flame, CalloutLabel and usePieces
-  // dispose theirs the same way.
+  // change would leak one GPU buffer.
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group position={[0, L / 2, 0]}>

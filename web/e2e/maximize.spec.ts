@@ -27,8 +27,8 @@ test('the drawing can take the whole window, and come back', async ({ page }) =>
   // and at full width it would take a band off the top of the very thing the
   // expand exists to give room to.
   await expect(stats).toBeHidden();
-  // The dividers go with the columns they divide - there is nothing left to
-  // drag, and a divider against the window edge is a trap.
+  // The dividers go with the columns they divide: there is nothing left to
+  // resize.
   await expect(page.getByRole('separator')).toHaveCount(0);
 
   // A layout preference like the two widths, so it survives the page. Waits on
@@ -52,7 +52,7 @@ test('maximizing is a desktop mode and leaves a phone alone', async ({ page }) =
 
   // The flag persists, so a narrow window can meet it switched on. A phone has
   // no side columns to reclaim and reaches its statistics through the
-  // Rocket/Sketch split instead, so the mode must not reach down here - it would
+  // Rocket/Sketch split instead, so the mode must not reach down here: it would
   // hide that half with no way back, since the toggle itself is desktop-only.
   await page.setViewportSize({ width: 390, height: 844 });
   await expect(page.getByRole('button', { name: /whole window/ })).toBeHidden();

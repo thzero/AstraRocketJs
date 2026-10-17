@@ -73,9 +73,8 @@ describe('buildDesignInfo', () => {
     expect(f['Normal-Force Slope (CNα)']).toMatchObject({ unit: '1/rad' });
     expect(f['Roll Inertia (Loaded)']).toMatchObject({ unit: 'kg*m^2' });
     expect(f['CP']).toBeDefined();
-    // The kernel's own figure, verbatim. (cp - cg) / length would be 29.65:
-    // right shape, wrong denominator. Pinning the value is what keeps that
-    // formula out.
+    // The kernel's own figure, verbatim, over the aerodynamic length;
+    // (cp - cg) / length would be 29.65.
     expect(f['Stability (%)']).toMatchObject({ value: '31.5', unit: '%' });
   });
 

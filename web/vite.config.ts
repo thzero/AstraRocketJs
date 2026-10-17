@@ -236,9 +236,8 @@ export default defineConfig({
         // query would make every one of those a miss. Offline, the request would
         // fall through every runtime rule (they cover page loads, docs pages,
         // the jsDelivr host, the engine fallback, the report fonts and map
-        // tiles) and fail at the network: no motors,
-        // no components, no materials, on the one device that is at a launch
-        // site with no signal. Workbox's default ignores only `utm_*` and
+        // tiles) and fail at the network: no motors, no components, no
+        // materials, on the one device that is at a launch site with no signal. Workbox's default ignores only `utm_*` and
         // `fbclid`.
         //
         // Ignoring it costs nothing. The in-build copy changes only when the
@@ -277,8 +276,8 @@ export default defineConfig({
             // assets it references are fetched or precached as usual. The
             // toast still handles a tab that stays open across a deploy.
             //
-            // /docs/ is the Docusaurus site copied into dist at deploy time;
-            // a docs page must never fall back to the app shell, so it is
+            // /docs/ is the Docusaurus site, built into public/docs and copied
+            // into dist; a docs page must never fall back to the app shell, so it is
             // excluded here and handled by the rule below instead.
             urlPattern: ({ request, url }) => request.mode === 'navigate' && !url.pathname.includes('/docs/'),
             handler: 'NetworkFirst',
@@ -462,7 +461,8 @@ export default defineConfig({
       },
     }),
   ],
-  // Expose the package version to the app (shown in the header).
+  // Build-time constants for the app: the version and channel (shown in the
+  // header), the Help and contributors links, and the pinned OpenRocket commit.
   define: {
     __APP_VERSION__: JSON.stringify(version),
     __APP_CHANNEL__: JSON.stringify(channel),

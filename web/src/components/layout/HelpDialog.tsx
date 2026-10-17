@@ -17,8 +17,8 @@ import { useHelpSearch } from './useHelpSearch';
  * deploy builds that site into `web/public/docs` before the app build, so the
  * pages shown here are byte for byte the pages published at the docs URL; what
  * this adds is a frame around them. The docs stay one source, and the external
- * link stays in the dialog header, because a docs site you can send someone is not
- * replaceable by a dialog.
+ * link stays in the dialog header, because a docs page can be sent to someone
+ * and a dialog cannot.
  *
  * Why an iframe of the built HTML, rather than rendering the source markdown:
  * the markdown route needs Docusaurus to emit its sources (it does not), a
@@ -58,8 +58,7 @@ export function HelpDialog({ page, onClose }: { page: string; onClose: () => voi
     <Dialog
       id="help"
       // The page's title, not the word Help: the dialog is a reader and which
-      // page you are on is the thing worth saying. It is also the accessible
-      // name, so a screen reader announces the same.
+      // page you are on is the thing worth saying.
       title={heading}
       // The dialog stays "Help" to assistive tech while the heading above moves
       // with the page: this is the one dialog you navigate within, and a name

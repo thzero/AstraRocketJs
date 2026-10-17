@@ -16,8 +16,9 @@ import { COMPONENT_DEFAULTS } from './componentDefaults';
  * sheet (dxfExport), the STL/3MF print solids (componentExport,
  * rocketPrintExport), the 3D view's internals (rocketPieces) and the automatic
  * radius and shoulder resolvers (autoRadius, autoShoulder). Held inside the
- * DXF writer it could only be reused by dragging the whole R12 serializer into the
- * first-paint bundle. No three.js and no writers here, so anyone can import it.
+ * DXF writer it could only be reused by dragging the whole R12 serializer into
+ * the first-paint bundle. No three.js and no writers here, so anyone can import
+ * it.
  */
 
 /** Used when a ring's outer radius can't be resolved from its parent tube. */
@@ -215,7 +216,7 @@ export function discDims(
       node.type === 'engineblock' ? COMPONENT_DEFAULTS.engineblock.thickness : COMPONENT_DEFAULTS.tubecoupler.thickness,
     );
     // The fallback length comes from the shared table, which holds the kernel's
-    // own default (a tube coupler is 50 mm in ComponentFactory.java), so a
+    // own default (a tube coupler is 60 mm in ComponentFactory.java), so a
     // coupler whose `length` key is absent is sketched, cut and printed at the
     // length it flies.
     const length = num(

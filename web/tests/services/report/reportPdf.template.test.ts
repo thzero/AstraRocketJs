@@ -7,9 +7,7 @@ import type { UnitSelection } from '../../../src/prefs/units';
  * The fin template's page-fit check must not take its width and height from
  * `Math.max(...pts.map(...))`. A freeform outline is file-sourced, and
  * spreading a large one into a call overflows the stack with an opaque
- * "Maximum call stack size exceeded" (dxfExport.ts loops for the same reason).
- * Nothing else in the suite drives the template section, so this is the case
- * that holds the loop in place.
+ * "Maximum call stack size exceeded".
  */
 
 const saveBlob = vi.fn((_blob: Blob, _name: string) => Promise.resolve());

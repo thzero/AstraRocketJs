@@ -22,9 +22,9 @@ type Engine = Awaited<ReturnType<typeof loadEngine>>;
  * **Every case also asserts its own sensitivity**, because "identical" proves
  * nothing if the observable cannot see the field at all. Component length/mass
  * would pass a deliberately wrong mass-component radius: a mass component's
- * mass is an override, so its radius moves neither. Two fields therefore use a
- * whole-rocket observable, where the radius shows up in roll inertia and the
- * pod instance count in total mass.
+ * mass is an override, so its radius moves neither. Fields like that use a
+ * whole-rocket observable instead: the radius shows up in roll inertia, a pod's
+ * instance count in total mass.
  */
 
 const NOSE = {
@@ -623,8 +623,7 @@ describe('KERNEL_DEFAULTS matches the kernel', () => {
     const absent = observe(engine, base, parent, scope, field);
 
     // The observable must be able to see this field, or the assertion below is
-    // vacuous. This is not ceremony: an observable that looks reasonable can be
-    // blind to the field.
+    // vacuous: an observable that looks reasonable can be blind to the field.
     const other = observe(engine, n({ ...base, [field]: probeOther }), parent, scope, field);
     expect(other, 'probe cannot observe this field, so the check below proves nothing').not.toBe(absent);
 
@@ -658,8 +657,8 @@ describe('KERNEL_SHAPES matches the kernel', () => {
 
 describe('defaultNode does not leave a divergent field unset', () => {
   // With either field omitted, the editor would produce a node whose drawing and
-  // simulation describe different hardware. Setting them explicitly is what
-  // makes all four sides agree for a newly created component.
+  // simulation describe different hardware. Setting them explicitly makes the
+  // two agree for a newly created component.
   it('a mass component carries an explicit radius', () => {
     expect(defaultNode('masscomponent')['radius']).toBe(KERNEL_DEFAULTS.masscomponent.radius);
   });

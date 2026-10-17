@@ -41,11 +41,11 @@ export const refusalKeys = (h: HourLanding): string[] =>
 
 /**
  * Fly each hour. Hours the held forecast does not cover are left out, and an
- * hour outside the safety codes is listed without flying it. The
- * same random seed for every hour, so turbulence does not pass for the wind
- * changing. `powerClass` is the class of the rocket `config` flies, which sets
- * the launcher angle the codes allow. Throws `WeatherError` if the forecast cannot be had; rejects if
- * `signal` aborts.
+ * hour outside the safety codes is listed without flying it. The same random
+ * seed for every hour, so turbulence does not pass for the wind changing.
+ * `powerClass` is the class of the rocket `config` flies, which sets the
+ * launcher angle the codes allow. Throws `WeatherError` if the forecast cannot
+ * be had; rejects if `signal` aborts.
  */
 export async function flyForecastHours(
   q: {

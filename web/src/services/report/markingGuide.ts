@@ -35,8 +35,8 @@ export const TWO_PI = 2 * Math.PI;
  * thickness out from the tube surface, so the strip has to be cut to the
  * circumference of that slightly larger circle or its ends will not meet.
  * Upstream's note: the smaller the tube, the larger the error as a fraction of
- * the circumference. On a 13 mm tube it is 0.8%, which on four fins is nearly
- * 3 degrees of accumulated skew by the last one.
+ * the circumference. On a 13 mm tube it is 1.5%, which puts the last of four
+ * fins about 4 degrees off.
  */
 export const PAPER_THICKNESS_M = 0.0001;
 

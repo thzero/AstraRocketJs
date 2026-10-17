@@ -36,8 +36,8 @@ describe('the motor row key has one definition', () => {
   });
 
   it('treats a missing code and an empty code as the same key, as the app does', () => {
-    // Not a nicety: the `?? ''` is what makes this true, and if the two copies
-    // disagreed about it they would disagree about every curve-less motor.
+    // The `?? ''` makes this true; two copies that disagreed on it would
+    // disagree about every motor without a code.
     expect(motorRowKey(motor({ code: undefined }))).toBe(motorRowKey(motor({ code: '' })));
     expect(keyOf(motor({ code: undefined }))).toBe(keyOf(motor({ code: '' })));
   });

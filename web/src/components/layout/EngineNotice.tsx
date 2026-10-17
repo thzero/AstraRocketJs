@@ -12,9 +12,9 @@ import { fmtMb } from '../../i18n/format';
  *
  * Two states, and the difference matters. A load that is merely slow reports
  * bytes and will finish. A load that has stalled reports nothing at all and
- * never finishes - no error, no progress, no end - so after
- * `engineStore.SLOW_AFTER_MS` the banner stops pretending to wait and offers
- * the retry, which is the only thing that can recover it short of a reload.
+ * never finishes (no error, no progress, no end), so after
+ * `engineStore.SLOW_AFTER_MS` the banner offers the retry, which is the only
+ * thing that can recover it short of a reload.
  * When the JS build is the only backend a retry cannot recover it, so the
  * banner offers the reload instead.
  */

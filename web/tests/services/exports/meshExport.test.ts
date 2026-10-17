@@ -71,7 +71,7 @@ describe('component mesh export', () => {
   });
 
   /**
-   * glTF's unit is the meter (glTF 2.0, 3.6.1), so a 0.1 m nose cone is 0.1
+   * glTF's unit is the meter (glTF 2.0, section 3.4), so a 0.1 m nose cone is 0.1
    * long in the file once its node scale is applied, or it opens 1000 times too
    * large in Blender, three.js and AR viewers.
    */

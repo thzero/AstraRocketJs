@@ -9,9 +9,9 @@ import { newFlightConfig } from '../../../src/services/flight/flightConfigs';
 import { __setEngineForTests, type MotorSpec, type RocketTree } from '../../../src/engine/openRocketEngine';
 
 /**
- * One threshold for "this motor can fly". Decided per module (any length, >= 2,
- * >= 2, > 0), a one-sample motor is flyable to the Run button and empty at the
- * mount.
+ * One threshold for "this motor can fly", shared by the Run button, the
+ * catalog, the custom-motor store and the builder, so a one-sample motor is
+ * refused by all of them.
  */
 const one: MotorSpec = { ...C6, times: [0], thrusts: [5], masses: [0.02] };
 

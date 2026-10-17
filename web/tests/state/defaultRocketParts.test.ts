@@ -10,10 +10,9 @@ import { KERNEL_MATERIALS } from '../../src/tree/kernelDefaults';
 /**
  * What the default rocket is made of, and whether those parts still exist.
  *
- * It is the first design anybody opens and the one every screenshot is of, so
- * "a shape with a density" is not good enough: it is built out of catalog Estes
- * parts, by part number, each carrying the same preset link the component picker
- * writes. The point of this file is that the link cannot quietly become a lie.
+ * It is built out of catalog Estes parts, by part number, each carrying the
+ * same preset link the component picker writes. This file checks that each link
+ * still matches the catalog.
  *
  * Both catalogs are generated from upstream (`sync-components.mjs`,
  * `sync-materials.mjs`). A sync that renames a part, re-weighs a material or
@@ -93,8 +92,8 @@ describe('the default rocket is built from catalog parts', () => {
   });
 
   it('weighs the airframe as Estes paper, not as generic cardboard', () => {
-    // 894.4 against the kernel's stock 680 is a third of the heaviest structural
-    // part of a model this size: it moves the mass, the CG and the margin.
+    // 894.4 against the kernel's stock 680 adds about a third to the mass of the
+    // heaviest structural part: it moves the mass, the CG and the margin.
     const body = part('body');
     expect(body['density']).toBe(DEFAULT_PRESETS.body.materialDensity);
     expect(body['materialName']).toBe(DEFAULT_PRESETS.body.material);
@@ -116,10 +115,9 @@ describe('the default rocket is built from catalog parts', () => {
   });
 
   it('has the four parts no preset database carries', () => {
-    // A kit of this class has all four, and none of them is decorative: the
-    // block is what the motor pushes against, the cord is what the nose comes
-    // back on, the wadding is what keeps the ejection gas off the canopy, and
-    // the lug is the only thing that lets this rocket fly off a rod.
+    // A kit of this class has all four: the block the motor pushes against, the
+    // cord the nose comes back on, the wadding that keeps the ejection gas off the
+    // canopy, and the lug that guides it off a rod.
     const parts: [string, string][] = [
       ['block', 'engineblock'],
       ['cord', 'shockcord'],

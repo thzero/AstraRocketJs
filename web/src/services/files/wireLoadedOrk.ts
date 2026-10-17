@@ -53,9 +53,9 @@ export function wireLoadedOrk(res: LoadedOrk, launchDefaults: LaunchConditions, 
 
   const configs = res.configs.map((c) => {
     const config = newFlightConfig(c.motors, c.name, c.id);
-    // `reconcileConfig` only drops motors whose mounts are gone: the import
+    // Here `reconcileConfig` only drops motors whose mounts are gone: the import
     // already seated a curve-less placeholder in every mount this configuration
-    // named no motor for, so there is no hole for it to fill with a default.
+    // named no motor for, so there is no hole for its default C6 to fill.
     // Seeding a C6 would open a file saved without motors as a flyable rocket on
     // motors it never named.
     const reconciled = reconcileConfig(tree, config);

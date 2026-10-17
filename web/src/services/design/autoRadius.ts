@@ -26,9 +26,9 @@ import { isZero } from '../motors/mathEquals';
  *   and the airframe's are neighbors; a pod's first part may take the tube it
  *   hangs on as the part ahead; and a pod flush with either end of the tube it
  *   hangs on stands in for that tube, through its end part there when that
- *   part is wider, for the part beyond that end. Deciding whether a
- *   pod is in line reads its radius, which reads the tube it stands on, so a
- *   neighbor search can evaluate other tubes partway through.
+ *   part is wider, for the part beyond that end. Deciding whether a pod is in
+ *   line reads its radius, which reads the tube it stands on, so a neighbor
+ *   search can evaluate other tubes partway through.
  * - A transition's automatic fore end takes what the part ahead offers at its
  *   aft end, and its automatic aft end what the part behind offers at its fore
  *   end; with no part there, `DEFAULT_RADIUS`.
@@ -390,8 +390,9 @@ function resolveAxial(
   };
 
   /**
-   * `SymmetricComponent.getPreviousSymmetricComponentFromComponentAssembly`: an in-line assembly on `parent` whose
-   * last part ends flush with it and is wider stands in for it.
+   * `SymmetricComponent.getPreviousSymmetricComponentFromComponentAssembly`:
+   * an in-line assembly on `parent` whose last part ends flush with it and is
+   * wider stands in for it.
    */
   const previousFromAssembly = (parent: Part | null, prev: Part | null, flush: number): Part | null => {
     if (!prev) return parent;
@@ -440,8 +441,9 @@ function resolveAxial(
   };
 
   /**
-   * `SymmetricComponent.getNextSymmetricComponentFromComponentAssembly`: an in-line assembly on `parent` whose
-   * first part starts flush with it and is wider stands in for it.
+   * `SymmetricComponent.getNextSymmetricComponentFromComponentAssembly`: an
+   * in-line assembly on `parent` whose first part starts flush with it and is
+   * wider stands in for it.
    */
   const nextFromAssembly = (parent: Part | null, nxt: Part | null, flush: number): Part | null => {
     if (!nxt) return parent;
@@ -846,9 +848,9 @@ const ringBoreAuto = (node: ComponentNode): boolean =>
  * A ring, coupler, bulkhead or engine block fills the bore of the part it sits
  * in, at its own two faces (`boreAround`), and a centering ring's own bore is
  * the motor mount running through it (`ringBore`). The resolved numbers are
- * stored, so the DXF sheet, the print solids and the drawings read them. A tube fin set with no diameter is sized by the kernel from the body
- * radius and the fin count (`TubeFinSet.getOuterRadius`, ported in
- * tree/tubefins.ts).
+ * stored, so the DXF sheet, the print solids and the drawings read them. A
+ * tube fin set with no diameter is sized by the kernel from the body radius
+ * and the fin count (`TubeFinSet.getOuterRadius`, ported in tree/tubefins.ts).
  */
 function parentDerived(node: ComponentNode, parent: ComponentNode | null, parentStart: number): void {
   if (!parent) return;

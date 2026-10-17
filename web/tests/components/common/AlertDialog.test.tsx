@@ -70,8 +70,8 @@ describe('AlertDialog', () => {
     });
 
     it('gives two prompts on screen at once their own ids', () => {
-      // A hardcoded `id="wip-title"` is only safe while there is exactly one of
-      // these on the page.
+      // A hardcoded id is only safe while there is exactly one of these on the
+      // page.
       const r = renderWithProviders(
         <>
           <AlertDialog title="First" message="a" confirmLabel="ok" onConfirm={() => {}} />

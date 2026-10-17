@@ -40,9 +40,10 @@ const build = (children: ComponentNode[]) => {
 /**
  * The internal-component box's radius fallback. A mass component with no
  * `radius` key draws at the kernel's default, because that is what it flies at.
- * Every other internal type keeps the 70% fraction of the parent: the kernel
- * does not read `radius` for a parachute, and the 5 mm mass default would shrink
- * the default design's chute box until its glyph no longer fit.
+ * Every other internal type keeps the 70% fraction of the parent: a parachute
+ * with no packed radius keeps MassObject's own default in the kernel, a size
+ * nobody chose that moves only its rotational inertia, so its box is sized to
+ * the tube it sits in.
  */
 describe('buildSchematicShapes internal-component radius fallback', () => {
   it('draws a parachute with no radius at 70% of the parent radius', () => {
@@ -180,9 +181,8 @@ describe('a coupler is sized like the part you would cut', () => {
 
 /**
  * A launch lug with no size keys is drawn at the size the kernel flies it:
- * ComponentFactory's launch lug is 50 mm long with a 2.2 mm outer radius
- * (KERNEL_DEFAULTS.launchlug), the same size the 3D view, the `.ork` writer and
- * RASAero use.
+ * ComponentFactory's launch lug is 30 mm long with a 5 mm outer radius
+ * (KERNEL_DEFAULTS.launchlug).
  */
 describe('a launch lug with no size keys', () => {
   it('is drawn at the kernel default length and radius', () => {
@@ -221,8 +221,8 @@ describe('an inner tube', () => {
 
 /**
  * A nose cone, body tube or transition with no `length` key is laid out at the
- * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
- * transition 50 mm), not at zero. At zero the part would draw as nothing while
+ * kernel's length for its type (ComponentFactory: nose 150 mm, body 200 mm,
+ * transition 75 mm), not at zero. At zero the part would draw as nothing while
  * the engine flies it full length. An explicit 0 (the phantom tube a T-tail hangs
  * from) is still 0.
  */

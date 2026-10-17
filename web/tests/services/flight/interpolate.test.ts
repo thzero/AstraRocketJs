@@ -46,10 +46,9 @@ describe('lerpAt', () => {
   });
 
   it('clamps to the END OF THE X-DOMAIN when ys is longer than xs', () => {
-    // The case the other tests cannot see: every one of them passes an
-    // equal-length pair, where `ys[ys.length-1]` and `ys[xs.length-1]` are the
-    // same element. Clamped off `ys`, a longer `ys` returns a value from outside
-    // the x-domain entirely.
+    // With an equal-length pair `ys[ys.length-1]` and `ys[xs.length-1]` are the
+    // same element. Clamped off `ys`, a longer `ys` would return a value from
+    // outside the x-domain.
     expect(lerpAt([0, 1], [0, 10, 999], 5)).toBe(10);
     expect(lerpAt([0, 1, 2], [0, 10, 20, 30, 40], 99)).toBe(20);
     // A null at the true last knot still reads as no data, not as the surplus.

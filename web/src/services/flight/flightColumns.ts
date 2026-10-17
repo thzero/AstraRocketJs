@@ -12,9 +12,8 @@ import i18n from '../../i18n';
  *
  * The friendly dozen come first and in a fixed order, because that is the order
  * anyone reading a flight expects; the rest follow in the kernel table's order,
- * then any unnamed series. A column's unit
- * comes from the user's preference where the quantity has one, and is fixed
- * where it does not (Mach, calibers).
+ * then any unnamed series. A column's unit comes from the user's preference
+ * where the quantity has one, and is fixed where it does not (Mach, calibers).
  */
 export interface FlightColumn {
   /** Key into `FlightSeries`: `altitude`, `Px`, `Cd`… */

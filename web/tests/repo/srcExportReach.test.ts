@@ -27,7 +27,7 @@ const web = fileURLToPath(new URL('../..', import.meta.url));
 
 const walk = (dir: string, out: string[] = []): string[] => {
   for (const entry of readdirSync(dir)) {
-    // The vendored TeaVM bundle is generated and 2.9 MB of it; scanning it would
+    // The vendored TeaVM bundle is generated and 3 MB of it; scanning it would
     // match half these names by coincidence.
     if (entry === 'vendor' || entry === 'node_modules') continue;
     const full = `${dir}/${entry}`;
@@ -186,7 +186,7 @@ describe('src exports reached only from tests are a decision', () => {
 
   it('keeps no baseline entry that is no longer test-only', () => {
     // So deleting a dead export, or giving it a real caller, also deletes its line
-    // here, rather than leaving a list that describes last month.
+    // here, rather than leaving a stale entry.
     expect(BASELINE.filter((e) => !found.includes(e))).toEqual([]);
   });
 

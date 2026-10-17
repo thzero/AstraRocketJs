@@ -8,11 +8,9 @@ import { samplesToMotorSpec } from '../../../src/services/motors/thrustcurve';
 /**
  * `.rse` import, held to `RockSimMotorLoader.java` rather than to itself.
  *
- * Every expectation below names the upstream rule it encodes, because the
- * failure mode this file exists to catch is a port that is internally
- * consistent and disagrees with the kernel: the numbers a `.rse` carries end up
- * as the mass the rocket flies, and nothing downstream would report a mass
- * curve that is merely plausible.
+ * The numbers a `.rse` carries become the mass the rocket flies, and nothing
+ * downstream reports a mass curve that is plausible but disagrees with the
+ * kernel's loader.
  *
  * jsdom, because the parser uses `DOMParser`: `.rse` is XML, unlike RASP's
  * fixed-column text.
@@ -77,7 +75,7 @@ describe('parseRse, the header attributes', () => {
     const typed = (t: string) => parseRse(rse(ATTRS.replace('Type="reloadable"', `Type="${t}"`), DATA))[0]!.type;
     expect(typed('single-use')).toBe('SU');
     expect(typed('reloadable')).toBe('reload');
-    // The whole reason this format is worth reading: `.eng` cannot say this.
+    // `.eng` has no field for the motor type.
     expect(typed('hybrid')).toBe('hybrid');
     expect(typed('Hybrid')).toBe('hybrid');
     expect(typed('unknown')).toBeUndefined();
@@ -158,8 +156,8 @@ describe('parseRse, the mass and CG columns', () => {
   });
 
   it('recomputes a column when the file does not say either way', () => {
-    // Upstream's default, and a surprising one: `auto-calc-mass` absent means
-    // recompute, not "use what is here". A file carrying an `m` column and no
+    // Upstream's default: `auto-calc-mass` absent means recompute, not "use
+    // what is here". A file carrying an `m` column and no
     // flag has that column ignored, by OpenRocket and so by this.
     const silent = parseRse(rse(ATTRS.replace(' auto-calc-mass="0"', '').replace(' auto-calc-cg="0"', ''), DATA))[0]!;
     expect(silent.massesG).toBeUndefined();
@@ -331,8 +329,8 @@ describe('the mass curve that reaches the kernel', () => {
   });
 
   it('ignores a mass column that does not match the samples one for one', () => {
-    // A column that has to be stretched to fit is a guess wearing the clothes
-    // of a measurement, so the reconstruction is used instead.
+    // A column that would have to be stretched to fit is not a measurement, so
+    // the reconstruction is used instead.
     const m = parseRse(rse(ATTRS, DATA))[0]!;
     const spec = samplesToMotorSpec(tc, m.samples, 0, undefined, [0.447, 0.3]);
     expect(spec.masses[0]).toBeCloseTo(0.822, 9);
@@ -353,9 +351,8 @@ describe('.eng import still behaves', () => {
 /**
  * Hostile `.rse`, because this parser is reached with no file picker: `loadOrk`
  * runs it over every `.rse` member an imported `.ork` carried, and that member
- * may be up to the archive's 64 MiB per-entry ceiling. The `.ork` reader caps
- * fin points and shroud lines for exactly this reason; this path needs caps
- * too, or merely opening a shared design could freeze the tab.
+ * may be up to the archive's 64 MiB per-entry ceiling. Without caps, opening a
+ * shared design could freeze the tab.
  */
 describe('the hostile-input caps fire', () => {
   it('refuses a file declaring more motors than MAX_RSE_ENGINES', () => {

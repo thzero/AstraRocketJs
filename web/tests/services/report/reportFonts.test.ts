@@ -1,4 +1,4 @@
-// cspell:ignore Rakieta Zólw łśćżęąńź Żółw Ракета Fusée 로켓 -- Polish and Russian report text the test draws
+// cspell:ignore Rakieta Zólw łśćżęąńź Żółw Ракета Fusée 로켓 -- Polish, Russian, French and Korean report text the test draws
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';

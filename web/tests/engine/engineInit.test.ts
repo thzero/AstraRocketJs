@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-// The JS build stands in for itself: the tests are about which backend the load
+// A stub stands in for the JS build: the tests are about which backend the load
 // settles on, not about the kernel.
 const jsEngine = vi.hoisted(() => ({ setLengthUnit: () => {}, buildRocket: () => 0 }));
 vi.mock('../../src/engine/vendor/openrocket-engine.mjs', () => jsEngine);

@@ -15,8 +15,8 @@ import { KERNEL_TEST_TIMEOUT_MS } from '../testing/kernelTimeout';
  * nothing at all, so the first case here is also the standing proof that the
  * default flight is upstream's: a design whose guide sits well above its aft end
  * reports the same departure as one with no guide whatever, because upstream
- * compares travel with the full rod length and never reads the lug-aware length
- * it computes.
+ * compares travel with the full rod length; the lug-aware length it computes
+ * feeds only a NaN check.
  *
  * On, the guided phase ends when the rocket stops being held, and a rod and a
  * rail do not hold it the same way. A lug is a tube threaded onto the rod and

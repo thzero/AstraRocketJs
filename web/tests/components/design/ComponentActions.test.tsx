@@ -83,7 +83,7 @@ describe('which actions a part is offered', () => {
     expect(button('Split fins').title).toBe('Split into 3 separate single parts');
   });
 
-  it('names the pieces after the part: pods for a pod set, boosters for a booster', () => {
+  it('names the split after the part: Split pods for a pod set', () => {
     const pod = node({ id: 'pod', type: 'podset', instanceCount: 2 });
     seed(pod);
     renderWithProviders(<ComponentActions node={pod} />);

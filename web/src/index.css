@@ -270,11 +270,11 @@ body {
    Full bleed also lets a long dialog use the whole height instead of scrolling
    a short window inside a dimmed one.
 
-   One rule rather than a `max-lg:` variant repeated on sixteen panels, which is
+   One rule rather than a `max-lg:` variant repeated on every panel, which is
    how they drift apart. These live outside `@layer`, so they win over the
    Tailwind utilities they override without needing `!important`.
 
-   A dialog opts in by carrying these classes. Short prompts deliberately do
+   Dialog carries these classes unless `fullBleed` is false. Short prompts do
    not: the confirm, the work-in-progress notice, and the report's print-settings
    popover are two or three lines and a button, and blowing them up to fill a
    phone is all empty space. The popover has a second reason: it opens on top of

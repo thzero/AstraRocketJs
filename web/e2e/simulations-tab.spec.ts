@@ -81,7 +81,7 @@ test('a per-simulation option overrides the global one', async ({ page }) => {
   await step.fill('0.01');
   await runFlight(page);
 
-  // It rides on the simulation, so the workspace autosave restores it.
+  // It rides on the simulation, so it is still there after the run.
   await openTab(page, 'Simulations');
   await expect(step).toHaveValue('0.01');
 });
@@ -95,7 +95,7 @@ test('the run button flies the ticked rows, and says how many', async ({ page })
   await expect(run).toHaveText('Run flight simulation');
 
   // Tick both. The label counts them, because "Run flight simulation" over a
-  // batch of two is a lie about what the click does.
+  // batch of two misstates what the click does.
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
   await expect(run).toHaveText('Run 2 simulations');
 
@@ -201,7 +201,7 @@ test('a flight survives a reload', async ({ page }) => {
   await page.reload();
   await openTab(page, 'Simulations');
 
-  // Same numbers, still current - not "not run", which is what a reload gives
+  // Same numbers, still current, not "not run", which is what a reload gives
   // when the results were never written.
   await expect(row).toContainText('Up to date');
   await expect(row).toHaveText(before);
@@ -281,8 +281,7 @@ test('a run leaves the design editor unblocked', async ({ page }) => {
 test('a simulation stays editable while it flies', async ({ page }) => {
   await openTab(page, 'Simulations');
   // A batch rather than one flight, so the pool is still busy while the edit is
-  // typed. A single sim can finish inside the same tick on a fast machine, and
-  // a test that races the engine is a test that fails for the wrong reason.
+  // typed. A single sim can finish inside the same tick on a fast machine.
   await page.getByRole('button', { name: 'Duplicate simulation' }).click();
   await page.getByRole('checkbox', { name: 'Select all simulations' }).check();
   await runButton(page).click();

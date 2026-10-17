@@ -78,8 +78,7 @@ interface TemplateBox {
  * the drawing is known to be zero.
  *
  * A loop, not `Math.max(...pts)`: a freeform outline is file-sourced and
- * spreading a huge one into a call overflows the stack (dxfExport.ts avoids
- * the same thing the same way).
+ * spreading a huge one into a call overflows the stack.
  */
 function outlineBox(pts: Pt[]): TemplateBox {
   let minX = Infinity;

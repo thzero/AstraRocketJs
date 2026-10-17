@@ -10,12 +10,11 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
  * Settings ▸ Materials: what a newly added part is made of.
  *
  * The preference is spent at creation: the part carries the material outright,
- * so it shows in the panel and is written to the `.ork`. Desktop OpenRocket
- * keeps the part unset and applies its equivalent preference when it computes
- * mass, which means the same file weighs one thing on the machine that made it
- * and another on the machine it was sent to. That is the property this design
- * avoids, and the round-trip test in `files/ork/materialRoundTrip.test.ts`
- * checks that the material survives the file.
+ * so it shows in the panel and is written to the `.ork`, as desktop's
+ * constructors stamp its default-material preference onto a new part
+ * (`ExternalComponent()`, `StructuralComponent()`). The round-trip test in
+ * `files/ork/materialRoundTrip.test.ts` checks that the material survives the
+ * file.
  */
 
 const PLY = { name: 'Plywood (birch)', density: 630 };

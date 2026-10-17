@@ -1,29 +1,18 @@
 import { test, expect, openTab, ready, runFlight } from './base';
 
 /**
- * The Rocket-configuration dialog edits `name`, `designer`, `comments`,
- * `revision` and `designType`: all round-tripped to the `.ork`, none of them
- * physics.
- *
- * The store replaces the whole tree object for these edits, so neither the engine
- * rebuild nor the result-invalidation may key on the tree's object identity: typing
- * a designer name would run a full engine rebuild + aero sweep and throw away every
- * simulation result.
- */
-/**
- * And it is reachable only where the component tree is. Naming a design, its
- * designer and its revision history is something you do to a design you are
- * building; where parts cannot be added the banner shows the name as a title
- * with no ✎, rather than a control that opens a dialog onto a design this
- * window cannot otherwise change.
+ * The Rocket-configuration dialog is reachable only where the component tree
+ * is. Naming a design, its designer and its revision history belongs to a
+ * design being built; where parts cannot be added the banner shows the name as
+ * a title with no ✎, rather than a control that opens a dialog onto a design
+ * this window cannot otherwise change.
  */
 test('the name is a control only where a design can be built', async ({ page }) => {
   await ready(page);
   const edit = page.getByRole('button', { name: 'Edit rocket configuration' });
   await expect(edit).toBeVisible();
-  // Whatever this design is called; the point is that the line survives losing
-  // its control, not what the default design happens to be named.
-  // The visible name; the button's accessible name adds the action after it.
+  // The visible name, whatever it is; the button's accessible name adds the
+  // action after it. The point is that the line survives losing its control.
   const title = ((await edit.textContent()) ?? '').replace('✎', '').replace('Edit rocket configuration', '').trim();
   expect(title).not.toBe('');
 
@@ -41,6 +30,16 @@ test('the name is a control only where a design can be built', async ({ page }) 
   await expect(page.getByText(title, { exact: true })).toBeVisible();
 });
 
+/**
+ * The Rocket-configuration dialog edits `name`, `designer`, `comments`,
+ * `revision` and `designType`: all round-tripped to the `.ork`, none of them
+ * physics.
+ *
+ * The store replaces the whole tree object for these edits, so neither the engine
+ * rebuild nor the result-invalidation may key on the tree's object identity: typing
+ * a designer name would run a full engine rebuild + aero sweep and throw away every
+ * simulation result.
+ */
 test('editing the design metadata keeps the flight results', async ({ page }) => {
   await page.goto('/');
 

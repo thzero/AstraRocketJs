@@ -22,7 +22,7 @@ describe('finPlanformMm', () => {
   it('draws an elliptical fin as a true sampled half-ellipse, not a trapezoid', () => {
     const p = finPlanformMm(node({ type: 'ellipticalfinset', rootChord: 0.05, height: 0.03, finCount: 3 }));
     expect(p).not.toBeNull();
-    expect(p!.pts.length).toBeGreaterThan(10); // 41-point curve, not 4-point trapezoid
+    expect(p!.pts.length).toBeGreaterThan(10); // 31-point curve (EllipticalFinSet.POINTS), not a 4-point trapezoid
     // The apex reaches the full height (y = 0 at the top of the mm frame).
     expect(Math.min(...p!.pts.map(([, y]) => y))).toBeCloseTo(0, 3);
   });
@@ -190,8 +190,6 @@ describe('rocketSideView', () => {
  *     engine flies it;
  *   - use the root chord to draw, and the overhang gets clipped off the shape.
  *
- * The 2D schematic keeps `root` and `aftX` apart for the same reason. These pin the
- * invariant for the report geometry.
  */
 describe('freeform fin: root positions, outline draws', () => {
   // Root chord 0.06 (first -> last x); furthest-aft point 0.09.
@@ -270,10 +268,11 @@ describe('freeform fin: root positions, outline draws', () => {
 
 describe('rocketSideView: fins on a transition', () => {
   /**
-   * `treeEdit.ts` allows a fin set on a transition (a boat tail) and the kernel
-   * simulates it, so the transition branch has to look at its children too.
-   * Otherwise the PDF's whole-rocket side view shows a finless rocket, with no
-   * warning that anything is missing.
+   * `treeEdit.canHost` allows a freeform fin set on a transition (a boat tail)
+   * and the kernel simulates it, so the transition branch has to look at its
+   * children too. Otherwise the PDF's whole-rocket side view shows a finless
+   * rocket, with no warning that anything is missing. The trapezoid fixtures
+   * below go through the same branch.
    */
   const withBoatTailFins = {
     components: [
@@ -316,7 +315,7 @@ describe('rocketSideView: fins on a transition', () => {
   /**
    * A fin sits at the radius under its own front, not at the parent's aft end:
    * `FinSet.getBodyRadius()` is `getFinFront().getY()`, i.e.
-   * `symmetricParent.getRadius(xFinFront)` (`FinSet.getBodyRadius` and `getFinFront`).
+   * `symmetricParent.getRadius(xFinFront)`.
    *
    * This boat tail runs 12 mm → 8 mm over 50 mm, and the fin starts at its
    * front. Handing `addFins` the aft radius would draw the root at +8 mm while
@@ -451,11 +450,10 @@ describe('rocketSideView: fins on a transition', () => {
 /**
  * Tube fins in the whole-rocket side view.
  *
- * Without its own tube-fin branch in `addFins`, a `<tubefinset>` would fall into
- * the generic `else` and be drawn as a swept fin built from the rootChord/height
- * defaults: a fin the rocket does not have, on the design report's own
- * silhouette. A tube fin is a tube: 2·rt tall, standing on the body, running its
- * own length.
+ * A tube fin is a tube: 2·rt tall, standing on the body, running its own
+ * length. Drawn through the planar-fin path, a `<tubefinset>` would be a swept
+ * fin built from the rootChord/height defaults: a fin the rocket does not have,
+ * on the design report's own silhouette.
  */
 describe('rocketSideView: tube fins draw as tubes', () => {
   const tubeRocket = (over: Record<string, unknown> = {}) =>
@@ -522,9 +520,8 @@ describe('rocketSideView: tube fins draw as tubes', () => {
 /**
  * Kernel-exactness of the elliptical planform, asserted at an interior station.
  *
- * The test above ("a true sampled half-ellipse") asserts only point count and
- * that the apex reaches full height, properties a sine arch shares with a
- * half-ellipse. A parameterized curve has to be pinned between its endpoints.
+ * Point count and apex height are properties a sine arch shares with a
+ * half-ellipse, so the curve is pinned between its endpoints.
  */
 describe('elliptical planform matches the kernel at interior stations', () => {
   it('is a half-ellipse, not a sine arch', () => {
@@ -671,8 +668,8 @@ describe('rocketSideView: off-axis assemblies', () => {
 
 /**
  * A nose cone, body tube or transition with no `length` key is laid out at the
- * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
- * transition 50 mm), not at zero. Zero would draw the part as nothing while the
+ * kernel's length for its type (ComponentFactory: nose 150 mm, body 200 mm,
+ * transition 75 mm), not at zero. Zero would draw the part as nothing while the
  * engine flies it full length. An explicit 0 (the phantom tube a T-tail hangs
  * from) is still 0.
  */

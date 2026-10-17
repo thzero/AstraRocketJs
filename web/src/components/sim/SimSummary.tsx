@@ -38,10 +38,7 @@ import { effectivePrefs, type SimPrefs } from '../../services/flight/simulations
  * amber as a kernel flight warning), plus the ⚠ glyph on its heading, because
  * all of it is a warning: nothing on this card is a result, and the one thing
  * the app can never flag from a results panel is the failure it did not model.
- * Saying so is the flag. Note this does read as loud as a FlightWarnings row
- * while being present on every flight rather than only a problematic one; it is
- * amber on purpose, and the ⚠ carries the meaning for anyone who cannot use the
- * color.
+ * The ⚠ carries the meaning for anyone who cannot use the color.
  *
  * The one line that is a bare list of gaps is set bold + italic inside the
  * bullet, the way FlightWarnings pairs a warning's text with its explanation.
@@ -53,8 +50,8 @@ import { effectivePrefs, type SimPrefs } from '../../services/flight/simulations
  * precache, and carries its own link to the published page for anyone who wants
  * the shareable URL.
  *
- * Underlined amber rather than the app's usual sky blue, which on this
- * background reads as a foreign element rather than this card's own way out.
+ * The link is underlined amber rather than the app's usual sky blue, which
+ * clashes with this background.
  */
 const BULLET = 'flex gap-2';
 

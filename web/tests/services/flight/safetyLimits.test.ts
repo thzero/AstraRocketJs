@@ -115,8 +115,8 @@ describe('limitText', () => {
   const metric = unitSymbols(METRIC_UNITS, {});
 
   it('states the rule in the reader units, symbol included', () => {
-    // Default settings are metric, so the angle stays in degrees and the wind
-    // arrives as m/s rather than the codes' own mph.
+    // In metric units the angle stays in degrees and the wind arrives as m/s
+    // rather than the codes' own mph.
     expect(
       limitText(
         {

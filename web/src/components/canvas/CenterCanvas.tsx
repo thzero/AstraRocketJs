@@ -28,7 +28,7 @@ const ROLL_GUTTER = 30;
 
 /**
  * The center pane's sized canvas box: the 2D roll slider, the info card, and
- * whichever of the 2D/3D/flight/path/ground/aero views is open.
+ * whichever of the 2D/3D/flight/path/ground/environment/aero views is open.
  */
 export function CenterCanvas({
   flight,
@@ -76,11 +76,10 @@ export function CenterCanvas({
       upper-left corner in 3D. Toggleable via the header Info button.
 
       In 3D it hangs below the view-preset row rather than level with it.
-      That row is pinned top-right and the card top-left, and on a pane
-      narrower than both put together they overlap; the card is z-20
-      against the row's z-index 2, so level with it the card would cover
-      the preset buttons and take their clicks. A readout yields to a
-      control. */}
+      With the image export shown, that row is pinned top-left, where the
+      card sits; the card is z-20 against the row's z-index 2, so level
+      with it the card would cover the preset buttons and take their
+      clicks. A readout yields to a control. */}
       {(view === '2d' || view === '3d') && showInfoCard && (
         <div
           className="absolute z-20"

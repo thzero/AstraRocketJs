@@ -90,7 +90,7 @@ describe('describeNotes', () => {
   });
 
   it('drops a part number spread across the field two different ways', () => {
-    // 417 rows put two identifiers in the one part-number field, and the
+    // Hundreds of rows put two identifiers in the one part-number field, and the
     // description names them either singly (`PN BNC-20R`) or slash-joined
     // (`PN 30400/30408`). Comparing the whole field literally would miss both.
     const p = byPartNo('BNC-20R, 70240');
@@ -99,8 +99,8 @@ describe('describeNotes', () => {
   });
 
   it('keeps a PN that names an identifier the part-number column does not carry', () => {
-    // 90 rows do this, and it is the opposite of a duplicate: the description
-    // cites a different code, which is the only place that code appears.
+    // About a hundred rows do this, and it is the opposite of a duplicate: the
+    // description cites a different code, which is the only place it appears.
     const p = byPartNo('BNC-20J');
     expect(p.desc).toContain('PN BNC-20L');
     expect(describeNotes(p)).toContain('PN BNC-20L');
@@ -292,7 +292,7 @@ describe('queryComponents', () => {
 
   it('returns every match, leaving any capping to the caller', () => {
     // Every match, uncapped: slicing here and reporting the slice as the total
-    // makes a 1088-row type read as though the catalog were small.
+    // makes a type of over a thousand rows read as though the catalog were small.
     expect(queryComponents(tubes, q({ showLegacy: true }), 'bodytube').length).toBe(tubes.length);
     expect(tubes.length).toBeGreaterThan(300);
   });
@@ -308,8 +308,8 @@ describe('materialFamily', () => {
   });
 
   it('collapses the near-duplicate names that made a raw-name filter useless', () => {
-    // Body tubes carry 39 distinct material names, including eight variants of
-    // vulcanized fiber and three spellings of one balsa density.
+    // Body tubes carry dozens of distinct material names, most of them
+    // variants of one spiral kraft paper.
     const tubes = ofType('bodytube');
     const raw = new Set(tubes.map((p) => p.material));
     expect(raw.size).toBeGreaterThan(30);
@@ -376,7 +376,7 @@ describe('the material and shape facets', () => {
   });
 });
 
-describe('sorting the columns that were not sortable', () => {
+describe('sorting by shape and drag coefficient', () => {
   it('sorts nose cones by shape', () => {
     const cones = ofType('nosecone');
     const shapes = queryComponents(cones, q({ sort: 'shape' }), 'nosecone').map((r) => r.part.shape);
@@ -471,7 +471,7 @@ describe('an inner tube is served by the body tubes', () => {
   });
 
   it('reaches the motor mount tubes the catalog files as body tubes', () => {
-    // 51 body tube rows are explicitly motor mount tubes.
+    // Dozens of body tube rows are explicitly motor mount tubes.
     const mmt = queryComponents(ofType('bodytube'), q({ text: 'mmt' }), 'innertube');
     expect(mmt.length).toBeGreaterThan(10);
     for (const { part } of mmt) expect(`${part.partNo} ${part.desc}`.toLowerCase()).toContain('mmt');

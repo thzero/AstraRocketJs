@@ -24,9 +24,8 @@ export function SaveStatus() {
   const { t, i18n } = useTranslation();
   const lastSavedAt = useWorkspaceStore((s) => s.lastSavedAt);
   // Below 2xl the status is the word alone: the header is carrying the workbench
-  // tabs, the app name and the badge group there, and the age is 55px of
-  // it in German. What the status is for is that a save happened; the exact time is in the
-  // tooltip at every width.
+  // tabs, the app name and the badge group there, and the age is 55px of it in
+  // German. The exact time is in the tooltip at every width.
   const withAge = useIsWide();
   const warning = useWorkspaceStore((s) => s.storageWarning);
 
@@ -35,9 +34,8 @@ export function SaveStatus() {
   // design nobody is touching, and a render that read the wall clock directly
   // would be at the mercy of whatever else happened to re-render the header.
   //
-  // A save can land before the next tick, leaving `now` behind `lastSavedAt`.
-  // That needs no extra set: the clamp below reads a negative age as zero,
-  // which is "just now", which is what it is.
+  // A save can land before the next tick, leaving `now` behind `lastSavedAt`:
+  // the clamp below reads that negative age as zero, "just now".
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     if (lastSavedAt === null) return;

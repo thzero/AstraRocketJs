@@ -29,24 +29,23 @@ import { SOURCE_LAYERS } from '../common/map/mapStyle';
 /**
  * The launch site, seen from above.
  *
- * A latitude and a longitude are four digits each and no feedback whatsoever:
- * a dropped minus sign moves a Colorado field to western China and nothing on
- * screen looks any different. This is the confirmation, and for a club field
- * with no published coordinates, the way to enter them at all, since you can
- * recognize the mown strip from the air when you could never have looked its
- * numbers up.
+ * A latitude and a longitude give no feedback on their own: a dropped minus
+ * sign moves a Colorado field to western China and nothing on screen looks any
+ * different. This is the confirmation, and for a club field with no published
+ * coordinates, the way to enter them at all: the field can be recognized from
+ * the air.
  *
  * Tiles come from Esri's imagery or street map, drawn as plain `<img>` tags
  * at computed offsets rather than through a mapping library: showing one point
  * and letting it be dragged is the whole requirement, and Leaflet or MapLibre
  * would bring a layer system, a plugin surface and a stylesheet for the parts
- * we do not use. The projection lives in `services/map/slippyMap.ts`, where it is
- * tested against hand-computed figures.
+ * we do not use. The projection lives in `services/map/slippyMap.ts`, where it
+ * is tested against hand-computed figures.
  *
  * Tiles are cached by the service worker (see the runtime rule in
- * vite.config.ts), so a location you looked at at home still draws at the field with
- * no signal. Somewhere you have never viewed cannot draw offline, and the map
- * says so rather than showing an empty gray box.
+ * vite.config.ts), so a location you looked at at home still draws at the field
+ * with no signal. Somewhere you have never viewed cannot draw offline, and the
+ * map says so rather than showing an empty gray box.
  */
 
 /** Below this many pixels of pointer travel, a drag was really a click. */
@@ -394,14 +393,12 @@ export function SiteMap({
 }
 
 /**
- * The unit a scale bar promotes to once the number gets large, by the unit the
- * user picked, so a user working in feet reads the scale in feet and miles.
- *
- * Promoting is worth doing ("1.2 km" beats "1234 m"), so the ladder is stated,
- * and only for the two base units that have a large sibling in `UNITS.distance`.
- * A user who already picked `km`, `yd` or `mi` is shown that unit at every size.
+ * The larger unit a distance unit's scale label moves up to past one of it, so
+ * a user working in feet reads the scale in feet and miles ("1.2 km" beats
+ * "1234 m"). Only the two base units that have a large sibling in
+ * `UNITS.distance` promote; a user who picked `km`, `yd` or `mi` is shown that
+ * unit at every size.
  */
-/** The larger unit a distance unit's scale label moves up to past one of it. */
 const SCALE_PROMOTION: Record<string, string> = { m: 'km', ft: 'mi' };
 
 /**

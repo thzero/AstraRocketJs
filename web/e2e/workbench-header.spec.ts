@@ -40,7 +40,7 @@ test('the workbench tabs live in the header rather than a row of their own', asy
 
   const header = page.locator('header').first();
   // The save status is part of the tightest state, and it only appears once the
-  // debounced autosave lands - a tick or two after the run. Measured before it
+  // debounced autosave lands, a tick or two after the run. Measured before it
   // arrives the header is lighter than the one anybody sees.
   await expect(header.getByRole('status').filter({ hasText: /^Saved/ })).toBeVisible();
   await page.addStyleTag({ content: WIDE_FACE });
@@ -62,9 +62,9 @@ test('the workbench tabs live in the header rather than a row of their own', asy
   expect((await box(page.locator('main'))).y).toBeLessThanOrEqual(h.y + h.height + 1);
 
   // One row at this width in English, in a face wider than the local one. The
-  // wordiest languages wrap here - there is not enough width at 1024 for five
-  // tabs, the identity block, the save status and four controls in German - and
-  // that is what the second test pins.
+  // wordiest languages wrap here (there is not enough width at 1024 for five
+  // tabs, the identity block, the save status and four controls in German); the
+  // second test pins the width from which they fit.
   expect(h.height).toBeLessThan(70);
 });
 

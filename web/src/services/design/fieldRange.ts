@@ -172,8 +172,8 @@ function absentValue(node: ComponentNode, f: Field): number | undefined {
  *
  * `fieldReadback.kernel.test.ts` holds this to what the kernel builds from the
  * same node: the panel has to show the value that flies, including for a key
- * the node does not carry (see `absentValue`). Undefined for kinds that store no node key of their
- * own (`text`, `bore`, `derived`).
+ * the node does not carry (see `absentValue`). Undefined for kinds that store
+ * no node key of their own (`text`, `bore`, `derived`).
  */
 export function fieldValue(node: ComponentNode, f: Field): number | boolean | string | undefined {
   switch (f.kind) {

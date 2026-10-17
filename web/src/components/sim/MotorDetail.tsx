@@ -26,7 +26,7 @@ import { finalizeSamples } from '../../services/motors/curveFinalize';
 const SIMILAR = 0.95;
 
 /** Detail panel for a catalog motor: manufacturer/class header, thrust-curve
- *  chart, and the spec grid. Reads only bundled data (no fetch). */
+ *  chart, and the spec grid. Reads only the catalog row it is given (no fetch). */
 export function MotorDetail({
   motor,
   onBack,

@@ -9,8 +9,8 @@ import { noteTexts } from '../../testing/importNotes';
 /**
  * The members of a `.ork` archive other than its XML.
  *
- * A `.ork` is a zip of up to four kinds of member, and one of them has teeth:
- * OpenRocket embeds the thrust curve of every motor a design uses, precisely so the
+ * A `.ork` is a zip of up to four kinds of member, and one of them matters to
+ * the flight: OpenRocket embeds the thrust curve of every motor a design uses, precisely so the
  * file opens on an install that does not have them. Dropped with the rest, a design
  * using anything outside our catalog opens with an empty mount and a blocked run.
  *

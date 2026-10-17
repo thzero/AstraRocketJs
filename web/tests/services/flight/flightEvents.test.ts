@@ -12,10 +12,9 @@ import {
 } from '../../../src/services/flight/flightEvents';
 
 /**
- * The timeline join and the dynamic-pressure peak. Both are pure, so the two
- * things that could quietly go wrong (sampling the wrong series at an event
- * time, and computing q from ground speed instead of airspeed) are provable
- * without mounting the table.
+ * The timeline join and the dynamic-pressure peak. The two hazards are sampling
+ * the wrong series at an event time and computing q from ground speed instead
+ * of airspeed.
  */
 
 /** A branch whose series are flat enough to assert exact sampled values. */
@@ -68,8 +67,7 @@ describe('dynamicPressure', () => {
 describe('maxQ', () => {
   it('returns the peak sample and the state at it', () => {
     // Density falls as it climbs while airspeed rises, so q peaks in the
-    // middle of the branch rather than at either end - which is the whole
-    // reason max-Q is a number worth reporting.
+    // middle of the branch rather than at either end.
     const s = series({ ρ: [1.2, 1.2, 0.6, 0.1], Vs: [340, 340, 340, 340] });
     const peak = maxQ(s)!;
     expect(peak.time).toBe(2);
@@ -169,7 +167,7 @@ describe('eventRows', () => {
     expect(rows.map((r) => r.source)).toEqual(['Outboard 1', 'Outboard 2']);
   });
 
-  it('has no Max-Q row when the result predates the full series set', () => {
+  it('has no Max-Q row when the result lacks the air series', () => {
     const rows = eventRows(result({ events: [{ type: 'APOGEE', time: 2 }] }));
     expect(rows.some((r) => r.type === MAX_Q)).toBe(false);
   });

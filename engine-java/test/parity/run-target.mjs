@@ -9,7 +9,7 @@
  * stops running too, so timers armed beforehand never fire. Only a signal gets it
  * out. Measured on Ubuntu 26.04 / node 22.23.2, and merely loading the module is
  * enough; main() need not run. It does not reproduce on Windows, so it shows up
- * only in CI. The bottom of this file has the numbers.
+ * only on Linux. The bottom of this file has the numbers.
  *
  * So this process does the loading, prints, and is SIGKILLed: by itself
  * normally, by parity.mjs if it overstays. parity.mjs itself never touches a
@@ -45,10 +45,10 @@ const wasmDir = join(webRoot, 'public', 'engine');
 //
 // The real process.stdout.write is kept, not because a throw has to leave
 // this process usable (it is about to die either way), but because
-// writeStdoutSync falls back to process.stdout.write if the raw
-// syscall cannot place the bytes, and if the capture were still installed at
-// that point the fallback would feed the whole run's output back into
-// `captured` and print nothing.
+// writeStdoutSync falls back to process.stdout.write if the raw syscall cannot
+// place the bytes, and if the capture were still installed at that point the
+// fallback would feed the whole run's output back into `captured` and print
+// nothing.
 const realStdoutWrite = process.stdout.write.bind(process.stdout);
 let captured = '';
 console.log = (msg) => { captured += String(msg) + '\n'; };
@@ -111,7 +111,6 @@ writeStdoutSync(TARGET_COMPLETE + '\n');
 // Passing the wasm as bytes rather than a path (see above) does not lift the
 // hang: the process is just as stuck with `requests=[]` as with the file
 // handle open, so the handle is not the cause.
-
 //
 // Everything above is already flushed by writeStdoutSync, so a signal loses
 // nothing. parity.mjs expects this and reads TARGET_COMPLETE, not the status.

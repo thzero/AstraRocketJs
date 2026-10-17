@@ -1,17 +1,16 @@
 #!/usr/bin/env node
 /**
- * Reports which golden values a pull request moved. It never fails.
+ * Reports which golden values moved against a base branch. It never fails.
  *
  * `npm run parity:golden` re-records every reference value, and parity.mjs says
- * how many moved, but only on the machine that ran it. This puts the same list
- * where the change is reviewed: the job summary of the pull request. Only the
- * values are compared, never the header, so a re-record that moved nothing (a new
- * timestamp or platform line) reports nothing.
+ * how many moved, but only on the machine that ran it. This lists them by name
+ * for review, and appends the list to the job summary when GITHUB_STEP_SUMMARY
+ * is set. Only the values are compared, never the header, so a re-record that
+ * moved nothing (a new timestamp or platform line) reports nothing.
  *
  *   node test/parity/golden-guard.mjs <base-ref>
  *
- * The base comes from the pull request (github.base_ref). The checkout needs the
- * full history (fetch-depth: 0) so the base copy can be read.
+ * The base copy is read from `origin/<base-ref>`, so that ref has to be fetched.
  */
 import { execFileSync } from 'node:child_process';
 import { appendFileSync, readFileSync } from 'node:fs';

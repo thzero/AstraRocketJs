@@ -6,10 +6,10 @@ import { test, expect, type Page, autosaved, openTab, runFlight } from './base';
  * a styling tweak won't break it. All motor data is bundled, so these run fully
  * offline, with no thrustcurve.org round-trips.
  *
- * The multi-mount "one card per motor tube" path (findMounts + setExtraMotor) is
- * covered by unit tests (treeEdit.test.ts, store); building a two-mount rocket
- * through the component-tree UI would be brittle here, so it's intentionally not
- * re-exercised end-to-end.
+ * The multi-mount "one card per motor tube" path (findMounts + setMountMotor) is
+ * covered by unit tests (treeEdit.test.ts, store.test.ts); building a two-mount
+ * rocket through the component-tree UI would be brittle here, so it is not
+ * exercised end-to-end.
  *
  * Selector notes: the picker's Select button only mounts once a row is
  * highlighted (before that the right pane shows the "pick a motor" hint), so its
@@ -140,7 +140,7 @@ test('the diameter range persists across reloads', async ({ page }) => {
   let dialog = await openPicker(page);
   // The fit box starts ticked, so the ceiling starts on the mount's stop (2).
   // Narrow it one more, to 13 mm, which is the user's own choice and so the one
-  // that gets remembered - the mount's cap never is.
+  // that gets remembered; the mount's cap never is.
   const maxThumb = dialog.getByLabel('Diameter max');
   await maxThumb.focus();
   await maxThumb.press('ArrowLeft');

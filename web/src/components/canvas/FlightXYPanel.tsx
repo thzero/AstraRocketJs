@@ -50,8 +50,8 @@ export function FlightXYPanel({
     let xMax = -Infinity;
     let yMin = 0;
     let yMax = -Infinity;
-    // A plain loop, as in flightChartTraces' panelSeries: the domain scan writes the bounds,
-    // which a `.map` callback must not.
+    // A plain loop: the domain scan writes the bounds, which a `.map` callback
+    // must not.
     const out: { color: string; pts: [number, number][]; time: number[]; alt: number[]; vel: number[] }[] = [];
     for (const b of branches) {
       const pts: [number, number][] = [];

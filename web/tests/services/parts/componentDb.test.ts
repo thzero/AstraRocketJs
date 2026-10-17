@@ -112,7 +112,7 @@ describe('componentsForType filters rows through the guard', () => {
     const { componentsForType } = await import('../../../src/services/parts/componentDb');
     const tubes = await componentsForType('bodytube');
     expect(tubes.map((c) => c.partNo)).toEqual(['BT-50']);
-    vi.doUnmock('../../src/services/app/remoteData');
+    vi.doUnmock('../../../src/services/app/remoteData');
   });
 });
 
@@ -129,7 +129,7 @@ describe('isComponentRow with the stated mass and the nose cone wall and shoulde
     length: 0.0667,
   };
 
-  it('accepts a nose cone row published before the wall and shoulder were carried', () => {
+  it('accepts a nose cone row with no wall or shoulder fields', () => {
     expect(isComponentRow(nose)).toBe(true);
   });
 
@@ -173,7 +173,7 @@ describe('isComponentRow refuses sizes and shapes the editor cannot build', () =
     expect(isComponentRow({ ...nose, shape: 'haack' })).toBe(true);
   });
 
-  it('keeps a zero where a real row has one: no density on file, no shoulder, a closed tail cone end', () => {
+  it('keeps a zero where a real row has one: no density on file, a solid part, no shoulder', () => {
     expect(isComponentRow(tube({ materialDensity: 0, innerDiameter: 0 }))).toBe(true);
     expect(isComponentRow({ ...nose, shoulderLength: 0 })).toBe(true);
   });

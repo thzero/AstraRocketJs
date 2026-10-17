@@ -89,9 +89,9 @@ describe('stageParts', () => {
 
 describe('finSetPositions', () => {
   // A swept freeform fin whose tip trailing corner overhangs the root: the root
-  // chord is 0.06, but the furthest-aft point is 0.09. `bottomX` from Math.max
-  // overstates the root trailing edge by the 30 mm of overhang and disagrees with
-  // the schematic, which uses the kernel's own last.x - first.x.
+  // chord is 0.06 (the kernel's last.x - first.x), but the furthest-aft point is
+  // 0.09. `bottomX` from Math.max overstates the root trailing edge by the 30 mm
+  // of overhang.
   it('spans a swept freeform fin by its ROOT chord, not its aftmost point', () => {
     const swept = node({
       type: 'stage',

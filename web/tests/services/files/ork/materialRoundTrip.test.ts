@@ -18,14 +18,14 @@ const CORRECTED_MATERIALS = CATALOG.filter((m) => m.kind === 'corrected');
  * A material the app offers has to reach the file.
  *
  * The densities are what the physics runs on, and they ride in the `density`
- * attribute of every `<material>` element. The name
- * is the part that can go missing, and it is the part that matters once the app
- * offers materials upstream does not have: an adhesive, or one of the corrected
- * elastic cords. Lose the name and the design still flies correctly, and the
- * next person to open it cannot tell what it was built out of.
+ * attribute of every `<material>` element. The name is the part that can go
+ * missing, and it matters once the app offers materials upstream does not have:
+ * an adhesive, or one of the corrected elastic cords. Lose the name and the
+ * design still flies correctly, and the next person to open it cannot tell what
+ * it was built out of.
  *
- * The invariant these hold is deliberately blunt: **if `hasMaterial(type)` is
- * true, that type's material name and density survive a `.ork` round trip.**
+ * The invariant: **if `hasMaterial(type)` is true, that type's material name
+ * and density survive a `.ork` round trip.**
  * `fairing` is not offered a material (see `hasMaterial` in `treeEdit.ts`): its
  * material does not reach the kernel and the writer has no element for it.
  */

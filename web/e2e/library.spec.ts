@@ -141,9 +141,8 @@ test('an example opens from the library, as its own unsaved design', async ({ pa
   const dlg = page.getByRole('dialog', { name: 'My Rockets' });
   await page.getByRole('tab', { name: 'Examples' }).click();
 
-  // Every entry carries the author's own note under its name, which is most of
-  // why the tab is worth having: a list of bare filenames does not
-  // tell anyone which one to open.
+  // Every entry carries the author's own note under its name: a list of bare
+  // filenames does not tell anyone which one to open.
   const entry = dlg.getByRole('button').filter({ hasText: 'Clustered motors' });
   await expect(entry).toBeVisible({ timeout: 15_000 });
   await expect(entry).toContainText('Cluster');

@@ -13,10 +13,11 @@ import { CheckMenu } from '../common/CheckMenu';
 /**
  * The filter controls the motor picker and the motor dashboard share: the same
  * manufacturer dropdown, class chips, impulse bounds, diameter range and
- * plugged box, over the same filter state. Each dialog lays them out differently (the picker
- * stacks them, the dashboard puts them on two rows), so this is a set of pieces
- * rather than one bar. Kept as two copies they would drift, for example a
- * diameter readout in raw millimeters on one side and the user's unit on the other.
+ * plugged box, over the same filter state. Each dialog lays them out
+ * differently (the picker stacks them, the dashboard puts them on two rows), so
+ * this is a set of pieces rather than one bar. Kept as two copies they would
+ * drift, for example a diameter readout in raw millimeters on one side and the
+ * user's unit on the other.
  *
  * One piece is not shared: fitting the mount only means something where there is
  * a mount, which is the picker. The dashboard is a reference browser with no

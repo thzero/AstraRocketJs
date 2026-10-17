@@ -71,7 +71,7 @@ test('the ground map turns off and back on from over the canvas', async ({ page 
   // sometimes it is in the way.
   await page.getByRole('button', { name: 'None', exact: true }).click();
   await expect(attribution(page)).toHaveCount(0);
-  // The scene itself is untouched - only the ground it stands on.
+  // The scene itself is untouched: only the ground it stands on.
   await expect(page.locator('canvas').first()).toBeVisible();
 
   await page.getByRole('button', { name: 'Satellite', exact: true }).click();

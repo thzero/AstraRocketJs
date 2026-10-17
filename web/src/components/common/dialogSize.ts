@@ -3,8 +3,7 @@ import { readLocalJson, writeLocalJson } from '../../services/storage/localPref'
 /**
  * Dialog widths, and the user's choice to expand one.
  *
- * Separate from the component so the size table and the persistence are
- * testable without a DOM, and so a dialog's declared width stays one token
+ * Separate from the component so a dialog's declared width stays one token
  * rather than a Tailwind class copied into twenty files.
  */
 
@@ -84,17 +83,16 @@ export const layerClass: Record<DialogLayer, string> = {
 /** Where the expanded-dialog preferences live. Namespaced like the rest. */
 const KEY = nsKey('dialogExpanded');
 
+const isFlagMap = (v: unknown): v is Record<string, boolean> => !!v && typeof v === 'object' && !Array.isArray(v);
+
 /**
  * Whether the user has expanded this dialog before.
  *
  * Persisted per dialog id, because expanding is a preference rather than a
- * gesture: someone who wants the parts picker wide wants it wide every time,
- * and re-expanding it on every open would be the same annoyance as re-typing a
- * filter. Reads and writes are guarded: localStorage throws in a private window
- * with site data blocked, and a dialog must still open.
+ * gesture: someone who wants the parts picker wide wants it wide every time.
+ * Reads and writes are guarded: localStorage throws in a private window with
+ * site data blocked, and a dialog must still open.
  */
-const isFlagMap = (v: unknown): v is Record<string, boolean> => !!v && typeof v === 'object' && !Array.isArray(v);
-
 export function readExpanded(id: string): boolean {
   return readLocalJson(KEY, isFlagMap, {})[id] === true;
 }

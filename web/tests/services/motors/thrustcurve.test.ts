@@ -241,8 +241,7 @@ describe('fetchMotorSpec: bundled catalog motor (offline path)', () => {
  * `download.json` carrying a null time goes straight into
  * `samplesToMotorSpec`: cumulative impulse NaN, nulls through times and
  * masses, and the whole array across the TeaVM boundary, where it surfaces as
- * the opaque "cannot be converted to a BigInt" blank design this module
- * already documents.
+ * the opaque "cannot be converted to a BigInt" blank design.
  */
 describe('fetchMotorSpec - malformed thrustcurve.org response', () => {
   // No `curves`, so the bundled offline path is skipped and the motor resolves

@@ -16,7 +16,7 @@ const strings = (locale: Record<string, unknown>, ns: string) => (locale[ns] ?? 
 
 describe('flightColumns', () => {
   it('lists only what the run recorded', () => {
-    // Offering a column the file cannot fill would be a menu of empty promises.
+    // A column the run did not record would export empty.
     expect(flightColumns(withKeys(['time', 'altitude'])).map((c) => c.key)).toEqual(['time', 'altitude']);
   });
 

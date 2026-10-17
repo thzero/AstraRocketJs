@@ -14,7 +14,8 @@
  * reading of values we already hold, mirrored function for function from the
  * kernel we ship (`PinkNoiseWindModel.getTurbulenceIntensity`,
  * `setTurbulenceIntensity`, `getIntensityDescription`) so the two cannot drift.
- * The near-zero test `getTurbulenceIntensity` branches on is `MathUtil.equals(x, 0)`.
+ * The near-zero test `getTurbulenceIntensity` branches on is
+ * `MathUtil.equals(x, 0)`.
  */
 import { isZero } from '../motors/mathEquals';
 

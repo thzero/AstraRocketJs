@@ -76,9 +76,9 @@ export function MaterialPicker({
   value?: string;
   /**
    * The density the part carries with `value`, SI. Shown when the list holds
-   * no entry of that name and density: a catalog part brings its maker's material ("Balsa, bulk,
-   * BMS typical") at its own density, which is what the part is weighed with,
-   * and almost none of those names are in the list.
+   * no entry of that name and density: a catalog part brings its maker's
+   * material ("Balsa, bulk, BMS typical") at its own density, which is what the
+   * part is weighed with, and almost none of those names are in the list.
    */
   density?: number;
   onChange: (name: string | undefined, density: number, group?: string) => void;
@@ -97,8 +97,8 @@ export function MaterialPicker({
   const { t } = useTranslation();
   // Empty until the catalog arrives. It is a runtime file (public/data), the
   // same as the motor and component catalogs, so there is nothing to seed a
-  // first paint with; the effect below fetches it and merges the user's custom
-  // materials on top. The select renders its "no material" option meanwhile,
+  // first paint with; `useAsyncLoad` below fetches it with the user's custom
+  // materials merged in. The select renders its "no material" option meanwhile,
   // which is what a part with no material would show anyway.
   const [mats, setMats] = useState<Material[]>([]);
   const [adding, setAdding] = useState(false);

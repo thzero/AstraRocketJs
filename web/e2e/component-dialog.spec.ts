@@ -5,9 +5,9 @@ import { test, expect, ready, type Page } from './base';
  *
  * The Design tab wants three columns, and three of them do not fit under `2xl`:
  * the tree and a 380px property panel leave the drawing a strip. So at 1536 and
- * up the editor is the right-hand column, and under that it
- * is a dialog opened over the drawing. Never both at once - a hidden second copy
- * is still in the document, and every field in it still answers to its label.
+ * up the editor is the right-hand column, and under that it is a dialog opened
+ * over the drawing. Never both at once: a hidden second copy is still in the
+ * document, and every field in it still answers to its label.
  *
  * The band this covers is mostly laptops, not phones: 1280 and 1440 are on the
  * dialog. The column itself is covered by component-editor.spec (which runs at

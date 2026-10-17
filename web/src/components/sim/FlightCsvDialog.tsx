@@ -52,8 +52,7 @@ export function FlightCsvDialog({
   const columns = useMemo(() => flightColumns(result, branchIndex), [result, branchIndex]);
 
   // Only keys this run can fill: a saved list may name a series an older or
-  // newer build recorded, and offering a column the file cannot fill would be a
-  // menu of empty promises.
+  // newer build recorded, and the file cannot fill a column for it.
   const available = new Set(columns.map((c) => c.key));
   const chosen = saved.columns.filter((k) => available.has(k));
 

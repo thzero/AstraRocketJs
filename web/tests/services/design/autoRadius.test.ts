@@ -483,7 +483,7 @@ describe('neighbors across pod sets and boosters', () => {
     expect(podTube('relative', -0.02, 'bottom')).toBe(0.02);
   });
 
-  // ComponentFactory builds a tube with no radius at 0.012 m, and the kernel
+  // ComponentFactory builds a tube with no radius at 0.025 m, and the kernel
   // places the pod against that.
   it('places a pod against a tube with no radius at the bridge default', () => {
     const inLine = pod('relative', -KERNEL_BODYTUBE_OUTER_RADIUS, 'bottom', [auto('p', [], 0.1)]);

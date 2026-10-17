@@ -87,7 +87,7 @@ function HeaderDialogs({ flags, onClose }: { flags: OpenFlags; onClose: (id: Hea
       {flags.updates && <UpdateCheckDialog onClose={() => onClose('updates')} />}
       {flags.privacy && <PrivacyDialog onClose={() => onClose('privacy')} />}
       {/* '' is the docs index, so the null check is not a truthiness check.
-          Keyed on the page so that opening Help again on A different topic
+          Keyed on the page so that opening Help again on a different topic
           starts it over rather than leaving the previous page's back stack
           behind it. */}
       {helpPage !== null && <HelpDialog key={helpPage} page={helpPage} onClose={closeHelp} />}

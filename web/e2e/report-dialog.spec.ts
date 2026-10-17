@@ -4,7 +4,7 @@ import { test, expect, type Page, ready, importOrk, defined } from './base';
 /**
  * The Rocket Design Report dialog, over a multi-stage design because that is what
  * re-enters the shared engine: assembleReport() builds each stage alone (which resets
- * the shared engine) and then reinstalls a rebuilt whole-rocket handle via
+ * the shared engine), and the dialog then installs a rebuilt whole-rocket handle via
  * applyBuild. That hands the store fresh `info`/`rocket` object identities, so an
  * assemble effect depending on them assembles, rebuilds, re-runs and assembles
  * again until React tears the app down with "Maximum update depth exceeded" and
@@ -17,7 +17,7 @@ import { test, expect, type Page, ready, importOrk, defined } from './base';
 
 /**
  * Menu > Rocket Design Report. By the button's accessible name: the glyph in it is
- * `aria-hidden` (AppHeader.tsx), so "Menu" is the whole name and no pattern can
+ * `aria-hidden` (FileMenu.tsx), so "Menu" is the whole name and no pattern can
  * match the glyph.
  */
 const openReport = async (page: Page) => {

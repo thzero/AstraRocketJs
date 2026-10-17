@@ -5,7 +5,7 @@ name: Dev
 # ci.yml is `pull_request`-only, so without
 # this a push with no PR open is checked by nothing until someone opens the PR.
 #
-# `branches-ignore: [master]` rather than a list of branch names: work on a
+# `branches-ignore` rather than a list of branch names: work on a
 # `test`, a `fix/...` or a `spike/...` branch needs the gate as much as `dev`
 # does, and a named list leaves every unnamed branch unchecked.
 #
@@ -39,9 +39,9 @@ jobs:
   gates:
     uses: ./.github/workflows/gates.yml
 
-  # Branch protection requires `Dev / verify`. The check GitHub reports is
-  # "<workflow name> / <job id>", so renaming the workflow or this job silently
-  # breaks that rule. Change it together with the protection settings.
+  # `Dev / verify`, the one check that stands for every gate on the push. The
+  # check GitHub reports is "<workflow name> / <job id>", so renaming the
+  # workflow or this job renames the check.
   #
   # `always()` and an explicit result check: a job skipped because a job it
   # needs failed reports as skipped, and a skipped required check counts as

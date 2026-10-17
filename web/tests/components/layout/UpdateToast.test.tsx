@@ -12,10 +12,8 @@ import '../../../src/i18n';
  * A `role="status"` created at the same moment as its text is not announced by
  * most screen readers: the region has to already exist in the accessibility
  * tree for an insertion into it to count as an update. Returning `null` until
- * there is something to say would therefore announce nothing, which defeats the
- * purpose of a toast and looks completely correct on screen. Only an assertion
- * that the empty region is mounted catches that, because the visible behavior
- * is identical either way.
+ * there is something to say would announce nothing while looking the same on
+ * screen, so the tests assert that the empty region is mounted.
  */
 
 /** Drives the mocked `useRegisterSW` between renders. */

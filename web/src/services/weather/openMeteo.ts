@@ -4,9 +4,10 @@
  * Requests go from the user's browser straight to Open-Meteo, through a
  * sandboxed frame (`anonymousGet`) so that they carry no `Origin` but `null`
  * and no `Referer`: nothing in them names this app or the site serving it.
- * There is no account, proxy or server of this app's in between. Without a key the free
- * tier answers, which Open-Meteo allows for non-commercial use. With the user's key from
- * a paid plan the same requests go to its `customer-` hosts with `apikey`.
+ * There is no account, proxy or server of this app's in between. Without a key
+ * the free tier answers, which Open-Meteo allows for non-commercial use. With
+ * the user's key from a paid plan the same requests go to its `customer-` hosts
+ * with `apikey`.
  *
  * The data is CC BY 4.0: the dialog shows the credit wherever it shows values.
  *

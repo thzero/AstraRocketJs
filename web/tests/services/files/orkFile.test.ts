@@ -526,7 +526,7 @@ describe('recovery-device features round-trip', () => {
   });
 });
 
-describe('newly-editable component options round-trip', () => {
+describe('editable component options round-trip', () => {
   const tree = {
     components: [
       {

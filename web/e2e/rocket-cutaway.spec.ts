@@ -3,13 +3,11 @@ import { test, expect, ready, importOrk, note, type Locator } from './base';
 /**
  * The 3D cutaway.
  *
- * Two things are worth holding here, and neither can be proved in a unit test.
- * The first is that the toggle is reachable: the view-preset row is pinned
- * top-right at z-index 2 and the quick-glance info card top-left at z-20, and
- * on a pane narrower than the two of them together the card can cover the row and
- * swallow its clicks - buttons you can see and cannot press, and every button added
- * to the row makes it likelier. The second is that clipping actually
- * reaches the GPU: `localClippingEnabled` on the renderer and a plane on the
+ * This holds two things a unit test cannot. The first is that the toggle is
+ * reachable: the view-preset row is pinned top-right at z-index 2 and the
+ * quick-glance info card top-left at z-20, and on a pane narrower than the two
+ * of them together the card can cover the row and swallow its clicks. The
+ * second is that clipping reaches the GPU: `localClippingEnabled` on the renderer and a plane on the
  * material are two separate switches, and with either one missing the button
  * still toggles, still highlights, and draws exactly the same picture.
  */

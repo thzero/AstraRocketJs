@@ -37,7 +37,7 @@ describe('COMPONENT_KIND', () => {
     expect(seen.sort()).toEqual(all.sort());
   });
 
-  it('is what every guard reads, so the four former copies cannot disagree', () => {
+  it('is what every guard reads, so the guards cannot disagree', () => {
     for (const t of Object.keys(COMPONENT_KIND)) {
       expect(isChainType(t), t).toBe(CHAIN_TYPES.has(t as never));
       expect(isAxial(t), t).toBe(CHAIN_TYPES.has(t as never));

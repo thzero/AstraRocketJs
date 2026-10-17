@@ -3,7 +3,7 @@
  *
  * Every test file that flies the engine imports it (`engineBoundary`,
  * `rodClearanceModel`, `exampleLibrary` and the `*.kernel.test.ts` files among
- * them). Each loads the 2.9 MB TeaVM bundle and integrates real trajectories, so
+ * them). Each loads the 3 MB TeaVM bundle and integrates real trajectories, so
  * each takes seconds where most files take milliseconds. This is the reason and
  * the number in one place.
  *

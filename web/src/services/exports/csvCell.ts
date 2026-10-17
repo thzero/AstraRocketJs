@@ -19,8 +19,8 @@
  * a name like `Booster, lower` stays readable, and the quoting in {@link csvField}
  * keeps it one field for a reader that does honor the file's separator.
  *
- * A value that is a whole number, negatives and exponents included, is written
- * unchanged: `-80.6` is a number to every spreadsheet, not a formula, and a
+ * A value that is entirely a number, negatives, decimals and exponents
+ * included, is written unchanged: `-80.6` is a number to every spreadsheet, not a formula, and a
  * prefix would turn every western longitude into text. Anything else with a
  * leading `-`, such as `-1+HYPERLINK(...)`, is a formula and is neutralized.
  */

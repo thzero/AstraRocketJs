@@ -29,8 +29,8 @@ public final class Geo2D {
 	 * JVM's {@code hypot} is the FDLIBM scaled algorithm while TeaVM's is the
 	 * naive form, so they disagree by 1 ULP on roughly 12% of fin-scale inputs.
 	 * Using {@code hypot} would split the JVM parity reference from both browser
-	 * targets, with the JVM the side that does not match OpenRocket. IEEE-754 {@code sqrt}
-	 * is correctly rounded, so this form is identical everywhere.
+	 * targets, with the JVM the side that does not match OpenRocket. IEEE-754
+	 * {@code sqrt} is correctly rounded, so this form is identical everywhere.
 	 */
 	public static double distance(double x1, double y1, double x2, double y2) {
 		double dx = x2 - x1;

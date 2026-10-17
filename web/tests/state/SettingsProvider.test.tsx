@@ -68,8 +68,8 @@ describe('SettingsProvider persistence', () => {
   /**
    * A "skip the first effect run" ref does not guard the mount write.
    * StrictMode runs every effect's setup twice on mount and refs persist across
-   * the pair, so the second run sees the flag set and writes anyway, in exactly
-   * the environment developers test in (main.tsx renders under StrictMode).
+   * the pair, so the second run sees the flag set and writes anyway (main.tsx
+   * renders under StrictMode).
    * Persisting from the update event has no first run to skip.
    */
   it('does not write on mount under StrictMode either', () => {

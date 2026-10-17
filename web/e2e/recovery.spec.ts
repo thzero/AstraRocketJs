@@ -36,7 +36,6 @@ test('the parachute editor exposes deployment overrides, simulates, and persists
   await page.getByLabel('Deploy delay').fill('1');
 
   // The override reaches the engine: a flight runs cleanly with it applied.
-  // (A tab away: running lives on the Simulations tab.)
   await runFlight(page);
 
   // It rides on the design, so the workspace autosave restores it after reload,

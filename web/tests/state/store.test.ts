@@ -35,8 +35,8 @@ import { asFlown, isStale } from '../testing/flown';
 import type { FlightResult } from '../../src/engine/openRocketEngine';
 import { hasThrustCurve } from '../../src/services/flight/runnability';
 
-// The undo/redo history is pure JSON bookkeeping over the design tree (the React
-// rebuild effect isn't involved), so we exercise the store actions directly.
+// The undo/redo history lives in the store (no React effect is involved), so
+// these exercise the store actions directly.
 const s = () => useWorkspaceStore.getState();
 const len = (id: string): number | undefined => findNode(s().tree, id)?.length as number | undefined;
 const active = () => selectActive(s());
@@ -47,8 +47,8 @@ const seated = () => config().motors[mountId()]!.spec;
 
 // Several describes queue `mockRejectedValueOnce` / `mockImplementationOnce`
 // on the shared sim stub. If an assertion throws before the run consumes the
-// queued value, it leaks into the next test as an unrelated "kernel exploded".
-// Reset the queue for every test, not only in the describes that remembered to.
+// queued value, it leaks into the next test as an unrelated "kernel exploded",
+// so the queue is reset for every test.
 beforeEach(() => simulateMock.mockReset());
 
 describe('workspace undo/redo', () => {
@@ -88,7 +88,7 @@ describe('workspace undo/redo', () => {
   });
 
   it('undoes an add and a remove, reselecting what changed', () => {
-    // Add a part under the selected nose cone.
+    // Add a part under the body tube.
     s().setSelectedId('body');
     s().addPartToTree('trapezoidfinset');
     const addedId = s().selectedId!;
@@ -872,16 +872,20 @@ describe('results age instead of being destroyed', () => {
     expect(isStale(active())).toBe(true);
   });
 
-  it('flags only the row whose motor changed, because the configuration forks', () => {
-    // A motor edit is about one row (store.patchActiveConfig): a configuration
-    // several rows fly is forked first, so the others keep flying what they flew.
-    s().setMountMotor(config().id, mountId(), { ...C6, designation: 'D12' });
-    expect(isStale(active())).toBe(true);
-    expect(
-      s()
-        .sims.filter((x) => x.id !== s().activeId)
-        .every((x) => x.result && !isStale(x)),
-    ).toBe(true);
+  it('flags the rows flying the configuration whose motor changed, and no other', () => {
+    // A motor edit changes the shared configuration, not a fork of it: every row
+    // flying it ages, and a row flying another configuration stays current.
+    const first = s().activeId;
+    s().addSim();
+    const second = s().activeId;
+    s().addConfig();
+    s().setSimConfig(second, s().selectedConfigId!);
+    seed();
+    const row = (id: string) => s().sims.find((x) => x.id === id)!;
+    s().setMountMotor(configOf(s().configs, row(first)).id, mountId(), { ...C6, designation: 'D12' });
+    expect(isStale(row(first))).toBe(true);
+    expect(row(second).result).not.toBeNull();
+    expect(isStale(row(second))).toBe(false);
   });
 
   it('a finished run is current again', async () => {
@@ -1178,15 +1182,15 @@ describe('storage warning', () => {
     s().setErr(null);
   });
 
-  // Two slots, because the rebuild effect calls setErr(null) on every successful
-  // build, which happens milliseconds after load and again on every keystroke. In
-  // one shared slot the warning that the user's work is no longer being saved
-  // would be wiped before anyone could read it.
+  // Two slots, because the rebuild effect calls setErr(null) when a design edited
+  // since the error builds, which happens on every keystroke. In one shared slot
+  // the warning that the user's work is no longer being saved would be wiped
+  // before anyone could read it.
   it('survives the rebuild effect clearing the transient error', () => {
     s().setStorageWarning('storage is full');
     s().setErr('something else went wrong');
 
-    s().setErr(null); // what the rebuild effect does after every successful build
+    s().setErr(null); // what the rebuild effect does after building an edited design
 
     expect(s().err).toBeNull();
     expect(s().storageWarning).toBe('storage is full');
@@ -1202,7 +1206,7 @@ describe('storage warning', () => {
 
 describe('openDesign is race-safe', () => {
   /**
-   * Four sequential awaits, and the user can click a second design during any
+   * Several sequential awaits, and the user can click a second design during any
    * of them. If B's read resolves first, A's continuation must not then run
    * flushActive() (writing B's tree out under the store's current active id)
    * and finish with setActive(A) + hydrate(A), leaving the user who clicked B
@@ -1389,9 +1393,8 @@ describe('openOrkFile refuses an oversized file before reading it', () => {
 
 /**
  * Every library call that reports a refused write returns a boolean, and the store
- * has to honor it. Discarded, the consequence for openDesign is the one
- * designLibrary.setActive documents: this session edits B while the library still
- * names A, and the next launch reopens A.
+ * has to honor it. Discarded in openDesign, this session would edit B while the
+ * library still names A, and the next launch would reopen A.
  */
 describe('openDesign honors a refused setActive', () => {
   beforeEach(() => s().resetWorkspace());
@@ -1443,9 +1446,8 @@ describe('openDesign honors a refused setActive', () => {
  * Launch conditions outside the NAR/Tripoli safety codes are not flown.
  *
  * They are simulation settings, not design, so there is nothing to preserve by
- * flying them anyway, and a number this app will not stand behind is worse than
- * no number. The fields cap what you can type; this is the guard for everything
- * that arrives another way, which in practice means an imported `.ork`.
+ * flying them anyway. The fields cap what you can type; this is the guard for
+ * everything that arrives another way, which in practice means an imported `.ork`.
  */
 describe('the safety codes stop a run', () => {
   beforeEach(() => {
@@ -1505,8 +1507,8 @@ describe('the safety codes stop a run', () => {
  * their own key, written only when a run has changed them, which keeps the
  * per-keystroke autosave cheap without throwing the results away.
  *
- * Last in the file on purpose - it swaps the design-library singleton, which has no
- * restore, so anything after it would inherit the stub.
+ * It swaps the design-library singleton and does not restore it, so a later
+ * test that reads the library has to set its own.
  */
 describe('what reaches storage', () => {
   it('hands the flight results over rather than dropping them', async () => {
@@ -1537,8 +1539,8 @@ describe('what reaches storage', () => {
       setActive: async () => true,
     } as never);
 
-    // openDesign flushes the open design before it switches away, which is
-    // the one path that writes on demand, since the File menu has no Save item.
+    // openDesign flushes the open design through the workspace store before it
+    // switches away.
     await s().openDesign('D');
 
     expect(save).toHaveBeenCalled();

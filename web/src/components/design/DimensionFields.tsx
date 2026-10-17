@@ -142,8 +142,7 @@ export interface NodeEditProps {
  * read as four more dimensions of the same shape. A transition has two, kept
  * apart because each end is its own build and eight rows under one heading is
  * a wall. At most two render for a given part (a transition's fore and aft):
- * FieldSection draws
- * nothing when the type has no field in it.
+ * FieldSection draws nothing when the type has no field in it.
  */
 export function ShoulderSections({ node, onChange, onCommit }: NodeEditProps) {
   const { t } = useTranslation();
@@ -466,17 +465,14 @@ export function FieldRow({ node, field: f, onChange, onCommit, stageBelow }: Nod
     case 'bore': {
       // A tube's inner diameter, which is not stored: the node and the `.ork`
       // carry the outer radius and the wall, and the bore is the pair of them.
-      // So typing a bore writes the wall back, leaving the outside where it is
-      // - the same way OpenRocket's three linked tube fields behave, and the
-      // right way round for the job: the outside of a tube is decided by what
-      // it has to slide into, and it is the wall that gives.
+      // So typing a bore writes the wall back and leaves the outside where it
+      // is, as OpenRocket's three linked tube fields do.
       //
       // Read through `num` exactly as the thickness row above it does, rather
       // than through the per-type defaults the file services use, so the two
-      // rows can never show a wall and a bore that disagree. A wall of zero is
-      // already marked as degenerate on its own row; a bore typed all the way
-      // out to the outer diameter lands there honestly instead of being nudged
-      // off it by an invented minimum.
+      // rows never show a wall and a bore that disagree. A bore typed out to
+      // the outer diameter lands there (a zero wall, which its own row marks),
+      // with no minimum wall imposed.
       const fu = u.at(scope, 'length');
       const outerR = num(node, 'outerRadius');
       const od = 2 * outerR;
@@ -501,9 +497,9 @@ export function FieldRow({ node, field: f, onChange, onCommit, stageBelow }: Nod
       // A second door onto numbers the part does store: a fin's sweep as an
       // angle, a streamer's area or aspect ratio, a mass component's density.
       // Nothing here is a node key - the pair of conversions in
-      // services/design/derivedFields.ts reads the stored keys and writes them back,
-      // the same arrangement as the `bore` row above, and for the same reason:
-      // the arithmetic is the kernel's and belongs somewhere it can be tested.
+      // services/design/derivedFields.ts reads the stored keys and writes them
+      // back, so the arithmetic, which is the kernel's, sits where it can be
+      // tested.
       const d = DERIVED[f.derived];
       // A bare ratio has no unit group and no chip, so it also has no scope to
       // convert through: it is read and written as itself.

@@ -150,7 +150,7 @@ export function buildAftScene(
   // the station the chain ends at. `turn` is the angle every part of the chain
   // is turned by about its axis: the sum of the angles of the pod or booster
   // instances it sits in, which the kernel turns each child by
-  // (FlightConfiguration.java:456-462).
+  // (FlightConfiguration.getActiveContextListAt, FlightConfiguration.java:470-485).
   function walkChain(nodes: ComponentNode[], cy: number, cz: number, x0: number, turn: number): number {
     let x = x0;
     for (const n of nodes) {

@@ -20,8 +20,7 @@ import type { CustomPart } from '../../../src/services/parts/presetStore';
  *
  * A `role="status"` element created at the same moment as its text is not
  * announced by most screen readers: the region has to be in the DOM before the
- * text is put into it (the rule UpdateToast, LaunchPanel and LocationPicker
- * follow). Each dialog's failure line is its only word on a refused write, so
+ * text is put into it. Each dialog's failure line is its only word on a refused write, so
  * each is checked the same way: before the failure a polite region is mounted
  * with nothing in it, and after the failure that same element holds the text.
  */

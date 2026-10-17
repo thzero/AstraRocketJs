@@ -51,7 +51,7 @@ describe('recovery sizing physics', () => {
     const seaLevel = descentRate(1, 0.8, 0.8, airDensity({ launchAltitudeM: 0 }));
     const highField = descentRate(1, 0.8, 0.8, airDensity({ launchAltitudeM: 1500 }));
     expect(highField).toBeGreaterThan(seaLevel);
-    // ~6-7% faster by 1500 m.
+    // About 7.6% faster at 1500 m, where ISA density is about 14% lower.
     expect(highField / seaLevel).toBeGreaterThan(1.05);
   });
 });

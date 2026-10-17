@@ -6,9 +6,10 @@ import info.openrocket.core.material.MaterialGroup;
 import info.openrocket.core.database.Database;
 
 /**
- * SHIM replacing OpenRocket's material database (which loads from resources
- * via Guice at startup). Provides findMaterial for the built-in materials the
- * carved kernel references by name. Densities are copied verbatim from
+ * SHIM replacing OpenRocket's material database (built in a static initializer
+ * that reaches the Guice-backed Application for its translator and the user's
+ * materials). Provides findMaterial for the built-in materials the carved
+ * kernel references by name. Densities are copied verbatim from
  * upstream database/Databases.java's built-in material list.
  */
 public final class Databases {

@@ -28,8 +28,8 @@ export interface AxialFrame {
  * Laid out the way the drawings lay the tree out: stages flatten into one
  * nose-to-tail chain whose members stack, a pod set's or booster's airframe
  * parts stack from its front, and everything else sits by its position
- * against its parent. An `absolute` offset is measured from the
- * rocket's origin, as the kernel measures it. A part inside a pod set or a
+ * against its parent. An `absolute` offset is measured from the rocket's
+ * origin, as the kernel measures it. A part inside a pod set or a
  * booster is placed by its first copy, as `getComponentLocations()[0]` is.
  */
 export function axialFrames(tree: RocketTree): Map<string, AxialFrame> {

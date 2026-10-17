@@ -8,11 +8,10 @@ import { readExpanded, sizeClasses, writeExpanded } from '../../../src/component
 
 /**
  * The shell every dialog in the app shares: the overlay, the panel, the focus trap,
- * the stop-propagation and the close button. Hand-rolled per dialog these drift -
- * off `.dialog-panel` and so out of the full-bleed phone treatment, past the bottom
- * of a short window with no maximum height, onto an `aria-label` duplicating the
- * visible heading rather than pointing at it. These are the guarantees that hold
- * instead.
+ * the stop-propagation and the close button. A hand-rolled copy drifts off
+ * `.dialog-panel` and so out of the full-bleed phone treatment, past the bottom of
+ * a short window with no maximum height, or onto an `aria-label` duplicating the
+ * visible heading rather than pointing at it.
  */
 
 /** A press that starts and ends on the element, as a backdrop click is. */
@@ -56,7 +55,7 @@ describe('Dialog', () => {
       expect(container.querySelector('.dialog-overlay')).not.toBeNull();
     });
 
-    it('always caps its height, which nine dialogs used not to', () => {
+    it('always caps its height', () => {
       const { dialog } = open();
       expect(dialog.className).toMatch(/max-h-\[\d+vh\]/);
     });
@@ -220,12 +219,10 @@ describe('Dialog', () => {
       expect(dialog.className).toContain('h-[var(--dialog-height)]');
       // Still capped: 560px is taller than a short window.
       expect(dialog.className).toContain('max-h-[85vh]');
-      // Not an inline height. An inline style beats a stylesheet, so an inline
-      // height would defeat the full-bleed phone rule and leave a 560px Settings
-      // panel floating in the middle of an 844px phone. As a class it loses to
-      // that rule, as `fill`'s own height does. (Tailwind compiles arbitrary
-      // values at build time, so an `h-[560px]` assembled at runtime would name a
-      // class that was never generated, hence the variable.)
+      // Not an inline height: an inline style beats the full-bleed phone rule in
+      // index.css, and a class loses to it. Tailwind compiles arbitrary values at
+      // build time, so an `h-[560px]` assembled at runtime would name a class that
+      // was never generated, hence the variable.
       expect(dialog.style.height).toBe('');
     });
 

@@ -481,7 +481,7 @@ function buildSolid(node: ComponentNode, parent: FinParent): THREE.BufferGeometr
       // the wrong diameter with no warning, so without a parent radius the part
       // is skipped rather than given an invented size.
       // The other tubes default per type, from `KERNEL_DEFAULTS`: the kernel
-      // builds an inner tube at 9.5 mm and a launch lug at 2.2 mm, and a part
+      // builds an inner tube at a 9.5 mm radius and a launch lug at 5 mm, and a part
       // that does not fit the rocket that was simulated defeats an export whose
       // purpose is a physical part.
       const R =

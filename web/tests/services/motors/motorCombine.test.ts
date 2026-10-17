@@ -56,11 +56,7 @@ describe('impulseClass', () => {
     expect(impulseClass(320)).toBe('H');
     expect(impulseClass(1280)).toBe('J');
   });
-  /**
-   * The sub-A classes are real NAR designations, not a rounding artifact:
-   * MicroMaxx is 1/4A territory and people fly it. A dash for all of them
-   * would throw away what the impulse says.
-   */
+  /** The sub-A classes are real NAR designations: a 0.75 N-s MicroMaxx is a 1/2A. */
   it('names the fractional classes below A', () => {
     // NAR boundaries: 1/8A <= 0.3125, 1/4A <= 0.625, 1/2A <= 1.25, A <= 2.5.
     expect(impulseClass(0.3125)).toBe('1/8A');
@@ -89,9 +85,7 @@ describe('impulseClass', () => {
  * sample time rather than only past it, the last trapezoid would be integrated
  * as if the motor had already stopped.
  *
- * Most published curves end at zero thrust, which hides the error; a few in the
- * bundled catalog do not. The synthetic case below is far worse than anything
- * shipped, so it tests what the code does, not what the data happens to avoid.
+ * Most published curves end at zero thrust; a few in the bundled catalog do not.
  */
 describe('thrustAt at the end of a curve', () => {
   const abrupt: Sample[] = [
@@ -109,8 +103,7 @@ describe('thrustAt at the end of a curve', () => {
   it('keeps the tail in the combined impulse', () => {
     // Trapezoid truth: 0.5*10*0.1 + 0.5*(10+5)*1.7 = 13.25 N-s.
     expect(impulse(abrupt)).toBeCloseTo(13.25, 9);
-    // Exact to within the terminator's own microsecond-wide ramp (~2.5e-6 N-s),
-    // which is the deliberate cost of representing an abrupt stop at all.
+    // Summed from the curve itself, so the terminator point does not enter it.
     expect(combineCurves([abrupt]).totalImpulse).toBeCloseTo(13.25, 4);
   });
 
@@ -146,9 +139,8 @@ describe('thrustAt at the end of a curve', () => {
  * Thrust curves use a duplicated time to mean a vertical edge: an instant
  * ignition spike, or a cut-off. The union of breakpoints de-duplicates those
  * times, so `thrustAt` has to return the last sample at a time, not the first,
- * or a step up reads as the value before it. K543 in the bundled catalog begins
- * `[0, 0], [0, 2117]`; read the other way, it makes no thrust at ignition and
- * sums to 771.8 N-s instead of 2117.3 N-s.
+ * or a step up reads as the value before it. Bundled curves such as Cesaroni's
+ * 2493K575-P begin `[0, 0], [0, 16]`.
  */
 describe('a curve with a step at a duplicated timestamp', () => {
   const stepUp: Sample[] = [
@@ -177,23 +169,16 @@ describe('a curve with a step at a duplicated timestamp', () => {
 /**
  * The whole bundled catalog, as the check on the two rules above.
  *
- * Comparing `combineCurves([s]).totalImpulse` to `impulse(s)` would be a
- * tautology: `totalImpulse` is `impulse(s)`, summed over the (one) curve, and
- * exercises nothing about resampling. What the panel plots and peaks is the
- * resampled curve, so that is what is integrated here.
+ * `totalImpulse` is `impulse` summed over the curves, so it says nothing about
+ * resampling. What the panel plots and peaks is the resampled curve, so that is
+ * what is integrated here, against the curve as the kernel flies it
+ * (`finalizeSamples`), which is what `combineCurves` sums.
  *
- * The source is the curve as the kernel flies it (`finalizeSamples`: a point
- * at t = 0, no repeats), which is what `combineCurves` sums. For a curve
- * without a duplicated timestamp the resampled curve must integrate to the
- * same total as that source: the breakpoints are the source's own times, so
- * the only permitted difference is the microsecond terminator a non-zero
- * ending gets. For the curves that encode a step as two samples
- * at one time, the union of breakpoints has one point where the source has
- * two, so the resampled curve cannot carry the step's leading value; that is
- * why `totalImpulse` is summed from the curves and not from the samples. The
- * check on those is the one that matters for them: `thrustAt` reads the value
- * after the step, so the resampled point is the later sample, not the earlier
- * one (K543 starts [0, 0], [0, 2117] and must read 2117 N at t = 0).
+ * Without a duplicated timestamp, the breakpoints are the source's own times,
+ * and the only permitted difference is the microsecond terminator a non-zero
+ * ending gets. With a step encoded as two samples at one time, the union of
+ * breakpoints has one point where the source has two, so the check is that the
+ * resampled point is the later sample.
  */
 describe('every curve in the bundled catalog', () => {
   const load = async () => {
@@ -222,7 +207,7 @@ describe('every curve in the bundled catalog', () => {
       // The resampled curve itself, not the pre-summed total.
       const shown = impulse(combineCurves([s]).samples);
       // The terminator ramps a non-zero ending to 0 over 1e-6 s: at most
-      // F_end * 5e-7 N-s, which is 2.4e-5 relative on the worst shipped curve.
+      // F_end * 5e-7 N-s, about 5e-8 relative on the worst shipped curve.
       if (Math.abs(truth - shown) / Math.max(truth, 1e-9) > 1e-4) {
         wrong.push(`${name}: ${truth.toFixed(3)} vs ${shown.toFixed(3)}`);
       }

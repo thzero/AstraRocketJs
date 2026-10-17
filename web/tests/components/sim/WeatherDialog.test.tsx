@@ -20,7 +20,7 @@ const SITE = {
   pressureHPa: null,
 } as LaunchConditions;
 
-/** Tomorrow on the fixture's calendar, and 72 hours of answer around it. */
+/** Tomorrow on the site's calendar (America/Denver), and an answer from the day before it on. */
 const date = ymdInZone(Date.now() + 86_400_000, 'America/Denver');
 const start = Date.parse(`${date}T00:00:00Z`) / 1000 - 24 * 3600;
 

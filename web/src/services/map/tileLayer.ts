@@ -8,9 +8,9 @@ import type { TileSourceId } from './slippyMap';
  * per-view setting: somebody who switched to the street layer to find the road
  * in wants the road in on both surfaces.
  *
- * Not a stored preference: it is switched freely while looking at one question, and a settings row for
- * it would be a row nobody goes looking for. Module-level so opening a second
- * map does not put it back to imagery.
+ * Not a stored preference: it is switched freely while looking at one
+ * question, and a settings row for it would be a row nobody goes looking for.
+ * Module-level so opening a second map does not put it back to imagery.
  */
 let current: TileSourceId = 'satellite';
 

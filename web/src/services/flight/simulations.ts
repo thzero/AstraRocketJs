@@ -1,7 +1,7 @@
 // A named simulation = one flight setup over the shared rocket design: the
-// flight configuration it flies + launch conditions + last result. The right
-// panel is a list of these; switching the active one drives the stability
-// readout and sim.
+// flight configuration it flies + launch conditions + last result. The
+// Simulations tab is a table of these; the active one is the row the editor
+// is pointed at.
 import type { FlightResult, RocketTree, FlightSummary } from '../../engine/openRocketEngine';
 import type { FlightConfig } from './flightConfigs';
 import type { LaunchConditions } from '../design/orkTree';
@@ -406,8 +406,7 @@ export interface SimPrefs {
  *
  * A type cannot be enumerated at runtime, so this list is hand-written, and a
  * key added to `SimPrefs` without being added here would never invalidate
- * results. `EXHAUSTIVE` fails
- * to compile in that case.
+ * results. `EXHAUSTIVE` fails to compile in that case.
  */
 export const SIM_PREF_KEYS = [
   'timeStep',

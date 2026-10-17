@@ -132,14 +132,14 @@ describe('migration from localStorage', () => {
     expect(await kv.get('k')).toBe('fresh');
   });
 
-  it('reports a write that aborts after the request succeeded as failed', async () => {
+  it('sends a write that aborts after the request succeeded to the fallback', async () => {
     const local = new FakeLocal();
     const kv = new IndexedDbKeyValueStore(local);
     await kv.set('warm', 'up'); // open the db before we start interfering
 
     await abortAfterSuccess(async () => {
-      // It must not claim success for a write that is not in IndexedDB. It
-      // falls back to localStorage, which is a real place the value now lives.
+      // The IndexedDB write never committed, so the value goes to localStorage
+      // and the true reports that copy, not the IndexedDB one.
       expect(await kv.set('k', 'v')).toBe(true);
       expect(local.map.get('k')).toBe('v');
     });
@@ -237,8 +237,7 @@ describe('when IndexedDB is unavailable', () => {
  * database open. Rejecting alone leaves the `open` request pending: when the
  * blocking tab finally closes, `onsuccess` fires on an already-settled promise
  * and the connection is leaked with nobody holding it to `close()`, which
- * then blocks the next version upgrade in turn, in a tab that has no idea why.
- * It cannot be provoked through fake-indexeddb at a fixed DB_VERSION, so the
+ * then blocks the next version upgrade in turn. It cannot be provoked through fake-indexeddb at a fixed DB_VERSION, so the
  * request object is stood in for directly.
  */
 describe('an open blocked by another tab', () => {
@@ -289,8 +288,8 @@ describe('an open blocked by another tab', () => {
   });
 
   it('does not memoize the block, so a later call reaches IndexedDB', async () => {
-    // Otherwise one unlucky moment latches the whole session to the 5 MB cap
-    // it just escaped - the same "never memoize a failure" rule as above.
+    // A memoized block would latch the whole session to the localStorage
+    // fallback; the same "never memoize a failure" rule as the open error above.
     const { req } = blockingRequest();
     const kv = new IndexedDbKeyValueStore(new FakeLocal());
     const spy = vi.spyOn(indexedDB, 'open').mockImplementationOnce(() => {
