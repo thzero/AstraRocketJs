@@ -1,7 +1,7 @@
 import { test, expect, ready, importOrk, note, type Locator } from './base';
 
 /**
- * The 3D cutaway.
+ * The 3D view's toggles: the cutaway, and the Figure and Finished view types.
  *
  * This holds two things a unit test cannot. The first is that the toggle is
  * reachable: the view-preset row is pinned top-right at z-index 2 and the
@@ -55,4 +55,29 @@ test('cuts the airframe open, and the button can be pressed to do it', async ({ 
 
   await cut.click();
   await expect(cut).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('switches between the Figure and Finished views, and both buttons can be pressed', async ({ page }) => {
+  await page.setViewportSize({ width: 1400, height: 900 });
+  await ready(page);
+  await page.getByRole('button', { name: '3D', exact: true }).click();
+
+  const canvas = page.locator('main canvas').first();
+  await expect(canvas).toBeVisible();
+  const figure = page.getByRole('button', { name: 'Figure', exact: true });
+  const finished = page.getByRole('button', { name: 'Finished', exact: true });
+  // Figure first, as desktop opens on it.
+  await expect(figure).toHaveAttribute('aria-pressed', 'true');
+  const seeThrough = await settled(canvas);
+
+  // The default rocket has no appearance of its own, so the change is the
+  // airframe turning solid.
+  await finished.click();
+  await expect(finished).toHaveAttribute('aria-pressed', 'true');
+  await expect(figure).toHaveAttribute('aria-pressed', 'false');
+  const solid = await settled(canvas);
+  expect(solid).not.toBe(seeThrough);
+
+  await figure.click();
+  await expect(figure).toHaveAttribute('aria-pressed', 'true');
 });

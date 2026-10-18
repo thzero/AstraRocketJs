@@ -8,13 +8,11 @@ import { MAX_PASSTHROUGH } from './importLimits';
  * round trip verbatim.
  *
  * A `.ork` written by the desktop can hold things we have no model for, and they
- * sit at three levels: inside a component (the Appearance tab's `<appearance>`
- * and `<insideappearance>`), inside `<rocket>` (a desktop version's new tag),
- * and beside it at document level (`<photostudio>`, `<docprefs>`,
- * `<datatypes>`). Reading them
- * into the app would mean building an editor for each; ignoring them would mean
+ * sit at three levels: inside a component or inside `<rocket>` (a newer desktop
+ * version's tag), and beside `<rocket>` at document level (`<photostudio>`,
+ * `<docprefs>`, `<datatypes>`). Reading them into the app would mean building an editor for each; ignoring them would mean
  * every save silently throws them away, so a design that came here for one
- * dimension would go back stripped of its paint and its Photo Studio setup.
+ * dimension would go back stripped of its Photo Studio setup.
  *
  * So they are kept as raw XML on the node and written back where they were.
  * Nothing is parsed, nothing reaches the engine, and nothing can appear in the
@@ -40,6 +38,8 @@ export const KNOWN_COMPONENT_TAGS: ReadonlySet<string> = new Set([
   'linestyle',
   'preset',
   'color',
+  'appearance',
+  'insideappearance',
   'finish',
   'material',
   'linematerial',
@@ -266,16 +266,6 @@ export const ROCKET_EXTRA_KEY = 'xmlExtra';
 export const DOC_EXTRA_KEY = 'docExtra';
 
 /**
- * A decal names an image stored as a separate member of the `.ork` zip, and we
- * do not keep those members. Carrying the reference without the image would put
- * a dangling name in the file we write, so the reference is dropped and the rest
- * of the appearance - the paint, the shine, the opacity - is kept.
- */
-const stripDecals = (el: Element): void => {
-  el.querySelectorAll('decal').forEach((d) => d.remove());
-};
-
-/**
  * Read an element's unknown direct children, ready to be written back, or
  * `undefined` when it has none.
  *
@@ -294,11 +284,7 @@ export function readPassthrough(el: Element, known: ReadonlySet<string> = KNOWN_
   for (const child of Array.from(el.children)) {
     if (known.has(child.tagName.toLowerCase())) continue;
     if (xml.length === MAX_PASSTHROUGH) throw new KeyedError('errors.file.tooManyUnknownElements');
-    // Cloned before editing: the caller's document is still being read, and a
-    // reader that runs after this one would otherwise see a modified tree.
-    const copy = child.cloneNode(true) as Element;
-    stripDecals(copy);
-    xml.push(serializer.serializeToString(copy));
+    xml.push(serializer.serializeToString(child));
   }
   return xml.length ? xml : undefined;
 }

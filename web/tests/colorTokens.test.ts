@@ -65,6 +65,7 @@ describe('color tokens', () => {
   it('keeps hex colors in code to the files whose colors are not the interface', () => {
     const ALLOWED: Record<string, string> = {
       'services/design/partColors.ts': 'default paint of each kind of part: the rocket, not the UI',
+      'services/design/appearance.ts': "desktop's appearance builder default paint: the rocket, not the UI",
       'services/files/rktImport.ts': "RockSim's color names, as its file format defines them",
       'services/exports/schematicExport.ts': 'the print colors a downloaded schematic is written in',
       'services/storage/settings.ts': 'defaults for user-chosen colors (flight phases, print templates)',

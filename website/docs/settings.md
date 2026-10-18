@@ -79,7 +79,7 @@ Otherwise:
 
 The **Colors** tab holds three settings:
 
-- **Part colors (3D model)**: the color each kind of part is drawn in on the 3D model. A row you have changed gets a reset button that puts back its default color.
+- **Part colors (3D model)**: the color each kind of part is drawn in on the 3D model, for a part whose [3D appearance](./designing-a-rocket.md#appearance) is on the default. A row you have changed gets a reset button that puts back its default color.
 - **Flight-path phase colors**: the colors of the **Boost**, **Coast** and **Descent** segments of the 3D flight path.
 - **Aero table shading**: see [above](#aero-table-shading).
 

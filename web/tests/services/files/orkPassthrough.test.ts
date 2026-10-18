@@ -11,12 +11,9 @@ import { noteTexts } from '../../testing/importNotes';
 import { MAX_PASSTHROUGH } from '../../../src/services/files/ork/importLimits';
 
 /**
- * What a `.ork` carries that this app has no model for.
- *
- * The desktop's Appearance tab is the main case: paint, shine and a
- * decal per part. Reading it would mean building an editor for it; ignoring it
- * would throw it away on every save, so a design that came here for one
- * dimension would go back stripped of its paint. It is carried as raw XML instead.
+ * What a `.ork` carries that this app has no model for, a newer desktop's new
+ * tag being the case that matters: ignoring it would throw it away on every
+ * save. It is carried as raw XML instead.
  *
  * jsdom, because the reader uses `XMLSerializer` to keep the elements.
  */
@@ -56,24 +53,7 @@ const roundTrip = (xml: string): string => {
   return exportOrk({ name: res.name, tree: res.tree });
 };
 
-describe('appearance settings survive a round trip', () => {
-  it('keeps the paint and the shine, values and all', () => {
-    const out = roundTrip(orkWith(APPEARANCE));
-    expect(out).toContain('<appearance>');
-    expect(out).toContain('<paint red="200" green="30" blue="40" alpha="255"/>');
-    expect(out).toContain('<shine>0.3</shine>');
-  });
-
-  it('keeps an inside appearance too', () => {
-    const inside = `            <insideappearance>
-              <edgessameasinside>false</edgessameasinside>
-              <paint red="1" green="2" blue="3" alpha="255"/>
-            </insideappearance>`;
-    const out = roundTrip(orkWith(inside));
-    expect(out).toContain('<insideappearance>');
-    expect(out).toContain('<edgessameasinside>false</edgessameasinside>');
-  });
-
+describe('elements this app has no model for survive a round trip', () => {
   it('keeps an element no version of this app has ever seen', () => {
     // The point of carrying by exclusion rather than by a list of known extras:
     // a newer OpenRocket's new tag survives without a code change here.
@@ -87,24 +67,20 @@ describe('appearance settings survive a round trip', () => {
     expect(roundTrip(orkWith('            <value>7</value>'))).toContain('<value>7</value>');
   });
 
-  it('is invisible to the app: nothing but the one raw key', () => {
-    const t = tube(importOrk(orkWith(APPEARANCE)).tree);
-    // No `paint`, no `shine`, no `appearance` object: the panel and the engine
-    // see the same node they would without the passthrough.
-    expect(Object.keys(t).filter((k) => /paint|shine|appearance/i.test(k))).toEqual([]);
-    expect(Array.isArray(t['xmlExtra'])).toBe(true);
-  });
-
   it('adds nothing at all to a design that had none', () => {
     const t = tube(importOrk(orkWith('')).tree);
     expect(t['xmlExtra']).toBeUndefined();
   });
 
   it('survives two round trips without duplicating or nesting', () => {
-    const once = roundTrip(orkWith(APPEARANCE));
+    const once = roundTrip(orkWith('            <unknown-element><inner>1</inner></unknown-element>'));
     const twice = roundTrip(once);
-    expect(twice.match(/<appearance>/g)).toHaveLength(1);
-    expect(twice.match(/<shine>/g)).toHaveLength(1);
+    expect(twice.match(/<unknown-element>/g)).toHaveLength(1);
+    expect(twice.match(/<inner>/g)).toHaveLength(1);
+  });
+
+  it('carries no appearance: the app reads it (orkAppearance.test.ts)', () => {
+    expect(tube(importOrk(orkWith(APPEARANCE)).tree)['xmlExtra']).toBeUndefined();
   });
 });
 
@@ -134,9 +110,8 @@ describe('a decal, whose image we do not keep', () => {
     expect(out).toContain('<shine>0.5</shine>');
   });
 
-  it('says so in the import notes, both halves', () => {
+  it('says so in the import notes', () => {
     const notes = noteTexts(importOrk(orkWith(WITH_DECAL)).notes).join('\n');
-    expect(notes).toMatch(/appearance setting/i);
     expect(notes).toMatch(/decal/i);
   });
 

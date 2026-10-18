@@ -30,6 +30,7 @@ Un modelo 3D interactivo del cohete: órbita a su alrededor para inspeccionar la
 - **⟲ Restablecer** reajusta la vista actual.
 - **Lateral** y **Trasera** llevan la cámara al perfil lateral o detrás del cohete, donde los clústeres y el número de aletas se ven como están realmente.
 - **Sección** abre el fuselaje por el eje central para mostrar las piezas internas.
+- **Figura** y **Acabado** son dos de los tipos de vista 3D de OpenRocket de escritorio. **Figura**, con la que se abre la vista, dibuja cada pieza con su color de figura y el fuselaje transparente, para que se vean las piezas interiores. **Acabado** dibuja cada pieza con su [apariencia 3D](./designing-a-rocket.md#appearance), opaca salvo que hayas bajado su opacidad. La trayectoria de vuelo 3D muestra siempre el cohete acabado.
 - **📷 Imagen** guarda la vista actual como PNG o JPG con el ancho que elijas, con los datos del diseño. Gira antes el modelo hasta el ángulo que quieras. **Ajustar el cohete al encuadre**, activado por defecto, acerca la cámara para que el cohete llene la imagen; se mantiene el ángulo de visión.
 
 ## Aerodinámica (Aero) {#aerodynamics-aero}

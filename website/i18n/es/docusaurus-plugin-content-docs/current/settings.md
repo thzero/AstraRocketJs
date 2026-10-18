@@ -79,7 +79,7 @@ Por lo demás:
 
 La pestaña **Colores** tiene tres ajustes:
 
-- **Colores de piezas (modelo 3D)**: el color con el que se dibuja cada tipo de pieza en el modelo 3D. Una fila que hayas cambiado muestra un botón de restablecer que repone su color predeterminado.
+- **Colores de piezas (modelo 3D)**: el color con el que se dibuja cada tipo de pieza en el modelo 3D, para una pieza cuya [apariencia 3D](./designing-a-rocket.md#appearance) está en la predeterminada. Una fila que hayas cambiado muestra un botón de restablecer que repone su color predeterminado.
 - **Colores de fase de la trayectoria**: los colores de los tramos de **Empuje**, **Inercia** y **Descenso** de la trayectoria de vuelo 3D.
 - **Sombreado de las tablas aerodinámicas**: consulta [más arriba](#aero-table-shading).
 

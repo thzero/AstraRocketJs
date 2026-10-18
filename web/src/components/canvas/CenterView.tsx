@@ -58,6 +58,9 @@ export function CenterView() {
   // Header slot the 2D schematic's control buttons (calipers, zoom, export)
   // portal into, so they sit centered in the same row as the view toggle.
   const [ctrlSlot, setCtrlSlot] = useState<HTMLDivElement | null>(null);
+  // Left of the same row, where the 2D view has Reset / Side / Aft: the 3D
+  // model's own camera presets portal in there.
+  const [presetSlot, setPresetSlot] = useState<HTMLDivElement | null>(null);
   // Which views are turned a quarter turn on a portrait phone: the design views.
   // All three want to be wide: the 2D schematic and the 3D model because a
   // hobby airframe is 15-25x longer than it is wide, the aero charts because
@@ -106,8 +109,14 @@ export function CenterView() {
         className={`${showDrawing ? 'flex' : 'hidden'} ${sideways ? 'sketch-stage' : ''} min-h-0 w-full flex-1 flex-col overflow-hidden lg:flex`}
       >
         <div className={sideways ? 'sketch-rotate flex flex-col' : 'flex min-h-0 flex-1 flex-col'}>
-          <CenterToolbar resultName={simName} onCtrlSlot={setCtrlSlot} maxed={maxed} onToggleMaxed={toggleMaxed} />
-          <CenterCanvas flight={flight} pathResult={pathResult} ctrlSlot={ctrlSlot} />
+          <CenterToolbar
+            resultName={simName}
+            onCtrlSlot={setCtrlSlot}
+            onPresetSlot={setPresetSlot}
+            maxed={maxed}
+            onToggleMaxed={toggleMaxed}
+          />
+          <CenterCanvas flight={flight} pathResult={pathResult} ctrlSlot={ctrlSlot} presetSlot={presetSlot} />
         </div>
       </div>
       {/* Static statistics + design warnings. Out of the way when maximized: they
