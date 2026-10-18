@@ -34,7 +34,7 @@ beforeEach(() => {
   assembleReport.mockReset().mockReturnValue(model());
   downloadReportPdf.mockReset();
   useWorkspaceStore.getState().resetWorkspace();
-  // `ready` is `!!info && !!rocket`; the dialog only assembles once both land.
+  // The dialog assembles the report on mount only when `info` and `rocket` are both set.
   useWorkspaceStore.setState({ info: {}, rocket: {} } as never);
 });
 

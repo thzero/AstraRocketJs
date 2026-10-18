@@ -56,8 +56,7 @@ describe('the motor catalog carries OpenRocket’s own digests', () => {
   });
 
   it('holds more than one entry for a motor whose name the desktop shares', () => {
-    // The premise of everything below. Without a motor like this the digest is
-    // decoration and these tests prove nothing.
+    // The premise of the tests below.
     expect(row('Estes', 'C6').digests!.length).toBeGreaterThan(1);
   });
 
@@ -148,8 +147,7 @@ describe('a saved .ork names which motor it means', () => {
   });
 
   it('does not depend on the seated motor carrying one', async () => {
-    // The whole point of resolving at write time: the spec above has no digest
-    // on it, and a design saved before the catalog had any never would.
+    // The digest is resolved at write time: a seated spec carries none.
     expect(buildExportMotorMap(tree, newFlightConfig({ body: seated(5) })).body!.digest).toBeUndefined();
     expect(await exported(5)).toContain('<digest>');
   });
@@ -218,8 +216,8 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
   });
 
   it('writes a motor the catalog names outright as the catalog motor, curve or not', async () => {
-    // A user's own curve for an Estes C6, under Estes and that exact name, is
-    // the one catalog row and goes out as it.
+    // A seated curve under Estes and the exact name C6, not flagged as
+    // imported, is that catalog row and goes out as it.
     const { motors, zip } = await save({ ...curve, designation: 'C6', manufacturer: 'Estes' });
     expect(motors.body!.digest).toBe(catalogDigest(row('Estes', 'C6'), 5));
     expect(Object.keys(zip).filter((n) => n.startsWith('thrustcurves/'))).toEqual([]);
@@ -253,8 +251,9 @@ describe('a saved .ork carries the curve of a motor the catalog does not have', 
 
   /**
    * `loadCatalog` puts the user's imported motors first, and an imported motor
-   * matches its own row there, which carries no digest. Matched against that,
-   * it went out with neither a digest nor its curve.
+   * matches its own row there, which carries no digest. The digest lookup
+   * skips those rows, or the motor would go out with neither a digest nor its
+   * curve.
    */
   describe('with the motor also in the imported list', () => {
     const imported = (m: Partial<CatalogMotor>): CatalogMotor =>

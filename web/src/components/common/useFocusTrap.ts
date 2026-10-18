@@ -1,18 +1,21 @@
 import { useEffect, useRef } from 'react';
 
-// Elements that can receive keyboard focus. Disabled and tabindex=-1 nodes are
-// excluded so Tab cycling skips them, matching browser behavior. `iframe` is a
-// stop of its own: the Help dialog's content is one, and without it Tab reaches
-// every control in that dialog and never the page it exists to show.
+// Elements that Tab stops on. Disabled controls are excluded, and so is anything
+// at tabindex=-1 (a roving item, a menu entry): the browser skips it, so a wrap
+// target taken from it would never be the control focus is leaving. `iframe` is
+// a stop of its own: the Help dialog's content is one, and without it Tab
+// reaches every control in that dialog and never the page it exists to show.
 const FOCUSABLE = [
   'a[href]',
-  'iframe:not([tabindex="-1"])',
+  'iframe',
   'button:not([disabled])',
   'input:not([disabled])',
   'select:not([disabled])',
   'textarea:not([disabled])',
-  '[tabindex]:not([tabindex="-1"])',
-].join(',');
+  '[tabindex]',
+]
+  .map((s) => `${s}:not([tabindex="-1"])`)
+  .join(',');
 
 export interface FocusTrapOptions {
   /**

@@ -16,8 +16,7 @@ import i18n, { LANGUAGES } from '../../src/i18n/index';
  *   - a bare language, where we ship only regions of it, falls forward to the
  *     first region listed in LOCALES (pt → pt-BR).
  *
- * Both halves are load-bearing and neither is obvious from the config, which is
- * why they are pinned here rather than left to be rediscovered.
+ * Neither half is obvious from the config.
  */
 const CASES: [tag: string, bundle: string][] = [
   // Exact matches.
@@ -43,7 +42,7 @@ const CASES: [tag: string, bundle: string][] = [
   ['ja-JP', 'ja'],
   // Portuguese is shipped only as regions, so a bare tag has to pick one.
   ['pt', 'pt-BR'],
-  // Case is normalized before matching (?lng=pt-br is a real thing users type).
+  // Case is normalized before matching (?lng=pt-br).
   ['pt-br', 'pt-BR'],
   // Angola and Mozambique write the European orthography, but they are not
   // shipped, and the widening picks the first pt-* row rather than the closest

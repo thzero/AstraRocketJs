@@ -1,7 +1,9 @@
 import { useMemo } from 'react';
 import * as THREE from 'three';
 import { useHoverCursor } from '../common/useHoverCursor';
-import type { Piece } from './rocketPieces';
+import type { Piece, RenderMode } from './rocketPieces';
+import type { Look } from '../../services/design/appearance';
+import { LookMaterial, surfacesOf } from './LookMaterial';
 import { useSceneColors } from './sceneColors';
 
 /**
@@ -14,6 +16,7 @@ export function RocketModel({
   selectedId,
   onSelect,
   clip,
+  mode = 'figure',
 }: {
   pieces: Piece[];
   selectedId?: string | null;
@@ -23,6 +26,12 @@ export function RocketModel({
    *  with its side opened rather than a scene sliced in half. Nothing inside
    *  is cut, so there is no open cross-section to cap and no stencil pass. */
   clip?: THREE.Plane | null;
+  /**
+   * Desktop's 3D view type. Figure draws figure colors with the airframe
+   * see-through, so what is inside it shows; Finished draws each part's
+   * appearance, see-through only where its own opacity says so.
+   */
+  mode?: RenderMode;
 }) {
   const scene = useSceneColors();
   const hoverCursor = useHoverCursor();
@@ -44,6 +53,7 @@ export function RocketModel({
         // inside a closed shell, and once the shell is open they only make the
         // internals muddier.
         const cut = !!planes && (!!p.translucent || !!p.innerGlass);
+        const layered = mode === 'figure' && !selected && !cut;
         return (
           <mesh
             key={p.key}
@@ -77,22 +87,39 @@ export function RocketModel({
                   as opaque) so each layer shows through
                   the ones over it; DoubleSide draws far walls for depth. A
                   selected part takes the theme's scene-selected color and glow and
-                  turns opaque so it reads. */}
-            <meshStandardMaterial
-              color={selected ? scene['scene-selected'] : p.color}
-              roughness={0.6}
-              metalness={0.05}
-              emissive={selected ? scene['scene-selected-glow'] : '#000000'}
-              emissiveIntensity={selected ? 0.6 : 0}
-              transparent={!selected && !cut && (!!p.translucent || !!p.innerGlass)}
-              opacity={selected || cut ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1}
-              depthWrite={selected || cut || (!p.translucent && !p.innerGlass)}
-              side={cut || (!selected && (p.translucent || p.innerGlass)) ? THREE.DoubleSide : THREE.FrontSide}
-              clippingPlanes={cut ? planes : null}
-            />
+                  turns opaque so it reads. The layering is the Figure view's;
+                  Finished draws a part as opaque as its own opacity. */}
+            {surfacesOf(p, mode).map(([attach, look]) => {
+              const opacity = selected ? 1 : drawnOpacity(p, look, layered);
+              const seeThrough = opacity < 1;
+              return (
+                <LookMaterial
+                  key={attach}
+                  attach={attach}
+                  look={selected ? { ...look, color: scene['scene-selected'] } : look}
+                  emissive={selected ? scene['scene-selected-glow'] : '#000000'}
+                  emissiveIntensity={selected ? 0.6 : 0}
+                  transparent={seeThrough}
+                  opacity={opacity}
+                  depthWrite={!seeThrough}
+                  side={cut || (layered && (p.translucent || p.innerGlass)) ? THREE.DoubleSide : THREE.FrontSide}
+                  clippingPlanes={cut ? planes : null}
+                />
+              );
+            })}
           </mesh>
         );
       })}
     </>
   );
+}
+
+/**
+ * How opaque a surface is drawn. In the Figure view the airframe is layered:
+ * shells at 0.55 and inner tubes at 0.5, so the internals show through; the
+ * Finished view has no layering. A part's own opacity multiplies either.
+ */
+export function drawnOpacity(p: Piece, look: Look, layered: boolean): number {
+  const tier = !layered ? 1 : p.translucent ? 0.55 : p.innerGlass ? 0.5 : 1;
+  return tier * look.opacity;
 }

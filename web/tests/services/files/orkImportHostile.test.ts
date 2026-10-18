@@ -10,8 +10,7 @@ import { MAX_MOTOR_CONFIGS, MAX_NESTING_DEPTH, MAX_SIMULATIONS } from '../../../
  * `orkImport` is the only thing in the app that parses a file a stranger can
  * hand you. Round-trip and shape tests through `orkFile` never reach the guards
  * that exist specifically for hostile input (the zip-bomb caps, the nesting-depth
- * limit, the count caps), so they are exercised here. A cap nobody has watched
- * trip is a cap nobody knows still works.
+ * limit, the count caps), so they are exercised here.
  */
 
 /** A .ork is a zip whose `rocket.ork` entry is the XML. */
@@ -285,12 +284,12 @@ describe('file-sourced counts are clamped to domain ceilings', () => {
    *
    * The time is jsdom's DOMParser, not the cap: measured idle, the import runs
    * 133 / 279 / 430 / 698 / 1508 ms at 5k / 10k / 20k / 40k / 80k points -
-   * linear, so the sibling walk in `ork/importReaders.ts` is stopping at
-   * MAX_FIN_POINTS exactly as its comment claims. 430 ms idle has still been
-   * seen past 5 s with the rest of the suite running beside it.
+   * linear, so the sibling walk in `ork/importReaders.ts` stops at
+   * MAX_FIN_POINTS. 430 ms idle has been seen past 5 s with the rest of the
+   * suite running beside it.
    *
    * Scoped to this one case rather than the file or the config: most of the
-   * others here are milliseconds and have no business taking seconds.
+   * others here take milliseconds.
    */
   it('caps a freeform outline at 10000 points', () => {
     const n = 20_000;

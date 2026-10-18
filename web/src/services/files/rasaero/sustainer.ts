@@ -62,8 +62,7 @@ function finPlanform(fin: ComponentNode): { root: number; tip: number; sweep: nu
  * The one fin set under `parent`, as a <Fin> block; nothing when it has none.
  * `parentStart` is where the parent starts from the nose tip, which an
  * `absolute` fin set is measured from.
- */
-/**
+ *
  * `below` is the length of body that continues past the parent's bottom
  * within the same RASAero part, which the fin's Location is measured from the
  * bottom of: a booster made of several tubes (see writeBoosters).

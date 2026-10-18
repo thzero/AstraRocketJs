@@ -55,7 +55,7 @@ describe('planRun', () => {
 
   it('judges the launcher angle by the class each row flies', () => {
     const mount = findMounts(st().tree)[0]!.id as string;
-    // An H motor: 200 N·s over 2 s, past the 160 N·s that starts high power.
+    // An H motor: about 200 N·s over 2 s, past the 160 N·s that starts high power.
     const h = newFlightConfig({
       [mount]: {
         spec: {

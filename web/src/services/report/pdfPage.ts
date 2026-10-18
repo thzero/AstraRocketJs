@@ -145,8 +145,8 @@ function covered(p: PdfPage, s: string): string {
  * Run `draw` with the font this text needs set on the document, and put
  * Helvetica back after. The Unicode families have no italic, so an italic run
  * takes the upright face. `draw` is handed what to use for each string: the
- * string with each character the Unicode font lacks replaced by `?`, or its Helvetica
- * stand-in.
+ * string with each character the Unicode font lacks replaced by `?`, or its
+ * Helvetica stand-in.
  */
 function inFont<R>(p: PdfPage, s: string, draw: (fit: (s: string) => string) => R): R {
   const family = unicodeFamily(p, s);
@@ -399,7 +399,7 @@ export function table(p: PdfPage, cols: Col[], rows: string[][], boldLast = fals
  */
 const LADDERED: ReadonlySet<Quantity> = new Set<Quantity>(['length', 'motorDimensions', 'mass', 'impulse']);
 
-/** `digits` when the caller states it; else the ladder for a length, one decimal for the rest. */
+/** `digits` when the caller states it; else the ladder for a {@link LADDERED} quantity, one decimal for the rest. */
 const digitsFor = (quantity: Quantity, ui: number, digits?: number): number =>
   digits ?? (LADDERED.has(quantity) ? ladderDigits(ui) : 1);
 

@@ -59,11 +59,10 @@ export function repairNode(node: ComponentNode): { node: ComponentNode; repaired
  * enforces, and say which ones moved.
  *
  * The number boxes clamp as you type (`prefs/entryValue`), but a value arriving
- * from outside does not pass through them. A `.ork`, a share link, or an
- * autosaved session can carry a bulk density of 1e9 kg/m³, and
- * without this the app would fly it: a 200 mm tube of that weighs about 180
- * metric tons, every mass, CG and stability figure on screen is nonsense, and
- * nothing says why.
+ * from outside does not pass through them. An opened file or an autosaved
+ * session can carry a bulk density of 1e9 kg/m³, and without this the app
+ * would fly it: a 200 mm tube of that weighs about 180 metric tons, every
+ * mass, CG and stability figure on screen is nonsense, and nothing says why.
  *
  * Only quantities with a physical ceiling are touched. A per-field limit is a
  * different thing (it belongs to the field, not to a design arriving from

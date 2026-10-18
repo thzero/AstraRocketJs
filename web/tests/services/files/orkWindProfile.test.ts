@@ -187,7 +187,7 @@ describe('a negative wind speed in a file', () => {
 /**
  * The desktop keeps its multilevel model beside the average one, and
  * `<windmodeltype>` only picks which flies (SimulationOptions.getWindModel,
- * SimulationOptions.java:220-228). WindHandler fills the multilevel model from
+ * SimulationOptions.java:212-220). WindHandler fills the multilevel model from
  * its element whatever the type (WindHandler.java:20-31, 68-75), and
  * OpenRocketSaver writes it whenever it has levels, then the type
  * (OpenRocketSaver.java:364-378). So a design whose profile was built and then

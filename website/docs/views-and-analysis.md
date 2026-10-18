@@ -30,6 +30,7 @@ An interactive 3D model of the rocket: orbit to inspect the geometry from any an
 - **⟲ Reset** re-fits the current view.
 - **Side** and **Aft** move the camera to the side profile or behind the rocket, where clusters and the fin count show as they sit.
 - **Cutaway** opens the airframe along the centerline to show the internal parts.
+- **Figure** and **Finished** are two of desktop OpenRocket's 3D view types. **Figure**, the one the view opens on, draws each part in its figure color with the airframe see-through, so the parts inside show. **Finished** draws each part in its [3D appearance](./designing-a-rocket.md#appearance), solid unless you lowered its opacity. The 3D flight path always shows the finished rocket.
 - **📷 Image** saves the current view as PNG or JPG at a width you choose, with the design data. Turn the model to the angle you want first. **Fit rocket to frame**, on by default, moves the camera in so the rocket fills the image; your viewing angle is kept.
 
 ## Aerodynamics (Aero)

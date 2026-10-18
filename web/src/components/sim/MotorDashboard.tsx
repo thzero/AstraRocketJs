@@ -81,8 +81,8 @@ export function MotorDashboard({ onClose }: { onClose: () => void }) {
     setMode('detail');
   };
 
-  // Derived straight from `checked` so the combine pane's memo dep is honest:
-  // a fresh array every render would defeat it.
+  // Memoized on `checked` because the combine pane memoizes on this array: a
+  // fresh one every render would defeat it.
   const checkedMotors = useMemo(() => [...checked.values()], [checked]);
   const effMode: Mode = (mode === 'combine' || mode === 'compare') && checked.size >= 2 ? mode : 'detail';
 

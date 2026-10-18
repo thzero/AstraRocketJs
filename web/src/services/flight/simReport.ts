@@ -71,9 +71,9 @@ const DEPLOY = 'RECOVERY_DEVICE_DEPLOYMENT';
  * chart: events whose x (px) fall within `minGap` merge, keeping the cluster's
  * highest-{@link EVENT_PRIORITY} type. A recovery deployment is the exception:
  * it always keeps its own marker, because on a dual-deploy rocket the drogue
- * fires right at apogee and folding it into the apogee label would hide it. Same-instant ties order non-deploys first, so an
- * ejection charge folds into the apogee cluster while the deployment it triggers
- * still stands alone. Returns one entry per surviving label, left→right.
+ * fires right at apogee and folding it into the apogee label would hide it.
+ * Same-instant ties order non-deploys first, so an ejection charge folds into
+ * the apogee cluster while the deployment it triggers still stands alone. Returns one entry per surviving label, left→right.
  */
 export function clusterEventLabels(
   events: { time: number; type: string }[],

@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import type { Piece } from './rocketPieces';
+import { LookMaterial, surfacesOf } from './LookMaterial';
 import { usePieces } from './usePieces';
 import { mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
@@ -591,9 +592,19 @@ const FlyingModel = memo(function FlyingModel({
   return (
     <group ref={groupRef} scale={modelScale}>
       <group position={[-totalLen / 2, 0, 0]}>
+        {/* The finished rocket, opaque: a flight is watched from outside. */}
         {pieces.map((p) => (
           <mesh key={p.key} geometry={p.geometry} position={p.position ?? [0, 0, 0]} rotation={p.rotation ?? [0, 0, 0]}>
-            <meshStandardMaterial color={p.color} roughness={0.55} metalness={0.1} />
+            {surfacesOf(p, 'finished').map(([attach, look]) => (
+              <LookMaterial
+                key={attach}
+                attach={attach}
+                look={look}
+                transparent={look.opacity < 1}
+                opacity={look.opacity}
+                depthWrite={look.opacity >= 1}
+              />
+            ))}
           </mesh>
         ))}
         <group ref={flameRef} visible={false}>
@@ -694,8 +705,7 @@ function Streamer({ length, width, color }: { length: number; width: number; col
   }, [w, L]);
   // R3F does not dispose geometry it did not construct, and this one is passed
   // in via the `geometry` prop, so without this each unmount and each w/L
-  // change would leak one GPU buffer. Flame, CalloutLabel and usePieces
-  // dispose theirs the same way.
+  // change would leak one GPU buffer.
   useEffect(() => () => geo.dispose(), [geo]);
   return (
     <group position={[0, L / 2, 0]}>

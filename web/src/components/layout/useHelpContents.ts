@@ -28,9 +28,8 @@ export function useHelpContents(
   const [contentsOpen, setContentsOpen] = useState(isWide);
   const activeRow = useRef<HTMLButtonElement>(null);
 
-  // Keep the current heading in view in the rail itself. On a long page the row
-  // the frame has reached can easily be scrolled out of the page list, and a
-  // highlight you cannot see is not one that follows you.
+  // Keep the current heading in view in the rail itself: on a long page the row
+  // the frame has reached can be scrolled out of the page list.
   useEffect(() => {
     activeRow.current?.scrollIntoView({ block: 'nearest' });
   }, [activeHash]);

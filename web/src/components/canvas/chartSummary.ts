@@ -131,7 +131,7 @@ export function velocityAltitudeSummary(
   return `${label}: ${list}`;
 }
 
-/** A drag chart against Mach: each curve's peak and the Mach number it occurs at. */
+/** A chart against Mach (drag or CP): each curve's peak and the Mach number it occurs at. */
 export function machSeriesSummary(
   t: T,
   title: string,

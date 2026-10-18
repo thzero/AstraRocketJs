@@ -33,7 +33,7 @@ const prefs: SimPrefs = {
   guideAwareRodClearance: false,
 };
 
-describe('simConditions carries the options the bridge gained', () => {
+describe('simConditions carries humidity, gravity and the angle step', () => {
   it('omits humidity entirely when it is ISA', () => {
     // Not sent as the standard value: the bridge reads an absent key as NaN and
     // only leaves standard ISA when temperature, pressure and humidity are all
@@ -70,7 +70,7 @@ describe('simConditions carries the options the bridge gained', () => {
   });
 });
 
-describe('the new launch fields round-trip through .ork', () => {
+describe('humidity, gravity and the Earth model round-trip through .ork', () => {
   const spec = {
     noseCone: { length: 0.1, aftRadius: 0.013, thickness: 0.001 },
     bodyTube: { length: 0.2, outerRadius: 0.013, thickness: 0.0005 },
@@ -149,7 +149,7 @@ describe('the new launch fields round-trip through .ork', () => {
   });
 
   it('keeps the Earth model that was chosen', () => {
-    // Hardcoded to spherical on the way out, a WGS84 design comes back spherical.
+    // A writer that always wrote spherical would bring a WGS84 design back spherical.
     expect(roundTrip({ ...base, geodetic: 'wgs84' })?.geodetic).toBe('wgs84');
     expect(roundTrip({ ...base, geodetic: 'flat' })?.geodetic).toBe('flat');
   });

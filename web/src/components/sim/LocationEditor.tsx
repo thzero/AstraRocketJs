@@ -26,10 +26,9 @@ import { EditorFooter } from '../common/MasterDetail';
  * rejected after the fact.
  *
  * The map under the fields is the other half of the same job. Four digits of
- * latitude are unverifiable by reading them, and a club field usually has no
- * published coordinates at all: you know it by the mown strip off the county
- * road. Clicking the map fills both numbers, and the numbers move the pin, so
- * either one can be the thing you know.
+ * latitude cannot be checked by reading them, and a club field often has no
+ * published coordinates at all. Clicking the map fills both numbers, and the
+ * numbers move the pin, so either one can be the thing you know.
  *
  * The parent mounts this keyed on the location, so selecting another one
  * re-seeds every field by remounting rather than through an effect.

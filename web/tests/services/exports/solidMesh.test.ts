@@ -188,9 +188,8 @@ describe('solid mesher (per component)', () => {
   it('returns null for a wall at least as thick as the radius, rather than a solid rod', () => {
     // Reachable from a units slip in a hand-edited .ork (thickness 0.02 against
     // radius 0.012). Without the guard the no-bore branch would export the part
-    // as a 24 mm solid rod with nothing able to fit inside it: a watertight,
-    // plausible-looking, completely wrong mesh. The sibling degenerate cases
-    // above are all zero-valued; this one is not, so they do not cover it.
+    // as a 24 mm solid rod with nothing able to fit inside it, watertight and
+    // wrong. Unlike the degenerate cases above, the values here are not zero.
     const n = (o: object) => solidForNode(o as unknown as ComponentNode);
     expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.02 })).toBeNull();
     expect(n({ type: 'bodytube', length: 0.3, outerRadius: 0.012, thickness: 0.012 })).toBeNull(); // exactly equal
@@ -315,15 +314,15 @@ describe('makeWatertight keeps its contract or fails', () => {
   });
 
   it('caps both loops of a mesh where two meet at one vertex', () => {
-    // The multimap case the file already documents. Unconditional: what comes
-    // back is watertight, full stop.
+    // The shared-vertex case above, checked unconditionally: what comes back
+    // is watertight.
     const bowTie = geom([0, 0, 0, 1, 0, 0, 0, 1, 0, -1, 0, 0, 0, -1, 0], [0, 1, 2, 0, 3, 4]);
     expect(countBoundaryEdges(bowTie)).toBe(6);
     expect(countBoundaryEdges(makeWatertight(bowTie))).toBe(0);
   });
 
   it('throws on a non-manifold edge rather than returning it as watertight', () => {
-    // Three triangles sharing one edge. Fan-capping cannot fix an edge used three
+    // Three triangles sharing one edge. Capping cannot fix an edge used three
     // times, and the walk never sees it (it is not a boundary edge, it is an
     // over-used one), so capping what can be capped returns a geometry with seven
     // bad edges that meshExport would label watertight and write into an STL.
@@ -459,8 +458,8 @@ describe('discSolidForNode applies the same validation as solidForNode', () => {
 
 /**
  * A nose cone, body tube or transition with no `length` key is laid out at the
- * kernel's length for its type (ComponentFactory: nose 70 mm, body 300 mm,
- * transition 50 mm), not at zero. Zero would draw the part as nothing while the
+ * kernel's length for its type (ComponentFactory: nose 150 mm, body 200 mm,
+ * transition 75 mm), not at zero. Zero would draw the part as nothing while the
  * engine flies it full length. An explicit 0 (the phantom tube a T-tail hangs
  * from) is still 0.
  */

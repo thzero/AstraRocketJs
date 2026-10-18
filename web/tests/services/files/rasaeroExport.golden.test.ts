@@ -6,11 +6,10 @@ import type { Keyed } from '../../../src/i18n/keyedError';
 
 /**
  * Golden output of the .CDX1 writer, covering the sustainer, booster, recovery,
- * launch-site and simulation writers. A three
- * stage design exercises every branch: each nose shape, a shoulder on the
- * first booster and a boat tail on the last, fins on a transition, rail
- * buttons and lugs, two chutes, a Mach-Alt table, custom launch conditions,
- * per-stage engines and per-stage launch cells.
+ * launch-site and simulation writers. A three stage design exercises every
+ * branch: each nose shape, a shoulder on the first booster and a boat tail on
+ * the last, fins on a transition, rail buttons and lugs, two chutes, a Mach-Alt
+ * table, custom launch conditions, per-stage engines and per-stage launch cells.
  */
 
 const node = (o: object) => o as unknown as ComponentNode;

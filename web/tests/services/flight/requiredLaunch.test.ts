@@ -21,8 +21,8 @@ const full: CompleteLaunch = {
 };
 
 describe('isFilled', () => {
-  it('counts zero as filled, because five of the six are legitimately zero', () => {
-    // Rod angle straight up, still air, no gusts, sea level, the equator.
+  it('counts zero as filled, because six of the seven are legitimately zero', () => {
+    // Rod angle straight up, still air, no gusts, sea level, the equator, the prime meridian.
     expect(isFilled(0)).toBe(true);
     expect(isFilled(-3)).toBe(true);
   });
@@ -80,8 +80,7 @@ describe('missingRequired', () => {
       'windStdDev',
       'launchAltitudeM',
       'latitudeDeg',
-      // Longitude is a hole in the same place the latitude is, and 0° is the
-      // Gulf of Guinea rather than "unset".
+      // Longitude is required like latitude: 0° is a real meridian, not "unset".
       'longitudeDeg',
     ]);
   });

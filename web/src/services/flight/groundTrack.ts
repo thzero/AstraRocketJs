@@ -133,8 +133,9 @@ export function groundTrackLine(
  *
  * A hundred meters across covers the pad, the flight line and the near
  * treeline; a landing on the pad reads as a dot on the pad, and a fifty-meter
- * walk still reads as half the radius. It also sits inside the best aerial imagery's resolution, so
- * the map under the track is a map rather than four blown-up pixels.
+ * walk still reads as half the radius. It also sits inside the best aerial
+ * imagery's resolution, so the map under the track is a map rather than four
+ * blown-up pixels.
  */
 export const MIN_EXTENT_M = 50;
 

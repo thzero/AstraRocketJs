@@ -2,6 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import type { RocketTree } from '../../../src/engine/openRocketEngine';
 import { exportCdx1 } from '../../../src/services/files/rasaeroExport';
+import { stageEngineSlots } from '../../../src/services/files/rasaero/engines';
 import { KERNEL_DEFAULTS } from '../../../src/tree/kernelDefaults';
 import {
   rasaeroSurface,
@@ -542,5 +543,27 @@ describe('a trailing narrowing transition on a booster', () => {
     // 0.03 m is 1.1811 in; 0.008 m aft radius is 0.63 in across.
     expect(boosters[1]).toContain('<BoattailLength>1.1811</BoattailLength>');
     expect(boosters[1]).toContain('<BoattailRearDiameter>0.6299</BoattailRearDiameter>');
+  });
+});
+
+/**
+ * Desktop's RASAeroCommonConstants.OPENROCKET_TO_RASAERO_MANUFACTURER, after
+ * Manufacturer.getManufacturer resolves the name: "Loki" is a Loki Research
+ * search name, so it takes the LR branch before the bare "Loki" one, and
+ * "AMW ProX" is no Animal Motor Works alias, so it takes its own branch.
+ */
+describe('engine manufacturer abbreviations (desktop table)', () => {
+  const stage = { type: 'stage', id: 's', children: [{ type: 'bodytube', id: 'mmt' }] } as never;
+  const engine = (manufacturer: string) =>
+    stageEngineSlots([stage], { mmt: { designation: 'J350W', manufacturer } }, true)[0]!.engine;
+
+  it.each([
+    ['Animal Motor Works', 'AMW'],
+    ['AMW', 'AMW'],
+    ['AMW ProX', 'AMW/ProX'],
+    ['Loki', 'LR'],
+    ['Loki Research', 'LR'],
+  ])('writes %s as %s', (manufacturer, abbrev) => {
+    expect(engine(manufacturer)).toBe(`J350W  (${abbrev})`);
   });
 });

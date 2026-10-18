@@ -111,8 +111,8 @@ export function useHelpFrame(
   }, []);
   const [frame, setFrame] = useState<string | null>(null);
   // The heading the frame is scrolled to, so the rail follows you down a page
-  // instead of only saying what is on it. '' above the first heading, which is
-  // honest: you are not in a section yet.
+  // instead of only saying what is on it. '' above the first heading, where the
+  // reader is not in a section yet.
   const [activeHash, setActiveHash] = useState('');
 
   const ready = frame === target.src;

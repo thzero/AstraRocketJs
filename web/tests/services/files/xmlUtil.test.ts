@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { escapeXml } from '../../../src/services/files/xmlUtil';
 
 describe('escapeXml', () => {
-  it('escapes the five-ish XML metacharacters including the quote', () => {
+  it('escapes &, <, > and the double quote', () => {
     expect(escapeXml('a & b < c > d "e"')).toBe('a &amp; b &lt; c &gt; d &quot;e&quot;');
   });
 

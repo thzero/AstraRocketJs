@@ -28,9 +28,8 @@ import { beforeAll, describe, expect, it } from 'vitest';
  * (`JsonLite.MAX_DEPTH`, the aero-sweep point cap, `ComponentFactory`'s count
  * caps). See the `errorJson` contract in engine-java/src/api/java/api/OpenRocketEngine.java.
  *
- * This file exists so that stays true rather than remembered: it runs the bad
- * inputs against WASM and asserts the bounds hold there too. If someone adds an
- * unbounded path and relies on the catch, this is where it shows up.
+ * This file runs the bad inputs against WASM and asserts the bounds hold there
+ * too, so an unbounded path that relies on the catch fails here.
  */
 
 /* eslint-disable @typescript-eslint/no-explicit-any -- the TeaVM bundle is untyped */
@@ -79,8 +78,8 @@ beforeAll(async () => {
 }, 120_000);
 
 describe('the harness is really driving WASM', () => {
-  // Guarding the guard. Every assertion below is worthless if `wasm` quietly
-  // ended up being the JS module: the two-target comparison would be JS
+  // Every assertion below is worthless if `wasm` quietly ended up being the JS
+  // module: the two-target comparison would be JS
   // against itself and pass vacuously.
   it('loaded a distinct module through TeaVM.wasmGC', () => {
     expect(wasm).toBeTruthy();
@@ -239,7 +238,7 @@ describe('both targets agree on the errors the facade can actually report', () =
   const enveloped: Array<[name: string, call: (e: any) => unknown]> = [
     ['an unknown handle', (e) => e.simulateJson(99999, '{}')],
     ['a malformed options blob', (e) => e.simulateJson(e.buildRocket(tree()), '{oops')],
-    ['an unknown component type', (e) => e.getComponentInfo(e.buildRocket(tree()), 'nope')],
+    ['an unknown component id', (e) => e.getComponentInfo(e.buildRocket(tree()), 'nope')],
     // Unchecked casts here would fail as a minified TeaVM TypeError on JS and a
     // bare ClassCastException on WASM, neither naming the row.
     ['a machAlt row that is not a pair', (e) => e.getAeroSweep(e.buildRocket(tree()), '{"machAlt":["a"]}')],
@@ -271,9 +270,9 @@ describe('the shipped build computes what the JS build computes', () => {
     wasm.reset();
     const a = JSON.parse(js.getStaticInfo(js.buildRocket(tree())));
     const b = JSON.parse(wasm.getStaticInfo(wasm.buildRocket(tree())));
-    // Parity already proves this to the ULP; this is a cheap
-    // guard that the WASM artifact under test is not stale relative to the JS
-    // one, so a failure above cannot be an artifact-mismatch artifact.
+    // Parity checks this to the ULP. This only guards that the WASM artifact
+    // under test is not stale relative to the JS one, so a failure above is not
+    // a mismatch between two builds.
     expect(b.mass).toBeCloseTo(a.mass, 12);
     expect(b.cg).toBeCloseTo(a.cg, 12);
     expect(b.cp).toBeCloseTo(a.cp, 12);
@@ -286,9 +285,7 @@ describe('the shipped build computes what the JS build computes', () => {
    * no-arg `PinkNoiseWindModel` constructor, which seeds itself from
    * `new Random().nextInt()`; unless the bridge puts the run's seed back, a
    * turbulent multi-level profile flies a different gust pattern every run. The
-   * parity set carries no `windLevels` case at all, so neither the JVM
-   * comparison nor the golden values cover this: the JS boundary test and this
-   * one are the whole of it, and this is the build most browsers run.
+   * parity set carries no `windLevels` case.
    *
    * Equality is exact on purpose: the claim is that one seed reproduces one
    * flight, and a tolerance would pass on turbulence that merely landed nearby.

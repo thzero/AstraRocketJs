@@ -41,8 +41,8 @@ export interface Meta {
   digits: number;
   /**
    * The preference group this series belongs to. When set it supplies both the
-   * scale and the label, and `unit`/`scale`/`digits` below are unused; they
-   * stay for the handful of series (Mach, calibers) that are unitless.
+   * scale and the label, and `unit`, `scale` and `digits` are unused; they
+   * serve the handful of series (Mach, calibers) that are unitless.
    */
   quantity?: Quantity;
   /**
@@ -149,9 +149,8 @@ export function panelSeries(
 ): { list: PanelLine[]; lo: number; hi: number } {
   let dMin = Infinity;
   let dMax = -Infinity;
-  // A plain loop: the domain scan writes dMin/dMax, and doing that from
-  // inside a `.map` callback hid a side effect in what reads as a pure
-  // transform.
+  // A plain loop: the domain scan writes dMin/dMax, a side effect that does
+  // not belong in a `.map` callback.
   const out: PanelLine[] = [];
   for (const b of branches) {
     const time = b.series.time ?? [];

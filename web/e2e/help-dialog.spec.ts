@@ -4,8 +4,7 @@ import { test, expect, openTab, runFlight } from './base';
 /**
  * In-app Help: the Docusaurus site, rendered inside the app.
  *
- * What is worth an end-to-end test here is precisely what unit tests cannot
- * reach: that a real Docusaurus page loads into the frame, that the embed
+ * This covers what unit tests cannot reach: that a real Docusaurus page loads into the frame, that the embed
  * stylesheet shipped with the docs actually strips the site chrome, and that a
  * link inside that frame is intercepted and re-opened in the dialog rather than
  * navigating the frame out of the app.

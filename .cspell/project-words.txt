@@ -249,6 +249,7 @@ innerradius
 innertube
 Inouye
 insideappearance
+insidesameasoutside
 Instanceable
 instancecount
 instanceseparation
@@ -394,6 +395,7 @@ parsererror
 partno
 persistable
 PETG
+Phong
 photostudio
 pindex
 pipefail

@@ -1121,8 +1121,8 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       }
       // Scaling is the one tree change that does not go through `treeEdit`, so
       // it re-resolves the shoulders that follow a neighbor itself. It scales
-      // every radius by the same factor, so the numbers already agree: this is
-      // belt and braces against a rounding drift that would otherwise persist.
+      // every radius by the same factor, so the numbers already agree; this
+      // guards against a rounding drift that would otherwise persist.
       // 1x, or a non-positive or non-finite factor, returns the tree unchanged.
       commitTree(syncAutoShoulders(scaleRocket(tree, factor, options)), { selectedId: null });
     },
@@ -1301,13 +1301,12 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
       if (!config || holdsKey(config.deployments?.[deviceId], key, value)) return;
       beginEdit();
       patchConfig(configId, (c) => {
-        // Removed, not stored as undefined: `applyDeployments` patches every key
-        // the override declares, and an explicit `undefined` would write it over
-        // the design's own value as a blank.
+        // Removed, not stored as undefined: a key left holding `undefined` still
+        // counts as an override (`deployOverride`).
         const device = nonEmpty(withKey(c.deployments?.[deviceId], key, value));
         // Likewise for the map: no overrides at all means no `deployments`, which
-        // is what `applyDeployments` short-circuits on and what the exporter
-        // reads as "this configuration recovers the way the design says".
+        // the exporter reads as "this configuration recovers the way the design
+        // says".
         return { ...c, deployments: nonEmpty(withKey(c.deployments, deviceId, device ?? null)) };
       });
     },
@@ -1738,11 +1737,11 @@ export const useWorkspaceStore = create<WorkspaceState>((set, get, api) => {
      *   card with a hypothetical.
      * - `series: 'summary'`, against `simConditions`'s 'full'. The only thing
      *   read from a swept flight is where its track ends, and a full series set
-     *   is about a megabyte and a half each, and thirty-two of those is fifty
-     *   megabytes serialized out of a worker and dropped on the floor.
+     *   is about 1.5 MB per flight: fifty megabytes for thirty-two flights,
+     *   serialized out of a worker and never read.
      * - One random seed for the whole grid, minted here when the preferences do
      *   not pin one. Letting each flight draw its own turbulence would mix the
-     *   scatter the sweep exists to measure with scatter from the dice, and the
+     *   scatter the sweep exists to measure with random scatter, and the
      *   same sweep run twice would draw a different region for no reason the
      *   reader could see.
      *

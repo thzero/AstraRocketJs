@@ -98,8 +98,8 @@ describe('componentName', () => {
   });
 
   it('degrades to the readable half for a key nothing here names', () => {
-    // The design root and a couple of internals have no part of their own in
-    // this app. Better a humanized key than a bracketed one.
+    // Kernel classes such as Sleeve and RecoveryDevice have no part of their own
+    // in this app, so the key is humanized rather than shown bracketed.
     expect(componentName('[Sleeve.Sleeve]', inEnglish)).toBe('Sleeve');
     expect(componentName('[RecoveryDevice.RecoveryDevice]', inEnglish)).toBe('Recovery Device');
   });
@@ -114,10 +114,9 @@ describe('componentName', () => {
 
   it('points every kernel name at a string that actually exists', () => {
     // The table is transcribed from the kernel's `getComponentName()` overrides
-    // by hand, and `part.*` keys are built dynamically elsewhere, so nothing
-    // else would notice one of them being renamed out from under it: the
-    // component would quietly start reading as a humanized key again. This is
-    // the check that fails instead.
+    // by hand, and `part.*` keys are built dynamically elsewhere, so a renamed
+    // key would otherwise go unnoticed and the component would read as a
+    // humanized key.
     const missing = Object.entries(COMPONENT_PART_KEYS).filter(([, key]) => inEnglish(key) === key);
     expect(missing).toEqual([]);
   });

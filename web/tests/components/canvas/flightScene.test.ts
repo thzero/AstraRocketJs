@@ -263,8 +263,8 @@ describe('modelPoseAt', () => {
 
 /**
  * The recovery device the 3D flight shows is the first one in tree order, at
- * the size the kernel flies: a streamer with no length is the kernel's 0.5 m
- * (ComponentFactory, case "streamer").
+ * the size the kernel flies: a streamer with no strip length has the kernel's
+ * 0.5 m strip (ComponentFactory, case "streamer").
  */
 describe('findRecovery', () => {
   const tree = (kids: object[]) =>

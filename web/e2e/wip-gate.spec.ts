@@ -18,10 +18,9 @@ test.describe('work-in-progress gate', () => {
     await expect(accept).toBeVisible();
 
     // "Blocked" is not "hidden": the app renders behind a dimmed backdrop, so
-    // the Menu button is perfectly visible to `toBeVisible` and completely
-    // unclickable. What matters is which element is actually on top at its
-    // center: that backdrop absorbing a click is how a failed dismissal surfaces
-    // against some innocent control twenty steps later.
+    // the Menu button passes `toBeVisible` but cannot be clicked. What matters
+    // is which element is on top at its center: a backdrop left in place
+    // absorbs clicks meant for controls behind it.
     const menu = page.getByRole('button', { name: 'Menu' });
     const topmostIsMenu = () =>
       menu.evaluate((el) => {

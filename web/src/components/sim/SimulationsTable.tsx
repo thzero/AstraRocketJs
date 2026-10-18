@@ -35,9 +35,8 @@ const TONE: Record<SimStatus, string> = {
  * The tab gives room for the table and the editor beside it, so comparing two
  * motors is reading two rows rather than switching back and forth.
  *
- * Narrow screens keep the three columns worth having (status, name, apogee) and
- * drop the rest; the table does not scroll sideways, because a phone dragging a
- * ten-column grid is not reading it either.
+ * Narrow screens keep three columns (status, name, apogee) and drop the rest,
+ * so the table never scrolls sideways on a phone.
  */
 export function SimulationsTable({
   sims,

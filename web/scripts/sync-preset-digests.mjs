@@ -25,9 +25,8 @@
 // a mass has its material replaced by one looked up by density, so its digest
 // depends on the material database that build ships: a release and a source
 // checkout give such a part different digests, while the parts with no stated
-// mass agree across both. A digest from the wrong
-// build is a digest the desktop rejects, so `--jar` (a release, the usual case)
-// is the one to commit from. `--or` (a built source checkout, which also needs
+// mass agree across both. A digest from the wrong build is a digest the desktop
+// rejects, so `--jar` (a release, the usual case) is the one to commit from. `--or` (a built source checkout, which also needs
 // its test classes for the preferences bindings) runs only with
 // OPENROCKET_UNPINNED=1, and what it writes is not for committing.
 //
@@ -38,8 +37,8 @@
 // classpath: the dumper reads the release's own `.orc` files, as the desktop's
 // system preset pass does, under the application's module so they are built
 // against the materials the desktop boots with. A bare file load disagrees for
-// some types,
-// and the app's value is the one the desktop compares against.
+// some types, and the application module's value is the one the desktop
+// compares against.
 //
 // It never regenerates the catalog, only adds `digest` to rows already in it,
 // matched on type, maker, part number and description. The maker is compared

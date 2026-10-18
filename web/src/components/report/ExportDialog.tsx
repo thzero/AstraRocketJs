@@ -95,18 +95,13 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   // Asking it means the checkbox cannot offer a guide the report would not draw.
   const hasMarkingGuides = useMemo(() => markingGuides(tree).guides.length > 0, [tree]);
 
-  // The report's own builds run the real engine; a design it chokes on must leave the
-  // dialog standing with its "no design" message, not take the app down. The
-  // failure is remembered here and reported below, so the initializer stays a
-  // pure computation.
+  // The report's own builds run the real engine; a design it fails on must
+  // leave the dialog standing with its "no design" message, not take the app
+  // down. The failure is remembered here and reported below, so the initializer
+  // stays a pure computation.
   //
-  // `rebuilt` is the whole-rocket build the report's own builds (per stage, per
-  // configuration) leave behind, for the effect below to install. Those builds
-  // reset the shared engine, and `assembleReport` would otherwise re-seat the
-  // live handle through the store from inside this initializer: a store write
-  // during render, which updates every other subscriber mid-render (React:
-  // "Cannot update a component (`DesignWarnings`) while rendering a different
-  // component").
+  // `rebuilt` is the whole-rocket build the report's own builds leave behind,
+  // for the layout effect below to install (see the component's doc comment).
   const [initial] = useState<{ model: ReportModel | null; error: string | null; rebuilt: ReportBuild | null }>(() => {
     const { info, rocket } = useWorkspaceStore.getState();
     if (!info || !rocket) return { model: null, error: null, rebuilt: null };
@@ -128,8 +123,7 @@ export function ExportDialog({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     if (!initial.error) return;
     // `i18n.t`, not the hook's `t`: this must not depend on a value that
-    // changes identity on every language switch. Same reason store.ts uses
-    // the singleton.
+    // changes identity on every language switch.
     useWorkspaceStore.getState().setErr(i18n.t('export.reportFailed', { message: initial.error }));
   }, [initial.error]);
 

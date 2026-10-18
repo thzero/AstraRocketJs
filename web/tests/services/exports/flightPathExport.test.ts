@@ -26,7 +26,7 @@ import es from '../../../src/i18n/locales/es.json';
 import { localeTranslator } from '../../testing/localeTranslator';
 import { offsetToLatLon } from '../../../src/services/map/geodesy';
 
-// A tiny two-branch-free flight: launch → drift 100 m east / 200 m north,
+// A small single-branch flight: launch → drift 100 m east / 200 m north,
 // climbing to 100 m AGL, with a couple of events.
 const result = {
   summary: { maxAltitude: 100, maxVelocity: 50, maxAcceleration: 20, timeToApogee: 1, flightTime: 2 },
@@ -144,8 +144,7 @@ const build = (res: FlightResult, over: Partial<ReturnType<typeof defaultExportO
   );
 
 /**
- * `hexToRgbInt` turns the branch color picker into an exported KML color. Its twin
- * `hexToRgbTuple` in `services/report/layout.ts` covers the same bad input separately.
+ * `hexToRgbInt` turns the branch color picker into an exported KML color.
  */
 describe('hexToRgbInt', () => {
   it('packs #rrggbb into one 0xRRGGBB integer', () => {
@@ -662,9 +661,9 @@ describe('renderKml', () => {
   });
   it('places the track in the altitude mode the model resolved', () => {
     // A template that hardcodes `absolute` draws a flight measured from a pad
-    // at 0 against sea level, so at a launch site on real
-    // terrain most of the rocket's altitude sits underneath the ground and only
-    // the top of the flight is visible in Google Earth.
+    // at 0 against sea level, so at a launch site on real terrain most of the
+    // rocket's altitude sits underneath the ground and only the top of the
+    // flight is visible in Google Earth.
     const ground = renderKml(build(result, {}, { ...launch, launchAltitudeM: 0 } as LaunchConditions));
     expect(ground).toContain('<altitudeMode>relativeToGround</altitudeMode>');
     expect(ground).not.toContain('<altitudeMode>absolute</altitudeMode>');
@@ -886,9 +885,8 @@ describe('kernel component names', () => {
     // The stage qualifier's own guard, inherited: it drops the qualifier when
     // the label already starts with it, so a device called "Ejection" gives one
     // word rather than two. It is that direction only - a device called
-    // "Ejection charge" still qualifies to "Ejection charge Ejection", which is
-    // silly but is not a name anybody gives a parachute, and widening the guard
-    // would change how stage names qualify too.
+    // "Ejection charge" still qualifies to "Ejection charge Ejection"; widening
+    // the guard would change how stage names qualify too.
     const named = (source: string) =>
       build({
         ...result,

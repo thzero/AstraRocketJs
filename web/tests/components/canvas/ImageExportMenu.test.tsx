@@ -14,8 +14,7 @@ import { IMAGE_WIDTHS } from '../../../src/services/exports/schematicExport.js';
  * invalid structure that screen readers announce as "menu, 0 items", with the
  * width buttons unreachable by menu navigation. Escape and focus-return are the
  * rest of the contract; with only an outside pointerdown to close it, a keyboard
- * user who opened it would be stuck inside. `e2e/a11y.spec.ts` covers the
- * `AppHeader` menus, not this one, so it is checked here.
+ * user who opened it would be stuck inside.
  */
 
 const open = (onPick = vi.fn(), fitOption = false) => {
@@ -98,9 +97,8 @@ describe('a keyboard user can get back out', () => {
     expect(document.activeElement).toBe(trigger);
   });
 
-  it('does not swallow Escape keys that were not meant for it', () => {
+  it('stays open on a key other than Escape', () => {
     open();
-    // A key other than Escape leaves the menu alone.
     fireEvent.keyDown(screen.getByRole('menu'), { key: 'a' });
     expect(screen.queryByRole('menu')).not.toBeNull();
   });

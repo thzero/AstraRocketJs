@@ -34,7 +34,10 @@ vi.mock('../../../src/services/motors/thrustcurve', () => ({ fetchMotorSpec: vi.
 
 const { MotorDialog } = await import('../../../src/components/sim/MotorDialog');
 
-/** An 18 mm tube 70 mm long, with OpenRocket's default 6.35 mm of overhang. */
+/**
+ * An 18 mm tube 70 mm long, with the 6.35 mm overhang the app seeds on a new
+ * mount (the kernel's own default is 0).
+ */
 const MOUNT = { bore: 18, maxLength: 76.35 };
 
 const open = async (mount: { bore: number; maxLength?: number } | null) => {

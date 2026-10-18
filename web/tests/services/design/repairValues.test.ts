@@ -11,7 +11,7 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
  *
  * The boxes clamp as you type, but a `.ork`, a share link, or a session
  * autosaved by a build without a given limit can hand the app a bulk density of
- * 1e9 kg/m³. A 200 mm tube of that weighs about 180 metric tons, so every mass, CG
+ * 1e9 kg/m³. A 200 mm tube of that weighs about 6 metric tons, so every mass, CG
  * and stability figure on screen would be nonsense with nothing saying why.
  */
 const tree = (density: unknown): RocketTree =>

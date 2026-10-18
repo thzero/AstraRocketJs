@@ -29,9 +29,8 @@ describe('motorFitsMount', () => {
   });
 
   it('allows a motor to reach into the overhang, which is what the overhang is', () => {
-    // 75 mm of motor in 70 mm of tube: it hangs 5 mm out of the aft end, which
-    // is where the app already draws it. Measured against the bare tube this
-    // would have been hidden, and the rocket flies it.
+    // 75 mm of motor in 70 mm of tube hangs 5 mm out of the aft end, where the
+    // app seats it, and the rocket flies it.
     expect(motorFitsMount({ diameter: 24, length: 75 }, mount)).toBe(true);
     expect(motorFitsMount({ diameter: 24, length: 90 }, mount)).toBe(false);
   });

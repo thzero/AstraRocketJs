@@ -190,8 +190,7 @@ export function TreeSchematic({
    *
    * The measurement is only rendered inside the SVG, so without a keyboard
    * path the app's one way to read a distance off the drawing would need a
-   * pointer. AeroAnalysis, FlightChart and FreeformFinEditor give their
-   * crosshairs and handles keyboard paths for the same reason.
+   * pointer.
    *
    * Arrows nudge by 1 mm, Shift by 10 mm, Home/End jump to the ends. Values
    * are clamped the same way the drag path clamps them.

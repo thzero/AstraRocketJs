@@ -11,8 +11,8 @@ import { degToRad, radToDeg } from './units';
  *
  * It lives in its own module rather than inside LaunchPanel because it is pure
  * arithmetic (an offset conversion for the temperature, like the .ork writer's
- * and reader's for the launch temperature),
- * and out of a component it can be unit-tested without rendering anything.
+ * and reader's for the launch temperature), and out of a component it can be
+ * unit-tested without rendering anything.
  */
 export interface LaunchUnitBridge {
   /** Which preference group the field is shown in. */

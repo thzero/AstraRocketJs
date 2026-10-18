@@ -89,12 +89,10 @@ describe('per-component DXF export', () => {
   });
 
   it('exports a freeform fin with more points than a spread could carry', () => {
-    // `orkImport` puts no cap on <finpoints><point>, so the span must not be
-    // `Math.max(...outline.map(p => p.y))`: a spread becomes one argument per
-    // element, and past the engine's argument limit it dies with an opaque
-    // "Maximum call stack size exceeded" - a crash, not a rejection, on a file
-    // that parsed fine. Nothing else in the suite passes a large outline, so this
-    // is what holds the `reduce`.
+    // The span must not be `Math.max(...outline.map(p => p.y))`: a spread
+    // becomes one argument per element, and past the engine's argument limit it
+    // throws "Maximum call stack size exceeded". The .ork reader stops at
+    // MAX_FIN_POINTS, but componentToDxf takes whatever tree it is handed.
     // 200 000 points over a 60 mm chord, zig-zagged by 20 µm so that `dedupe`
     // (which drops consecutive points within EPS) keeps every one of them -
     // otherwise the outline collapses and never reaches the size in question.
@@ -138,7 +136,7 @@ describe('per-component DXF export', () => {
 
 /**
  * The engine-block wall fallback comes from the one shared table that the .ork
- * reader and writer also use (0.00095 m, the kernel's), so a block with no
+ * reader and writer also use (0.005 m, the kernel's), so a block with no
  * <thickness> tag is read and cut at the same bore.
  */
 describe('resolveDisc uses the shared component defaults', () => {

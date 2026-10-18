@@ -11,10 +11,10 @@ import { stableJson } from '../app/stableJson';
  * collide with the atmosphere fields, where blank already means ISA), and marks
  * every field where the others differ.
  *
- * Motors are exempt, and so there is nothing here that compares them: a motor
- * change only ever touches the active simulation, so there is no overwrite to
- * warn about, and rows differing on motor is the normal state of a comparison
- * rather than something to flag.
+ * Motors are not compared here: a simulation names its flight configuration
+ * rather than carrying motors, and motors are edited on the Configurations tab,
+ * so the simulation editor has no motor to overwrite. Rows flying different
+ * motors is the normal state of a comparison rather than something to flag.
  *
  * Only asked for a real multi-selection; one target agrees with itself.
  */

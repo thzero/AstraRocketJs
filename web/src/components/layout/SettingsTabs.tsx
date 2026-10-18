@@ -162,9 +162,8 @@ export function ColorsTab() {
           resetTitle={t('settings.resetOneFor', { name: t(`settings.part.${key}`) })}
         />
       ))}
-      {/* Taste, not correctness: the default is a magnitude ramp, and
-          OpenRocket's green-to-red is here for anyone who reads that
-          faster because they already know it from the desktop. */}
+      {/* The default is a magnitude ramp; OpenRocket's green-to-red is here
+          for anyone who reads that faster from knowing the desktop. */}
       <div className="pt-1 text-[11px] font-semibold uppercase tracking-wide text-ink-faint">
         {t('settings.aeroHeat')}
       </div>

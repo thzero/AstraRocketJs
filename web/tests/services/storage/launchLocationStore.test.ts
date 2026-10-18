@@ -82,7 +82,7 @@ describe('KeyValueLaunchLocationStore', () => {
   it('reports a refused write instead of resolving over it', async () => {
     // The caller holds the only copy of what the user just typed. Told nothing,
     // it re-renders a list that does not contain it and there is no error
-    // anywhere, the same failure `materialStore` guards against.
+    // anywhere.
     kv.refuse = true;
     await expect(store.save(location())).rejects.toThrow(/storage-full/);
   });

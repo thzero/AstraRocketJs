@@ -194,10 +194,10 @@ const isDigestEntry = (v: unknown): boolean => {
  * A usable catalog: an array with at least one usable row.
  *
  * `some`, not `every`: with `every`, one malformed row would reject the whole
- * catalog and leave an empty picker, which
- * is the outcome row-by-row validation exists to avoid. The gate only decides
- * whether this host's copy is worth anything at all; the bad rows are dropped in
- * `loadCatalog` and the rest are kept.
+ * catalog and leave an empty picker, which is the outcome row-by-row
+ * validation exists to avoid. The gate only decides whether this host's copy
+ * is worth anything at all; the bad rows are dropped in `loadCatalog` and the
+ * rest are kept.
  */
 const isCatalog = (v: unknown): boolean => Array.isArray(v) && v.some(isCatalogMotor);
 
@@ -422,9 +422,9 @@ export function matchCatalogMotor(
   // One segment at a time rather than one pass, because a file can carry
   // several: RockSim writes a Cesaroni motor as `26-E31-WH-15A`, where the
   // catalog holds `E31` and its own code is `26E31-15A`, so stopping after one
-  // would leave `26-E31-WH`, which matches nothing. Every candidate has to keep a letter,
-  // so a name is never worn down to a bare number that could match another
-  // motor by its digits.
+  // would leave `26-E31-WH`, which matches nothing. Every candidate has to keep
+  // a letter, so a name is never worn down to a bare number that could match
+  // another motor by its digits.
   const shrink = (name: string): string[] => {
     const out: string[] = [];
     for (let s = name; s.length > 1; s = s.replace(/[-_][^-_]*$/, '')) {

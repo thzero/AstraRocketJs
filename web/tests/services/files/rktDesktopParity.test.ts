@@ -55,7 +55,7 @@ describe('a zero ID is solid, not missing', () => {
   /**
    * `BodyTube.setInnerRadius(r)` is `setThickness(getOuterRadius() - r)`, and
    * every handler calls it unconditionally, so `<ID>0</ID>` means a solid part.
-   * Treating it as absent would leave the bridge's default 1 mm wall on a solid rod.
+   * Treating it as absent would leave the bridge's default 2 mm wall on a solid rod.
    */
   it('gives a tube with no bore a wall equal to its own radius', () => {
     const tube = find(parts('<BodyTube><Name>Rod</Name><Len>100</Len><OD>20</OD><ID>0</ID></BodyTube>'), 'Rod');

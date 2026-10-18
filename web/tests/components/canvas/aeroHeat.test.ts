@@ -90,7 +90,7 @@ describe('the openrocket ramp', () => {
 });
 
 describe('the sky ramp', () => {
-  it('is RELATIVE: it scales against the row set own largest', () => {
+  it('is RELATIVE: it scales against the largest value in its row set', () => {
     const half = heat(5, 10, 'sky') as { backgroundColor: string };
     const full = heat(10, 10, 'sky') as { backgroundColor: string };
     expect(half.backgroundColor).not.toBe(full.backgroundColor);

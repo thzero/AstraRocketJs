@@ -6,12 +6,12 @@ import type { ComponentNode, RocketTree } from '../../../src/engine/openRocketEn
 /**
  * A `.ork` in the desktop's own layout, not this app's.
  *
- * Every other .ork test round-trips through `exportOrk`, which checks that the
- * reader understands the writer and nothing more: a writer and reader that agree
- * with each other while both disagree with OpenRocket (the wind altitude
- * reference on the wrong carrier, the packed size or the rail button geometry
- * replaced by constants) pass every round trip. This
- * fixture is written element for element from the desktop savers:
+ * A round trip through `exportOrk` checks that the reader understands the
+ * writer and nothing more: a writer and reader that agree with each other while
+ * both disagree with OpenRocket (the wind altitude reference on the wrong
+ * carrier, the packed size or the rail button geometry replaced by constants)
+ * pass every round trip. This fixture is written element for element from the
+ * desktop savers:
  * OpenRocketSaver.saveSimulation (conditions order and carriers),
  * RocketComponentSaver (name, id, instances, angle, axial position, then the
  * type-specific tail), ExternalComponentSaver (finish, material),

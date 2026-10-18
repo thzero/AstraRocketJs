@@ -55,8 +55,7 @@ function Grid({ active, onSelect }: { active: boolean; onSelect: (m: CatalogMoto
 
 describe('MotorGrid arrow keys', () => {
   // jsdom does not lay out, so it has no scrollIntoView; the grid scrolls the
-  // selected row into view whenever the selection moves. Same stub as
-  // ComponentTree.test.tsx.
+  // selected row into view whenever the selection moves.
   beforeAll(() => {
     Element.prototype.scrollIntoView = () => {};
   });
@@ -173,7 +172,7 @@ describe('MotorGrid for a screen reader', () => {
     expect(document.activeElement).toBe(b);
   });
 
-  it('selects a row from its handle with the keyboard', async () => {
+  it('selects a row by activating its handle', async () => {
     renderWithProviders(<Stateful shown={rows} />);
     fireEvent.click(await screen.findByRole('button', { name: 'C' }));
     expect(screen.getByRole('button', { name: 'C' }).getAttribute('aria-current')).toBe('true');

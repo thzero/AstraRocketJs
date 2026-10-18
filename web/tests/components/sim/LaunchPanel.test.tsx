@@ -38,8 +38,8 @@ afterEach(() => {
  *
  * A region that does not exist before its content is inserted is not announced
  * by most screen readers, so mounting the live region together with its text
- * (`{locateErr && <p role="status">...}`) would announce nothing; UpdateToast
- * has the same constraint. The region has to be there, empty, from the first
+ * (`{locateErr && <p role="status">...}`) would announce nothing. The region
+ * has to be there, empty, from the first
  * render, and be the same element once the message lands.
  */
 describe('the geolocation status region', () => {
@@ -410,7 +410,7 @@ describe('the site buttons', () => {
 
 /**
  * The desktop's model switch changes only which model flies
- * (SimulationOptions.setWindModelType, SimulationOptions.java:191-196); the
+ * (SimulationOptions.setWindModelType, SimulationOptions.java:183-188); the
  * multilevel model keeps its levels while Average is selected, so switching
  * back shows the same profile.
  */

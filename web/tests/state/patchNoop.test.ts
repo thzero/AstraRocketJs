@@ -5,14 +5,13 @@ import { findNode, patchChangesNode } from '../../src/services/design/treeEdit';
 /**
  * A patch that says what the node already says must do nothing.
  *
- * `patchSelected` returns on an unchanged tree, as `applyTreeAction` and
- * `setStageDrogue` beside it do. It matters because `updateNode` always hands back a fresh `components`
- * array - it path-copies the spine as it walks, so it cannot cheaply know
- * otherwise - and `components` is the kernel rebuild dependency.
+ * `updateNode` always hands back a fresh `components` array (it path-copies the
+ * spine as it walks), and `components` is the kernel rebuild dependency, so
+ * `patchSelected` returns before calling it on a patch that changes nothing.
  *
  * `NumberInput` fires one patch per keystroke with the already-clamped value, so
  * without the guard typing past a ceiling fires N identical patches: N full kernel
- * builds, and an undo step that changes nothing waiting for the user at the end.
+ * builds, and an undo step that changes nothing.
  */
 const s = () => useWorkspaceStore.getState();
 

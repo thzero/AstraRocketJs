@@ -87,9 +87,9 @@ export function FlightPathExport({
 }
 
 /**
- * Exported for `FlightPathExport.test.tsx`. The button that opens it lives only
- * in the 3D path view, which needs WebGL - headless Chromium crashes rendering
- * it, so the dialog's own behavior is covered as a component instead.
+ * Exported so the dialog can be rendered on its own: the button that opens it
+ * lives only in the 3D path view, which needs WebGL, and headless Chromium
+ * crashes rendering that view.
  */
 export function ExportDialog({
   onClose,

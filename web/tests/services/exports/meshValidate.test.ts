@@ -14,9 +14,8 @@ import {
  *
  * An edge count (`countBoundaryEdges`) asks only "is every edge used twice",
  * which an empty mesh, a flipped face and a self-overlapping cap all pass.
- * These tests do two jobs: prove the validator actually detects
- * each failure mode (a gate nobody has seen fail is not a gate), and then hold
- * every real component to it.
+ * These tests prove the validator detects each failure mode, then hold every
+ * real component to it.
  */
 
 const node = (props: Record<string, unknown>): ComponentNode => ({ id: 'n1', ...props }) as unknown as ComponentNode;
@@ -36,7 +35,7 @@ describe('validateSolid detects what countBoundaryEdges cannot', () => {
 
   it('catches an empty mesh, which an edge count calls watertight', () => {
     // A scaled-down design can have every triangle dropped as degenerate, which
-    // leaves an index with no unused edges at all, so an edge count reports success.
+    // leaves no edges at all, so an edge count finds no open one.
     const g = tetra();
     g.setIndex([]);
     expect(validateSolid(g).map((i) => i.kind)).toContain('empty');
@@ -86,7 +85,7 @@ describe('validateSolid detects what countBoundaryEdges cannot', () => {
 });
 
 describe('meshTolerances scale with the model', () => {
-  it('keeps the historical tolerance for a normal-sized part and tightens for a tiny one', () => {
+  it('keeps a 1e-6 weld tolerance for a normal-sized part and tightens it for a tiny one', () => {
     const big = new THREE.BufferGeometry();
     big.setAttribute('position', new THREE.Float32BufferAttribute([0, 0, 0, 1, 1, 1], 3));
     expect(meshTolerances(big).weld).toBeCloseTo(1e-6, 12);

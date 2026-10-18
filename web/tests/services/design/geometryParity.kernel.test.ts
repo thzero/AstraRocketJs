@@ -974,9 +974,8 @@ const CHAIN_DESIGNS: Record<string, () => RocketTree> = (() => {
         ...Array.from({ length: 8 }, (_, i) => auto(`r${i}`, [coupler(`rc${i}`)])),
         tube('end', 0.0237),
       ]),
-    // An automatic nose cone base, two
-    // automatic tubes, the second holding an automatic coupler, then a fixed
-    // 23.7 mm tube in the next stage.
+    // An automatic nose cone base, two automatic tubes, the second holding an
+    // automatic coupler, then a fixed 23.7 mm tube in the next stage.
     'generated airframe, two automatic tubes between an automatic base and the next stage': () =>
       ({
         components: [

@@ -120,8 +120,9 @@ export function UpdateToast() {
       return;
     }
     next?.addEventListener('statechange', () => next.state === 'activated' && reloadOnce());
-    // The button says "Reloading" from the click on, so it must: a worker that
-    // never reaches `activated` would otherwise leave it saying so forever.
+    // The button says "Reloading" from the click on, so a reload must follow: a
+    // worker that never reaches `activated` would otherwise leave it saying so
+    // forever.
     if (swReg) setTimeout(reloadOnce, APPLY_FALLBACK_MS);
     void updateServiceWorker(true);
   }, [swReg, updateServiceWorker]);

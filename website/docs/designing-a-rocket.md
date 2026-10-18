@@ -237,6 +237,17 @@ Notes on the figures:
 - **A thickened fillet is a different material.** Microballoons drop a West System bead to roughly 600 to 800. Weigh your own mix and add it as a custom material.
 - **ProLine 4500 is absent**: the maker publishes no density. To add it, weigh a known volume and divide.
 
+## Appearance {#appearance}
+
+Each part's **Appearance** section sets how the part is drawn. Nothing in it changes the simulation. It has two settings, as the Appearance tab in desktop OpenRocket does:
+
+- **Figure style**: the **Component color** the 2D views and the 3D **Figure** view draw the part in. With **Use default color** ticked, the part takes each view's own color.
+- **3D appearance**: what the 3D **Finished** view and the 3D flight path render. **Color** is the paint, **Shine** is how glossy it is, and **Opacity** is how solid it looks. With **Use default** ticked, the part is drawn in the color its kind has under [Settings ▸ Colors](./settings.md#colors), with desktop OpenRocket's default shine for that kind.
+
+Body tubes, inner tubes, nose cones, transitions, launch lugs, tube fins and fin sets also have an inside. Tick **Use separate appearance for outside and inside** to give the inside its own appearance on an **Inside** tab, and use **Appearance for edges** to choose which of the two the cut ends take. On a fin set the two are the **Left side** and the **Right side**.
+
+Textures and decals are not supported. A decal in an opened `.ork` file is removed, because its image is stored separately in the file. The rest of the part's appearance is kept.
+
 ## Motor mount
 
 To fly, a rocket needs a motor mount (an inner tube, or any body/inner tube with its **Motor mount** box checked) with a motor assigned. Picking and configuring motors is covered in **[Motors](./motors.md)**.

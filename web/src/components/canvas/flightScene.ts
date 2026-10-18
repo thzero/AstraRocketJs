@@ -3,12 +3,11 @@ import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { findRecoveryDevices } from '../../services/design/treeEdit';
 import { num } from '../../tree/nodeProps';
-import { colorForType, type PartPalette } from '../../services/design/partColors';
-import { colorOf } from '../../tree/schematicGeometry';
+import type { PartPalette } from '../../services/design/partColors';
+import { outsideAppearance } from '../../services/design/appearance';
 
 /**
- * The trajectory geometry behind FlightPath3D, kept out of the component so
- * it can be tested without a WebGL context.
+ * The trajectory geometry behind FlightPath3D.
  *
  * Everything here is pure: samples in, scene points / vertex colors / callout
  * anchors out. The component keeps the camera, the transport and the HUD.
@@ -262,7 +261,7 @@ export type Recovery =
 export function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   const n = findRecoveryDevices(tree)[0];
   if (!n) return null;
-  const color = colorOf(n, colorForType(n.type, palette));
+  const color = outsideAppearance(n, palette).paint;
   return n.type === 'parachute'
     ? { kind: 'parachute', diameter: num(n, 'diameter', KERNEL_DEFAULTS.parachute.diameter), color }
     : {

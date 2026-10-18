@@ -19,19 +19,18 @@
 // the set. The importer reads only a simulation's result summary from
 // `<flightdata>`, and an example has no reason to open with results someone else
 // flew, so the whole element is dropped and every example opens with its
-// simulations not yet run. Stripping it takes the set to ~340 kB,
-// which is small enough to sit in the build and be precached, so examples work
-// on a first offline load like everything else. exampleLibrary.test.ts builds
+// simulations not yet run. Stripping it takes the set to ~340 kB, which is
+// small enough to sit in the build and be precached, so examples work on a
+// first offline load like everything else. exampleLibrary.test.ts builds
 // every stripped file through the real kernel and checks mass/CG/CP.
 //
 // Why public/examples and not public/data. The motor and component catalogs
 // under public/data are refreshed on a schedule by
 // .github/workflows/sync-catalogs.yml and served from the `data` branch so they
-// can change without an app build. Examples are
-// the opposite: they are pinned to the engine's upstream ref, so they change
-// exactly when the app is rebuilt against a new OpenRocket. Routing them
-// through the data branch would buy nothing and would cost the offline-first
-// guarantee on first use.
+// can change without an app build. Examples are the opposite: they are pinned
+// to the engine's upstream ref, so they change exactly when the app is rebuilt
+// against a new OpenRocket. Routing them through the data branch would buy
+// nothing and would cost the offline-first guarantee on first use.
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';

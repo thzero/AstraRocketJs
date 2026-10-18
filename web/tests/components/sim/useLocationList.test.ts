@@ -9,7 +9,7 @@ import {
 } from '../../../src/services/storage/launchLocationStore';
 
 /**
- * The ordering guard, which is the whole reason this hook exists.
+ * The hook's ordering guard: a superseded read never overwrites a newer one.
  *
  * Not rendered under StrictMode here, unlike the component tests: the double
  * invoke would issue the mount read twice, and these tests count reads in order
@@ -70,7 +70,7 @@ describe('useLocationList', () => {
     });
     expect(result.current.locations).toEqual([HOME]);
 
-    // Now the mount read finally lands, carrying the pre-save world.
+    // The mount read lands last, with the list from before the save.
     await act(async () => {
       landFirstRead([]);
     });

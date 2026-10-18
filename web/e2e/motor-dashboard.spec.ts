@@ -1,9 +1,9 @@
 import { test, expect, type Page } from './base';
 
 /**
- * Motor Dashboard: the standalone motor reference: a sortable grid + detail
+ * Motor Dashboard, the standalone motor reference: a sortable grid + detail
  * pane, plus the multi-select Compare (overlay) and Combine (cluster) tools.
- * Opens from the header ☰ menu. All data is bundled → fully offline.
+ * Opens from the header ☰ menu. All data is bundled, so it runs offline.
  */
 
 async function openDashboard(page: Page) {

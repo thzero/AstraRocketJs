@@ -26,10 +26,9 @@ export type WipState = 'acknowledged' | 'shown';
  *
  *     test.use({ wip: 'shown' });
  *
- * The seed merges into whatever is already stored, and has to: it
- * runs on every navigation, `page.reload()` included, and a dozen specs reload
- * precisely to prove a preference survived. Overwriting the blob erases the thing
- * they assert.
+ * The seed merges into whatever is already stored: it runs on every
+ * navigation, `page.reload()` included, and specs reload to prove a preference
+ * survived. Overwriting the blob would erase what they assert.
  */
 export const test = base.extend<{ wip: WipState }>({
   wip: ['acknowledged', { option: true }],
@@ -68,8 +67,8 @@ export const test = base.extend<{ wip: WipState }>({
     }, SETTINGS_KEY);
     // Map tiles never leave the test runner.
     //
-    // `components/sim/SiteMap.tsx` requests real tiles from Esri. A suite that
-    // actually fetched them would be slow, would fail on a machine with no
+    // The map views request real tiles from Esri (URLs built in
+    // services/map/slippyMap.ts). A suite that actually fetched them would be slow, would fail on a machine with no
     // network, and would put a CI job's worth of load on someone else's tile
     // servers for pictures nothing asserts against. Every tile is answered
     // locally with a 1x1 PNG, which is all the component needs to see to
@@ -95,8 +94,8 @@ export type { Locator, Page } from '@playwright/test';
  *
  * `console.log` in a spec lands in GitHub's annotation stream every time the
  * suite passes (playwright.config.ts uses the `github` reporter under CI), which
- * buries a successful run under numbers. A Playwright annotation carries the same information into the report, where it
- * is there when you are reading a failure and invisible when you are not.
+ * buries a successful run under numbers. A Playwright annotation carries the
+ * same information into the report, where it shows when reading a failure.
  */
 export const note = (...parts: unknown[]): void => {
   test.info().annotations.push({
@@ -192,18 +191,6 @@ export async function runFlight(page: Page): Promise<void> {
 }
 
 /**
- * Open the app and wait for the engine to have run on the default design.
- *
- * "L/D" is the unique fineness-tile unit in the statistics strip, so its
- * presence means the WASM kernel loaded, built the rocket and reported real
- * numbers. Every spec that clicks into the design needs that first, with one
- * timeout rather than each spec choosing its own.
- *
- * 20 s: the kernel is a multi-megabyte WASM module that is compiled on first
- * load, and a cold CI runner software-rendering WebGL beside it can take more
- * than the 5 s default.
- */
-/**
  * Load the app, trying again when the connection is refused. With eight
  * workers the local preview server can refuse one connection and serve the
  * next; a server that has stopped refuses every try, and the last error is
@@ -220,6 +207,18 @@ async function openApp(page: Page, tries = 3): Promise<void> {
   }
 }
 
+/**
+ * Open the app and wait for the engine to have run on the default design.
+ *
+ * "L/D" is the unique fineness-tile unit in the statistics strip, so its
+ * presence means the WASM kernel loaded, built the rocket and reported real
+ * numbers. Every spec that clicks into the design needs that first, with one
+ * timeout rather than each spec choosing its own.
+ *
+ * 20 s: the kernel is a multi-megabyte WASM module that is compiled on first
+ * load, and a cold CI runner software-rendering WebGL beside it can take more
+ * than the 5 s default.
+ */
 export async function ready(page: Page): Promise<void> {
   // Collected for the failure path only. A bare "element(s) not found" here says
   // nothing about why the numbers never appeared, and there is more than one way
@@ -330,8 +329,8 @@ export function defined<T>(value: T | undefined | null, what: string): T {
  *
  * Playwright returns null for an element that is not rendered; with a `!` a
  * hidden pane fails as "Cannot read properties of null (reading 'width')" a few
- * lines down. The locator's own
- * description goes in the message, so the failure says which box was missing.
+ * lines down. The locator's own description goes in the message, so the failure
+ * says which box was missing.
  */
 export async function box(target: Locator): Promise<{ x: number; y: number; width: number; height: number }> {
   const b = await target.boundingBox();
@@ -345,9 +344,8 @@ export async function box(target: Locator): Promise<{ x: number; y: number; widt
  * The aero tables carry no accessible name of their own (they are a `<table>`
  * under a `TableHead` `<h3>`, see AeroComponentTables.tsx), and a document index
  * such as `querySelectorAll('table')[1]` shifts whenever a table is added or a pane
- * is mounted hidden. The heading is named, and the app renders
- * each table as the first one after its heading, so this selects by that
- * relationship. It is an XPath axis, not a class name, so it survives restyling.
+ * is mounted hidden. The heading is named, and the app renders each table as
+ * the first one after its heading, so this selects by that relationship.
  */
 export function tableUnder(page: Page, heading: string | RegExp): Locator {
   return page.getByRole('heading', { name: heading }).locator('xpath=following::table[1]');

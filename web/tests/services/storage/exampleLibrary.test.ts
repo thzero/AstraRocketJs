@@ -12,17 +12,16 @@ import { KERNEL_TEST_TIMEOUT_MS } from '../../testing/kernelTimeout';
  *
  * These files are not ours: they come from OpenRocket via
  * `scripts/sync-examples.mjs`, which also strips each one's stored flight data
- * (96% of the bytes). Two things could go wrong silently and both would ship a
- * broken front door: the strip could damage a design, and an upstream bump
- * could bring in an example using something the importer does not handle. A
- * user's first click would be the thing that found out.
+ * (96% of the bytes). Two things can go wrong silently: the strip can damage a
+ * design, and an upstream bump can bring in an example using something the
+ * importer does not handle.
  *
  * So the whole set is imported and built here, and the motors are resolved
- * against the committed catalog: an example that imports but cannot fly is a
- * worse example than no example.
+ * against the committed catalog: an example that imports but cannot fly looks
+ * complete and is not.
  *
  * The real engine makes this one of the slower files in the suite (~2 s for all
- * sixteen), which is the cost of checking the real thing rather than a stub.
+ * sixteen).
  */
 vi.setConfig({ testTimeout: KERNEL_TEST_TIMEOUT_MS, hookTimeout: KERNEL_TEST_TIMEOUT_MS });
 

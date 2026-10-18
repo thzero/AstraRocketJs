@@ -37,7 +37,7 @@ describe('CI trigger coverage', () => {
 
   it('runs the same gate set on a branch push as on a pull request', () => {
     // dev.yml calls gates.yml rather than listing its own steps, so a push and a
-    // PR cannot drift. If this ever needs its own steps, the drift is the finding.
+    // PR cannot drift.
     expect(wf('dev.yml')).toContain('uses: ./.github/workflows/gates.yml');
   });
 });
@@ -73,10 +73,10 @@ describe('the catalog sync trigger', () => {
 });
 
 /**
- * The one check for every gate: `Dev / verify` on a branch push, which branch
- * protection requires, and `CI / verify` on a pull request. Each has to run
- * when a gate fails and fail with it: a job skipped because a job it needs
- * failed reports as skipped, and a skipped required check counts as passing.
+ * The one check for every gate: `Dev / verify` on a branch push and `CI /
+ * verify` on a pull request. Each has to run when a gate fails and fail with it:
+ * a job skipped because a job it needs failed reports as skipped, and a skipped
+ * check counts as passing wherever it is required.
  */
 describe('the verify checks', () => {
   for (const [file, name] of [
@@ -151,8 +151,8 @@ describe('every job has a timeout', () => {
   });
 
   it('leaves no cap at the 360-minute default by writing it out', () => {
-    // A literal 360 is someone documenting the default rather than choosing a
-    // bound, which is the same hazard wearing a number.
+    // A literal 360 restates the default rather than choosing a bound, so it
+    // leaves the same hang uncapped.
     for (const f of FILES) expect(wf(f), f).not.toMatch(/timeout-minutes:\s*360/);
   });
 });

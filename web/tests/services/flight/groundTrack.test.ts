@@ -23,8 +23,7 @@ describe('trackPoints', () => {
 
   /**
    * Zero is the pad, so substituting it for a missing sample would draw a line
-   * back to the launch point and out again: a track that reads as a flight
-   * that briefly teleported home.
+   * back to the launch point and out again.
    */
   it('drops a sample whose other half is missing, rather than calling it zero', () => {
     expect(trackPoints(series([0, null, 20], [0, 5, 9]))).toEqual([
@@ -93,11 +92,9 @@ describe('trackExtent', () => {
   });
 
   /**
-   * Still air lands a rocket a tenth of a meter from the pad, and a view scaled
-   * to that is a picture of the grass under it: rings labeled in centimeters
-   * and no aerial imagery, because nobody photographs the ground that closely.
-   * The floor makes the frame a field, where a landing on the pad reads as a
-   * dot on the pad.
+   * Still air lands a rocket a tenth of a meter from the pad. A view scaled to
+   * that has rings labeled in centimeters and no aerial imagery at that zoom,
+   * so the frame has a floor and a landing on the pad reads as a dot on the pad.
    */
   it('never zooms closer than a hundred meters across, however short the flight', () => {
     expect(trackExtent([])).toBe(MIN_EXTENT_M);
@@ -112,9 +109,7 @@ describe('trackExtent', () => {
 describe('rangeRings', () => {
   it('steps on the 1/2/5 ladder, so the labels are numbers a person reads', () => {
     // The step rounds up onto the ladder, so `count` is a ceiling rather than a
-    // target: 275/4 is 68.75, which rounds to 100 and rings twice. Sparse is the
-    // right way to be wrong here - a ring is a reference, and a map crowded with
-    // them is harder to read than one with two.
+    // target: 275/4 is 68.75, which rounds to 100 and rings twice.
     expect(rangeRings(275)).toEqual([100, 200]);
     expect(rangeRings(1000)).toEqual([500, 1000]);
     expect(rangeRings(4)).toEqual([1, 2, 3, 4]);
@@ -127,10 +122,8 @@ describe('rangeRings', () => {
   });
 
   it('gives exact radii on a fractional step, not float noise', () => {
-    // The cases above are all integer steps, where float error cannot appear -
-    // so they could not see this either way. On a sub-meter step both the
-    // multiplying and the accumulating forms drift: 0.1 * 3 is
-    // 0.30000000000000004 in IEEE754, and so is 0.1 + 0.1 + 0.1.
+    // On a sub-meter step both the multiplying and the accumulating forms
+    // drift: 0.1 * 3 is 0.30000000000000004 in IEEE754, and so is 0.1 + 0.1 + 0.1.
     expect(rangeRings(0.4)).toEqual([0.1, 0.2, 0.3, 0.4]);
     expect(rangeRings(0.7)).toEqual([0.2, 0.4, 0.6]);
     expect(rangeRings(0.3, 6)).toEqual([0.05, 0.1, 0.15, 0.2, 0.25, 0.3]);

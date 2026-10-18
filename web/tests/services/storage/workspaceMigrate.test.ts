@@ -139,8 +139,7 @@ describe('migrateWorkspace', () => {
 
 /**
  * A stored design can hold a rail button or centering ring whose linked
- * dimensions disagree (saved before the panel held them in the kernel's
- * range). Loading holds them as the kernel builds them, so the panel shows
+ * dimensions disagree. Loading holds them as the kernel builds them, so the panel shows
  * what flies, and a result flown from the stored design stays current.
  */
 describe('migrateWorkspace linked dimensions', () => {

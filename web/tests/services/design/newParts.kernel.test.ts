@@ -114,8 +114,7 @@ describe('a new part from the add list', () => {
       .filter((key) => !skip.has(key) && !same(part[key], keyless[key]))
       .map((key) => `${key}: seeded ${String(part[key])}, constructor ${String(keyless[key])}`);
     expect(differences, differences.join('\n')).toEqual([]);
-    // The list of app choices is only as honest as its use: a key listed here
-    // that the seed does not move is a stale exception.
+    // A key listed in APP_CHOICES that the seed does not move is a stale exception.
     const unused = [...skip].filter((key) => same(part[key], keyless[key]));
     expect(unused).toEqual([]);
   });

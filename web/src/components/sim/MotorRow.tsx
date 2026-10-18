@@ -156,9 +156,8 @@ export function MotorRow({
  *  MotorConfigurationPanel's Reset ignition). The scope starts on this
  *  configuration, as the dialog does for a mount with a motor in it, and holds
  *  for the edits that follow until it is switched back or the card is shown
- *  for another configuration. Reset is
- *  `MotorConfiguration.useDefaultIgnition`: Automatic with no delay, not the
- *  mount's own ignition. */
+ *  for another configuration. Reset is `MotorConfiguration.useDefaultIgnition`:
+ *  Automatic with no delay, not the mount's own ignition. */
 function IgnitionControl({
   event,
   delay,

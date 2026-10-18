@@ -4,10 +4,11 @@
 //
 // The Playwright suite never takes the network away from a worker-controlled
 // page, so nothing in it can see whether Help actually works at a launch site
-// with no signal. That is the whole reason the docs are built into
-// the app rather than only published, so it is worth a check of its own.
+// with no signal. That is the reason the docs are built into the app rather
+// than only published, so it is worth a check of its own.
 //
-// Two things are proven here, and they are cached by different mechanisms:
+// Three things are proven here. The first two are cached by different
+// mechanisms:
 //
 //  1. The in-app Help dialog opens a page nobody has read, offline. It asks for
 //     `docs/<slug>/index.html`, which is the key Workbox precaches each page
@@ -18,6 +19,8 @@
 //     visited. Those requests go to `docs/<slug>/`, which the precache does not
 //     answer (`directoryIndex` is off, see vite.config.ts), so they are covered
 //     by the `astra-docs` runtimeCaching rule instead.
+//
+//  3. The Help dialog's search builds its index offline, from the precache.
 //
 // Needs web/public/docs to exist: `npm run docs:build` first, which the deploy
 // does for itself. Exit 0 on success, 1 with the failing step named.

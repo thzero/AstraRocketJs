@@ -152,8 +152,8 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
   let max = length;
   // Non-finite input makes `max - min` NaN below, and NaN compares false
   // against everything, so the bisection's only exit could never fire and a
-  // hostile transition length would hang the tab. The Java has the same loop but its
-  // callers can never hand it NaN; ours read a file.
+  // hostile transition length would hang the tab. The Java has the same loop
+  // but its callers can never hand it NaN; ours read a file.
   if (r1 === 0 || !Number.isFinite(length) || length <= 0 || !Number.isFinite(r1) || !Number.isFinite(r2)) return 0;
   let n = 0;
   while (shapeRadius(shape, max, r2, max + length, param) - r1 < 0) {
@@ -182,8 +182,8 @@ function calculateClip(shape: string, param: number, length: number, r1: number,
  * caller-supplied `extra` merged in (sorted, deduped, clamped to the span).
  *
  * Why the extras exist: a consumer that has to read the profile at some x
- * (services/report/reportGeometry.ts, sizing a part at a station) otherwise lands on a
- * chord between two samples instead of on the true curve. The error is tiny
+ * (`stationRadius`, sizing a part at a station) otherwise lands on a chord
+ * between two samples instead of on the true curve. The error is tiny
  * (a 3" 4:1 tangent ogive has a ~1238 mm ogive radius, so a 4.76 mm chord has
  * a 0.0023 mm sagitta, three orders below print resolution, and it is the same
  * on both sides of the cut so the pieces still mate) but asking for the exact

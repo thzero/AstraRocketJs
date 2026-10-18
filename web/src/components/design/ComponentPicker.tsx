@@ -89,11 +89,10 @@ function isCurrent(part: Pick<Component, 'mfr' | 'partNo'>, current: CurrentPart
 
 /**
  * Picks a real cataloged part (from the OpenRocket component catalog, fetched
- * at runtime) of a
- * given type and applies it via `onApply`. Opens a modal dialog with a sortable
- * table, free-text search, a manufacturer facet, an outer-diameter range and a
- * "fits here" filter; the caller maps the chosen Component onto its target node
- * (see catalogPatch).
+ * at runtime) of a given type and applies it via `onApply`. Opens a modal
+ * dialog with a sortable table, free-text search, a manufacturer facet, an
+ * outer-diameter range and a "fits here" filter; the caller maps the chosen
+ * Component onto its target node (see catalogPatch).
  */
 export function ComponentPicker({
   type,
@@ -421,8 +420,8 @@ function PickerDialog({
   const catType = catalogTypeFor(type);
   const mfrs = useMemo(() => manufacturers(all), [all]);
   // Facets built from what is actually in this type's rows, so the dropdown never
-  // offers a value that would return nothing: body tubes have six material
-  // families, bulkheads five, and they are not the same five.
+  // offers a value that would return nothing: each type has its own set of
+  // material families.
   const mats = useMemo(() => materialFamilies(all), [all]);
   const shapes = useMemo(() => noseShapes(all), [all]);
   // Offered only where this type has legacy rows, which the list hides until
@@ -657,9 +656,8 @@ function PickerDialog({
               // that is itself a button would flatten its cells and swallow
               // the delete button inside it.
               onClick={() => onApply(r.part)}
-              // The one this component is already built from, marked rather than
-              // merely present: opening a list of hundreds of parts to find out which one
-              // you are on is not an answer.
+              // The one this component is already built from is marked, so it
+              // can be found in a list of hundreds.
               aria-current={isCurrent(r.part, current) ? 'true' : undefined}
               className={`cursor-pointer border-b border-line/5 hover:bg-raised focus-within:bg-raised ${
                 isCurrent(r.part, current) ? 'bg-raised font-semibold text-accent-300' : 'text-ink-soft'

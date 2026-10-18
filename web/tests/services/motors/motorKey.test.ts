@@ -36,7 +36,7 @@ describe('keyOf', () => {
 
 describe('the shipped motor catalog', () => {
   it('has no two motors sharing a key', async () => {
-    // Read as raw text (not a JSON import) so tsc never has to typecheck a ~1.6 MB
+    // Read as raw text (not a JSON import) so tsc never has to typecheck a ~1.4 MB
     // object literal. This guards the copy committed under public/data, which
     // the fallback build ships. The separately published catalog is checked by
     // `assertSane` in scripts/sync-motors.mjs before it is written.

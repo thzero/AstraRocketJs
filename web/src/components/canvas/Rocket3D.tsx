@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import * as THREE from 'three';
 import { Canvas } from '@react-three/fiber';
@@ -10,7 +11,7 @@ import { useSettings } from '../../state/SettingsProvider';
 import { ImageExportMenu } from './ImageExportMenu.js';
 import { useUnits } from '../../prefs/useUnits';
 import type { MotorDims } from '../../tree/schematicGeometry';
-import { markerRadius } from './rocketPieces';
+import { markerRadius, type RenderMode } from './rocketPieces';
 import { usePieces } from './usePieces';
 import { AxisCallout, markerTexture } from './rocketCallouts';
 import { StabilityCallout } from './StabilityCallout';
@@ -20,6 +21,8 @@ import { CG_INK, CP_INK } from './stabilityInks';
 import { token } from '../common/colorTokens';
 import { useSceneColors } from './sceneColors';
 import { errorText } from '../../i18n/keyedError';
+import { ViewBtn } from './ViewBtn';
+import { Segmented } from '../common/Segmented';
 
 /**
  * 3D rocket view (react-three-fiber). Geometry is generated from the
@@ -37,10 +40,6 @@ import { errorText } from '../../i18n/keyedError';
  * (rocketCallouts.tsx, StabilityCallout.tsx) each live in their own module.
  */
 
-/** Highlight the active view preset in the accent token, to match the 2D preset buttons. */
-const presetStyle = (active: boolean): import('react').CSSProperties =>
-  active ? { background: token('accent-600'), borderColor: token('accent-600'), color: token('on-accent') } : {};
-
 export function Rocket3D({
   tree,
   info,
@@ -50,6 +49,8 @@ export function Rocket3D({
   onSelect,
   showMarkers = true,
   onError,
+  ctrlSlot,
+  presetSlot,
 }: {
   tree: RocketTree;
   info: StaticInfo | null;
@@ -65,6 +66,10 @@ export function Rocket3D({
   onSelect?: (id: string) => void;
   /** Reports an image export failure to the caller's note channel. */
   onError?: (message: string) => void;
+  /** Header slot, middle, for the cutaway, the view type and the image export. Inline over the canvas when absent. */
+  ctrlSlot?: HTMLElement | null;
+  /** Header slot, left, for the camera presets. Inline over the canvas when absent. */
+  presetSlot?: HTMLElement | null;
 }) {
   const { t } = useTranslation();
   const u = useUnits();
@@ -111,6 +116,10 @@ export function Rocket3D({
   // because only the airframe is cut, and `localClippingEnabled` on the Canvas
   // below is what makes per-material planes work at all.
   const [cutaway, setCutaway] = useState(false);
+  // Desktop's 3D view types, less the textured Unfinished one: Figure (figure
+  // colors, airframe see-through, the one desktop opens on) and Finished
+  // (each part's appearance).
+  const [mode, setMode] = useState<RenderMode>('figure');
   const clipPlane = useMemo(() => new THREE.Plane(new THREE.Vector3(0, 0, -1), 0), []);
   const sidePos: [number, number, number] = [center, 0, camDist * 1.05];
   const aftPos: [number, number, number] = [totalLen + camDist * 0.9, 0, 0];
@@ -128,67 +137,65 @@ export function Rocket3D({
   };
   const resetView = () => moveCam(preset === 'side' ? sidePos : aftPos);
 
+  // The camera presets go where the 2D view has its own, left in the header
+  // row; the rest goes in the row's middle, as the 2D view's tools do. Three
+  // kinds of control, so three shapes: Side / Aft move the camera, Cutaway is
+  // an on/off switch, and Figure | Finished is one choice of two.
+  const presets = (
+    <>
+      <ViewBtn onClick={resetView} title={t('view.reset3dTitle')}>
+        {t('view.reset')}
+      </ViewBtn>
+      <ViewBtn active={preset === 'side'} onClick={() => showView('side')} title={t('view.sideTitle')}>
+        {t('view.side')}
+      </ViewBtn>
+      <ViewBtn active={preset === 'aft'} onClick={() => showView('aft')} title={t('view.aftTitle')}>
+        {t('view.aft')}
+      </ViewBtn>
+    </>
+  );
+  const tools = (
+    <>
+      <ViewBtn active={cutaway} onClick={() => setCutaway((c) => !c)} title={t('view.cutawayTitle')}>
+        {t('view.cutaway')}
+      </ViewBtn>
+      <Segmented
+        size="bar"
+        options={['figure', 'finished'] as const}
+        value={mode}
+        onChange={setMode}
+        fmt={(m) => t(m === 'figure' ? 'view.figure' : 'view.finished')}
+        title={(m) => t(m === 'figure' ? 'view.figureTitle' : 'view.finishedTitle')}
+      />
+      {exportData && (
+        <ImageExportMenu
+          icon="📷"
+          label={t('export.image')}
+          fitOption
+          title={t('export.imageTitle3d')}
+          onPick={snapshot}
+        />
+      )}
+    </>
+  );
+
   return (
     <div
       className="rocket3d-wrap"
       style={{ position: 'relative', height: '100%', minHeight: 320, display: 'flex', flexDirection: 'column' }}
     >
-      {exportData && (
-        <div style={{ position: 'absolute', top: 6, right: 6, zIndex: 2 }}>
-          <ImageExportMenu
-            icon="📷"
-            label={t('export.image')}
-            fitOption
-            title={t('export.imageTitle3d')}
-            onPick={snapshot}
-          />
+      {presetSlot && ctrlSlot ? (
+        <>
+          {createPortal(presets, presetSlot)}
+          {createPortal(tools, ctrlSlot)}
+        </>
+      ) : (
+        // Mounted on its own, with no header row to go in: one row over the canvas.
+        <div style={{ position: 'absolute', top: 6, left: 6, zIndex: 2, display: 'flex', gap: 6 }}>
+          {presets}
+          {tools}
         </div>
       )}
-      {/* Top-right, clear of the info card the caller pins top-left. When the
-          📷 menu is shown (`exportData` given) it takes the top-right and this
-          row moves top-left; the caller hangs the info card below the row
-          there, so the two do not overlap. */}
-      <div
-        style={{
-          position: 'absolute',
-          top: 6,
-          ...(exportData ? { left: 6 } : { right: 6 }),
-          zIndex: 2,
-          display: 'flex',
-          gap: 6,
-        }}
-      >
-        <button className="file-btn" title={t('view.reset3dTitle')} onClick={resetView}>
-          {t('view.reset')}
-        </button>
-        <button
-          className="file-btn"
-          style={presetStyle(preset === 'side')}
-          aria-pressed={preset === 'side'}
-          title={t('view.sideTitle')}
-          onClick={() => showView('side')}
-        >
-          {t('view.side')}
-        </button>
-        <button
-          className="file-btn"
-          style={presetStyle(preset === 'aft')}
-          aria-pressed={preset === 'aft'}
-          title={t('view.aftTitle')}
-          onClick={() => showView('aft')}
-        >
-          {t('view.aft')}
-        </button>
-        <button
-          className="file-btn"
-          style={presetStyle(cutaway)}
-          aria-pressed={cutaway}
-          title={t('view.cutawayTitle')}
-          onClick={() => setCutaway((c) => !c)}
-        >
-          {t('view.cutaway')}
-        </button>
-      </div>
       <Canvas
         // Measure the layout box, not the painted one. On a portrait phone the
         // Sketch pane is turned a quarter turn, and r3f's default measurement
@@ -223,6 +230,7 @@ export function Rocket3D({
               selectedId={selectedId}
               onSelect={onSelect}
               clip={cutaway ? clipPlane : null}
+              mode={mode}
             />
             {/* CG/CP sit on the rocket axis (inside the shell), so they must
               render on TOP (depthTest off, high renderOrder) to be visible,

@@ -45,11 +45,9 @@ describe('parseEng', () => {
     expect(m.id).toBe('custom:Test Mfr:TC10');
   });
 
-  // Windows Notepad writes a UTF-8 BOM by default, and a .eng shared by a motor
-  // maker is exactly the kind of file that has been through it. Without the
-  // strip, the BOM glues itself to the leading `;` so the comment no longer
-  // matches startsWith(';'), the comment becomes the header, and the import
-  // fails with a misleading "Malformed .eng header".
+  // Windows Notepad writes a UTF-8 BOM by default. Left on, it hides the
+  // leading `;`, the comment line reads as the header, and the import fails
+  // with a misleading "Malformed .eng header".
   it('parses a file that carries a UTF-8 BOM', () => {
     const m = parseEng('﻿' + ENG)[0]!;
     expect(m.designation).toBe('TC10');
@@ -62,7 +60,6 @@ describe('parseEng', () => {
   });
 
   it('strips comment and blank lines', () => {
-    // leading comments/blank lines above are ignored; still parses fine
     expect(parseEng(ENG)[0]!.samples[0]).toEqual({ time: 0, thrust: 0 });
   });
 

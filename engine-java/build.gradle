@@ -1,5 +1,5 @@
-// The OpenRocket 24.12 physics kernel
-// Compiled to a JS module consumed by the web app by TeaVM
+// The OpenRocket physics kernel (the commit pinned in extract/UPSTREAM),
+// compiled by TeaVM into the JS and WASM-GC engines the web app loads.
 plugins {
     id 'java'
     id 'org.teavm' version '0.15.0'   // >= 0.15 REQUIRED: 0.10's JS backend inverts NaN comparisons
@@ -11,8 +11,8 @@ plugins {
 // `--warning-mode all -Dorg.gradle.deprecation.trace=true` traces every one of
 // them to TeaVMPlugin.setupSources (TeaVMPlugin.java:452), which declares the
 // `:sources` variant of each dependency with the multi-string map notation
-// Gradle 9 deprecated and Gradle 10 removes. Our own `dependencies` block has
-// used single-string notation all along.
+// Gradle 9 deprecated and Gradle 10 removes. Our own `dependencies` block uses
+// single-string notation.
 //
 // It cannot be switched off from here. setupSources runs unconditionally when
 // the JS and WASM-GC tasks are REGISTERED, and it feeds the task's own
@@ -46,7 +46,7 @@ sourceSets {
     // is required by javac, not the runtime: JPMS forbids declaring java.* in the unnamed module,
     // so it compiles with --patch-module (below), which can't be mixed with ordinary sources in
     // one compilation. TeaVM links it; on the JVM parity run the real JDK Collator wins, so it
-    // only shapes the JS build. (The java.awt.geom stubs are gone; the kernel now uses Geo2D.)
+    // only shapes the JS build.
     jdkStubs {
         java {
             srcDir 'src/jdkstubs'
@@ -57,7 +57,7 @@ sourceSets {
 // The parity scenarios (test/parity/ParityMain.java) compile into EVERY build, and the shipped
 // engine exports them as OpenRocketEngine.runParity(). That is what lets test/parity/parity.mjs
 // run the vendored .mjs and .wasm themselves against the JVM reference: a separate harness build
-// had a different entry point and a larger reachable set than the binary users get, and
+// would have a different entry point and reachable set than the binary users get, and
 // fastGlobalAnalysis links by reachability. The cost is the harness's bytes in the shipped
 // engine (about 2%), never executed by the app.
 sourceSets.main.java.srcDir 'test'
@@ -66,7 +66,7 @@ sourceSets.main.java.srcDir 'test'
 // inside string literals that ship as constants, and javac otherwise decodes
 // with the platform default, which a `file.encoding` in JAVA_OPTS or GRADLE_OPTS
 // (both forwarded by gradle-exec.mjs) can change. A different decode changes the
-// vendored bytes, and CI's committed-engine check then fails on a binary diff.
+// vendored bytes, and the audit's `committed` step then fails on a binary diff.
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
 }
@@ -98,14 +98,11 @@ java {
         languageVersion = JavaLanguageVersion.of(21)
         // Pin the VENDOR too, not just the language level.
         //
-        // The parity job rebuilds over the committed artifacts and runs
-        // `git diff --exit-code` on them, so the whole toolchain has to
-        // reproduce bytes. With only a language level, CI's `java-version: 21`
-        // resolves to whatever the newest Temurin 21.x happens to be that day,
-        // and the first PR after a javac codegen change fails with a 2.9 MB
-        // unreadable binary diff and no hint that a JDK bump is the cause.
-        // That is the failure mode that teaches people to re-run a job and
-        // then ignore it. Now the toolchain moves only when someone moves it.
+        // The audit's `committed` step (audit.mjs) rebuilds over the vendored
+        // artifacts and fails if a byte changed, so the whole toolchain has to
+        // reproduce bytes. With only a language level, any vendor's JDK 21
+        // qualifies, and a javac codegen difference shows up as a 2.9 MB
+        // unreadable binary diff with no hint that the JDK is the cause.
         vendor = JvmVendorSpec.ADOPTIUM
     }
 }
@@ -115,18 +112,20 @@ teavm.js {
     mainClass = 'api.OpenRocketEngine'
     obfuscated = false
     // Native ES module: real named exports. UMD's dynamically-assigned exports are invisible
-    // to bundler static analysis, so the whole engine got tree-shaken out of prod bundles.
+    // to bundler static analysis, so the whole engine would be tree-shaken out of prod bundles.
     moduleType = org.teavm.gradle.api.JSModuleType.ES2015
     // REQUIRED: TeaVM's devirtualizer miscompiles the kernel: at FlightConfiguration's tree
-    // walk it inlined RocketComponent.getInstanceCount()'s `return 1`, ignoring FinSet's
-    // override (fin contexts collapsed 3->1, masses zeroed), and pruned virtual methods
+    // walk it inlines RocketComponent.getInstanceCount()'s `return 1`, ignoring FinSet's
+    // override (fin contexts collapse 3->1, masses zero), and prunes virtual methods
     // reached only via map-key dispatch. Do not change without a full re-verification.
     optimization = org.teavm.gradle.api.OptimizationLevel.NONE
     // REQUIRED: class-hierarchy analysis. TeaVM's precise flow analysis under-links
     // virtual-method impls reached via map-key / recursive-walk dispatch.
     fastGlobalAnalysis = true
-    // NOTE: strict = true is NOT usable: it breaks util.ArrayList.clone with a
-    // ClassCastException. JS Math transcendentals differ from Java's by 1-2 ULPs.
+    // NOTE: strict = true is off. Under it, upstream's util.ArrayList.clone throws a
+    // ClassCastException, which patches/ rewrites (see patches/LEDGER.md); turning
+    // strict on needs a full parity re-verification. JS Math transcendentals differ
+    // from Java's by 1-2 ULPs.
 }
 
 // The WASM-GC target: the backend the app loads by default wherever the browser supports it, with

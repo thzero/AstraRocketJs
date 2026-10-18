@@ -47,9 +47,14 @@ const opt = (name, fallback) => {
 };
 
 /*
- * Every fixture by default, so DROPPING a fixture in the directory gates it. The
- * alternative was a list in this file, which is a second place to forget.
+ * Every fixture by default, so DROPPING a fixture in the directory gates it. A
+ * list in this file would be a second place to forget.
  */
+const fail = (m) => {
+  console.error(`reference: ${m}`);
+  process.exit(1);
+};
+
 const fixtureDir = join(here, 'fixtures');
 const named = opt('--fixture', null);
 const fixturePaths = named
@@ -63,11 +68,6 @@ if (fixturePaths.length === 0) fail(`no fixtures in ${fixtureDir}`);
 const ALTITUDE_REL_TOL = Number(opt('--altitude-tol', '1e-5'));
 /** Absolute tolerance on event times, in seconds. */
 const TIME_ABS_TOL = Number(opt('--time-tol', '1e-6'));
-
-const fail = (m) => {
-  console.error(`reference: ${m}`);
-  process.exit(1);
-};
 
 // ---------------------------------------------------------------- upstream side
 
@@ -203,8 +203,7 @@ const compareFixture = async (fixturePath) => {
    * sides render THAT differently on purpose: upstream translates it ("Inner
    * Tube") while the shipped engine installs a bare DebugTranslator and emits
    * "[InnerTube.InnerTube]" for the web layer to localize (see the note on
-   * getTranslator in src/shims/.../startup/Application.java - deliberate, and
-   * marked do-not-fix).
+   * getTranslator in src/shims/.../startup/Application.java).
    *
    * Normalizing the two would mean this comparison silently stopped checking
    * event sources, which is how a recovery device deploying off the WRONG

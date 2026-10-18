@@ -28,17 +28,17 @@ export interface RunPlan {
  * Which of the requested rows fly, and why each of the others does not.
  *
  * A fault in the design stops the whole batch: no motor mount (nowhere to seat a
- * motor) or a part whose required dimension is zero, since a zero-volume body
- * tube would still hand back an apogee. The Run button is disabled for these
- * too; this is the guard a programmatic run cannot get past.
+ * motor), a part whose required value is zero, or a fin set canted through its
+ * own body (`designBlocker`). The Run button is disabled for these too; this is
+ * the guard a programmatic run cannot get past.
  *
  * Otherwise each row is judged on its own, by the same `unflyable` the Run
  * button reads (services/flight/runnability). A row with no usable motor, or with
  * launch conditions outside the NAR/Tripoli codes for the class of rocket its
- * configuration flies, is skipped: those are
- * simulation settings rather than design, so there is nothing to preserve by
- * flying them, and a number this app will not stand behind is worse than no
- * number. One bad row never abandons the rest.
+ * configuration flies, is skipped: those are simulation settings rather than
+ * design, so there is nothing to preserve by flying them, and a number this app
+ * will not stand behind is worse than no number. One bad row never abandons the
+ * rest.
  *
  * Ids that name no row are dropped. `dryMassKg` is the engine's mass of the
  * rocket without motors (`StaticInfo.massEmpty`), or null before it has one.

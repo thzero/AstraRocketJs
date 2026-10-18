@@ -28,8 +28,8 @@
 // those are compared in the form desktop reads them. KNOWN lists the rest of the
 // accepted differences, each with what 24.12 or RockSim cannot carry, or what a
 // bundled example names as it ships, and each matches only the difference it
-// names. The list is checked both ways:
-// a new difference fails, and so does an entry that no longer occurs.
+// names. The list is checked both ways: a new difference fails, and so does an
+// entry that no longer occurs.
 //
 // `npm run audit` runs it after the `desktop` step. Needs a JDK and the pinned
 // OpenRocket release, as `check:ork` does.

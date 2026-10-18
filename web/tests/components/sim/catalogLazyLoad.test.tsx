@@ -4,12 +4,12 @@ import { screen } from '@testing-library/react';
 import { renderWithProviders } from '../../testing/renderWithProviders';
 
 /**
- * The motor catalog is a ~1.6 MB runtime download, fetched only when a dialog
+ * The motor catalog is a ~1.4 MB runtime download, fetched only when a dialog
  * that needs it opens.
  *
  * A component that is always mounted and returns `null` when closed still runs
  * its effects, so it would fetch the catalog on app start: one download, since
- * `fetchCatalog` memoizes, but an unconditional 1.6 MB on first paint, on a
+ * `fetchCatalog` memoizes, but an unconditional download on first paint, on a
  * phone at a launch site, which is what the deferral exists to avoid.
  *
  * The deferral is the mounting convention itself: a dialog is mounted only
@@ -27,7 +27,7 @@ vi.mock('../../../src/services/motors/motorDb', async (orig) => ({
 const { MotorDashboard } = await import('../../../src/components/sim/MotorDashboard');
 const { MotorDialog } = await import('../../../src/components/sim/MotorDialog');
 
-describe('the 1.6 MB motor catalog is only fetched when a dialog opens', () => {
+describe('the motor catalog is only fetched when a dialog opens', () => {
   beforeEach(() => loadCatalog.mockClear());
 
   it('MotorDashboard does not fetch while closed', () => {
@@ -58,7 +58,7 @@ describe('the 1.6 MB motor catalog is only fetched when a dialog opens', () => {
 });
 
 describe('the motor search box', () => {
-  it('is named in both motor dialogs, not only by its placeholder', () => {
+  it('is named in the motor dashboard, not only by its placeholder', () => {
     const { unmount } = renderWithProviders(<MotorDashboard onClose={() => {}} />);
     expect(screen.getByRole('textbox', { name: /Search by code/ })).toBeTruthy();
     unmount();

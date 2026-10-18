@@ -64,7 +64,11 @@ export function findNode(tree: RocketTree, id: string): ComponentNode | null {
 const BULK_MATERIAL = ['materialName', 'density'];
 /** The canopy or strip, `RecoveryDevice.setMaterial`. */
 const SURFACE_MATERIAL = ['surfaceMaterialName', 'surfaceDensity'];
-/** `Transition.setLength`, the two `set*Radius` and `set*RadiusAutomatic`, `setShapeType`, `setShapeParameter`; `SymmetricComponent.setThickness` and `setFilled`. */
+/**
+ * `Transition.setLength`, the two `set*Radius` and `set*RadiusAutomatic`,
+ * `setShapeType`, `setShapeParameter`; `SymmetricComponent.setThickness` and
+ * `setFilled`.
+ */
 const TAPER = ['length', 'shape', 'shapeParameter', 'aftRadius', 'aftRadiusAuto', 'thickness', 'filled'];
 /** `RingComponent.setLength`, `ThicknessRingComponent.setOuterRadius` and `setThickness`. */
 const THICKNESS_RING = ['length', 'outerRadius', 'thickness', ...BULK_MATERIAL];
@@ -927,8 +931,8 @@ export function defaultNode(type: ComponentType): ComponentNode {
     // someone noticed the checkbox, which is a wrong rocket that simulates
     // quietly. The radii below are still written, because the app keeps the
     // resolved number beside the flag rather than spelling auto as an absent
-    // key (see services/design/autoRadius); `addPart` resolves them against the real
-    // parent in the same edit.
+    // key (see services/design/autoRadius); `addPart` resolves them against the
+    // real parent in the same edit.
     case 'tubecoupler':
       return {
         type,
@@ -1192,9 +1196,9 @@ export function addPart(
   type: ComponentType,
   selectedId: string | null,
   /** Merged onto the new node: the caller's per-part-type material defaults
-   *  (`services/design/materialSlots.defaultMaterialPatch`). Kept as a parameter rather
-   *  than read here so this module stays a pure tree editor with no settings
-   *  of its own. */
+   *  (`services/design/materialSlots.defaultMaterialPatch`). Kept as a parameter
+   *  rather than read here so this module stays a pure tree editor with no
+   *  settings of its own. */
   seed: Partial<ComponentNode> = {},
 ): { tree: RocketTree; id: string } {
   const node = { ...defaultNode(type), ...seed };

@@ -11,10 +11,10 @@ import { Line } from '@react-three/drei';
 
 /**
  * OpenRocket-style CG/CP symbol as a billboard texture: a quartered circle
- * (two opposite quadrants colored, two white) with a colored rim. Drawn to a
- * canvas so a <sprite> can always face the camera instead of a 3D ball.
+ * (two opposite quadrants in `color`, two in `light`) with a colored rim.
+ * Drawn to a canvas so a <sprite> can always face the camera instead of a 3D
+ * ball. `light` is the scene's own light ink.
  */
-/** `light` is the color of the two light quarters, the scene's own. */
 export function markerTexture(color: string, light: string): THREE.CanvasTexture {
   const s = 128;
   const cvs = document.createElement('canvas');
@@ -49,7 +49,7 @@ export function markerTexture(color: string, light: string): THREE.CanvasTexture
 /**
  * Canvas-texture for a billboard label. Drawn at 3× the nominal glyph size so
  * it stays devicePixel-sharp when zoomed; the thin dark outline keeps the ink
- * legible over the light band of the dusk background.
+ * legible over a light background.
  */
 function labelTexture(text: string, color: string): { texture: THREE.CanvasTexture; aspect: number } {
   const px = 96;

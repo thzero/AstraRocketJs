@@ -14,8 +14,7 @@ import i18n, { LANGUAGES } from '../../src/i18n';
  *
  * Checked here rather than by widening cspell's `files`, because cspell cannot
  * do it. Spell-checking a translation needs that language's dictionary, and the
- * `cspell` package bundles none of the nine (its `dict-java`, `dict-ruby` and
- * `dict-rust` are programming languages). Pointing it at `es.json` would flag
+ * `cspell` package bundles none of the nine. Pointing it at `es.json` would flag
  * every Spanish word. The forbidden-word half needs no dictionary at all, and
  * it is the half that matters: the list is entirely British forms.
  *

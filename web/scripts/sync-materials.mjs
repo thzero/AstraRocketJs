@@ -107,8 +107,7 @@ for (const r of app) {
     if (r[f] === undefined) die(`app material ${JSON.stringify(r.name ?? r)} has no "${f}"`);
   }
   // A density with no document behind it is a guess that weighs someone's
-  // rocket, and the file's own header says so. Refusing here is what keeps
-  // that from being advice.
+  // rocket.
   if (!r.source) die(`app material ${JSON.stringify(r.name)} has no "source"`);
   if (!(r.density > 0)) die(`app material ${JSON.stringify(r.name)} has a non-positive density`);
   // A name upstream already uses would shadow it in the picker, silently

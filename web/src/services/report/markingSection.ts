@@ -50,8 +50,8 @@ export function writeMarkingGuideSection(p: PdfPage, set: MarkingGuideSet): void
   writeRuler(p);
 
   // A strip is never scaled, since it has to be the tube's real circumference,
-  // so one too long for the page is cut into pieces that butt
-  // together, the way upstream tiles its rasterized guide across pages. A 4 in
+  // so one too long for the page is cut into pieces that butt together, the
+  // way upstream tiles its rasterized guide across pages. A 4 in
   // tube wraps 320 mm, which no paper this report offers can hold in one piece,
   // and that is the size the guide matters most at. `cutPoints` decides where
   // the joins fall; they are kept off the marks.

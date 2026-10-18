@@ -27,8 +27,8 @@ export const numOpt = (n: ComponentNode, key: string): number | undefined =>
  * ExtrudeGeometry per fin in the 3D view, an SVG shape per fin in the
  * schematic, a tube per instance in the aft view. Without a ceiling, typing
  * 100000 into Fin count (a plausible slip on a 3-fin design) locks the tab, and
- * a hostile `.ork` could carry the same value. 64 is far above anything buildable and far below
- * anything that hurts.
+ * a hostile `.ork` could carry the same value. 64 is far above anything
+ * buildable and far below anything that hurts.
  */
 export const MAX_INSTANCE_COUNT = 64;
 

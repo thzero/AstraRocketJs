@@ -3,8 +3,7 @@ import * as THREE from 'three';
 /**
  * Owns the export framing for the 3D image snapshot: the NaN-safe box guard,
  * the corner-by-corner camera fit and the throwaway export camera with its
- * near/far bracket. Pure three.js math, kept out of the component so the framing
- * is testable without a mounted canvas (Rocket3D.test.ts).
+ * near/far bracket. Pure three.js math, no React.
  */
 
 /**
@@ -38,10 +37,6 @@ const MIN_FIT_DIST = 1e-3;
  * direction: only distance and target move, so a user who rotated to a
  * three-quarter view gets that same view, filled.
  *
- * A pure function because the R3F canvas cannot be mounted
- * headlessly here (this @react-three/fiber build does not expose
- * canvas.__r3f, and monkeypatching rAF breaks its mounting), so this is where
- * the export framing is actually proven.
  *
  * @param direction where the camera looks (camera → subject), i.e. exactly
  *                  what `camera.getWorldDirection()` returns.
@@ -129,9 +124,8 @@ export function fitCameraToBox(
 }
 
 /**
- * A throwaway camera that frames `box` the way `src` is currently looking. Kept
- * out of the snapshot handler so the whole export view - framing and clipping
- * planes - is testable without a mounted canvas.
+ * A throwaway camera that frames `box` the way `src` is currently looking, with
+ * clipping planes that bracket the subject.
  */
 export function exportCamera(box: THREE.Box3, src: THREE.PerspectiveCamera, aspect: number): THREE.PerspectiveCamera {
   const { position, target } = fitCameraToBox(

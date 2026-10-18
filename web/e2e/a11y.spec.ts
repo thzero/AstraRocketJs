@@ -159,10 +159,11 @@ async function engineFailed(page: Page): Promise<void> {
 /**
  * A deploy, played locally. Once the first worker is active, the page is
  * reloaded so that worker controls it, as it does for anyone who has visited
- * before. The registration is then given sw.js again under a query, served
- * naming a build script with a higher id, and that script is the shipped one
- * answering with the higher id. The browser installs it beside the running
- * worker and leaves it waiting, a newer build, which raises the update banner.
+ * before. The registration is then given sw.js again under a query; the route
+ * serves it naming a build script with the next id, and serves that script as
+ * the shipped one with its build id raised. The browser installs it beside the
+ * running worker and leaves it waiting as a newer build, which raises the
+ * update banner.
  *
  * Controlled first: on a page no worker controls (a first visit) the browser
  * activates the new worker almost at once, and the app's question to the
@@ -860,7 +861,8 @@ async function openDetails(summary: ReturnType<Page['locator']>): Promise<void> 
  * (popupSurfaces.ts, which a unit test holds to the source), each scanned in
  * a state the page does not open in: a menu or a panel opened, a fold that
  * starts open folded. The import notes are the exception: they open by default
- * and are scanned open. A popup the app gains fails the typecheck until it is here.
+ * and are scanned open. A popup the app gains fails the typecheck until it is
+ * here.
  */
 const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
   CheckMenu: [
@@ -897,7 +899,7 @@ const POPUP_SCANS: Record<PopupSurface, Scan[]> = {
       name: 'Popup / component list folded',
       open: async (page) => {
         await openTab(page, 'Design');
-        // Named by its heading; the title says which way it turns.
+        // By title, which names the list and says which way it turns.
         await toggle(page.getByTitle(/the component list/));
       },
     },

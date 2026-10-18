@@ -10,6 +10,7 @@ import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import type { OrkWriter } from './exportWriter';
 import { passthroughOf } from './passthrough';
 import { parseHexColor } from '../../design/colorHex';
+import { INSIDE_COLOR_TYPES, readAppearance, type PartAppearance } from '../../design/appearance';
 import { designSeparation } from '../../flight/flightConfigs';
 
 /**
@@ -155,6 +156,7 @@ export function header(w: OrkWriter, depth: number, node: ComponentNode, fallbac
     w.emit(depth, `<linestyle>${escapeXml(node['lineStyle'])}</linestyle>`);
   }
   presetXml(w, depth, node);
+  appearanceXml(w, depth, node);
   colorXml(w, depth, node);
   overrides(w, depth, node);
   // Whatever the file carried that this app has no model for, back where it was
@@ -194,10 +196,45 @@ function presetXml(w: OrkWriter, depth: number, node: ComponentNode): void {
 }
 
 /**
- * A part's own color, as the desktop stores it: three 0-255 channels on one
- * element, absent when the part takes its group color. Without it, a color
- * picked in the editor would be lost and the part would come back from a saved
- * `.ork` in its group color.
+ * The 3D appearance, as 24.12's `RocketComponentSaver.addParams` writes it: the outside
+ * block when the part has one, then on a part with an inside the inside block
+ * with its two flags. Desktop writes the flags only inside that block, so a
+ * part whose inside is on the default saves neither.
+ */
+function appearanceXml(w: OrkWriter, depth: number, node: ComponentNode): void {
+  const body = (a: PartAppearance) => {
+    const n = parseHexColor(a.paint)!;
+    w.emit(
+      depth + 1,
+      `<paint red="${(n >> 16) & 255}" green="${(n >> 8) & 255}" blue="${n & 255}" alpha="${a.alpha}"/>`,
+    );
+    w.emit(depth + 1, `<shine>${a.shine}</shine>`);
+    // A newer desktop's flag, which 24.12 reads as an unknown element: written
+    // only when a file brought it in set, so a design that never had it opens
+    // in 24.12 without a warning.
+    if (a.opacityAffectsTexture === true) w.emit(depth + 1, '<opacityaffectstexture>true</opacityaffectstexture>');
+  };
+  const outside = readAppearance(node['appearance']);
+  if (outside) {
+    w.emit(depth, '<appearance>');
+    body(outside);
+    w.emit(depth, '</appearance>');
+  }
+  const inside = INSIDE_COLOR_TYPES.has(node.type) ? readAppearance(node['insideAppearance']) : undefined;
+  if (inside) {
+    w.emit(depth, '<insideappearance>');
+    w.emit(depth + 1, `<edgessameasinside>${node['edgesSameAsInside'] === true}</edgessameasinside>`);
+    // The element is named for the opposite of what it holds: `isSeparateInsideOutside()`.
+    w.emit(depth + 1, `<insidesameasoutside>${node['separateInsideOutside'] === true}</insidesameasoutside>`);
+    body(inside);
+    w.emit(depth, '</insideappearance>');
+  }
+}
+
+/**
+ * A part's own figure color, the one the 2D views draw, as the desktop stores
+ * it: three 0-255 channels on one element, absent when the part takes the
+ * default.
  */
 function colorXml(w: OrkWriter, depth: number, node: ComponentNode): void {
   const n = parseHexColor(node['color']);
@@ -373,13 +410,13 @@ export function shapeParamXml(w: OrkWriter, depth: number, node: ComponentNode):
 }
 
 /**
- * A radius that may be automatic: the number when the part carries one, the
- * sentinel `auto` when it does not.
+ * A packed radius that may be automatic: `auto <value>` when the part's
+ * `radiusAuto` flag is set, the plain number otherwise.
  *
- * Inner structure takes its outer radius from whatever it sits in, so `auto` is
- * a real answer rather than a missing one. Hard-wiring `auto` would throw away a
- * ring the user sized by hand: it would export as automatic and come back the
- * width of its body tube.
+ * A packed part takes an automatic radius from the tube it sits in, so `auto`
+ * is a real answer rather than a missing one. Hard-wiring `auto` would throw
+ * away a radius the user set by hand: it would export as automatic and come
+ * back the width of its tube.
  *
  * Emitted as `<packedradius>`, in the `auto <value>` form MassObjectSaver writes.
  */

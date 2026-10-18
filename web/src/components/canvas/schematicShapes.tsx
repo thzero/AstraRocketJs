@@ -143,7 +143,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   // Dashed "shadow" shapes (inner components, shoulders) paint after the whole
   // hull: SVG stacks by document order, so a coupler overhanging into the next
   // tube would vanish under that tube's opaque fill, while its overhang into the
-  // previous tube, already painted, stayed visible.
+  // previous tube, already painted, stays visible.
   const overlay: React.ReactNode[] = [];
   // Wireframe fin outlines and their hit surfaces, painted after overlay: while
   // the view is rolled every fin becomes a plain outline over the body (desktop
@@ -333,7 +333,7 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
    * transition, where it is the station's. `turn` is the angle the parent's frame is
    * turned by about the axis: the view's roll plus the angle of every pod or
    * booster instance it sits in, which the kernel turns each child by
-   * (FlightConfiguration.java:456-462).
+   * (FlightConfiguration.getActiveContextListAt, FlightConfiguration.java:470-485).
    */
   const renderChildren = (
     parent: ComponentNode,
@@ -826,8 +826,8 @@ export function buildSchematicShapes(cfg: SchematicShapesCfg): {
   };
 
   /**
-   * Ink for a shoulder: the owning part's color (its override, else this steel
-   * blue) rather than the gray the other dashed annotations share.
+   * Ink for a shoulder: the owning part's color (its override, else the
+   * `sch-shoulder` token) rather than the gray the other dashed annotations share.
    *
    * A shoulder is a snug fit by definition - a 24 mm stub in a 26 mm tube - so
    * its box always falls within a pixel or two of the tube's own outline, and a

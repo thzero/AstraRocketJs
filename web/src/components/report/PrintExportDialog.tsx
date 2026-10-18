@@ -15,9 +15,9 @@ import { DialogButton } from '../common/DialogButton';
  * of named objects or a zip of one file per part, and whether each part is
  * dropped onto the build plate.
  *
- * Only printable parts are listed. A parachute or a mass component has no solid
- * body, and offering it a tick box that does nothing would be a worse answer
- * than leaving it out; the per-component ⬇ button takes the same line.
+ * Only printable parts are listed: a parachute or a mass component has no solid
+ * body, and a tick box for it would do nothing. The per-component ⬇ button
+ * leaves them out the same way.
  */
 export function PrintExportDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();

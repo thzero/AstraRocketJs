@@ -312,9 +312,7 @@ const UNAFFECTED: Record<string, string> = {
   ),
   'flipped nose cone / printable solid': 'the same part turned round; the printed file is the part itself',
   'flipped nose cone / report template': 'the same part turned round; its wrap template does not change',
-  'filled nose cone / 3D view': 'drawn as its outer surface',
   'filled transition / printable solid': 'printed as a solid of revolution, wall or not',
-  'filled transition / 3D view': 'drawn as its outer surface',
   'flipped nose cone / PDF parts table': 'lists the base radius and the length, which turning the part round keeps',
   'unclipped transition / disc geometry': 'the ends and the wall, which clipping does not change',
   'unclipped transition / PDF parts table': 'lists the ends and the length, which clipping does not change',
@@ -440,7 +438,7 @@ const FIN: ComponentNode = {
   position: { method: 'top', offset: 0.01 },
 } as unknown as ComponentNode;
 
-/** Every node of the design with the fin set, so a reader can find it by id. */
+/** The fin set's node in a design. */
 const finIn = (tree: RocketTree): ComponentNode => {
   const walk = (nodes: ComponentNode[]): ComponentNode | undefined => {
     for (const n of nodes) {

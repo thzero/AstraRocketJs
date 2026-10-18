@@ -7,13 +7,11 @@ import type { StaticInfo } from '../../src/engine/openRocketEngine';
  *
  * `replaceWorkspace` clears `info` and `rocket` with the other transient fields,
  * because they describe the design on its way out. The rebuild effect replaces
- * them only on its next run, so left in place, a brand-new blank design would show
- * the previous design's mass, CG and stability margin for one frame, in the stats
- * panel, which is the first thing you look at.
+ * them only on its next run, so left in place, a new blank design would show the
+ * previous design's mass, CG and stability margin for one frame in the stats panel.
  *
- * Cleared to `null`, which is the same state the rebuild effect uses for "not
- * built yet" (`applyBuild(null, null)`), so the panel reads as pending rather than
- * as someone else's rocket.
+ * Cleared to `null`, which is the state the rebuild effect uses for "not built
+ * yet" (`applyBuild(null, null)`), so the panel reads as pending.
  */
 const s = () => useWorkspaceStore.getState();
 

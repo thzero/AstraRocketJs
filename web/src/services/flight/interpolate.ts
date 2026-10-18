@@ -1,11 +1,12 @@
 /**
- * Linear interpolation of a series `ys` (index-aligned to sorted, ascending `xs`)
- * at position `x`. Clamps to the endpoints, returns null when there's no data or `x` is NaN,
- * and steps past missing samples gracefully. A NaN sample is missing too: the
- * kernel records stability and CP as NaN while the rocket is on the rail, and the
- * first real value lands exactly at the rail departure, so blending it with the
- * NaN before it would make the rail-exit margin NaN. Shared by the flight-panel, drag-sweep
- * and rail-margin readouts, which all sample a curve at a hovered/target x.
+ * Linear interpolation of a series `ys` (index-aligned to sorted, ascending
+ * `xs`) at position `x`. Clamps to the endpoints, returns null when there's no
+ * data or `x` is NaN, and steps past missing samples. A NaN sample is missing
+ * too: the kernel records stability and CP as NaN while the rocket is on the
+ * rail, and the first real value lands exactly at the rail departure, so
+ * blending it with the NaN before it would make the rail-exit margin NaN.
+ * Shared by the flight-panel, drag-sweep and rail-margin readouts, which all
+ * sample a curve at a hovered/target x.
  *
  * Binary search, not a linear scan. FlightChart calls this once per stage per
  * panel on every pointer move, over a fine-timestep flight's six-figure sample

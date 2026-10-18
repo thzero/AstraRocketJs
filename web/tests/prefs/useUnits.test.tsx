@@ -67,7 +67,7 @@ describe('useUnits', () => {
     expect(Number(value((u) => String(u.at(SCOPE, 'length').toUi(0.6096))))).toBeCloseTo(24, 9);
   });
 
-  it('shows an em dash rather than a confident zero for an absent value', () => {
+  it('shows the no-value dash rather than a confident zero for an absent value', () => {
     // The kernel emits null for NaN/Infinity and `null / toSI` is 0, which
     // would print a missing apogee as 0.
     expect(value((u) => u.fmt('distance', NaN))).toBe(NO_VALUE);

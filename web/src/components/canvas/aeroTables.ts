@@ -6,8 +6,7 @@ import { componentName, isDefaultComponentName } from '../../services/app/warnin
 
 /**
  * The pure half of AeroAnalysis: the cell-shading formulas, the per-table row
- * builders and the chart geometry (domain, stacked bands, axis ticks). Separate
- * from the component so each is testable without mounting the pane.
+ * builders and the chart geometry (domain, stacked bands, axis ticks).
  */
 
 export type HeatStyle = 'sky' | 'openrocket';

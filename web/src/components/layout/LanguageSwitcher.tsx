@@ -23,16 +23,12 @@ export function LanguageSwitcher() {
     // metrics (text-xs, font-medium) and padding, or the name it sizes for is
     // not the width the name needs.
     //
-    // The cap is what the sizer cannot do on its own: it holds the name that is
-    // itself the longest, which is the case the header has least room for, since
-    // 'Português (Portugal)' comes with the longest translation of the
-    // pre-release word beside it. It applies at every width, and below sm it
-    // also guards the narrowest case: uncapped, that name puts the action group
-    // 2px past a 320px viewport and makes the whole document scroll sideways
-    // (see e2e/layout-overflow.spec.ts
-    // for what that costs the bottom tab bar). Capped, the closed select
-    // truncates and the two Portuguese entries still read apart
-    // ('Português (Bra...' / 'Português (Por...'), while the open dropdown shows
+    // The cap bounds the longest name, 'Português (Portugal)', which also comes
+    // with the longest translation of the pre-release word beside it. Uncapped,
+    // at 320px that name puts the action group 2px past the viewport and the
+    // whole document scrolls sideways (e2e/layout-overflow.spec.ts). Capped,
+    // the closed select truncates and the two Portuguese entries still read
+    // apart ('Português (Bra...' / 'Português (Por...'); the open dropdown shows
     // every name in full.
     <span className="relative inline-flex max-w-24 items-center xl:max-w-28">
       {/* `invisible` rather than hidden: visibility:hidden keeps the box, which is
@@ -55,11 +51,11 @@ export function LanguageSwitcher() {
           </option>
         ))}
       </select>
-      {/* Our own chevron, because `appearance-none` is what makes the sizer above
-          honest: a select left to its native appearance lays its arrow out inside
-          the content box, on top of the padding, so the name is squeezed into
-          whatever is left and 'English' closes as 'E...'. Drawn in the pr-7 both
-          boxes reserve, and never a click target of its own. */}
+      {/* Our own chevron, because the sizer above needs `appearance-none`: a
+          select left to its native appearance lays its arrow out inside the
+          content box, on top of the padding, so the name is squeezed and
+          'English' closes as 'E...'. Drawn in the pr-7 both boxes reserve, and
+          never a click target of its own. */}
       <svg
         aria-hidden
         viewBox="0 0 10 6"

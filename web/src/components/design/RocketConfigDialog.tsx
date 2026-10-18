@@ -8,13 +8,12 @@ import { DialogButton } from '../common/DialogButton';
 /**
  * The design-level "Rocket configuration" editor (OpenRocket's dialog of the
  * same name): design name, designer, kit name, design type, comments and
- * revision history.
- * These live on the RocketTree and round-trip through .ork import/export. Applied
- * as one undoable step via {@link useWorkspaceStore.updateDesignMeta}.
+ * revision history. These live on the RocketTree and round-trip through .ork
+ * import/export. Applied as one undoable step via
+ * {@link useWorkspaceStore.updateDesignMeta}.
  *
  * Mounted only while open (`{open && <RocketConfigDialog />}`): the fields are
- * seeded from the live design once, in their initializers, so there is no
- * "reseed on open" effect and nothing to disable exhaustive-deps for.
+ * seeded from the live design once, in their initializers.
  */
 export function RocketConfigDialog({ onClose }: { onClose: () => void }) {
   const { t } = useTranslation();

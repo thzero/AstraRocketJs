@@ -3,6 +3,8 @@ import { ToggleButton } from './ToggleButton';
 const SIZE = {
   xs: 'px-2 py-0.5 text-[11px] font-medium',
   sm: 'px-3 py-1 text-xs font-semibold',
+  /** The canvas header row's height, shared with ViewBtn and `.file-btn`. */
+  bar: 'inline-flex h-7 items-center px-3 text-xs font-medium',
 } as const;
 
 /**
@@ -15,6 +17,7 @@ export function Segmented<T extends string | number | boolean>({
   value,
   onChange,
   fmt,
+  title,
   disabled,
   size = 'xs',
 }: {
@@ -22,6 +25,8 @@ export function Segmented<T extends string | number | boolean>({
   value: T;
   onChange: (v: T) => void;
   fmt: (v: T) => string;
+  /** Each option's tooltip, for a choice whose label alone does not say what it does. */
+  title?: (v: T) => string;
   disabled?: boolean;
   size?: keyof typeof SIZE;
 }) {
@@ -34,6 +39,7 @@ export function Segmented<T extends string | number | boolean>({
           key={String(o)}
           active={value === o}
           onClick={() => onChange(o)}
+          title={title?.(o)}
           disabled={disabled}
           className={SIZE[size]}
         >

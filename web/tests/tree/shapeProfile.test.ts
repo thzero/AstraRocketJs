@@ -126,9 +126,9 @@ describe('outerProfile', () => {
  * It is the one piece of this port whose output is not obvious by inspection: it
  * solves for how far up a virtual nose cone the transition starts. The kernel states
  * the equation it solves, in the comment over `Transition.calculateClip`
- * (Transition.java:695-700):
+ * (Transition.java:695-700), which the code calls with the shape parameter:
  *
- *     r1 == type.getRadius(clipLength, r2, clipLength + length, shapeParameter)
+ *     r1 == type.getRadius(clipLength,r2,clipLength+length)
  *
  * so these tests recover `clipLength` by an independent solve of that same published
  * equation and check the drawn profile against it. A binary search with the wrong
@@ -226,7 +226,7 @@ describe('calculateClip (via the clipped profile)', () => {
   });
 
   it('a near-cylindrical clipped transition still lands on both radii', () => {
-    // A 1 mm rise over 200 mm pushes the search's opening bracket: the first
+    // A 0.5 mm rise over 200 mm pushes the search's opening bracket: the first
     // guess sits far up a very shallow virtual nose.
     const pts = outerProfile('ellipsoid', 0, 0.2, 0.0495, 0.05, 16);
     expect(pts[0]![1]).toBeCloseTo(0.0495, 12);

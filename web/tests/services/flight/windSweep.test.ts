@@ -50,7 +50,7 @@ describe('the grid', () => {
   });
 
   /**
-   * The wrap case. Eight headings over the whole compass are 45 apart and
+   * The wrap case. Four headings over the whole compass are 90 apart and
    * neither end is flown twice; treating it like an arc would put a flight at
    * both 0 and 360 and weight that heading double in the centroid, the hull and
    * the ellipse alike.

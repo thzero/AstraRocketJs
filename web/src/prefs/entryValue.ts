@@ -7,7 +7,7 @@ import { type Quantity, uiToSi } from './units';
  *
  * It lives in its own module because the hazard is not the typing, it is the
  * conversion after the typing. A box holds the user's unit and everything
- * behind it (the tree, the kernel, saved files, share links) holds SI, so a
+ * behind it (the tree, the kernel, saved files) holds SI, so a
  * number that is perfectly finite as typed can convert to a non-finite stored
  * value: 1e306 g/cm3 is 1e309 kg/m3, which is Infinity. Stored, it would pass
  * through the mass and the mesh and come out of the `.ork` writer as

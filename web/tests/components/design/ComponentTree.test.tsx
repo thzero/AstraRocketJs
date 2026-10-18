@@ -50,7 +50,7 @@ describe('ComponentTree semantics', () => {
     expect(nose.getAttribute('aria-selected')).toBe('false');
   });
 
-  it('still selects with Enter and folds with the arrow keys', () => {
+  it('selects with Enter and folds with the arrow keys', () => {
     const onSelect = vi.fn();
     renderWithProviders(<ComponentTree tree={TREE} onSelect={onSelect} />);
     const stage = screen.getByRole('treeitem', { name: /Sustainer/ });
@@ -141,8 +141,8 @@ describe('ComponentTree row export button', () => {
 
 /**
  * Keyboard focus stays in the tree across an edit that rebuilds it. Cut removes
- * the focused row and undo or redo replaces the rows; without this, focus fell to
- * the page and the arrow keys did nothing until the user tabbed back in.
+ * the focused row and undo or redo replaces the rows; focus that falls to the
+ * page leaves the arrow keys dead until the user tabs back in.
  */
 describe('ComponentTree focus across an edit', () => {
   beforeAll(() => {

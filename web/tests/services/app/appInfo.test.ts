@@ -32,10 +32,11 @@ describe('isPreRelease', () => {
  * itself here (under Vitest it is the stand-in from vitest.config.ts). What is
  * worth testing is the file: it answers "which OpenRocket is this?" for
  * every reader of the app and the docs, and a bump that moves `ref` while
- * leaving `date` or `describe` behind would ship a confidently wrong answer.
+ * leaving `date` or `describe` behind would ship a wrong answer.
  *
- * `date` against the real commit is a network question, so the `date` step of
- * `npm run audit` in engine-java checks it against the upstream checkout. These are the parts that can be checked offline.
+ * `date` against the real commit needs the upstream checkout, so the `date` step
+ * of `npm run audit` in engine-java checks it there. These are the parts that can
+ * be checked offline.
  */
 describe('engine-java/extract/UPSTREAM', () => {
   const text = readFileSync(resolve(process.cwd(), '../engine-java/extract/UPSTREAM'), 'utf8');

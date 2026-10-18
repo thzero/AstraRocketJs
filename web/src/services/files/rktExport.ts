@@ -220,10 +220,11 @@ function writeCommon(
   if (kind !== 'none') {
     const material = materialOf(n, kind);
     el(w, d, 'Material', material.name);
-    // A surface density goes back out in g/cm2, which is a tenth of kg/m2.
-    // the `BasePartDTO(RocketComponent)` constructor multiplies by the same constant the reader divides
-    // by, so the two directions are one factor, not two; writing x10 here would
-    // make an exported canopy a hundred times too heavy in RockSim.
+    // A surface density goes back out in g/cm2, which is a tenth of kg/m2. The
+    // `BasePartDTO(RocketComponent)` constructor multiplies by the same constant
+    // the reader divides by, so the two directions are one factor, not two;
+    // writing x10 here would make an exported canopy a hundred times too heavy
+    // in RockSim.
     el(w, d, 'Density', kind === 'surface' ? material.density * SURFACE_DENSITY : material.density);
     el(w, d, 'DensityType', DENSITY_TYPES[kind]);
   }

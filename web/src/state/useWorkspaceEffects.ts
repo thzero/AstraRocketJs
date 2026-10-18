@@ -97,16 +97,13 @@ function persist(fields: Parameters<typeof workspaceSnapshot>[0]): void {
  * stability) whenever the design or its motors change. Mounted once, in App.
  */
 export function useWorkspaceEffects() {
-  // `i18n`, never `t`: `t` gets a new identity on every language change, and
-  // any effect below that listed it in its deps would re-run on a language
-  // switch. For the hydration effect that would mean re-reading and
-  // re-hydrating the workspace, which can hydrate a stale design over a fresh
-  // import.
-  // The module singleton (`i18nGlobal`, as store.ts uses) rather than the
-  // hook's: react-i18next hands back a fresh binding on a language change,
-  // so depending on it causes the same re-run. `i18nGlobal.t(...)` reads
-  // the current language at call time, so the message is still translated
-  // without the effect being language-sensitive at all.
+  // The effects below translate through the module singleton (`i18nGlobal`,
+  // as store.ts uses), never the hook's `t` or `i18n`: react-i18next hands
+  // back fresh ones on a language change, and an effect that listed one in its
+  // deps would re-run on a language switch. For the hydration effect that
+  // would mean re-reading and re-hydrating the workspace, which can hydrate a
+  // stale design over a fresh import. `i18nGlobal.t(...)` reads the current
+  // language at call time, so messages are still translated.
   //
   // `useTranslation()` stays only as the re-render subscription the title
   // effect below needs.
@@ -219,9 +216,8 @@ export function useWorkspaceEffects() {
   const quietReplace = useWorkspaceStore((s) => s.quietReplace);
   // The configuration inputs that owe a rebuild: the seated motors and the
   // grounded stages (see buildRocket.buildKey). Ignition is left out; only the
-  // worker's build reads it. A
-  // string, because zustand v5 compares a selector's result by identity and
-  // this is derived per call.
+  // worker's build reads it. A string, because zustand v5 compares a
+  // selector's result by identity and this is derived per call.
   //
   // A key without `grounded` would not rebuild when a booster is grounded: the
   // worker would fly the sustainer while `info` still described the whole stack.
@@ -256,8 +252,8 @@ export function useWorkspaceEffects() {
   }, [tree, sims, configs, activeId, loadedMeta, quietReplace]);
 
   // IndexedDB blocked (policy, some private modes) means we are back on the 5 MB
-  // localStorage cap. Say so now rather than letting
-  // the user meet it later as an unexplained failed save mid-design.
+  // localStorage cap. Say so now rather than letting the user meet it later as
+  // an unexplained failed save mid-design.
   // Kept as a string, so worded once the language's bundle is in.
   useEffect(
     () =>

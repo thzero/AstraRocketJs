@@ -316,9 +316,9 @@ test('offers OpenRocket’s heat as an alternative shading', async ({ page }) =>
     expect(Math.abs(defined(got[i], `channel ${i} of the Cd ${mid.value} cell`) - want)).toBeLessThanOrEqual(1);
   }
 
-  // The hue really rotates: the biggest cell is red, the smallest green-ish.
-  // The largest cell, whatever it is: the rocket's own total, which is the one
-  // row that cannot go missing.
+  // The hue really rotates: the biggest cell is red, the last component row
+  // (a small Cd) green-ish. The biggest is the rocket's own total, which is the
+  // one row that cannot go missing.
   const largest = [...cells].sort((a, b) => b.value - a.value)[0];
   const big = rgb(defined(largest, 'the largest Cd cell').bg);
   const small = rgb(defined(cells.at(-1), 'the last Cd cell').bg);

@@ -12,11 +12,10 @@ async function openUnitsTab(page: Page) {
   return dialog;
 }
 
-// The glyph is the button's text, not its name: the shared Dialog.tsx labels it
-// `aria-label={t('common.close')}` ("Close"), and a11y.spec.ts pins that a
-// close button is named. Matching the ✕ would find whichever dialog drew one first.
-// The dialog has two buttons named Close (the header ✕ carries aria-label
-// "Close", the footer button says it); either dismisses, so take the first.
+// By name, not the ✕ glyph: the shared Dialog.tsx labels the header button
+// `aria-label={t('common.close')}` ("Close"), and matching the glyph would find
+// whichever dialog drew one first. The footer button is also named Close;
+// either dismisses, so take the first.
 const closeDialog = (page: Page) =>
   page.getByRole('dialog', { name: 'Settings' }).getByRole('button', { name: 'Close', exact: true }).first().click();
 
@@ -32,7 +31,7 @@ test('the preferences reach the fields, the tree, the rulers and the stats strip
 
   const bodyTube = page.locator('div[title="Body tube"]').first();
   // The ruler's unit caption is its own <text>, distinct from the tick numbers,
-  // found by its data hook rather than its color class - and reached without
+  // found by its data hook rather than its color class, and reached without
   // going through `svg.first()`, which is whichever svg the document happens to
   // put first and can be the language switcher's chevron as readily as the
   // drawing. The hook is unique to the rulers; `.first()` picks the length ruler

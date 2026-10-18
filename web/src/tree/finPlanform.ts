@@ -599,7 +599,7 @@ export interface FinPose {
  * `rotate_y(cant)` (FinSet.java:252-260, Transformation.java:279-287) about
  * the middle of its root chord, then by `rotate_x(angle)`
  * (Transformation.java:263-271), which is also the axial rotation an
- * enclosing pod or booster instance adds (FlightConfiguration.java:456-462).
+ * enclosing pod or booster instance adds (FlightConfiguration.java:466-472).
  */
 export function finBodyPoint(x: number, y: number, z: number, pose: FinPose): [number, number, number] {
   const mid = pose.chord / 2;

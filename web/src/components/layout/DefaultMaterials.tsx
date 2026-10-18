@@ -30,7 +30,7 @@ export function DefaultMaterials({
 
   const set = (key: string, name: string | undefined, density: number, group?: string) => {
     const next = { ...defaults };
-    // Choosing "Automatic" clears the preference rather than storing a blank
+    // Choosing "No default" clears the preference rather than storing a blank
     // one, so the setting only ever holds real choices. The catalog group goes
     // with it, as it does with a material picked in the property panel, so a
     // new part's material is filed under its own category in the `.ork`.

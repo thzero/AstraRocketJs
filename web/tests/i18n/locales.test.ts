@@ -12,8 +12,8 @@ import ja from '../../src/i18n/locales/ja.json';
 
 // English is the source-of-truth locale and every other locale falls back to it
 // for a missing key (see i18n/index.ts). That fallback is silent: a key dropped
-// from a translation shows up as English in a Spanish UI rather than as an error,
-// which is exactly the kind of drift nobody notices. These tests make it loud.
+// from a translation shows up as English in a Spanish UI rather than as an error.
+// These tests make it fail.
 //
 // "Every English key" is the rule for ordinary keys, but not for a plural family.
 // i18next picks the suffix with `Intl.PluralRules`, so the set of forms a locale

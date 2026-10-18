@@ -123,15 +123,16 @@ public final class OpenRocketEngine {
         }
     }
 
-    /** Double.isFinite, spelled out - TeaVM's classlib coverage of it varies. */
+    /** Neither NaN nor infinite: the same test as Double.isFinite. */
     private static boolean isFinite(double v) {
         return !Double.isNaN(v) && !Double.isInfinite(v);
     }
 
     // Guards for the addX builders, which take their numbers straight from the
     // caller: unchecked, a NaN length surfaces as `Error: null`, a negative radius
-    // builds a massless part with no error, and 1e9 fins become 8. Bounded like file input
-    // (ComponentFactory.MAX_MAGNITUDE), and each names the argument it rejects.
+    // builds a massless part with no error, and 1e9 fins become 8. Bounded like
+    // file input (ComponentFactory.MAX_MAGNITUDE), and each names the argument it
+    // rejects.
     private static double finiteArg(String what, double v) {
         if (!isFinite(v) || Math.abs(v) > ComponentFactory.MAX_MAGNITUDE) {
             throw new IllegalArgumentException(what + " must be a finite number within +/-"
@@ -159,8 +160,8 @@ public final class OpenRocketEngine {
      *
      * Every entry point that returns a JSON string has to produce one.
      * parseEnvelope in web/src/engine/openRocketEngine.ts checks `error` after
-     * getStaticInfo, getComponentInfo, getAeroSweep, getComponentMasses and
-     * simulateJson, so a method that throws out of TeaVM instead surfaces in JS
+     * getStaticInfo, getComponentInfo, getAeroSweep, getComponentMasses,
+     * simulateJson and getMotorStatistics, so a method that throws out of TeaVM instead surfaces in JS
      * as an opaque throw from inside the bundle and JSON.parse never runs.
      *
      * Before adding an entry point, note that
@@ -385,7 +386,8 @@ public final class OpenRocketEngine {
         // Power-on base drag: per-stage nozzle exit diameter (meters). Upstream
         // models it per motor (MotorConfiguration.nozzleExitDiameter), so the
         // per-stage input is captured here and handed to the stage's motor in
-        // applyMotor. Applies to every stage (incl. the sustainer). Absent/0 => power-off.
+        // applyMotor. Applies to every stage (incl. the sustainer). Absent/0 =>
+        // power-off.
         double nozzleExitDiameter = JsonLite.dbl(stageNode, "nozzleExitDiameter", Double.NaN);
         if (!Double.isNaN(nozzleExitDiameter) && nozzleExitDiameter > 0) {
             nozzleDia.put(stage, nozzleExitDiameter);
@@ -1109,9 +1111,9 @@ public final class OpenRocketEngine {
         // Row order must not depend on HashMap iteration. getCMAnalysis returns a
         // Map keyed by component.hashCode(), and RocketComponent.hashCode() hashes
         // a per-run random UUID, so map order differs on every run, and again
-        // between JVM and TeaVM. Emit in tree order,
-        // the order the component tree beside it already shows, and put the
-        // entries with no component behind them (the motor rows) last, by name.
+        // between JVM and TeaVM. Emit in tree order, the order the component tree
+        // beside it already shows, and put the entries with no component behind
+        // them (the motor rows) last, by name.
         java.util.Map<String, info.openrocket.core.masscalc.CMAnalysisEntry> byKey =
                 new java.util.LinkedHashMap<>();
         java.util.List<info.openrocket.core.masscalc.CMAnalysisEntry> motorRows = new java.util.ArrayList<>();
@@ -1414,12 +1416,13 @@ public final class OpenRocketEngine {
 
         // Power-on base drag: per-assembly thrusting nozzle-exit areas of the
         // design's motors (upstream's native per-motor model). Mirrors
-        // AbstractSimulationStepper.setThrustingNozzleExitAreas; the drag sweep is a
-        // static analysis, so every motor is treated as thrusting (the power-on curve).
-        // Read motors straight off the mounts (keyed by fcid): the FlightConfiguration's
-        // motors map is derived via updateMotors(), which the setMotorById flow doesn't
-        // trigger, so it can be stale here. (The flight sim is unaffected: it reads motors
-        // through SimulationStatus, a separate runtime path.)
+        // AbstractSimulationStepper.setThrustingNozzleExitAreas; the drag sweep is
+        // a static analysis, so every motor is treated as thrusting (the power-on
+        // curve). Read motors straight off the mounts (keyed by fcid): the
+        // FlightConfiguration's motors map is derived via updateMotors(), which the
+        // setMotorById flow doesn't trigger, so it can be stale here. (The flight
+        // sim is unaffected: it reads motors through SimulationStatus, a separate
+        // runtime path.)
         java.util.Map<ComponentAssembly, Double> nozzleAreas = new java.util.HashMap<>();
         for (RocketComponent c : ctx.rocket) {
             if (!(c instanceof MotorMount) || !((MotorMount) c).isMotorMount()) {
@@ -1931,9 +1934,8 @@ public final class OpenRocketEngine {
      * When the site's temperature and pressure are both given, the site is the
      * profile's lowest level and any level at or below the site, by height or
      * by pressure, is dropped: the conditions stated for the pad win where the
-     * rocket starts. The site's
-     * humidity defaults to the lowest level kept above it. Without both site
-     * values the levels are used as they are.
+     * rocket starts. The site's humidity defaults to the lowest level kept above
+     * it. Without both site values the levels are used as they are.
      */
     private static AtmosphereProfile atmosphereProfileOf(List<Map<String, Object>> levels,
             double launchAltitude, double temperature, double pressure, double humidity) {

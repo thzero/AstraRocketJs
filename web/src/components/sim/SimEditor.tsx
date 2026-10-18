@@ -116,9 +116,8 @@ export function SimEditor() {
         {!desktop && banner}
 
         <section className="rounded-xl bg-surface p-3 ring-1 ring-line/10">
-          {/* A div, not a <label htmlFor>: this component mounts in two places
-              (inline on a phone, the desktop column), so the input names itself
-              with aria-label rather than depending on a fixed id. */}
+          {/* A div, not a <label htmlFor>: the input names itself with
+              aria-label, so the heading needs no id. */}
           {/* The one field that does not follow the selection: pushing a name
               across three simulations would leave three rows called the same
               thing, which is the opposite of what naming is for. */}

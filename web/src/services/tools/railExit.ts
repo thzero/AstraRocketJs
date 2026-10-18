@@ -11,8 +11,8 @@ import { lerpAt } from '../flight/interpolate';
  * speed it leaves the rail at, and with a wind, the angle it weathercocks to.
  *
  * Point mass along a vertical rail, with no drag and no rail friction. Both make
- * the real exit slower, so this errs fast. A designed rocket gets these figures from the engine on
- * its rail departure event instead.
+ * the real exit slower, so this errs fast. A designed rocket gets these figures
+ * from the engine on its rail departure event instead.
  */
 
 /** Integration step, s. Rail exits take tenths of a second. */

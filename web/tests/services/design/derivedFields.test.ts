@@ -3,7 +3,7 @@ import type { ComponentNode } from '../../../src/engine/openRocketEngine';
 import { DERIVED, MAX_SWEEP_ANGLE } from '../../../src/services/design/derivedFields';
 
 /**
- * The second doors onto stored numbers. Each pair is checked for the round trip
+ * Derived fields are views onto stored numbers. Each pair is checked for the round trip
  * (read what write put there) and for the edge the kernel handles specially,
  * because all of those edges are reachable by typing.
  */

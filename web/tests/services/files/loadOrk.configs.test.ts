@@ -151,9 +151,9 @@ describe('loadOrk with several flight configurations', () => {
   });
 
   /**
-   * `OrkFlightConfig` declares `separations` and `grounded` non-optional and
-   * documents both as "carried for the same reason the deployments are".
-   * `LoadedConfig` has to carry them too: a `.ork` whose configuration says
+   * `OrkFlightConfig` declares `separations` and `grounded` non-optional, read
+   * from the file the way the deployments are. `LoadedConfig` has to carry them
+   * too: a `.ork` whose configuration says
    * `<stage number="1" active="false"/>` or carries a
    * `<separationconfiguration>` would otherwise lose it on open, and `saveOrk`
    * would write the undefined value back, losing it for good. The round-trip

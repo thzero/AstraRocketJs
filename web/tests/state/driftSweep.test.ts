@@ -53,10 +53,9 @@ const landed = (east: number, north: number) =>
 /**
  * A wind sweep, from the store down to the landings it keeps.
  *
- * What is being pinned here is the contract the ground track draws from: every
- * cell flies the same rocket under a different wind, the row's own result is
- * never touched, and a part-flown grid is thrown away rather than drawn as if
- * it were whole.
+ * The contract the ground track draws from: every cell flies the same rocket
+ * under a different wind, the row's own result is never touched, and a
+ * part-flown grid is thrown away rather than drawn as if it were whole.
  */
 describe('a drift sweep', () => {
   let calls: { payload: SimPayload; opts: SimCallOptions; settle: (r: FlightResult) => void }[];
@@ -99,9 +98,8 @@ describe('a drift sweep', () => {
   });
 
   /**
-   * The wind is the only thing that moves. Everything else differing per cell
-   * would make the spread unattributable, which is the whole value of a grid
-   * over a handful of ad-hoc runs.
+   * The wind is the only thing that moves. Anything else differing per cell
+   * would make the spread impossible to attribute to the wind.
    */
   it('varies the wind and nothing else', async () => {
     const done = start();
@@ -171,8 +169,8 @@ describe('a drift sweep', () => {
 
   /**
    * Cells arrive in whatever order the pool frees up, so what survives a cancel
-   * is an arbitrary subset of the conditions. A hull round that understates the
-   * drift by an amount nobody could estimate.
+   * is an arbitrary subset of the conditions. A hull around it would understate
+   * the drift by an unknown amount.
    */
   it('keeps nothing from a canceled sweep', async () => {
     const done = start();

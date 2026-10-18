@@ -13,7 +13,7 @@ import { lengthOf, outerDiameterOf, type Component, type ComponentType, type Pic
 const FIT_SLACK = 0.002;
 /** How much larger than the bore a part may be and still be called a fit. A
  *  coupler never goes in oversize, but catalog numbers are nominal and round
- *  differently per manufacturer, so a few hundredths is noise, not interference. */
+ *  differently per manufacturer, so half a millimeter is noise, not interference. */
 const FIT_OVERSIZE = 0.0005;
 /**
  * How far a part's end may be from the diameter it has to meet and still match,
@@ -178,8 +178,8 @@ export function boreClears(p: Component, fit: FitContext | undefined): boolean {
  * "fiber", and "PML glassed phenolic" is a phenolic rather than a glass.
  *
  * The catalog's raw names cannot be a filter: body tubes alone carry dozens of
- * them, including near-duplicate `Fiber, vulcanized, Coupler, BT-xx, bulk` rows
- * and several spellings of the same balsa density. The family is the question
+ * them, including near-duplicates such as `Vulcanized Fiber` and
+ * `Fiber, vulcanized, Motor Mount, BT-50, bulk`. The family is the question
  * people actually ask ("show me the fiberglass tubes"), and it collapses those
  * to a handful. Every name in the shipped catalog lands in one of these; the test
  * asserts that, so a new material cannot quietly fall through.
@@ -207,9 +207,10 @@ const MATERIAL_FAMILIES: [RegExp, string][] = [
  * all (a parachute) or the name matches no rule.
  *
  * Not translated, deliberately. The Material column beside the facet shows the
- * catalog's own English names, because that is what a catalog of English-language
- * manufacturer data contains; a facet translated into the reader's language, sitting over rows reading
- * "Fiberglass, G10, bulk" would be worse than one that matches them.
+ * catalog's own English names, because that is what a catalog of
+ * English-language manufacturer data contains; a facet translated into the
+ * reader's language, sitting over rows reading "Fiberglass, G10, bulk", would
+ * be worse than one that matches them.
  */
 export function materialFamily(p: Component): string | null {
   const name = 'material' in p ? p.material : undefined;
@@ -345,8 +346,8 @@ export function queryComponents<C extends Component>(
   const cmp = (a: Ranked<C>, b: Ranked<C>): number => {
     // The user's own saved parts come first, under every sort and every
     // direction. Not a preference: the picker renders a capped window, and a
-    // saved part that sorts past the cap is a part the
-    // person saved, was told was saved, and then cannot find. There are never
+    // saved part that sorts past the cap is a part the person saved, was told
+    // was saved, and then cannot find. There are never
     // many of them, they stay ordered among themselves by the active column,
     // and the catalog below them is unaffected.
     if (!!a.part.custom !== !!b.part.custom) return a.part.custom ? -1 : 1;

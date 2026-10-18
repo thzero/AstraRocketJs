@@ -127,7 +127,8 @@ tasks.register('reference', JavaExec) {
     // comparison reads logback chatter as data.
     systemProperty 'logback.configurationFile',
             new File(projectDir, 'logback-quiet.xml').absolutePath
+    // One argument, the fixture path, which can contain spaces.
     if (project.hasProperty('refArgs')) {
-        args project.property('refArgs').toString().split(' ')
+        args project.property('refArgs').toString()
     }
 }

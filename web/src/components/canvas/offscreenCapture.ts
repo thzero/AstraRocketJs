@@ -15,9 +15,6 @@ import { pixelsToCanvas } from '../../services/exports/offscreenRaster';
  * render into a target therefore comes back linear and un-tone-mapped, and
  * the export would be visibly brighter and flatter than the view on screen.
  * The pass below is what three's own OutputPass does, minus the addon import.
- *
- * WebGL cannot run under vitest, so this file is unverified by unit tests;
- * the size clamp and the row flip are proven in offscreenRaster.test.ts.
  */
 
 /** three's GLSL function per `renderer.toneMapping`, the same table

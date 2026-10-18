@@ -104,7 +104,7 @@ describe('localDocsUrlFor', () => {
 // The file, not the directory. Docusaurus emits every page as <slug>/index.html
 // and the service worker precaches it under exactly that name, so asking for the
 // file is a cache hit and asking for the directory is not (directoryIndex is off
-// in vite.config.ts). This is the whole reason Help opens offline.
+// in vite.config.ts). This is what lets Help open offline.
 describe('docPageFileUrl', () => {
   it('addresses the index.html inside the page directory', () => {
     expect(docPageFileUrl('/docs/', 'safety')).toBe('/docs/safety/index.html');

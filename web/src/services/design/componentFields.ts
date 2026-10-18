@@ -14,9 +14,10 @@ import { num } from '../../tree/nodeProps';
  * This is domain data, not presentation. It encodes the OpenRocket component
  * vocabulary, the shape lists, the deploy and separation event vocabularies,
  * the unit kinds and the required-ness. It does not live in `PropertyPanel`:
- * services (`files/ork/importTags`) and tests import it directly, and it takes its required
- * list from `services/design/requiredComponent`, so a service would otherwise be
- * depending on a component module for the shape of its own domain.
+ * services (`files/ork/importTags`) and tests import it directly, and it takes
+ * its required list from `services/design/requiredComponent`, so a service
+ * would otherwise be depending on a component module for the shape of its own
+ * domain.
  */
 
 /**

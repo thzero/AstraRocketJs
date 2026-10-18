@@ -194,20 +194,15 @@ function extensionName(id: string, el: Element): string | Keyed {
 /**
  * What the file carried that this app does not use, said out loud.
  *
- * Appearance XML is preserved (services/files/ork/passthrough.ts) and the note
- * says so; a decal is the one thing that cannot survive, because its image is a
- * separate member of the archive that we do not keep.
+ * A decal is the one part of an appearance that cannot survive, because its
+ * image is a separate member of the archive that we do not keep.
  *
  * Counted off the document rather than reported by the readers, so no state has
  * to be threaded through every one of them to answer the same question.
  */
 function archiveNotes(doc: Document, dropped: string[]): ImportNote[] {
   const out: ImportNote[] = [];
-  const appearances = doc.querySelectorAll('appearance, insideappearance').length;
   const decals = doc.querySelectorAll('decal').length;
-  if (appearances) {
-    out.push(keyedNote('importNote.appearances', { total: appearances }));
-  }
   if (decals) {
     out.push(keyedNote('importNote.decals', { total: decals }));
   }

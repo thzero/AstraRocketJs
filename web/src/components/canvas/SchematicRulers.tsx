@@ -1,8 +1,9 @@
 import { useUnits } from '../../prefs/useUnits';
 
 /**
- * The TreeSchematic measuring frame: one length (horizontal) ruler drawn on
- * the top or bottom edge and one radial (vertical) ruler on the left or right.
+ * The TreeSchematic measuring frame: length (horizontal) rulers on the top
+ * and bottom edges and radial (vertical) rulers on the left and right, each
+ * side drawn when it is toggled on.
  * The graduations they draw come from `rulerGraduations` in
  * schematicGeometry.ts (memoized by the schematic); this file is the markup.
  * Both are `pointerEvents="none"` so they never take a click from the drawing.

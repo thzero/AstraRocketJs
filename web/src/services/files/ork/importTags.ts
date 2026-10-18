@@ -7,6 +7,7 @@ import { MAX_ASSEMBLY_INSTANCES, MAX_FIN_COUNT } from './importLimits';
 import { EXTRA_KEY, readPassthrough } from './passthrough';
 import type { OrkDeployOverride, OrkSepOverride } from '../orkTypes';
 import { hexOf } from '../../design/colorHex';
+import { BUILDER_DEFAULT, INSIDE_COLOR_TYPES, type PartAppearance } from '../../design/appearance';
 import { degToRad } from '../../../prefs/units';
 import { KERNEL_DEPLOYMENT, KERNEL_SEPARATION } from '../../../tree/kernelDefaults';
 import { DEPLOY_EVENTS, SEPARATION_EVENTS } from '../../design/componentFields';
@@ -517,29 +518,76 @@ export function readCommon(el: Element, node: ComponentNode, withPosition: boole
   readShearModulus(el, node);
   const fin = enumTag(el, 'finish', FINISHES, 'importNote.finishUnknown', node, notes);
   if (fin && fin !== 'normal') node['finish'] = fin;
-  // The part's own color: three 0-255 channels on one element in the file, a
-  // hex string in the tree, which is what the pickers and both views use. The
-  // desktop's ORColor.fromXMLAttributes reads no color at all unless all three
-  // channels (and the alpha, when present) are integers in 0-255.
-  const col = el.querySelector(':scope > color');
-  if (col) {
-    const ch = (name: string): number | null => {
-      const raw = col.getAttribute(name);
-      if (raw == null || !/^[+-]?\d+$/.test(raw)) return null;
-      const v = Number(raw);
-      return v >= 0 && v <= 255 ? v : null;
-    };
-    const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
-    const alphaOk = !col.hasAttribute('alpha') || ch('alpha') !== null;
-    if (r !== null && g !== null && b !== null && alphaOk) {
-      node['color'] = hexOf((r << 16) | (g << 8) | b);
-    }
-  }
+  // The part's own figure color, the one the 2D views draw: three 0-255
+  // channels on one element in the file, a hex string in the tree.
+  const col = orColor(el.querySelector(':scope > color'));
+  if (col) node['color'] = col.paint;
+  readAppearances(el, node);
   readOverrides(el, node);
   if (withPosition) {
     const pos = readPosition(el);
     if (pos) node.position = pos;
   }
+}
+
+/**
+ * A color element's channels, as `ORColor.fromXMLAttributes` reads them: no
+ * color at all unless all three channels (and the alpha, when present) are
+ * integers in 0-255.
+ */
+function orColor(col: Element | null): { paint: string; alpha: number } | null {
+  if (!col) return null;
+  const ch = (name: string): number | null => {
+    const raw = col.getAttribute(name);
+    if (raw == null || !/^[+-]?\d+$/.test(raw)) return null;
+    const v = Number(raw);
+    return v >= 0 && v <= 255 ? v : null;
+  };
+  const [r, g, b] = [ch('red'), ch('green'), ch('blue')];
+  const alpha = col.hasAttribute('alpha') ? ch('alpha') : 255;
+  if (r === null || g === null || b === null || alpha === null) return null;
+  return { paint: hexOf((r << 16) | (g << 8) | b), alpha };
+}
+
+/**
+ * One `<appearance>` or `<insideappearance>` block, as `AppearanceHandler`
+ * builds it: whatever the block leaves out keeps the `AppearanceBuilder`
+ * default, a paint that is not a color included. The decal is not read: its
+ * image is a separate member of the zip, which is not kept.
+ */
+function readAppearanceBlock(el: Element): PartAppearance {
+  const out: PartAppearance = { ...BUILDER_DEFAULT };
+  const paint = orColor(el.querySelector(':scope > paint'));
+  if (paint) Object.assign(out, paint);
+  const shine = Number(text(el, ':scope > shine')?.trim() ?? NaN);
+  // The `Appearance` constructor clamps the shine to 0-1.
+  if (Number.isFinite(shine)) out.shine = Math.min(1, Math.max(0, shine));
+  if (text(el, ':scope > opacityaffectstexture')?.trim().toLowerCase() === 'true') out.opacityAffectsTexture = true;
+  return out;
+}
+
+/**
+ * The 3D appearance (`services/design/appearance.ts`). The inside block and its
+ * two flags are read only on a part that has an inside, as
+ * `InsideAppearanceHandler` applies them only to an `InsideColorComponent`.
+ * The flags' 22.02 beta spellings are read too, as desktop reads them.
+ */
+function readAppearances(el: Element, node: ComponentNode): void {
+  const outside = el.querySelector(':scope > appearance');
+  if (outside) node['appearance'] = readAppearanceBlock(outside);
+  const inside = el.querySelector(':scope > insideappearance');
+  if (!inside || !INSIDE_COLOR_TYPES.has(node.type)) return;
+  node['insideAppearance'] = readAppearanceBlock(inside);
+  const flag = (...tags: string[]) => {
+    for (const tag of tags) {
+      const v = text(inside, `:scope > ${tag}`);
+      if (v != null) return v.trim().toLowerCase() === 'true';
+    }
+    return false;
+  };
+  // `<insidesameasoutside>` holds `isSeparateInsideOutside()`, whatever its name says.
+  if (flag('insidesameasoutside', 'insideSameAsOutside')) node['separateInsideOutside'] = true;
+  if (flag('edgessameasinside', 'edgesSameAsInside')) node['edgesSameAsInside'] = true;
 }
 
 /** Mass / CG / Cd overrides, and the flags that spread them over the subtree. */

@@ -14,9 +14,9 @@ import info.openrocket.core.util.ModID;
  * Upstream's only atmosphere is {@code ExtendedISAModel}: the site's own
  * temperature, pressure and humidity, then the standard lapse rate above it.
  * Upstream has no model that takes temperature aloft from a forecast or a
- * sounding. {@code AtmosphericModel} is a one-method
- * interface the simulation reads through {@code SimulationConditions}, so this
- * class plugs in from the bridge with no patched kernel file. When upstream
+ * sounding. {@code AtmosphericModel} is a one-method interface the simulation
+ * reads through {@code SimulationConditions}, so this class plugs in from the
+ * bridge with no patched kernel file. When upstream
  * ships its own model, this class goes and the bridge builds that one instead.
  *
  * <h2>Between levels</h2>

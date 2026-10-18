@@ -5,8 +5,8 @@ import { useShowResultsTab } from './useShowResultsTab';
 import { taskTabs } from './tabTable';
 
 /**
- * Mobile bottom tab bar (hidden at lg+, where {@link WorkbenchTabs} sits under
- * the header instead).
+ * Mobile bottom tab bar (hidden at lg+, where {@link WorkbenchTabs} sits in the
+ * header instead).
  *
  * One more button than there are tabs: the Design tab has two halves a phone
  * can't show at once, so Rocket and Sketch both open it and pick the half
@@ -14,8 +14,8 @@ import { taskTabs } from './tabTable';
  * both.
  *
  * The labels are shorter here than in the header strip, because five or six of
- * them share the width of a phone: `tabs.configsShort` names the tab that the desktop
- * calls Configurations.
+ * them share the width of a phone: `tabs.configsShort` names the tab that the
+ * desktop calls Configurations.
  *
  * It is the last flex child of a fixed-height column whose main area is
  * `overflow-hidden`, so it stays put while a pane scrolls behind it. The

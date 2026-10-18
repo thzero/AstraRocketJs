@@ -48,8 +48,7 @@ import { finPlanformMm } from '../../src/services/report/reportGeometry';
  *    that the curve has "more than 10 points" and that its apex reaches full
  *    height is one a sine arch satisfies.
  *
- * Any new ported geometry belongs here too. Adding a case is cheap; finding
- * out from a user that their printed part is the wrong shape is not.
+ * Any new ported geometry belongs here too.
  */
 
 const JAVA_ROOT = fileURLToPath(new URL('../../../engine-java/src/java/info/openrocket/core/', import.meta.url));
@@ -577,21 +576,21 @@ describe('a fin on its parent vs FinSet.java and FreeformFinSet.java', () => {
 });
 
 /**
- * The recurrence guard.
+ * One sampler per shape.
  *
  * Nothing else stops a consumer from growing its own sampler, and each new copy
  * looks locally reasonable. Kernel trigonometry is allowed only in the modules
- * listed in ALLOWED (the planform, tube-fin and shape-profile ports), and
- * anywhere else it means another copy is being born.
+ * listed in ALLOWED (the planform, tube-fin and shape-profile ports); anywhere
+ * else it is a second copy.
  *
  * If this fails on a legitimate new use, move the math into `tree/` and call it
  * from the consumer. Do not add the consumer to the allowlist.
  */
 describe('no module grows its own fin sampler', () => {
   // `../../src/`, not `..`: this test lives at web/tests/tree/, so `..` would
-  // resolve to web/tests/ and the walk below would read test helpers and not one
-  // line of src, while every ALLOWED path named a file that does not exist under
-  // that root. Asserted rather than trusted, two tests down.
+  // resolve to web/tests/, the walk below would read no src at all, and every
+  // ALLOWED path would name a file that does not exist under that root. The
+  // first test below asserts it.
   const SRC = fileURLToPath(new URL('../../src/', import.meta.url));
   /** Ports of kernel trig that are allowed to compute it directly. */
   const ALLOWED = ['tree/finPlanform.ts', 'tree/tubefins.ts', 'tree/shapeProfile.ts'];
