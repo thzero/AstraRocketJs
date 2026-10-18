@@ -238,6 +238,17 @@ Notas sobre las cifras:
 - **Un filete espesado es otro material.** Las microesferas bajan un cordón de West System a unos 600-800. Pesa tu propia mezcla y añádela como material personalizado.
 - **ProLine 4500 no está**: el fabricante no publica su densidad. Para añadirla, pesa un volumen conocido y divide.
 
+## Apariencia {#appearance}
+
+La sección **Apariencia** de cada pieza define cómo se dibuja. Nada de lo que contiene cambia la simulación. Tiene dos ajustes, como la pestaña Apariencia de OpenRocket de escritorio:
+
+- **Estilo de figura**: el **Color del componente** con el que las vistas 2D y la vista 3D **Figura** dibujan la pieza. Con **Usar color predeterminado** marcado, la pieza toma el color propio de cada vista.
+- **Apariencia 3D**: lo que muestran la vista 3D **Acabado** y la trayectoria de vuelo 3D. **Color** es la pintura, **Brillo** indica cuánto brilla y **Opacidad** cuánto se ve a través de ella. Con **Usar predeterminada** marcado, la pieza se dibuja con el color que tiene su tipo en [Ajustes ▸ Colores](./settings.md#colors) y con el brillo predeterminado de OpenRocket de escritorio para ese tipo.
+
+Los tubos del cuerpo, los tubos interiores, las ojivas, las transiciones, las guías de lanzamiento, las aletas tubulares y los juegos de aletas también tienen un interior. Marca **Usar apariencia distinta por fuera y por dentro** para dar al interior su propia apariencia en una pestaña **Interior**, y elige con **Apariencia de los bordes** cuál de las dos toman los extremos cortados. En un juego de aletas, las dos son el **Lado izquierdo** y el **Lado derecho**.
+
+No se admiten texturas ni calcomanías. Una calcomanía de un archivo `.ork` abierto se elimina, porque su imagen se guarda aparte dentro del archivo. El resto de la apariencia de la pieza se conserva.
+
 ## Soporte del motor {#motor-mount}
 
 Para volar, un cohete necesita un soporte de motor (un tubo interior, o cualquier tubo del cuerpo o interior con su casilla **Soporte de motor** marcada) con un motor asignado. La elección y configuración de motores se trata en **[Motores](./motors.md)**.

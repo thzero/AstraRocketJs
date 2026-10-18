@@ -5,6 +5,7 @@ import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { OrbitControls, Line, Html } from '@react-three/drei';
 import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import type { Piece } from './rocketPieces';
+import { LookMaterial, surfacesOf } from './LookMaterial';
 import { usePieces } from './usePieces';
 import { mergePalette } from '../../services/design/partColors';
 import { useSettings } from '../../state/SettingsProvider';
@@ -591,9 +592,19 @@ const FlyingModel = memo(function FlyingModel({
   return (
     <group ref={groupRef} scale={modelScale}>
       <group position={[-totalLen / 2, 0, 0]}>
+        {/* The finished rocket, opaque: a flight is watched from outside. */}
         {pieces.map((p) => (
           <mesh key={p.key} geometry={p.geometry} position={p.position ?? [0, 0, 0]} rotation={p.rotation ?? [0, 0, 0]}>
-            <meshStandardMaterial color={p.color} roughness={0.55} metalness={0.1} />
+            {surfacesOf(p, 'finished').map(([attach, look]) => (
+              <LookMaterial
+                key={attach}
+                attach={attach}
+                look={look}
+                transparent={look.opacity < 1}
+                opacity={look.opacity}
+                depthWrite={look.opacity >= 1}
+              />
+            ))}
           </mesh>
         ))}
         <group ref={flameRef} visible={false}>

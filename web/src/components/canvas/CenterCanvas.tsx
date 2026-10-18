@@ -34,13 +34,16 @@ export function CenterCanvas({
   flight,
   pathResult,
   ctrlSlot,
+  presetSlot,
 }: {
   /** The flight the results views draw. */
   flight: ResultFlight | null;
   /** The flight the 3D path animates. */
   pathResult: FlightResult | null;
-  /** Header slot the 2D schematic's control buttons portal into. */
+  /** Header slot the 2D schematic's and the 3D model's control buttons portal into. */
   ctrlSlot: HTMLDivElement | null;
+  /** Header slot, left, the 3D model's camera presets portal into. */
+  presetSlot: HTMLDivElement | null;
 }) {
   const { t } = useTranslation();
   const view = useWorkspaceStore((s) => s.view);
@@ -73,20 +76,15 @@ export function CenterCanvas({
       {view === '2d' && <RollSlider />}
       {/* Quick-glance stats card: sits inside the ruler frame on
       the 2D view (clear of the top + left rulers when they're on), and in the
-      upper-left corner in 3D. Toggleable via the header Info button.
-
-      In 3D it hangs below the view-preset row rather than level with it.
-      With the image export shown, that row is pinned top-left, where the
-      card sits; the card is z-20 against the row's z-index 2, so level
-      with it the card would cover the preset buttons and take their
-      clicks. A readout yields to a control. */}
+      upper-left corner in 3D, whose controls are all in the header row
+      above. Toggleable via the header Info button. */}
       {(view === '2d' || view === '3d') && showInfoCard && (
         <div
           className="absolute z-20"
           style={
             view === '2d'
               ? { left: (rulers.left ? 60 : 44) + ROLL_GUTTER, top: rulers.top ? 44 : 12 }
-              : { left: 44, top: 44 }
+              : { left: 12, top: 12 }
           }
         >
           <InfoOverlay info={info} />
@@ -127,6 +125,8 @@ export function CenterCanvas({
             showMarkers={showMarkers}
             exportData={exportData}
             onError={setErr}
+            ctrlSlot={ctrlSlot}
+            presetSlot={presetSlot}
           />
         </LazyBoundary>
       ) : view === 'flight' ? (

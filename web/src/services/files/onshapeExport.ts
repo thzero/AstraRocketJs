@@ -2,7 +2,8 @@ import type { ComponentInfo, ComponentNode, ComponentType, RocketTree } from '..
 import { syncAutoRadii } from '../design/autoRadius';
 import { resolveDisc } from '../design/discGeometry';
 import { COMPONENT_DEFAULTS } from '../design/componentDefaults';
-import { colorForType, DEFAULT_PART_COLORS, type PartPalette } from '../design/partColors';
+import { DEFAULT_PART_COLORS, type PartPalette } from '../design/partColors';
+import { outsideAppearance, type PartAppearance } from '../design/appearance';
 import { parseHexColor } from '../design/colorHex';
 import { stageFileName } from '../design/orkTree';
 import { designSeparation } from '../flight/flightConfigs';
@@ -224,11 +225,11 @@ const frameOf = (ctx: Ctx, node: ComponentNode): AxialFrame | undefined =>
 const infoOf = (ctx: Ctx, node: ComponentNode): ComponentInfo | undefined =>
   node.id ? ctx.figures?.(node.id) : undefined;
 
-/** `#rrggbb` as the feature's 0..1 channels. */
-function colorOf(hex: string | undefined): OnshapeColor | undefined {
-  const n = parseHexColor(hex);
+/** A part's 3D appearance as the feature's 0..1 channels: the paint, and its alpha. */
+function colorOf(a: PartAppearance): OnshapeColor | undefined {
+  const n = parseHexColor(a.paint);
   if (n === null) return undefined;
-  return { red: ((n >> 16) & 255) / 255, green: ((n >> 8) & 255) / 255, blue: (n & 255) / 255, alpha: 1 };
+  return { red: ((n >> 16) & 255) / 255, green: ((n >> 8) & 255) / 255, blue: (n & 255) / 255, alpha: a.alpha / 255 };
 }
 
 /** The part's material, as the `.ork` writer names it. */
@@ -579,7 +580,7 @@ function componentOf(ctx: Ctx, node: ComponentNode, parent: ComponentNode): Onsh
   const overrideCD = override('overrideCD');
   const params = paramsOf(ctx, node, parent);
   const material = PACKED_TYPES.has(node.type) ? packedMaterial(node, info, params) : materialOf(node);
-  const color = colorOf(typeof node['color'] === 'string' ? node['color'] : colorForType(node.type, ctx.palette));
+  const color = colorOf(outsideAppearance(node, ctx.palette));
   const out: OnshapeComponent = {
     type: node.type,
     name: node.name ?? DESKTOP_NAMES[node.type] ?? node.type,

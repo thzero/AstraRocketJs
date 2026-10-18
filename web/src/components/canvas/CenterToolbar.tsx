@@ -25,13 +25,15 @@ const selectShownRunning = (s: WorkspaceState): boolean => {
 };
 
 /**
- * The center pane's header row: the result heading, the 2D presets, the
- * CG/CP · Info · ruler toggles, the slot the 2D schematic portals its controls
- * into, the view toggle and the maximize button.
+ * The center pane's header row: the result heading, the 2D presets or the
+ * slot the 3D model portals its presets into, the CG/CP · Info · ruler
+ * toggles, the slot the canvas portals its other controls into, the view
+ * toggle and the maximize button.
  */
 export function CenterToolbar({
   resultName,
   onCtrlSlot,
+  onPresetSlot,
   maxed,
   onToggleMaxed,
 }: {
@@ -39,6 +41,8 @@ export function CenterToolbar({
   resultName: string;
   /** Ref callback for the center slot the 2D schematic portals into. */
   onCtrlSlot: (el: HTMLDivElement | null) => void;
+  /** Ref callback for the left slot the 3D view portals its camera presets into, where 2D has its own. */
+  onPresetSlot: (el: HTMLDivElement | null) => void;
   maxed: boolean;
   onToggleMaxed: () => void;
 }) {
@@ -110,6 +114,7 @@ export function CenterToolbar({
             </ViewBtn>
           </>
         )}
+        {view === '3d' && <div ref={onPresetSlot} className="flex items-center gap-1" />}
         {(view === '2d' || view === '3d') && (
           <>
             <ViewBtn active={showMarkers} onClick={toggleMarkers} title={t('view.markersTitle')}>
@@ -138,7 +143,8 @@ export function CenterToolbar({
           </>
         )}
       </div>
-      {/* Center slot: the 2D schematic portals its caliper / zoom / export buttons here. */}
+      {/* Center slot: the 2D schematic portals its caliper / zoom / export
+      buttons here, and the 3D model its cutaway, view type and export. */}
       <div ref={onCtrlSlot} className="flex items-center gap-1" />
       {/* ml-auto keeps it hard right even when it wraps onto a line of its
       own, where justify-between has nothing to push against. */}

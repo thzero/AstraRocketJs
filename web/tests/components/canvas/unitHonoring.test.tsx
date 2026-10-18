@@ -76,7 +76,7 @@ describe('the 2D roll slider', () => {
   it('carries the formatted angle as its value text', () => {
     seedSettings({ units: { angle: 'rad' } });
     useWorkspaceStore.setState({ view: '2d', roll: Math.PI / 2 });
-    renderWithProviders(<CenterCanvas flight={null} pathResult={null} ctrlSlot={null} />);
+    renderWithProviders(<CenterCanvas flight={null} pathResult={null} ctrlSlot={null} presetSlot={null} />);
     const slider = screen.getByRole('slider', { name: 'Roll angle (degrees)' });
     expect(slider.getAttribute('aria-valuetext')).toBe('1.57 rad');
   });

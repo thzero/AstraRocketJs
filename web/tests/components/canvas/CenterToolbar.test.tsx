@@ -12,7 +12,13 @@ const st = () => useWorkspaceStore.getState();
 
 const renderToolbar = () =>
   renderWithProviders(
-    <CenterToolbar resultName="Simulation 1" onCtrlSlot={() => {}} maxed={false} onToggleMaxed={() => {}} />,
+    <CenterToolbar
+      resultName="Simulation 1"
+      onCtrlSlot={() => {}}
+      onPresetSlot={() => {}}
+      maxed={false}
+      onToggleMaxed={() => {}}
+    />,
   );
 
 /**
@@ -115,7 +121,13 @@ describe('CenterToolbar button names', () => {
     expect(screen.getByRole('button', { name }).getAttribute('aria-pressed')).toBe('false');
     unmount();
     renderWithProviders(
-      <CenterToolbar resultName="Simulation 1" onCtrlSlot={() => {}} maxed={true} onToggleMaxed={() => {}} />,
+      <CenterToolbar
+        resultName="Simulation 1"
+        onCtrlSlot={() => {}}
+        onPresetSlot={() => {}}
+        maxed={true}
+        onToggleMaxed={() => {}}
+      />,
     );
     expect(screen.getByRole('button', { name }).getAttribute('aria-pressed')).toBe('true');
   });

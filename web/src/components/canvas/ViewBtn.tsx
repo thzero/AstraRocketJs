@@ -20,7 +20,7 @@ export function ViewBtn({
       title={title}
       aria-label={label}
       aria-pressed={active}
-      className={`rounded-md px-2 py-1 text-xs font-medium ring-1 ring-line/10 ${active ? 'bg-accent-600 text-on-accent' : 'bg-raised/90 text-ink'}`}
+      className={`inline-flex h-7 items-center rounded-md px-2 text-xs font-medium ring-1 ring-line/10 ${active ? 'bg-accent-600 text-on-accent' : 'bg-raised/90 text-ink'}`}
     >
       {children}
     </button>

@@ -472,11 +472,17 @@ body {
 }
 
 .file-btn {
+  /* The canvas header row's height (h-7), shared with ViewBtn and the joined
+     switches there, so a row of mixed controls lines up. An emoji icon would
+     otherwise make its button taller than the rest. */
+  box-sizing: border-box;
+  height: 28px;
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 10px;
+  padding: 0 10px;
   font-size: 12px;
+  line-height: 16px;
   font-family: inherit;
   color: var(--text-primary);
   background: var(--surface-1);

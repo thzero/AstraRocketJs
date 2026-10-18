@@ -3,8 +3,8 @@ import type { FlightResult, RocketTree } from '../../engine/openRocketEngine';
 import { KERNEL_DEFAULTS } from '../../tree/kernelDefaults';
 import { findRecoveryDevices } from '../../services/design/treeEdit';
 import { num } from '../../tree/nodeProps';
-import { colorForType, type PartPalette } from '../../services/design/partColors';
-import { colorOf } from '../../tree/schematicGeometry';
+import type { PartPalette } from '../../services/design/partColors';
+import { outsideAppearance } from '../../services/design/appearance';
 
 /**
  * The trajectory geometry behind FlightPath3D.
@@ -261,7 +261,7 @@ export type Recovery =
 export function findRecovery(tree: RocketTree, palette: PartPalette): Recovery {
   const n = findRecoveryDevices(tree)[0];
   if (!n) return null;
-  const color = colorOf(n, colorForType(n.type, palette));
+  const color = outsideAppearance(n, palette).paint;
   return n.type === 'parachute'
     ? { kind: 'parachute', diameter: num(n, 'diameter', KERNEL_DEFAULTS.parachute.diameter), color }
     : {

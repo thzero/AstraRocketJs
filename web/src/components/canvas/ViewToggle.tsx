@@ -21,5 +21,5 @@ export function ViewToggle({
 }) {
   const { t } = useTranslation();
   const views = family === 'result' ? RESULT_VIEWS : DESIGN_VIEWS;
-  return <Segmented size="sm" options={views} value={view} onChange={onChange} fmt={(v) => t(`view.${v}`)} />;
+  return <Segmented size="bar" options={views} value={view} onChange={onChange} fmt={(v) => t(`view.${v}`)} />;
 }
